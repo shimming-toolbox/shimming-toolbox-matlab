@@ -1,5 +1,18 @@
 classdef MaRdI
+
+% =========================================================================
+properties
+    img ;
+    Hdr ;
+end
+
+% =========================================================================
+% =========================================================================    
+methods
+% =========================================================================    
+function Img = MaRdI( dataLoadDirectory )
 %MaRdI Ma(t)-R-dI(com)
+%
 %   Dicom into Matlab for Siemens MRI data
 %
 % Img = MaRdI( dataLoadDirectory )
@@ -13,6 +26,30 @@ classdef MaRdI
 %
 % 2015
 % topfer@ualberta.ca 
+
+    if ( nargin == 0 )
+        help(mfilename); 
+        return; 
+    end;
+    
+    listOfDicoms           = dir( [ dataLoadDirectory '/*.dcm'] );
+    Img.Hdr                = dicominfo( [ dataLoadDirectory '/' listOfDicoms(1).name] ) ;
+    
+    Img.Hdr.NumberOfSlices = uint16( length(listOfDicoms) ) ;
+    
+    Img.img                = double( dicomread( [ dataLoadDirectory '/' listOfDicoms(1).name] ) )  ;
+
+    for sliceIndex = 2 : Img.Hdr.NumberOfSlices
+        Img.img(:,:,sliceIndex) = dicomread([ dataLoadDirectory '/' listOfDicoms(sliceIndex).name]) ;
+    end
+    
+    Img = Img.scaleimgtophysical( ) ;   
+
+    if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
+        Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
+    end
+
+end
 % =========================================================================
 % *** TODO
 % 
@@ -53,39 +90,6 @@ classdef MaRdI
 %   Weird flip-conditional for slice direction? Is this OK??
 %     
 % =========================================================================
-
-properties
-    img ;
-    Hdr ;
-end
-
-methods
-
-function Img = MaRdI( dataLoadDirectory )
-
-    if ( nargin == 0 )
-        help(mfilename); 
-        return; 
-    end;
-    
-    listOfDicoms           = dir( [ dataLoadDirectory '/*.dcm'] );
-    Img.Hdr                = dicominfo( [ dataLoadDirectory '/' listOfDicoms(1).name] ) ;
-    
-    Img.Hdr.NumberOfSlices = uint16( length(listOfDicoms) ) ;
-    
-    Img.img                = double( dicomread( [ dataLoadDirectory '/' listOfDicoms(1).name] ) )  ;
-
-    for sliceIndex = 2 : Img.Hdr.NumberOfSlices
-        Img.img(:,:,sliceIndex) = dicomread([ dataLoadDirectory '/' listOfDicoms(sliceIndex).name]) ;
-    end
-    
-    Img = Img.scaleimgtophysical( ) ;   
-
-    if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
-        Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
-    end
-
-end
 
 function Img = scaleimgtophysical( Img, undoFlag )
 %SCALEIMGTOPHYSICAL
@@ -246,7 +250,7 @@ function Img = zeropad( Img, padSize, padDirection )
     end
 
 end
-
+% =========================================================================
 function Img = scalephasetofrequency( Img, undoFlag )
     %SCALEPHASETOFREQUENCY
     %
@@ -278,7 +282,8 @@ end
 function GYRO = getgyromagneticratio( Img )
 %GETGYROMAGNETICRATIO
 %
-% Examines .Hdr of MaRdI-type Img for .ImagedNucleus and returns gyromagnetic ratio in units of rad/s/T 
+% Examines .Hdr of MaRdI-type Img for .ImagedNucleus and returns gyromagnetic
+% ratio in units of rad/s/T 
 %
 % .....
 %
@@ -360,11 +365,7 @@ function Phase = unwrapphase( Phase, varargin )
     Img.Hdr.ImageType         = 'DERIVED\SECONDARY' ; 
     Img.Hdr.SeriesDescription = ['phase_unwrapped_' seriesDescriptionUnwrapper ] ; 
 end
-
-function voxelSize = getvoxelsize( Img )
-    voxelSize = [ Img.Hdr.PixelSpacing(1) Img.Hdr.PixelSpacing(2) Img.Hdr.SpacingBetweenSlices ] ;
-end
-
+% =========================================================================
 function Field = mapfrequencydifference( Phase1, Phase2 )
 %MAPFREQUENCYDIFFERENCE
 % 
@@ -379,7 +380,12 @@ function Field = mapfrequencydifference( Phase1, Phase2 )
     
     %-------
     % mask
-    mask = Phase2.Hdr.MaskingImage .* Phase1.Hdr.MaskingImage ;
+    if myisfield( Phase1.Hdr, 'MaskingImage' ) || ~isempty( Phase1.Hdr.MaskingImage ) ; 
+        mask = Phase1.Hdr.MaskingImage ;
+    end
+    if myisfield( Phase2.Hdr, 'MaskingImage' ) || ~isempty( Phase2.Hdr.MaskingImage ) ; 
+        mask = mask .* Phase2.Hdr.MaskingImage ;
+    end
 
     %-------
     % field map
@@ -397,20 +403,7 @@ function Field = mapfrequencydifference( Phase1, Phase2 )
     Field.Hdr.SeriesDescription = ['frequency_' Field.Hdr.SeriesDescription] ; 
 end
 
-function fieldOfView = getfieldofview( Img )
-    fieldOfView = [ Img.Hdr.PixelSpacing(1) * double( Img.Hdr.Rows -1 ), ...
-                    Img.Hdr.PixelSpacing(2) * double( Img.Hdr.Columns -1 ), ...
-                    Img.Hdr.SpacingBetweenSlices * double( Img.Hdr.NumberOfSlices -1 ) ] ;
-end
-
-function gridSize = getgridsize( Img )
-    gridSize = double( [ Img.Hdr.Rows, Img.Hdr.Columns, Img.Hdr.NumberOfSlices ] ) ;
-end
-
-function nVoxels = getnumberofvoxels( Img )
-    nVoxels = prod( Img.getgridsize( ) ) ;
-end
-
+% =========================================================================
 function [rHat,cHat,sHat] = getdirectionalcosines( Img ) 
 % GETDIRECTIONALCOSINES
 % 
@@ -430,7 +423,21 @@ function [rHat,cHat,sHat] = getdirectionalcosines( Img )
     end
 
 end 
-
+% =========================================================================
+function fieldOfView = getfieldofview( Img )
+    fieldOfView = [ Img.Hdr.PixelSpacing(1) * double( Img.Hdr.Rows -1 ), ...
+                    Img.Hdr.PixelSpacing(2) * double( Img.Hdr.Columns -1 ), ...
+                    Img.Hdr.SpacingBetweenSlices * double( Img.Hdr.NumberOfSlices -1 ) ] ;
+end
+% =========================================================================
+function gridSize = getgridsize( Img )
+    gridSize = double( [ Img.Hdr.Rows, Img.Hdr.Columns, Img.Hdr.NumberOfSlices ] ) ;
+end
+% =========================================================================
+function nVoxels = getnumberofvoxels( Img )
+    nVoxels = prod( Img.getgridsize( ) ) ;
+end
+% =========================================================================
 function [X,Y,Z] = getvoxelpositions( Img )
 % GETVOXELPOSITIONS
 % 
@@ -457,7 +464,7 @@ function [X,Y,Z] = getvoxelpositions( Img )
             
     [R,C,S] = ndgrid( [0:1:Img.Hdr.Rows-1], ...
                       [0:1:Img.Hdr.Columns-1], ...
-                      [0:1:(Img.Hdr.NumberOfSlices-1)] ) ; % likely backward
+                      [0:1:(Img.Hdr.NumberOfSlices-1)] ) ; 
                       
     %-------
     % SCALE to physical by sample spacing 
@@ -483,8 +490,12 @@ function [X,Y,Z] = getvoxelpositions( Img )
     Z = Img.Hdr.ImagePositionPatient(3) + Z1 ; 
 
 end
-
-
+% =========================================================================
+function voxelSize = getvoxelsize( Img )
+    voxelSize = [ Img.Hdr.PixelSpacing(1) Img.Hdr.PixelSpacing(2) ...
+        Img.Hdr.SpacingBetweenSlices ] ;
+end
+% =========================================================================
 function Img = resliceimg( Img, X_1, Y_1, Z_1, interpolationMethod ) 
 %RESLICEIMG
 %
@@ -496,21 +507,27 @@ function Img = resliceimg( Img, X_1, Y_1, Z_1, interpolationMethod )
 %   
 %   Optional interpolationMethod is a string supported by griddata().
 %   See: help griddata  
-%
-% TODO
-%   griddata takes too f-ing long.
-%   write interp function in cpp
 
     %%------ 
     % Reslice to new resolution
     if nargin < 5
         interpolationMethod = 'linear' ;
     end
+
+    nImgStacks = size(Img.img, 4) ;
     
     [X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
     
-    Img.img = griddata( X_0, Y_0, Z_0, Img.img, X_1, Y_1, Z_1, interpolationMethod ) ;
+    tmp = zeros( [ size(X_1) nImgStacks ] ) ;
     
+    for iImgStack = 1 : nImgStacks     
+        disp( ['Reslicing image stack...' num2str(iImgStack) ' of ' num2str(nImgStacks) ]) ;
+        
+        tmp(:,:,:,iImgStack) = ...
+            griddata( X_0, Y_0, Z_0, Img.img(:,:,:,iImgStack), X_1, Y_1, Z_1, interpolationMethod ) ;
+    end
+   
+    Img.img = tmp ; 
     % if new positions are outside the range of the original, 
     % interp3/griddata replaces array entries with NaN
     Img.img( isnan( Img.img ) ) = 0 ; 
@@ -565,8 +582,7 @@ function Img = resliceimg( Img, X_1, Y_1, Z_1, interpolationMethod )
         cross( Img.Hdr.ImageOrientationPatient(4:6), Img.Hdr.ImageOrientationPatient(1:3) ) ) ;
 
 end
-
-
+% =========================================================================
 function [] = write( Img, dataSaveDirectory )
     %WRITE Ma(t)-R-dI(com)
     % 
@@ -650,8 +666,11 @@ function [] = write( Img, dataSaveDirectory )
     
     end
 end
+% =========================================================================
 
 end
+% =========================================================================
+% =========================================================================
 
 
 

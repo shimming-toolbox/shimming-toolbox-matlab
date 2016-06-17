@@ -1,23 +1,17 @@
-classdef ShimOpt
+classdef ShimOpt < MaRdI
 %SHIMOPT
-% 
-% Shim Optimization
+%
+% Shim Optimization, a MaRdI subclass (i.e. ShimOpt < MaRdI)
 %
 % =========================================================================
 % *** TODO 
 % .....
-% Generally:
-%   Lots of overlap between ShimOpt and MaRdI methods. 
-%   Can ShimOpt be a MaRdI subclass? 
+%   Shim optimization and (more importantly) field map interpolation
+%   would be faster were the field maps initially cropped to the approximate
+%   dimensions of the shim VOI. Procedurally (re:scan) this may not make sense
+%   if our protocol remains [1) acq. field maps 2) acq. anatomical for VOI]...
 %
-%   Rename Shims.mask as Shims.support ?
-%       Shims.Operator as Shims.operator ?
 % .....
-% INTERPTOCALIBRATIONGRID()
-%   Rename as INTERPTOREFERENCEGRID()
-%   (check conflicts)
-%
-%% .....
 % OPTIMIZESHIMCURRENTS()
 %   Run (unconstrained) CG solver;
 %   If solution achievable given system constraints, return solution;
@@ -41,12 +35,9 @@ classdef ShimOpt
 % =========================================================================
 
 properties
-    Hdr ;
     Field ;
     Model ;
     Parameters ;
-    Operator ;
-    mask ;
 end
 
 % =========================================================================
@@ -60,22 +51,24 @@ function Shim = ShimOpt( pathToCalibrationInfo )
 %
 %   Shim contains fields
 %
+%       .img
+%           Shim reference maps
+%
 %       .Hdr
 %           Info Re: calibration data
+%           (e.g. Hdr.MaskingImage defines the spatial support of the ref maps)
 %
 %       .Field
 %           Object of type MaRdI pertaining to field distribution to be shimmed
 %
 %       .Model
-%           .currents  (i)
-%           .field     (Ai)
-%
-%       .Operator    
-%           'Current-to-Field' matrix operator (A)
+%           .currents  
+%               Optimal shim current vector (i)
+%           .field     
+%               Optimal shim field from projection of i onto reference maps (Ai)
 %
 %       .Parameters
 %
-%       .mask
 % .......
     fprintf(['\n Preparing for shim \n\n #####  \n\n'...
             'Loading SpineShim calibration info from ' pathToCalibrationInfo '\n\n']) ;
@@ -93,24 +86,19 @@ function Shim = ShimOpt( pathToCalibrationInfo )
 
     %%-----
     % dBdI linear 'Current-to-Field' operator
-    Shim.Operator = SpineShim.img ;
-    % Shim.Operator = zeros( nVoxels, Shim.Parameters.nActiveChannels ) ; 
-    
-    % for channel = 1 : Shim.Parameters.nActiveChannels
-    %     Shim.Operator(:, channel) = reshape( SpineShim.img(:,:,:, channel), [nVoxels 1] ) ;
-    % end
+    Shim.img = SpineShim.img ;
+    Shim.Hdr.MaskingImage = SpineShim.mask ;
 
-    Shim.mask = SpineShim.mask ;
     Shim.Field = [ ] ;       
     Shim.Model = [ ] ; 
 
 end
 % =========================================================================
 function Shim = extractharmonicfield( Shim )
-    %EXTRACTHARMONICFIELD
-    % Extract (smooth) harmonic field via RESHARP (Sun, H. Magn Res Med, 2014)
-    %
-    % 
+%EXTRACTHARMONICFIELD
+% Extract (smooth) harmonic field via RESHARP (Sun, H. Magn Res Med, 2014)
+%
+% ------
     [localField, reducedMask ] = resharp( Shim.Field.img, ...
                                      Shim.Field.Hdr.MaskingImage, ... 
                                      Shim.Field.getvoxelsize(), ...
@@ -153,17 +141,190 @@ Shim.Model.currentsOffset = cgls( A'*M'*M*A, ... % least squares operator
 
 end
 % =========================================================================
-function Shim = definecouplingcoefficients( Shim, ...
-                    currentsInspired, currentsExpired, ...
-                    pressureInspired, pressureExpired )
-%DEFINECOUPLINGCOEFFICIENTS
-%
-%   iIn & iEx are vectors of optimal currents for inspired and expired fields.
-%   pIn & pEx the associated pressures (scalars)
+function Shim = calibraterealtimeupdates( Shims, Params )
+%CALIBRATEREALTIMEUPDATESPROBE
 %
 %   Syntax
 %
-%   Shim = DEFINECOUPLINGCOEFFICIENTS( Shim, iIn, iEx, pIn, pEx )
+%   couplingCoefficients = CALIBRATEREALTIMEUPDATES( Shims, Params )
+%
+%   Params.
+%       .pressureLogFilenames
+%           Cell array of (2) filenames (to be written) for each of the
+%           pressure logs recorded during the scans  
+%        
+%        .threshold 
+%           Used for phase unwrapping: voxels are excluded wherever the
+%           corresponding magnitude image falls below .threshold times the
+%           maximum recorded magnitude value
+%           [default : 0.01]
+%
+%       .maxRunTime 
+%           Max duration of pressure recording
+%           [default : 30 s]
+% ------
+disp(' ')
+disp('-------')
+disp('Calibrating respiratory probe.')
+
+DEFAULT_MAXRUNTIME = 30 ; % [units : s]
+% ------
+if  ~myisfield( Params, 'pressureLogFilenames' ) ...
+        || max( size( pressureLogFilenames ) ) < 2
+    error('Params.pressureLogFilenames must contain at least 2 filenames');
+end
+
+if  ~myisfield( Params, 'maxRunTime' ) || isempty( maxRunTime )  
+    Params.maxRunTime = DEFAULT_MAXRUNTIME ;
+end
+
+if  ~myisfield( Params, 'threshold' ) || isempty( threshold )  
+    Params.threshold = DEFAULT_THRESHOLD ;
+end
+
+% ------
+Probe = ProbeTracking ;
+
+nCalibrationScans = max( size(Params.pressureLogFilenames) ) ;
+pressureLogs      = cell{ nCalibrationScans, 1 } ;
+medianPressures   = zeros( nCalibrationScans, 1 ) ;
+
+% -------
+% Record pressure    
+for iCalibrationScan = 1 : nCalibrationScans
+    
+    isUserSatisfied = false ;
+
+    while ~isUserSatisfied
+        
+        disp(' ')
+        msg = ['Press [Enter] to begin recording calibration pressure log ' ...
+              num2str(iCalibrationScan) ' of ' num2str(nCalibrationScans) '.']
+        assert(isempty(msg),'Cancelled calibration.')
+        
+        Probe.Data.pressure = 0 ;
+        Probe = Probe.recordpressurelog( Params ) ;
+
+        % ------
+        % save p-log
+        pressureLogFid = fopen( ...
+            Params.pressureLogFilename{iCalibrationScan}, 'w+' ) ;
+        fwrite( pressureLogFid, Probe.Data.pressure, 'double' ) ;
+        fclose( pressureLogFid );
+
+        figure ;
+        plot( pressureLog, '+' ) ;
+        title( Params.pressureLogFilename{iCalibrationScan} ) ;
+        xlabel('Sample index');
+        ylabel('Pressure (0.01 mbar)');
+        
+        response = input(['Is the current pressure log satisfactory?' ...
+            'Enter 0 to rerecord; 1 to continue']) ;
+
+        isUserSatisfied = logical(response) ;
+
+    end
+
+    pressureLogs{ iCalibrationScan } = pressureLog ;
+end
+
+% -------
+% Determine median apnea-pressure
+for iCalibrationScan = 1 : nCalibrationScans
+
+    disp(' ')
+    disp(['Determine median pressure during apnea : ' ...
+          num2str(iCalibrationScan) ' of ' num2str(nCalibrationScans) '.']) ;
+    
+    pressureLog = pressureLogs{ iCalibrationScan } ; % (for brevity)
+
+    isUserSatisfied = false ;
+
+    while ~isUserSatisfied
+        
+        gcf ;
+        plot( pressureLog, '+' ) ;
+        title( Params.pressureLogFilename{iCalibrationScan} ) ;
+        xlabel('Sample index');
+        ylabel('Pressure (0.01 mbar)');
+        
+        apneaStartIndex = ...
+            input( ['Identify sample index corresponding to beginning of apnea ' ...
+                '([Enter] selects sample 1)'] ) ;
+        if isempty(apneaStartIndex)
+            apneaStartIndex = 1;
+        end
+
+        apneaEndIndex = ...
+            input( ['Identify sample index corresponding to end of apnea ' ...
+                '([Enter] selects the last recorded sample)'] ) ;
+
+        if isempty(apneaEndIndex)
+           medianPressures(iCalibrationScan) = ...
+               median( pressureLog( apneaStartIndex : end ) ) ;
+        else
+           medianPressures(iCalibrationScan) = ...
+               median( pressureLog( apneaStartIndex : apneaEndIndex ) ) ;
+        end
+
+        gcf; 
+        plot( pressureLog, '+' );
+        hold on;
+        plot( medianPressures*ones( size( pressureLog ) ) ) ;
+        title( Params.pressureLogFilename{iCalibrationScan}) ;
+        xlabel('Sample index');
+        ylabel('Pressure (0.01 mbar)');
+        legend('Pressure log','Median pressure over given interval');    
+        hold off;
+    
+        response = input(['Is the current pressure log satisfactory?' ...
+            'Enter 0 to rerecord; 1 to continue']) ;
+
+        isUserSatisfied = logical(response) ;
+    end
+
+end
+
+
+% ------
+disp(' ')
+disp('Processing associated GRE data')
+
+for iCalibrationScan = 1 : nCalibrationScans
+
+% msg = ['Enter directory 
+% of begin recording calibration pressure log ' ...
+%       num2str(iCalibrationScan) ' of num2str(nCalibrationScans)])
+% assert(isempty(msg),'Cancelled calibration.')
+end
+
+% ------
+disp(' ')
+disp('Determining optimal pressure-to-field coupling coefficients')
+disp('(May take several minutes)')
+
+% Specs = ShimSpecs();
+%
+%
+% A = Shim.getshimoperator ;
+%
+% Shim.Model.couplingCoefficients = ...
+%     A*(currentsExpired - currentsInspired)/(pressureInspired - pressureExpired) ;
+%
+
+end
+% =========================================================================
+function Shim = setcouplingcoefficients( Shim, ...
+                    currentsInspired, currentsExpired, ...
+                    pressureInspired, pressureExpired )
+%SETCOUPLINGCOEFFICIENTS
+%
+%   Syntax
+%
+%   Shim = SETCOUPLINGCOEFFICIENTS( Shim, iIn, iEx, pIn, pEx )
+%
+%   iIn & iEx are vectors of optimal currents for inspired and expired fields.
+%   pIn & pEx the associated pressures (scalars)
 %
 %       creates field Shim.Model.couplingCoefficients
 % ------
@@ -280,19 +441,19 @@ function [C, Ceq] = first_order_norm( currents )
     % bank 3
     i3 = X3*currents;
 
-    % Overall abs current cannot exceed 20 A / bank 
+    % Overall abs current cannot exceed Specs.Amp.maxCurrentPerBank (e.g. 20 A)
     C(1) = sum( abs(i0) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
     C(2) = sum( abs(i1) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
     C(3) = sum( abs(i2) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
     C(4) = sum( abs(i3) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
 
-    % pos. current cannot exceed +10 A / bank 
+    % pos. current cannot exceed Specs.Amp.maxCurrentPerRail (e.g. + 10 A) 
     C(5) = abs(sum( ((i0>0) .* i0) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
     C(6) = abs(sum( ((i1>0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
     C(7) = abs(sum( ((i2>0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
     C(8) = abs(sum( ((i3>0) .* i3) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
     
-    % neg. current cannot be below -10 A / bank 
+    % neg. current cannot be below Specs.Amp.maxCurrentPerRail (e.g. - 10 A) 
     C(9)  = abs(sum( ((i0<0) .* i0) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
     C(10) = abs(sum( ((i1<0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
     C(11) = abs(sum( ((i2<0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
@@ -301,214 +462,34 @@ function [C, Ceq] = first_order_norm( currents )
 end
 
 end
-% =========================================================================
-function nVoxels = getnumberofvoxels( Shim )
-    nVoxels = prod( Shim.getgridsize( ) ) ;
-
-end
-% =========================================================================
-function fieldOfView = getfieldofview( Shim )
-    fieldOfView = [ Shim.Hdr.PixelSpacing(1) * double( Shim.Hdr.Rows - 1 ), ...
-                    Shim.Hdr.PixelSpacing(2) * double( Shim.Hdr.Columns - 1 ), ...
-                    Shim.Hdr.SpacingBetweenSlices * double( Shim.Hdr.NumberOfSlices - 1) ] ;
-
-end
-% =========================================================================
-function voxelSize = getvoxelsize( Shim )
-    voxelSize = [ Shim.Hdr.PixelSpacing(1) Shim.Hdr.PixelSpacing(2) Shim.Hdr.SpacingBetweenSlices ] ;
-
-end
-% =========================================================================
-function gridSize = getgridsize( Shim )
-    gridSize = [ Shim.Hdr.Rows, Shim.Hdr.Columns, Shim.Hdr.NumberOfSlices ] ;
-
-end
-% =========================================================================
-function [rHat,cHat,sHat] = getdirectionalcosines( Shim ) 
-% GETDIRECTIONALCOSINES
-% 
-% [r,c,s] = GETDIRECTIONALCOSINES( Shim ) 
-%   r: directional cosine of image rows relative to dicom reference coordinate system axes
-%   c: " " of image columns relative to " "
-%   s: " " of image slices relatice to " "
-      
-    rHat = Shim.Hdr.ImageOrientationPatient(1:3) ;  % unit vector row dir
-    cHat = Shim.Hdr.ImageOrientationPatient(4:6) ; % unit vector column dir
-    sHat = cross( rHat, cHat ) ;  % unit vector slice direction
-    
-    % in general, the coordinate is increasing along slice dimension with slice index:
-    [~,iS] = max( abs(sHat) ) ;
-    if sHat(iS) < 0
-        sHat = -sHat ;
-    end
-
-end 
-% =========================================================================
-function [X,Y,Z] = getvoxelpositions( Shim )
-% GETVOXELPOSITIONS
-% 
-% [X,Y,Z] = GETVOXELPOSITIONS( Img ) 
+% % =========================================================================
+% function [] = assessshimvolume( Shim )
+%     fprintf( ['\n Comparing Defined Vs. Desired (Image) shim volumes\n'...
+%              '(In mm, relative to isocentre)\n...'] )
 %
-%   Returns three 3D arrays of doubles, each element containing the
-%   location [units: mm] of the corresponding voxel with respect to 
-%   DICOM's 'Reference Coordinate System'.
-
-    [rHat, cHat, sHat] = Shim.getdirectionalcosines() ; 
-    
-    % form DICOM standard: https://www.dabsoft.ch/dicom/3/C.7.6.2.1.1/
-    %
-    % If Anatomical Orientation Type (0010,2210) is absent or has a value of
-    % BIPED, the x-axis is increasing to the left hand side of the patient. The
-    % y-axis is increasing to the posterior side of the patient. The z-axis is
-    % increasing toward the head of the patient.
-    %
-    % Arrays containing row, column, and slice indices of each voxel
-    assert( ~myisfield( Shim.Hdr, 'AnatomicalOrientationType' ) || ...
-            strcmp( Shim.Hdr.AnatomicalOrientationType, 'BIPED' ), ...
-            'Error: AnatomicalOrientationType not supported.' ) ;
-            
-    [R,C,S] = ndgrid( [0:1:Shim.Hdr.Rows-1], ...
-                      [0:1:Shim.Hdr.Columns-1], ...
-                      [0:1:(Shim.Hdr.NumberOfSlices-1)] ) ; 
-
-    %-------
-    % SCALE to physical by sample spacing 
-    % (i.e. grid size, i.e. effective voxel size) 
-    voxelSize = Shim.getvoxelsize() ;
-    
-    R = voxelSize(1)*double(R);
-    C = voxelSize(2)*double(C);
-    S = voxelSize(3)*double(S);
-
-    %-------
-    % ROTATE to align row direction with x-axis, 
-    % column direction with y-axis, slice with z-axis
-    X1 = cHat(1)*R + rHat(1)*C + sHat(1)*S;
-    Y1 = cHat(2)*R + rHat(2)*C + sHat(2)*S;
-    Z1 = cHat(3)*R + rHat(3)*C + sHat(3)*S;
-
-    %-------
-    % TRANSLATE w.r.t. origin 
-    % (i.e. location of 1st element: .img(1,1,1))
-    X = Shim.Hdr.ImagePositionPatient(1) + X1 ; 
-    Y = Shim.Hdr.ImagePositionPatient(2) + Y1 ; 
-    Z = Shim.Hdr.ImagePositionPatient(3) + Z1 ; 
-
-end
-% =========================================================================
-function Shim = resliceimg( Shim, X_1, Y_1, Z_1, interpolationMethod ) 
-%RESLICEIMG
+%     [X,Y,Z] = Shim.getvoxelpositions( ) ;
+%     X = X( logical(Shim.Hdr.MaskingImage) ) ;
+%     Y = Y( logical(Shim.Hdr.MaskingImage) ) ;
+%     Z = Z( logical(Shim.Hdr.MaskingImage) ) ;
+%     
+%     fprintf( ['\n Shim volume defined over ' ...
+%                  '\n in Z (read [rows]):    ' num2str( [ min( X(:) ) max( X(:) ) ] ) ...
+%                  '\n in X (p.e. [columns]): ' num2str( [ min( Y(:) ) max( Y(:) ) ] ) ...
+%                  '\n in Y (slice):          ' num2str( [ min( Z(:) ) max( Z(:) ) ] ) ...
+%                  '\n']) ;
 %
-%   Shim = RESLICEIMG( Shim, X, Y, Z )
-%   Shim = RESLICEIMG( Shim, X, Y, Z, interpolationMethod ) 
+%     [X,Y,Z] = Shim.Field.getvoxelpositions( ) ;
+%     X = X( logical(Shim.Field.Hdr.MaskingImage) ) ;
+%     Y = Y( logical(Shim.Field.Hdr.MaskingImage) ) ;
+%     Z = Z( logical(Shim.Field.Hdr.MaskingImage) ) ;
 %
-%   X, Y, Z MUST refer to X, Y, Z patient coordinates (i.e. of the DICOM
-%   reference coordinate system)
-%   
-%   Optional interpolationMethod is a string supported by griddata().
-%   See: help griddata  
+%     fprintf( ['\n Image volume defined over ' ...
+%                  '\n in Z (read [rows]):    ' num2str( [ min( X(:) ) max( X(:) ) ] ) ...
+%                  '\n in X (p.e. [columns]): ' num2str( [ min( Y(:) ) max( Y(:) ) ] ) ...
+%                  '\n in Y (slice):          ' num2str( [ min( Z(:) ) max( Z(:) ) ] ) ...
+%                  '\n']) ;
 %
-
-    %%------ 
-    % Reslice to new resolution
-    if nargin < 5
-        interpolationMethod = 'linear' ;
-    end
-    
-    [X_0, Y_0, Z_0] = Shim.getvoxelpositions( ) ;
-  
-    Tmp = zeros( [size(X_1) Shim.Parameters.nActiveChannels] ) ;
-
-    for iChannel = 1 : Shim.Parameters.nActiveChannels    
-        disp( iChannel ) ;
-
-        Tmp(:,:,:,iChannel) = ...
-            griddata( X_0, Y_0, Z_0, Shim.Operator(:,:,:,iChannel), X_1, Y_1, Z_1, interpolationMethod ) ;
-    end
-
-    Shim.Operator = Tmp ;
-    % if new positions are outside the range of the original, 
-    % interp3/griddata replaces array entries with NaN
-    Shim.Operator( isnan( Shim.Operator ) ) = 0 ; 
-
-    % ------------------------------------------------------------------------
-    
-    % ------------------------------------------------------------------------
-    % Update header
-    Shim.Hdr.ImageType = 'DERIVED\SECONDARY\REFORMATTED' ;
-
-   
-    Shim.Hdr.ImagePositionPatient( 1 ) = X_1(1) ; 
-    Shim.Hdr.ImagePositionPatient( 2 ) = Y_1(1) ;
-    Shim.Hdr.ImagePositionPatient( 3 ) = Z_1(1) ;
-
-    %-------
-    % Rows 
-    Shim.Hdr.Rows = size(Shim.Operator, 1) ;
-    
-    dx = X_1(1,2,1) - X_1(1,1,1) ;
-    dy = Y_1(1,2,1) - Y_1(1,1,1) ;
-    dz = Z_1(1,2,1) - Z_1(1,1,1) ;  
-    
-    Shim.Hdr.PixelSpacing(1) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
-    
-    Shim.Hdr.ImageOrientationPatient(1) = dx/Shim.Hdr.PixelSpacing(1) ;
-    Shim.Hdr.ImageOrientationPatient(2) = dy/Shim.Hdr.PixelSpacing(1) ;
-    Shim.Hdr.ImageOrientationPatient(3) = dz/Shim.Hdr.PixelSpacing(1) ;
-
-    %-------
-    % Columns 
-    Shim.Hdr.Columns = size(Shim.Operator, 2) ;       
-    
-    dx = X_1(2,1,1) - X_1(1,1,1) ;
-    dy = Y_1(2,1,1) - Y_1(1,1,1) ;
-    dz = Z_1(2,1,1) - Z_1(1,1,1) ;  
-    
-    Shim.Hdr.PixelSpacing(2) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
- 
-    Shim.Hdr.ImageOrientationPatient(4) = dx/Shim.Hdr.PixelSpacing(2) ;
-    Shim.Hdr.ImageOrientationPatient(5) = dy/Shim.Hdr.PixelSpacing(2) ;
-    Shim.Hdr.ImageOrientationPatient(6) = dz/Shim.Hdr.PixelSpacing(2) ;
-   
-    %-------
-    % Slices
-    Shim.Hdr.NumberOfSlices       = size(Shim.Operator, 3) ;
-    Shim.Hdr.SpacingBetweenSlices = ( (X_1(1,1,2) - X_1(1,1,1))^2 + ...
-                                     (Y_1(1,1,2) - Y_1(1,1,1))^2 + ...
-                                     (Z_1(1,1,2) - Z_1(1,1,1))^2 ) ^(0.5) ;
-    
-    Shim.Hdr.SliceLocation = dot( [X_1(1) Y_1(1) Z_1(1)],  ... 
-        cross( Shim.Hdr.ImageOrientationPatient(4:6), Shim.Hdr.ImageOrientationPatient(1:3) ) ) ;
-
-end
-% =========================================================================
-function [] = assessshimvolume( Shim )
-    fprintf( ['\n Comparing Defined Vs. Desired (Image) shim volumes\n'...
-             '(In mm, relative to isocentre)\n...'] )
-
-    [X,Y,Z] = Shim.getvoxelpositions( ) ;
-    X = X( logical(Shim.mask) ) ;
-    Y = Y( logical(Shim.mask) ) ;
-    Z = Z( logical(Shim.mask) ) ;
-    
-    fprintf( ['\n Shim volume defined over ' ...
-                 '\n in Z (read [rows]):    ' num2str( [ min( X(:) ) max( X(:) ) ] ) ...
-                 '\n in X (p.e. [columns]): ' num2str( [ min( Y(:) ) max( Y(:) ) ] ) ...
-                 '\n in Y (slice):          ' num2str( [ min( Z(:) ) max( Z(:) ) ] ) ...
-                 '\n']) ;
-
-    [X,Y,Z] = Shim.Field.getvoxelpositions( ) ;
-    X = X( logical(Shim.Field.Hdr.MaskingImage) ) ;
-    Y = Y( logical(Shim.Field.Hdr.MaskingImage) ) ;
-    Z = Z( logical(Shim.Field.Hdr.MaskingImage) ) ;
-
-    fprintf( ['\n Image volume defined over ' ...
-                 '\n in Z (read [rows]):    ' num2str( [ min( X(:) ) max( X(:) ) ] ) ...
-                 '\n in X (p.e. [columns]): ' num2str( [ min( Y(:) ) max( Y(:) ) ] ) ...
-                 '\n in Y (slice):          ' num2str( [ min( Z(:) ) max( Z(:) ) ] ) ...
-                 '\n']) ;
-
-end
+% end
 % =========================================================================
 function Shim = forwardmodelfield( Shim )
 %FORWARDMODELFIELD
@@ -518,19 +499,12 @@ function Shim = forwardmodelfield( Shim )
     A = zeros( nVoxels, Shim.Parameters.nActiveChannels ) ; 
     
     for channel = 1 : Shim.Parameters.nActiveChannels
-        A(:, channel) = reshape( Shim.Operator(:,:,:, channel), [nVoxels 1] ) ;
-        % A(:, channel) = reshape( Shim.Field.Hdr.MaskingImage .* Shim.Operator(:,:,:, channel), [nVoxels 1] ) ;
+        A(:, channel) = reshape( Shim.img(:,:,:, channel), [nVoxels 1] ) ;
+        % A(:, channel) = reshape( Shim.Field.Hdr.MaskingImage .* Shim.img(:,:,:, channel), [nVoxels 1] ) ;
     end
 
     Shim.Model.field = reshape( A*Shim.Model.currents, size( Shim.Field.img ) ) ;
 
-end
-% =========================================================================
-function [Img] = interptocalibrationgrid( Shim, Img )
-%RCS = (DICOM) Reference Coordinate System
-    [RCS_X, RCS_Y, RCS_Z] = Shim.getvoxelpositions( ) ;
-
-    Img = Img.resliceimg( RCS_X, RCS_Y, RCS_Z ) ;
 end
 % =========================================================================
 function M = gettruncationoperator( Shim )
@@ -538,7 +512,7 @@ function M = gettruncationoperator( Shim )
 %
 % M = GETTRUNCATIONOPERATOR( Shim ) ;
 %
-% Truncation (masking) operator (e.g. M*b, 'picks out' the voi voxels from 
+% Truncation .Hdr.MaskingImageing) operator (e.g. M*b, 'picks out' the voi voxels from 
 % vector b)
 
 nVoxelsImg = numel( Shim.Field.Hdr.MaskingImage ) ;
@@ -548,9 +522,6 @@ indicesVoi = find( Shim.Field.Hdr.MaskingImage(:) ) ;
 
 M = sparse( [1:nVoxelsVoi], indicesVoi, ones([nVoxelsVoi 1]), nVoxelsVoi, nVoxelsImg ) ;
 
-% % M = sparse( find(sum(I, 2) ~= 0 ), unique(indexEp), ones([nEpRecoverable 1]), nRows, nVoxelsImg ) ;
-%     
-% M = NaN  
 end
 % =========================================================================
 function A = getshimoperator( Shim )
@@ -565,7 +536,7 @@ nVoxelsImg = Shim.getnumberofvoxels() ;
 A = zeros( nVoxelsImg, Shim.Parameters.nActiveChannels ) ; 
 
 for channel = 1 : Shim.Parameters.nActiveChannels
-    A(:, channel) = reshape( Shim.Operator(:,:,:, channel), [nVoxelsImg 1] ) ;
+    A(:, channel) = reshape( Shim.img(:,:,:, channel), [nVoxelsImg 1] ) ;
 end
 
 end
@@ -609,7 +580,7 @@ PhaseEcho2.Hdr.MaskingImage = ( MagEcho2.img ) > Params.threshold ;
 
 % -------------------------------------------------------------------------
 % Unwrap phase 
-% (Using Abdul-Rahman metho)
+% (Using Abdul-Rahman method)
 PhaseEcho1 = PhaseEcho1.unwrapphase( ) ;
 PhaseEcho2 = PhaseEcho2.unwrapphase( ) ;
 
@@ -631,3 +602,4 @@ end
 % =========================================================================
 
 end
+
