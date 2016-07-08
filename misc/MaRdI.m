@@ -1,6 +1,7 @@
 classdef MaRdI
 
 % =========================================================================
+% =========================================================================
 properties
     img ;
     Hdr ;
@@ -24,8 +25,9 @@ function Img = MaRdI( dataLoadDirectory )
 %       .Hdr    (header of the first DICOM file read by dir( dataLoadDirectory ) ) 
 % .......
 %
-% 2015
-% topfer@ualberta.ca 
+% =========================================================================
+% Updated::ryan.topfer@polymtl.ca::Mon 20 Jun 2016 18:29:28 EDT
+% =========================================================================
 
     if ( nargin == 0 )
         help(mfilename); 
@@ -88,6 +90,9 @@ end
 % ..... 
 % GETDIRECTIONALCOSINES()
 %   Weird flip-conditional for slice direction? Is this OK??
+% ..... 
+% NII()
+%  Write function to save as Nifti
 %     
 % =========================================================================
 
@@ -313,7 +318,7 @@ function Phase = unwrapphase( Phase, varargin )
 %    To call the Abdul-Rahman unwrapper  
 % 
 %	    Phase = UNWRAPPHASE( Phase, Options )
-%       Phase is an object of type MaRdI
+%       Phase is an object of type MaRdI and has defined Phase.Hdr.MaskingImage
 %       See HELP UNWRAP3D for description of Options 
 %
 %    .......................

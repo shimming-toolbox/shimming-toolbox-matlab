@@ -3,6 +3,47 @@ classdef ShimOpt < MaRdI
 %
 % Shim Optimization, a MaRdI subclass (i.e. ShimOpt < MaRdI)
 %
+% .......
+%
+% Shim = ShimOpt( pathToCalibrationInfo )
+%
+%   Shim contains fields
+%
+%       .img
+%           Shim reference maps
+%
+%       .Hdr
+%           Info Re: calibration data
+%           (e.g. Hdr.MaskingImage defines the spatial support of the ref maps)
+%
+%       .Field
+%           Object of type MaRdI pertaining to field distribution to be shimmed
+%
+%       .Model
+%           .currents  
+%               Optimal shim current vector (i)
+%           .field     
+%               Optimal shim field from projection of i onto reference maps (Ai)
+%
+%       .Parameters
+%
+%       .Probe
+%           Object of type ProbeTracking
+%           (i.e. the respiratory probe for real-time shimming.)
+%
+% =========================================================================
+% Part of series of classes pertaining to shimming:
+%
+%     ProbeTracking
+%     ShimCom
+%     ShimOpt
+%     ShimSpecs
+%     ShimUse
+%     
+% =========================================================================
+% Updated::ryan.topfer@polymtl.ca::Mon 20 Jun 2016 18:15:05 EDT
+% =========================================================================
+
 % =========================================================================
 % *** TODO 
 % .....
@@ -31,6 +72,9 @@ classdef ShimOpt < MaRdI
 % RESLICEIMG()
 %   griddata takes too f-ing long.
 %   write interp function in cpp
+% .....
+% RE: Pressure reading (e.g. CALIBRATE...) 
+%   Do not write to file until finish. (unless this can be done very rapidly!) 
 %
 % =========================================================================
 
@@ -38,6 +82,7 @@ properties
     Field ;
     Model ;
     Parameters ;
+    Probe ;
 end
 
 % =========================================================================
@@ -47,29 +92,6 @@ methods
 function Shim = ShimOpt( pathToCalibrationInfo )
 %SHIMOPT - Shim Optimization
 %
-% Shim = ShimOpt( pathToCalibrationInfo )
-%
-%   Shim contains fields
-%
-%       .img
-%           Shim reference maps
-%
-%       .Hdr
-%           Info Re: calibration data
-%           (e.g. Hdr.MaskingImage defines the spatial support of the ref maps)
-%
-%       .Field
-%           Object of type MaRdI pertaining to field distribution to be shimmed
-%
-%       .Model
-%           .currents  
-%               Optimal shim current vector (i)
-%           .field     
-%               Optimal shim field from projection of i onto reference maps (Ai)
-%
-%       .Parameters
-%
-% .......
     fprintf(['\n Preparing for shim \n\n #####  \n\n'...
             'Loading SpineShim calibration info from ' pathToCalibrationInfo '\n\n']) ;
 
@@ -91,6 +113,7 @@ function Shim = ShimOpt( pathToCalibrationInfo )
 
     Shim.Field = [ ] ;       
     Shim.Model = [ ] ; 
+    Shim.Probe = [ ] ; 
 
 end
 % =========================================================================
@@ -99,17 +122,15 @@ function Shim = extractharmonicfield( Shim )
 % Extract (smooth) harmonic field via RESHARP (Sun, H. Magn Res Med, 2014)
 %
 % ------
-    [localField, reducedMask ] = resharp( Shim.Field.img, ...
-                                     Shim.Field.Hdr.MaskingImage, ... 
-                                     Shim.Field.getvoxelsize(), ...
-                                     2*Shim.Field.getvoxelsize(), ...
-                                     0) ;
+[localField, reducedMask ] = resharp( Shim.Field.img, ...
+                                 Shim.Field.Hdr.MaskingImage, ... 
+                                 Shim.Field.getvoxelsize(), ...
+                                 2*Shim.Field.getvoxelsize(), ...
+                                 0) ;
 
-    reducedMask                = shaver(reducedMask, 1) ;
-
-    Shim.Field.img             = reducedMask .* ( Shim.Field.img - localField ) ;
-
-    Shim.Field.Hdr.MaskingImage = reducedMask ;
+reducedMask                 = shaver(reducedMask, 1) ;
+Shim.Field.img              = reducedMask .* ( Shim.Field.img - localField ) ;
+Shim.Field.Hdr.MaskingImage = reducedMask ;
 
 end
 % =========================================================================
@@ -117,6 +138,7 @@ function Shim = computecurrentsoffset( Shim, ...
                     currentsInspired, currentsExpired, ...
                     pressureInspired, pressureExpired )
 %COMPUTECURRENTSOFFSET
+% (DC offset // bias)
 %
 %   Syntax
 %
@@ -141,16 +163,14 @@ Shim.Model.currentsOffset = cgls( A'*M'*M*A, ... % least squares operator
 
 end
 % =========================================================================
-function Shim = calibraterealtimeupdates( Shims, Params )
+function Shim = calibraterealtimeupdates( Shim, Params )
 %CALIBRATEREALTIMEUPDATESPROBE
 %
 %   Syntax
 %
-%   couplingCoefficients = CALIBRATEREALTIMEUPDATES( Shims, Params )
-%
 %   Params.
 %       .pressureLogFilenames
-%           Cell array of (2) filenames (to be written) for each of the
+%           Cell array of 2 or more filenames to be written for each of the
 %           pressure logs recorded during the scans  
 %        
 %        .threshold 
@@ -163,9 +183,7 @@ function Shim = calibraterealtimeupdates( Shims, Params )
 %           Max duration of pressure recording
 %           [default : 30 s]
 % ------
-disp(' ')
-disp('-------')
-disp('Calibrating respiratory probe.')
+fprintf('\n-----\n \t Calibrating respiratory probe.\n')
 
 DEFAULT_MAXRUNTIME = 30 ; % [units : s]
 % ------
@@ -174,16 +192,19 @@ if  ~myisfield( Params, 'pressureLogFilenames' ) ...
     error('Params.pressureLogFilenames must contain at least 2 filenames');
 end
 
-if  ~myisfield( Params, 'maxRunTime' ) || isempty( maxRunTime )  
+if  ~myisfield( Params, 'maxRunTime' ) || isempty( Params.maxRunTime )  
     Params.maxRunTime = DEFAULT_MAXRUNTIME ;
 end
 
-if  ~myisfield( Params, 'threshold' ) || isempty( threshold )  
+if  ~myisfield( Params, 'threshold' ) || isempty( Params.threshold )  
     Params.threshold = DEFAULT_THRESHOLD ;
 end
 
 % ------
-Probe = ProbeTracking ;
+if  ~myisfield( Shim, 'Probe' ) || isempty( Shim.Probe )  
+    Shim.Probe = ProbeTracking ;
+end
+
 
 nCalibrationScans = max( size(Params.pressureLogFilenames) ) ;
 pressureLogs      = cell{ nCalibrationScans, 1 } ;
@@ -193,115 +214,91 @@ medianPressures   = zeros( nCalibrationScans, 1 ) ;
 % Record pressure    
 for iCalibrationScan = 1 : nCalibrationScans
     
-    isUserSatisfied = false ;
-
-    while ~isUserSatisfied
-        
-        disp(' ')
-        msg = ['Press [Enter] to begin recording calibration pressure log ' ...
-              num2str(iCalibrationScan) ' of ' num2str(nCalibrationScans) '.']
-        assert(isempty(msg),'Cancelled calibration.')
-        
-        Probe.Data.pressure = 0 ;
-        Probe = Probe.recordpressurelog( Params ) ;
-
-        % ------
-        % save p-log
-        pressureLogFid = fopen( ...
-            Params.pressureLogFilename{iCalibrationScan}, 'w+' ) ;
-        fwrite( pressureLogFid, Probe.Data.pressure, 'double' ) ;
-        fclose( pressureLogFid );
-
-        figure ;
-        plot( pressureLog, '+' ) ;
-        title( Params.pressureLogFilename{iCalibrationScan} ) ;
-        xlabel('Sample index');
-        ylabel('Pressure (0.01 mbar)');
-        
-        response = input(['Is the current pressure log satisfactory?' ...
-            'Enter 0 to rerecord; 1 to continue']) ;
-
-        isUserSatisfied = logical(response) ;
-
-    end
-
-    pressureLogs{ iCalibrationScan } = pressureLog ;
+    % isUserSatisfied = false ;
+    %
+    % while ~isUserSatisfied
+    %     
+    %     disp(' ')
+    %     msg = ['Press [Enter] to begin recording calibration pressure log ' ...
+    %           num2str(iCalibrationScan) ' of ' num2str(nCalibrationScans) '.']
+    %     assert(isempty(msg),'Cancelled calibration.')
+    %     
+    %     Shim.Probe.Data.pressure = 0 ;
+    %     Shim.Probe = Shim.Probe.recordpressurelog( Params ) ;
+    %
+    %     % ------
+    %     % save p-log
+    %     pressureLogFid = fopen( ...
+    %         Params.pressureLogFilename{iCalibrationScan}, 'w+' ) ;
+    %     fwrite( pressureLogFid, Shim.Probe.Data.pressure, 'double' ) ;
+    %     fclose( pressureLogFid );
+    %
+    %     figure ;
+    %     plot( pressureLog, '+' ) ;
+    %     title( Params.pressureLogFilename{iCalibrationScan} ) ;
+    %     xlabel('Sample index');
+    %     ylabel('Pressure (0.01 mbar)');
+    %     
+    %     response = input(['Is the current pressure log satisfactory?' ...
+    %         'Enter 0 to rerecord; 1 to continue']) ;
+    %
+    %     isUserSatisfied = logical(response) ;
+    %
+    % end
+    %
+    % pressureLogs{ iCalibrationScan } = pressureLog ;
 end
 
 % -------
 % Determine median apnea-pressure
 for iCalibrationScan = 1 : nCalibrationScans
 
-    disp(' ')
-    disp(['Determine median pressure during apnea : ' ...
-          num2str(iCalibrationScan) ' of ' num2str(nCalibrationScans) '.']) ;
+    fprintf(['\n Determine median pressure during apnea : \n \t ' ...
+          num2str(iCalibrationScan) ' of ' num2str(nCalibrationScans) '.\n']) ;
     
-    pressureLog = pressureLogs{ iCalibrationScan } ; % (for brevity)
-
-    isUserSatisfied = false ;
-
-    while ~isUserSatisfied
-        
-        gcf ;
-        plot( pressureLog, '+' ) ;
-        title( Params.pressureLogFilename{iCalibrationScan} ) ;
-        xlabel('Sample index');
-        ylabel('Pressure (0.01 mbar)');
-        
-        apneaStartIndex = ...
-            input( ['Identify sample index corresponding to beginning of apnea ' ...
-                '([Enter] selects sample 1)'] ) ;
-        if isempty(apneaStartIndex)
-            apneaStartIndex = 1;
-        end
-
-        apneaEndIndex = ...
-            input( ['Identify sample index corresponding to end of apnea ' ...
-                '([Enter] selects the last recorded sample)'] ) ;
-
-        if isempty(apneaEndIndex)
-           medianPressures(iCalibrationScan) = ...
-               median( pressureLog( apneaStartIndex : end ) ) ;
-        else
-           medianPressures(iCalibrationScan) = ...
-               median( pressureLog( apneaStartIndex : apneaEndIndex ) ) ;
-        end
-
-        gcf; 
-        plot( pressureLog, '+' );
-        hold on;
-        plot( medianPressures*ones( size( pressureLog ) ) ) ;
-        title( Params.pressureLogFilename{iCalibrationScan}) ;
-        xlabel('Sample index');
-        ylabel('Pressure (0.01 mbar)');
-        legend('Pressure log','Median pressure over given interval');    
-        hold off;
-    
-        response = input(['Is the current pressure log satisfactory?' ...
-            'Enter 0 to rerecord; 1 to continue']) ;
-
-        isUserSatisfied = logical(response) ;
-    end
+    medianPressures{ iCalibrationScan } = ...
+        ProbeTracking.userselectmedianpressure(  pressureLogs{ iCalibrationScan } ) ; 
 
 end
 
 
 % ------
-disp(' ')
-disp('Processing associated GRE data')
+fprintf('\n Processing associated GRE data...\n')
 
 for iCalibrationScan = 1 : nCalibrationScans
 
-% msg = ['Enter directory 
-% of begin recording calibration pressure log ' ...
-%       num2str(iCalibrationScan) ' of num2str(nCalibrationScans)])
-% assert(isempty(msg),'Cancelled calibration.')
+    % msg = ['Enter directory 
+    % of begin recording calibration pressure log ' ...
+    %       num2str(iCalibrationScan) ' of num2str(nCalibrationScans)])
+    % assert(isempty(msg),'Cancelled calibration.')
+    Params.threshold = 0.01 ; % as percent of max measured intensity.
+
+    Params.pathToShimReferenceMaps = '~/Projects/Shimming/RRI/data/SpineShimReferenceMaps.mat' ;
+
+    Params.dataLoadDir  = '/Users/ryan/Projects/Shimming/Static/SpineShimMrm2016/data/24112015/shim_007/' ;
+
+    Params.Path.Mag.echo1  = [Params.dataLoadDir '03-gre_fieldmapping/echo_4.92' ] ;
+    Params.Path.Mag.echo2  = [Params.dataLoadDir '03-gre_fieldmapping/echo_7.38' ] ;
+
+    Params.Path.Phase.echo1 = [Params.dataLoadDir '04-gre_fieldmapping/echo_4.92' ] ;
+    Params.Path.Phase.echo2 = [Params.dataLoadDir '04-gre_fieldmapping/echo_7.38' ] ;
+
+
+    % =========================================================================
+    % PROCESS GRE FIELD MAP
+    % =========================================================================
+    [Field,Extras] = ShimOpt.mapfield( Params )
+
+    Extras.PhaseEcho2.img = Extras.PhaseEcho2.Hdr.MaskingImage .* ( Extras.PhaseEcho2.img + 2*pi ) ;
+
+    Field = Extras.PhaseEcho1.mapfrequencydifference( Extras.PhaseEcho2 ) ;
+
+    Field.Hdr.MaskingImage = Extras.PhaseEcho1.Hdr.MaskingImage .* Extras.PhaseEcho2.Hdr.MaskingImage ; 
 end
 
 % ------
-disp(' ')
-disp('Determining optimal pressure-to-field coupling coefficients')
-disp('(May take several minutes)')
+fprintf(['\n Determining optimal pressure-to-field coupling coefficients' ...
+    '(May take several minutes)'])
 
 % Specs = ShimSpecs();
 %
@@ -328,8 +325,6 @@ function Shim = setcouplingcoefficients( Shim, ...
 %
 %       creates field Shim.Model.couplingCoefficients
 % ------
-Specs = ShimSpecs();
-
 
 A = Shim.getshimoperator ;
 
@@ -375,7 +370,7 @@ Shim.Model.currents = cgls( A'*M'*M*A, ... % least squares operator
                             Shim.Parameters.CG ) ;
 
 % ------- 
-% check sol vector for conditions 
+% TODO: CHECK SOL. VECTOR FOR CONDITIONS 
 isCurrentSolutionOk = false ;
 
 if ~isCurrentSolutionOk
@@ -492,18 +487,16 @@ end
 % end
 % =========================================================================
 function Shim = forwardmodelfield( Shim )
-%FORWARDMODELFIELD
+% FORWARDMODELFIELD
+%
+% Shim = FORWARDMODELFIELD( Shim ) ;
+%
+%   Predicts shim field (output: Shim.Model.field) for given set of currents 
+%   (input: Shim.Model.currents)
     
-    nVoxels = Shim.getnumberofvoxels() ;
+A = Shim.getshimoperator() ;
 
-    A = zeros( nVoxels, Shim.Parameters.nActiveChannels ) ; 
-    
-    for channel = 1 : Shim.Parameters.nActiveChannels
-        A(:, channel) = reshape( Shim.img(:,:,:, channel), [nVoxels 1] ) ;
-        % A(:, channel) = reshape( Shim.Field.Hdr.MaskingImage .* Shim.img(:,:,:, channel), [nVoxels 1] ) ;
-    end
-
-    Shim.Model.field = reshape( A*Shim.Model.currents, size( Shim.Field.img ) ) ;
+Shim.Model.field = reshape( A*Shim.Model.currents, size( Shim.Field.img ) ) ;
 
 end
 % =========================================================================
@@ -512,8 +505,8 @@ function M = gettruncationoperator( Shim )
 %
 % M = GETTRUNCATIONOPERATOR( Shim ) ;
 %
-% Truncation .Hdr.MaskingImageing) operator (e.g. M*b, 'picks out' the voi voxels from 
-% vector b)
+% Truncation .Hdr.MaskingImageing) operator (e.g. M*b, 'picks out' the voi
+% voxels from vector b)
 
 nVoxelsImg = numel( Shim.Field.Hdr.MaskingImage ) ;
 nVoxelsVoi = nnz( Shim.Field.Hdr.MaskingImage ) ;
