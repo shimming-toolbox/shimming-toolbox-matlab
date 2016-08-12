@@ -103,9 +103,6 @@ end
 % =========================================================================
 function [Probe] = recordandplotpressurelog( Probe, Params ) 
 %RECORDANDPLOTPRESSURELOG    
-%
-%
-%
 
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;

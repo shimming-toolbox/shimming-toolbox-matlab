@@ -17,6 +17,7 @@ function Img = MaRdI( dataLoadDirectory )
 %   Dicom into Matlab for Siemens MRI data
 %
 % Img = MaRdI( dataLoadDirectory )
+% Img = MaRdI( dataLoadDirectory, Params )
 %
 %   Img contains fields
 %
@@ -26,30 +27,38 @@ function Img = MaRdI( dataLoadDirectory )
 % .......
 %
 % =========================================================================
-% Updated::ryan.topfer@polymtl.ca::Mon 20 Jun 2016 18:29:28 EDT
+% Updated::20160802::ryan.topfer@polymtl.ca
 % =========================================================================
 
-    if ( nargin == 0 )
-        help(mfilename); 
-        return; 
-    end;
-    
-    listOfDicoms           = dir( [ dataLoadDirectory '/*.dcm'] );
-    Img.Hdr                = dicominfo( [ dataLoadDirectory '/' listOfDicoms(1).name] ) ;
+if ( nargin == 0 )
+    help(mfilename); 
+    return; 
+end;
+
+listOfDicoms = dir( [ dataLoadDirectory '/*.dcm'] );
+Img.Hdr      = dicominfo( [ dataLoadDirectory '/' listOfDicoms(1).name] ) ;
+
+Img.img      = double( dicomread( [ dataLoadDirectory '/' listOfDicoms(1).name] ) )  ;
+
+if (length(listOfDicoms)==1) && ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
+
+    Img = reshapemosaic( Img ) ;
+
+else
     
     Img.Hdr.NumberOfSlices = uint16( length(listOfDicoms) ) ;
     
-    Img.img                = double( dicomread( [ dataLoadDirectory '/' listOfDicoms(1).name] ) )  ;
-
     for sliceIndex = 2 : Img.Hdr.NumberOfSlices
         Img.img(:,:,sliceIndex) = dicomread([ dataLoadDirectory '/' listOfDicoms(sliceIndex).name]) ;
     end
-    
-    Img = Img.scaleimgtophysical( ) ;   
 
-    if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
-        Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
-    end
+end
+
+Img = Img.scaleimgtophysical( ) ;   
+
+if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
+    Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
+end
 
 end
 % =========================================================================
@@ -61,7 +70,9 @@ end
 %   Option to call Img = MaRdI( img, Hdr ) 
 %   such that an object can be instantiated using an array of doubles and 
 %   an appropriate dicom Hdr.  
-%
+% ..... 
+% CROPIMG
+%   make compatible for odd-sized arrays
 % ..... 
 % RESLICEIMG()
 %   griddata takes too f-ing long.
@@ -88,8 +99,10 @@ end
 % multiple images are valid (e.g. voxel positions are the same) 
 %
 % ..... 
-% GETDIRECTIONALCOSINES()
+% GETDIRECTIONCOSINES()
 %   Weird flip-conditional for slice direction? Is this OK??
+%   Siemens private header apprently contains field SliceNormalVector.
+%
 % ..... 
 % NII()
 %  Write function to save as Nifti
@@ -122,6 +135,7 @@ function Img = scaleimgtophysical( Img, undoFlag )
         if ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) ) % is raw SIEMENS phase
             Img.img            = pi*Img.img ; % scale to rad
             Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\P\' ; 
+            Img.Hdr.PixelRepresentation = uint8(1) ; % i.e. signed 
         
         else ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) ) % is raw SIEMENS mag
             Img.img            = Img.img/max(Img.img(:)) ; % normalize 
@@ -136,11 +150,8 @@ function Img = scaleimgtophysical( Img, undoFlag )
 
     else
         Img.Hdr.RescaleIntercept = min( Img.img(:) ) ;
-    
         Img.img                  = Img.img - Img.Hdr.RescaleIntercept ;
-    
         Img.Hdr.RescaleSlope     = max( Img.img(:) )/double(2^Img.Hdr.BitsStored ) ;
-    
         Img.img                  = uint16( Img.img / Img.Hdr.RescaleSlope ) ;
 
     end
@@ -183,7 +194,7 @@ function Img = cropimg( Img, gridSizeImgCropped )
    
     Img.Hdr.ImagePositionPatient = [x0 y0 z0] ;
 
-    [rHat, cHat, sHat] = Img.getdirectionalcosines( ) ;  
+    [rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 
     Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
 
@@ -230,20 +241,20 @@ function Img = zeropad( Img, padSize, padDirection )
         
         voxelSize = Img.getvoxelsize() ;
 
-        dr = voxelSize(1) ;
-        dc = voxelSize(2) ;
+        dr = voxelSize(1) ; % spacing btwn rows 
+        dc = voxelSize(2) ; % spacing btwn columns
         ds = voxelSize(3) ;
         
         nr = padSize(1) ;
         nc = padSize(2) ;
         ns = padSize(3) ;
         
-        [rHat, cHat, sHat] = Img.getdirectionalcosines( ) ;
+        [r, c, s] = Img.getdirectioncosines( ) ;
 
         % -1 because the zeros are padded before ('pre') 1st element (origin)        
-        dx = -1*( cHat(1)*dr*nr + rHat(1)*dc*nc + sHat(1)*ds*ns ) ; 
-        dy = -1*( cHat(2)*dr*nr + rHat(2)*dc*nc + sHat(2)*ds*ns ) ;
-        dz = -1*( cHat(3)*dr*nr + rHat(3)*dc*nc + sHat(3)*ds*ns ) ;
+        dx = -1*( r(1)*dr*nr + c(1)*dc*nc + s(1)*ds*ns ) ; 
+        dy = -1*( r(2)*dr*nr + c(2)*dc*nc + s(2)*ds*ns ) ;
+        dz = -1*( r(3)*dr*nr + c(3)*dc*nc + s(3)*ds*ns ) ;
 
         x1 = Img.Hdr.ImagePositionPatient(1) + dx ;
         y1 = Img.Hdr.ImagePositionPatient(2) + dy ;
@@ -251,21 +262,21 @@ function Img = zeropad( Img, padSize, padDirection )
 
         Img.Hdr.ImagePositionPatient = [x1 y1 z1] ;
    
-        Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
+        Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, s ) ;
     end
 
 end
 % =========================================================================
 function Img = scalephasetofrequency( Img, undoFlag )
-    %SCALEPHASETOFREQUENCY
-    %
-    % Converts unwrapped phase [units:rad] to field [units: Hz]
-    % 
-    %   Field = scalephasetofrequency( UnwrappedPhase )
-    %
-    % .....
-    %
-    % UnwrappedPhase.Hdr.EchoTime              [units: ms]
+%SCALEPHASETOFREQUENCY
+%
+% Converts unwrapped phase [units:rad] to field [units: Hz]
+% 
+%   Field = scalephasetofrequency( UnwrappedPhase )
+%
+% .....
+%
+% UnwrappedPhase.Hdr.EchoTime              [units: ms]
 
     scalingFactor = 1/( 2*pi*Img.Hdr.EchoTime*(1E-3)  ) ;
     
@@ -409,38 +420,55 @@ function Field = mapfrequencydifference( Phase1, Phase2 )
 end
 
 % =========================================================================
-function [rHat,cHat,sHat] = getdirectionalcosines( Img ) 
+function [r,c,s] = getdirectioncosines( Img ) 
 % GETDIRECTIONALCOSINES
 % 
+%   "The direction cosines of a vector are the cosines of the angles between
+%   the vector and the three coordinate axes. Equivalently, they are the
+%   contributions of each component of the basis to a unit vector in that
+%   direction." 
+%   https://en.wikipedia.org/wiki/Direction_cosine
+%
 % [r,c,s] = GETDIRECTIONALCOSINES( Img ) 
-%   r: directional cosine of image rows relative to dicom reference coordinate system axes
-%   c: " " of image columns relative to " "
-%   s: " " of image slices relatice to " "
+%   r: row index direction cosine
+%   c: column index " "
+%   s: slice index " "
       
-    rHat = Img.Hdr.ImageOrientationPatient(1:3) ; % unit vector row dir
-    cHat = Img.Hdr.ImageOrientationPatient(4:6) ; % unit vector column dir
-    sHat = cross( rHat, cHat ) ; % unit vector slice direction
+    r = Img.Hdr.ImageOrientationPatient(4:6) ; 
+    c = Img.Hdr.ImageOrientationPatient(1:3) ; 
+    s = cross( c, r ) ;  
     
-    % in general, the coordinate is increasing along slice dimension with slice index:
-    [~,iS] = max( abs(sHat) ) ;
-    if sHat(iS) < 0
-        sHat = -sHat ;
+    % " To make a full rotation matrix, we can generate the last column from
+    % the cross product of the first two. However, Siemens defines, in its
+    % private CSA header, a SliceNormalVector which gives the third column, but
+    % possibly with a z flip, so that R is orthogonal, but not a rotation
+    % matrix (it has a determinant of < 0)."
+    %   -From http://nipy.org/nibabel/dicom/dicom_mosaic.html 
+    %
+    % In general, (I think) the coordinate is increasing along slice dimension
+    % with slice index:
+    [~,iS] = max( abs(s) ) ;
+    if s(iS) < 0
+        s = -s ;
     end
 
 end 
 % =========================================================================
 function fieldOfView = getfieldofview( Img )
-    fieldOfView = [ Img.Hdr.PixelSpacing(1) * double( Img.Hdr.Rows -1 ), ...
-                    Img.Hdr.PixelSpacing(2) * double( Img.Hdr.Columns -1 ), ...
-                    Img.Hdr.SpacingBetweenSlices * double( Img.Hdr.NumberOfSlices -1 ) ] ;
+%GETFIELDOFVIEW
+fieldOfView = [ Img.Hdr.PixelSpacing(1) * double( Img.Hdr.Rows -1 ), ...
+                Img.Hdr.PixelSpacing(2) * double( Img.Hdr.Columns -1 ), ...
+                Img.Hdr.SpacingBetweenSlices * double( Img.Hdr.NumberOfSlices -1 ) ] ;
 end
 % =========================================================================
 function gridSize = getgridsize( Img )
-    gridSize = double( [ Img.Hdr.Rows, Img.Hdr.Columns, Img.Hdr.NumberOfSlices ] ) ;
+%GETGRIDSIZE
+gridSize = double( [ Img.Hdr.Rows, Img.Hdr.Columns, Img.Hdr.NumberOfSlices ] ) ;
 end
 % =========================================================================
 function nVoxels = getnumberofvoxels( Img )
-    nVoxels = prod( Img.getgridsize( ) ) ;
+%GETNUMBEROFVOXELS
+nVoxels = prod( Img.getgridsize( ) ) ;
 end
 % =========================================================================
 function [X,Y,Z] = getvoxelpositions( Img )
@@ -451,9 +479,6 @@ function [X,Y,Z] = getvoxelpositions( Img )
 %   Returns three 3D arrays of doubles, each element containing the
 %   location [units: mm] of the corresponding voxel with respect to 
 %   DICOM's 'Reference Coordinate System'.
-
-    [rHat, cHat, sHat] = Img.getdirectionalcosines ;
-       
 
     % form DICOM standard: https://www.dabsoft.ch/dicom/3/C.7.6.2.1.1/
     %
@@ -467,25 +492,32 @@ function [X,Y,Z] = getvoxelpositions( Img )
             strcmp( Img.Hdr.AnatomicalOrientationType, 'BIPED' ), ...
             'Error: AnatomicalOrientationType not supported.' ) ;
             
-    [R,C,S] = ndgrid( [0:1:Img.Hdr.Rows-1], ...
+    [iRows,iColumns,iSlices] = ndgrid( [0:1:Img.Hdr.Rows-1], ...
                       [0:1:Img.Hdr.Columns-1], ...
                       [0:1:(Img.Hdr.NumberOfSlices-1)] ) ; 
+    
+    iRows    = double(iRows);
+    iColumns = double(iColumns);
+    iSlices  = double(iSlices);
+    
+    %-------
+    % Rotation matrix: R
+    [r, c, s] = Img.getdirectioncosines ;
+    R = [r c s] ; 
                       
     %-------
-    % SCALE to physical by sample spacing 
-    % (i.e. grid size, i.e. effective voxel size) 
+    % Scaling matrix: S  
     voxelSize = Img.getvoxelsize() ;
-    
-    R = voxelSize(1)*double(R);
-    C = voxelSize(2)*double(C);
-    S = voxelSize(3)*double(S);
+    S = diag(voxelSize); 
+
+    RS = R*S ;
 
     %-------
-    % ROTATE to align row direction with x-axis, 
+    % Scale and rotate to align row direction with x-axis, 
     % column direction with y-axis, slice with z-axis
-    X1 = cHat(1)*R + rHat(1)*C + sHat(1)*S;
-    Y1 = cHat(2)*R + rHat(2)*C + sHat(2)*S;
-    Z1 = cHat(3)*R + rHat(3)*C + sHat(3)*S;
+    X1 = RS(1,1)*iRows + RS(1,2)*iColumns + RS(1,3)*iSlices;
+    Y1 = RS(2,1)*iRows + RS(2,2)*iColumns + RS(2,3)*iSlices;
+    Z1 = RS(3,1)*iRows + RS(3,2)*iColumns + RS(3,3)*iSlices;
 
     %-------
     % TRANSLATE w.r.t. origin 
@@ -497,7 +529,23 @@ function [X,Y,Z] = getvoxelpositions( Img )
 end
 % =========================================================================
 function voxelSize = getvoxelsize( Img )
-    voxelSize = [ Img.Hdr.PixelSpacing(1) Img.Hdr.PixelSpacing(2) ...
+%GETVOXELSIZE
+% 
+% voxelSize = GETVOXELSIZE( Img )
+%       
+% Returns 3 component vector of voxel dimensions :
+%
+%   voxelSize(1) : row spacing in mm (spacing between the centers of adjacent
+%   rows, i.e. vertical spacing). 
+%
+%   voxelSize(2) : column spacing in mm (spacing between the centers of
+%   adjacent columns, i.e. horizontal spacing).    
+%
+%   voxelSize(3) : slice spacing in mm (spacing between the centers of
+%   adjacent slices, i.e. from the DICOM hdr, this is Hdr.SpacingBetweenSlices 
+%   - for a 2D acquisition this NOT necessarily the same as Hdr.SliceThickness).    
+
+voxelSize = [ Img.Hdr.PixelSpacing(1) Img.Hdr.PixelSpacing(2) ...
         Img.Hdr.SpacingBetweenSlices ] ;
 end
 % =========================================================================
@@ -513,170 +561,282 @@ function Img = resliceimg( Img, X_1, Y_1, Z_1, interpolationMethod )
 %   Optional interpolationMethod is a string supported by griddata().
 %   See: help griddata  
 
-    %%------ 
-    % Reslice to new resolution
-    if nargin < 5
-        interpolationMethod = 'linear' ;
-    end
+%------ 
+% Reslice to new resolution
+if nargin < 5
+    interpolationMethod = 'linear' ;
+end
 
-    nImgStacks = size(Img.img, 4) ;
-    
-    [X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
-    
-    tmp = zeros( [ size(X_1) nImgStacks ] ) ;
-    
-    for iImgStack = 1 : nImgStacks     
-        disp( ['Reslicing image stack...' num2str(iImgStack) ' of ' num2str(nImgStacks) ]) ;
-        
-        tmp(:,:,:,iImgStack) = ...
-            griddata( X_0, Y_0, Z_0, Img.img(:,:,:,iImgStack), X_1, Y_1, Z_1, interpolationMethod ) ;
-    end
-   
-    Img.img = tmp ; 
-    % if new positions are outside the range of the original, 
-    % interp3/griddata replaces array entries with NaN
-    Img.img( isnan( Img.img ) ) = 0 ; 
+nImgStacks = size(Img.img, 4) ;
 
-    % ------------------------------------------------------------------------
-    
-    % ------------------------------------------------------------------------
-    % Update header
-    Img.Hdr.ImageType = 'DERIVED\SECONDARY\REFORMATTED' ;
+[X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
 
-   
-    Img.Hdr.ImagePositionPatient( 1 ) = X_1(1) ; 
-    Img.Hdr.ImagePositionPatient( 2 ) = Y_1(1) ;
-    Img.Hdr.ImagePositionPatient( 3 ) = Z_1(1) ;
+tmp = zeros( [ size(X_1) nImgStacks ] ) ;
 
-    %-------
-    % Rows 
-    Img.Hdr.Rows = size(Img.img, 1) ;
+for iImgStack = 1 : nImgStacks     
+    disp( ['Reslicing image stack...' num2str(iImgStack) ' of ' num2str(nImgStacks) ]) ;
     
-    dx = X_1(1,2,1) - X_1(1,1,1) ;
-    dy = Y_1(1,2,1) - Y_1(1,1,1) ;
-    dz = Z_1(1,2,1) - Z_1(1,1,1) ;  
-    
-    Img.Hdr.PixelSpacing(1) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
-    
-    Img.Hdr.ImageOrientationPatient(1) = dx/Img.Hdr.PixelSpacing(1) ;
-    Img.Hdr.ImageOrientationPatient(2) = dy/Img.Hdr.PixelSpacing(1) ;
-    Img.Hdr.ImageOrientationPatient(3) = dz/Img.Hdr.PixelSpacing(1) ;
+    tmp(:,:,:,iImgStack) = ...
+        griddata( X_0, Y_0, Z_0, Img.img(:,:,:,iImgStack), X_1, Y_1, Z_1, interpolationMethod ) ;
+end
 
-    %-------
-    % Columns 
-    Img.Hdr.Columns = size(Img.img, 2) ;       
-    
-    dx = X_1(2,1,1) - X_1(1,1,1) ;
-    dy = Y_1(2,1,1) - Y_1(1,1,1) ;
-    dz = Z_1(2,1,1) - Z_1(1,1,1) ;  
-    
-    Img.Hdr.PixelSpacing(2) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
- 
-    Img.Hdr.ImageOrientationPatient(4) = dx/Img.Hdr.PixelSpacing(2) ;
-    Img.Hdr.ImageOrientationPatient(5) = dy/Img.Hdr.PixelSpacing(2) ;
-    Img.Hdr.ImageOrientationPatient(6) = dz/Img.Hdr.PixelSpacing(2) ;
-   
-    %-------
-    % Slices
-    Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
-    Img.Hdr.SpacingBetweenSlices = ( (X_1(1,1,2) - X_1(1,1,1))^2 + ...
-                                     (Y_1(1,1,2) - Y_1(1,1,1))^2 + ...
-                                     (Z_1(1,1,2) - Z_1(1,1,1))^2 ) ^(0.5) ;
-    
-    Img.Hdr.SliceLocation = dot( [X_1(1) Y_1(1) Z_1(1)],  ... 
-        cross( Img.Hdr.ImageOrientationPatient(4:6), Img.Hdr.ImageOrientationPatient(1:3) ) ) ;
+Img.img = tmp ; 
+% if new positions are outside the range of the original, 
+% interp3/griddata replaces array entries with NaN
+Img.img( isnan( Img.img ) ) = 0 ; 
+
+% ------------------------------------------------------------------------
+
+% ------------------------------------------------------------------------
+% Update header
+Img.Hdr.ImageType = 'DERIVED\SECONDARY\REFORMATTED' ;
+
+
+Img.Hdr.ImagePositionPatient( 1 ) = X_1(1) ; 
+Img.Hdr.ImagePositionPatient( 2 ) = Y_1(1) ;
+Img.Hdr.ImagePositionPatient( 3 ) = Z_1(1) ;
+
+%-------
+% Rows 
+Img.Hdr.Rows = size(Img.img, 1) ;
+
+dx = X_1(2,1,1) - X_1(1,1,1) ;
+dy = Y_1(2,1,1) - Y_1(1,1,1) ;
+dz = Z_1(2,1,1) - Z_1(1,1,1) ;  
+
+% vertical (row) spacing
+Img.Hdr.PixelSpacing(1) = ( dx^2 + dy^2 + dz^2 )^0.5 ; 
+
+% column direction cosine (expressing angle btw column direction and X,Y,Z axes)
+Img.Hdr.ImageOrientationPatient(4) = dx/Img.Hdr.PixelSpacing(1) ;
+Img.Hdr.ImageOrientationPatient(5) = dy/Img.Hdr.PixelSpacing(1) ;
+Img.Hdr.ImageOrientationPatient(6) = dz/Img.Hdr.PixelSpacing(1) ;
+
+%-------
+% Columns 
+Img.Hdr.Columns = size(Img.img, 2) ;       
+
+dx = X_1(1,2,1) - X_1(1,1,1) ;
+dy = Y_1(1,2,1) - Y_1(1,1,1) ;
+dz = Z_1(1,2,1) - Z_1(1,1,1) ;  
+
+% horizontal (column) spacing
+Img.Hdr.PixelSpacing(2) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
+
+% row direction cosine (expressing angle btw column direction and X,Y,Z axes)
+Img.Hdr.ImageOrientationPatient(1) = dx/Img.Hdr.PixelSpacing(2) ;
+Img.Hdr.ImageOrientationPatient(2) = dy/Img.Hdr.PixelSpacing(2) ;
+Img.Hdr.ImageOrientationPatient(3) = dz/Img.Hdr.PixelSpacing(2) ;
+
+%-------
+% Slices
+Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
+Img.Hdr.SpacingBetweenSlices = ( (X_1(1,1,2) - X_1(1,1,1))^2 + ...
+                                 (Y_1(1,1,2) - Y_1(1,1,1))^2 + ...
+                                 (Z_1(1,1,2) - Z_1(1,1,1))^2 ) ^(0.5) ;
+
+fprintf('\n WARNING \n Img.Hdr.SliceLocation may be incorrect. \n') ;
+
+Img.Hdr.SliceLocation = dot( [X_1(1) Y_1(1) Z_1(1)],  ... 
+    cross( Img.Hdr.ImageOrientationPatient(1:3), Img.Hdr.ImageOrientationPatient(4:6) ) ) ;
 
 end
 % =========================================================================
-function [] = write( Img, dataSaveDirectory )
-    %WRITE Ma(t)-R-dI(com)
-    % 
-    %.....
-    %   Syntax
-    %
-    %   WRITE( Img, dataSaveDirectory )
-    %.....
-    % Some of this is adapted from dicom_write_volume.m
-    % from D.Kroon University of Twente (May 2009)
-    %
-    % July 2015
-    % topfer@ualberta
-    
-    fprintf(['\n Writing img to: ' dataSaveDirectory ' ... \n'])
+function [] = write( Img, saveDirectory, imgFormat )
+%WRITE Ma(t)-R-dI(com)
+%
+%.....
+%   Syntax
+%
+%   WRITE( Img )
+%   WRITE( Img, saveDirectory )
+%   WRITE( Img, saveDirectory, imgFormat ) 
+%
+%   default saveDirectory = './tmp'
+%   
+%   imgFormat may be 'dcm' (default) or 'nii'
+%
+%.....
+%
+% Adapted from dicom_write_volume.m (D.Kroon, University of Twente, 2009)
 
-    [~,~,~] = mkdir( dataSaveDirectory ) ;
+DEFAULT_SAVEDIRECTORY = './tmp' ;
+DEFAULT_IMGFORMAT     = 'dcm' ;
 
-    Img = scaleimgtophysical( Img, -1 ) ;
+if nargin < 2 || isempty(saveDirectory)
+    saveDirectory = DEFAULT_SAVEDIRECTORY ;
+end
 
-    [X,Y,Z] = Img.getvoxelpositions() ;
+if nargin < 3 || isempty(imgFormat)
+    imgFormat = DEFAULT_IMGFORMAT ;
+end
+
+fprintf(['\n Writing images to: ' saveDirectory ' ... \n'])
+
+[~,~,~] = mkdir( saveDirectory ) ;
+
+% if strcmp( imgFormat, 'dcm' ) 
+%     Img = scaleimgtophysical( Img, -1 ) ;
+% end
+
+[X,Y,Z] = Img.getvoxelpositions() ;
+
+%-------
+% write Hdr
+
+% Make random series number
+SN                          = round(rand(1)*1000);
+% Get date of today
+today                       = [datestr(now,'yyyy') datestr(now,'mm') datestr(now,'dd')];
+Hdr.SeriesNumber            = SN;
+Hdr.AcquisitionNumber       = SN;
+Hdr.StudyDate               = today;
+Hdr.StudyID                 = num2str(SN);
+Hdr.PatientID               = num2str(SN);
+Hdr.AccessionNumber         = num2str(SN);
+Hdr.ImageType               = Img.Hdr.ImageType ;
+Hdr.StudyDescription        = ['StudyMAT' num2str(SN)];
+Hdr.SeriesDescription       = ['StudyMAT' num2str(SN)];
+Hdr.Manufacturer            = Img.Hdr.Manufacturer ;
+Hdr.ScanningSequence        = Img.Hdr.ScanningSequence ;
+Hdr.SequenceVariant         = Img.Hdr.SequenceVariant ;
+Hdr.ScanOptions             = Img.Hdr.ScanOptions ;
+Hdr.MRAcquisitionType       = Img.Hdr.MRAcquisitionType ;
+% Hdr.StudyInstanceUID        = Img.Hdr.StudyInstanceUID ;
+Hdr.SliceThickness          = Img.Hdr.SliceThickness ;
+Hdr.SpacingBetweenSlices    = Img.Hdr.SpacingBetweenSlices ;
+Hdr.PatientPosition         = Img.Hdr.PatientPosition ;
+Hdr.PixelSpacing            = Img.Hdr.PixelSpacing ;
+
+Hdr.ImageOrientationPatient = Img.Hdr.ImageOrientationPatient ;
+Hdr.SliceLocation           = Img.Hdr.SliceLocation ; 
+Hdr.NumberOfSlices          = Img.Hdr.NumberOfSlices ; 
+
+sHat = cross( Hdr.ImageOrientationPatient(4:6), Hdr.ImageOrientationPatient(1:3) ) ;
+
+for sliceIndex = 1 : Img.Hdr.NumberOfSlices 
     
     %-------
-    % write Hdr
-    
-    % Make random series number
-    SN                          = round(rand(1)*1000);
-    % Get date of today
-    today                       = [datestr(now,'yyyy') datestr(now,'mm') datestr(now,'dd')];
-    Hdr.SeriesNumber            = SN;
-    Hdr.AcquisitionNumber       = SN;
-    Hdr.StudyDate               = today;
-    Hdr.StudyID                 = num2str(SN);
-    Hdr.PatientID               = num2str(SN);
-    Hdr.AccessionNumber         = num2str(SN);
-    Hdr.ImageType               = Img.Hdr.ImageType ;
-    Hdr.StudyDescription        = ['StudyMAT' num2str(SN)];
-    Hdr.SeriesDescription       = ['StudyMAT' num2str(SN)];
-    Hdr.Manufacturer            = Img.Hdr.Manufacturer ;
-    Hdr.ScanningSequence        = Img.Hdr.ScanningSequence ;
-    Hdr.SequenceVariant         = Img.Hdr.SequenceVariant ;
-    Hdr.ScanOptions             = Img.Hdr.ScanOptions ;
-    Hdr.MRAcquisitionType       = Img.Hdr.MRAcquisitionType ;
-    % Hdr.StudyInstanceUID        = Img.Hdr.StudyInstanceUID ;
-    Hdr.SliceThickness          = Img.Hdr.SliceThickness ;
-    Hdr.SpacingBetweenSlices    = Img.Hdr.SpacingBetweenSlices ;
-    Hdr.PatientPosition         = Img.Hdr.PatientPosition ;
-    Hdr.PixelSpacing            = Img.Hdr.PixelSpacing ;
-    
-    Hdr.ImageOrientationPatient = Img.Hdr.ImageOrientationPatient ;
-    Hdr.SliceLocation           = Img.Hdr.SliceLocation ; 
-    Hdr.NumberOfSlices          = Img.Hdr.NumberOfSlices ; 
+    % filename 
+    sliceSuffix = '000000' ;
+    sliceSuffix = [sliceSuffix( length(sliceIndex) : end ) num2str(sliceIndex) ] ;
+    sliceSuffix = ['-' sliceSuffix '.dcm'] ;
+    filename    = [saveDirectory '/' Img.Hdr.PatientName.FamilyName sliceSuffix] ;
 
-    sHat = cross( Hdr.ImageOrientationPatient(4:6), Hdr.ImageOrientationPatient(1:3) ) ;
+    %-------
+    % slice specific hdr info 
+    Hdr.ImageNumber          = sliceIndex ;
+    Hdr.InstanceNumber       = sliceIndex ;
+    Hdr.ImagePositionPatient = [(X(1,1,sliceIndex)) (Y(1,1,sliceIndex)) (Z(1,1,sliceIndex))] ;
 
-    for sliceIndex = 1 : Img.Hdr.NumberOfSlices 
-        
-        %-------
-        % filename 
-        sliceSuffix = '000000' ;
-        sliceSuffix = [sliceSuffix( length(sliceIndex) : end ) num2str(sliceIndex) ] ;
-        sliceSuffix = ['-' sliceSuffix '.dcm'] ;
-        filename    = [dataSaveDirectory '/' Img.Hdr.PatientName.FamilyName sliceSuffix] ;
+    Hdr.SliceLocation        = dot( Hdr.ImagePositionPatient, sHat ) ;
+   
+    dicomwrite( Img.img(:,:,sliceIndex) , filename, ...; % Hdr ) ;
+        'ObjectType', 'MR Image Storage',Hdr ) ;
     
-        %-------
-        % slice specific hdr info 
-        Hdr.ImageNumber          = sliceIndex ;
-        Hdr.InstanceNumber       = sliceIndex ;
-        Hdr.ImagePositionPatient = [(X(1,1,sliceIndex)) (Y(1,1,sliceIndex)) (Z(1,1,sliceIndex))] ;
-
-        Hdr.SliceLocation        = dot( Hdr.ImagePositionPatient, sHat ) ;
-       
-        dicomwrite( Img.img(:,:,sliceIndex) , filename, ...; % Hdr ) ;
-            'ObjectType', 'MR Image Storage',Hdr ) ;
-        
-        if( sliceIndex==1 )
-            info                  = dicominfo( filename ) ;
-            Hdr.StudyInstanceUID  = info.StudyInstanceUID ;
-            Hdr.SeriesInstanceUID = info.SeriesInstanceUID ;
-        end
-    
+    if( sliceIndex==1 )
+        info                  = dicominfo( filename ) ;
+        Hdr.StudyInstanceUID  = info.StudyInstanceUID ;
+        Hdr.SeriesInstanceUID = info.SeriesInstanceUID ;
     end
+
+end
+
+%-------
+if strcmp( imgFormat, 'nii' ) 
+    
+    tmpSaveDirectory = [saveDirectory '_nii'] ;
+    [~,~,~] = mkdir( tmpSaveDirectory ) ;
+    
+    dicm2nii( saveDirectory, tmpSaveDirectory ) ;
+    rmdir( saveDirectory, 's' ) ;
+
+    copyfile( tmpSaveDirectory, saveDirectory ) ;
+    rmdir( tmpSaveDirectory, 's' ) ;
+end
+
+end
+% =========================================================================
+function Img = reshapemosaic( Img )
+%RESHAPEMOSAIC
+% 
+% Reshape Siemens mosaic into volume and remove padded zeros
+%
+% Adapted from dicm2nii by
+% xiangrui.li@gmail.com 
+% http://www.mathworks.com/matlabcentral/fileexchange/42997
+
+assert( ~isempty(strfind( Img.Hdr.ImageType, 'MOSAIC' ) ), 'Corrupt image header?' ) ;       
+
+Img.Hdr.NumberOfSlices = Img.Hdr.Private_0019_100a ;
+
+nImgPerLine = ceil( sqrt( double(Img.Hdr.NumberOfSlices) ) ); % always nImgPerLine x nImgPerLine tiles
+
+nRows    = size(Img.img, 1) / nImgPerLine; 
+nColumns = size(Img.img, 2) / nImgPerLine; 
+nVolumes = size(Img.img, 3 ) ;
+
+img = zeros([nRows nColumns Img.Hdr.NumberOfSlices nVolumes], class(Img.img));
+
+
+for iImg = 1 : double(Img.Hdr.NumberOfSlices)
+
+    % 2nd slice is tile(1,2)
+    r = floor((iImg-1)/nImgPerLine) * nRows + (1:nRows);     
+    c = mod(iImg-1, nImgPerLine) * nColumns + (1:nColumns);
+
+    img(:, :, iImg, :) = Img.img(r, c, :);
+end
+
+Img.img = img ;
+
+
+% -----
+% Update header
+
+% -----
+% Correct Hdr.ImagePositionPatient 
+%   see: http://nipy.org/nibabel/dicom/dicom_mosaic.html
+
+%-------
+% Rotation matrix: R
+[r, c, s] = Img.getdirectioncosines ;
+R = [r c s] ; 
+                  
+%-------
+% Scaling matrix: S  
+voxelSize = Img.getvoxelsize() ;
+S = diag(voxelSize); 
+
+RS = R*S ;
+
+Img.Hdr.ImagePositionPatient = Img.Hdr.ImagePositionPatient + ...
+    RS(:,1)*(double(Img.Hdr.Rows) - nRows)/2 + ...
+    RS(:,2)*(double(Img.Hdr.Columns) - nColumns)/2 ;
+
+
+Img.Hdr.Rows    = uint16(nRows) ;
+Img.Hdr.Columns = uint16(nColumns) ;
+
+tmp = strfind( Img.Hdr.ImageType, '\MOSAIC' ) ;
+if ~isempty(tmp) && (tmp > 1)
+    Img.Hdr.ImageType = Img.Hdr.ImageType(1:tmp-1) ;
+else
+    Img.Hdr.ImageType = '' ;    
+end
+
 end
 % =========================================================================
 
 end
 % =========================================================================
 % =========================================================================
+methods(Static)
 
+   
+end
+% =========================================================================
+% =========================================================================
 
 
 

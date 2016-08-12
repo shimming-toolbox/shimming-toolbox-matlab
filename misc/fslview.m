@@ -1,90 +1,105 @@
-function [] = fslview( dataArray, Options, varargin )
+function [] = fslview( img, Parameters, varargin )
 %FSLVIEW view 3d array in fslview
 %
 %   Syntax
 %
-%   fslview( dataArray )
-%   fslview( dataArray1, Options )
-%   fslview( dataArray1, Options, dataArray2, dataArray3, ... )
+%   fslview( img )
+%   fslview( img1, Parameters )
+%   fslview( img1, Parameters, img2, img3, ... )
 %
 %   Description
 %
-%   creates temporary nifti conversion of dataArray and passes it to fslview
+%   creates temporary nifti conversion of img and passes it to fslview
 %
 %   
-%       Options (object) to fslview input 
+%       Parameters (object) to fslview input 
 %       (see manual 'man fslview')
 %       
-%   The following Option-fields are supported
+%   The following Parameters fields are supported
+%   
+%   .voxelSize (3-component vector)
+%       default:
+%           [1 1 1] ;
 %
-%   l (color scheme: Full list avaible in FSLView GUI)  
+%   .l (color map: Full list avaible in FSLView GUI)  
 %       (e.g. one of: Greyscale, Red-Yellow, Blue-Lightblue,
-%              Red, Green, Blue, Yellow, Pink, Hot, Cool, Copper, ...)
-%       default: Options.l = 'Greyscale'
+%       Red, Green, Blue, Yellow, Pink, Hot, Cool, Copper, ...)
+%       default: 
+%           Parameters.l = 'Greyscale'
 %
-%   b (brightness)
-%           if scalar S: brightness {-Abs|S|,+Abs|S|} 
-%           if 2 component vector: brightness {S(1),S(2)} 
-%           default: Options.b = [min(dataArray), max(dataArray)] 
+%   .b (brightness)
+%       if scalar: 
+%           brightness = [-Abs|.b|,+Abs|.b|] 
+%       if 2 component vector: 
+%           brightness = [.b(1), .b(2)] 
+%       default: 
+%           brightness = [min(img), max(img)] 
 %
 %
+% =========================================================================
 % Ryan Topfer 2012
 % topfer@ualberta.ca
 
 % TODO
 % variable brightness and colorschme for each overlay
 
-img   = make_nii( double( dataArray ) ) ;
+% =========================================================================
+% Check inputs // Assign defaults
+% =========================================================================
+DEFAULT_COLORMAP  = 'Greyscale' ;
+DEFAULT_VOXELSIZE = [1 1 1] ;
 
-tmpImgNames = {'view3dtmp1.nii'} ;
-
-save_nii(img, char(tmpImgNames(1))) ;
-
-% call2Fslview = 'view3dtmp.nii ' ;
-
-if nargin == 1 || isempty(Options)
-    Options.dummy = [] ; %using defaults
+if nargin == 1 || isempty(Parameters)
+    Parameters.dummy = [] ; %using defaults
 end
 
+if  ~myisfield( Parameters, 'voxelSize' ) || isempty(Parameters.voxelSize)
+    Parameters.voxelSize = DEFAULT_VOXELSIZE ;
+end
 
-%% brightness levels
+%------ 
+% Brightness levels
 
-if ~myisfield( Options, 'b' ) || isempty(Options.b)
-    Options.b = [min(dataArray(:)) max(dataArray(:))] ;
+if ~myisfield( Parameters, 'b' ) || isempty(Parameters.b)
+    Parameters.b = [min(img(:)) max(img(:))] ;
     
-elseif size( Options.b, 2) == 1 ;
-    Options.b(2) = abs(Options.b) ;
-    Options.b(1) = -abs(Options.b(1)) ;
+elseif max( size( Parameters.b ) ) == 1 ;
+    Parameters.b(2) = abs(Parameters.b) ;
+    Parameters.b(1) = -abs(Parameters.b(1)) ;
 end
 
-viewOptions = [' -b "' num2str(Options.b(1)) ',' num2str(Options.b(2)) '"'];
+viewParameters = [' -b "' num2str(Parameters.b(1)) ',' num2str(Parameters.b(2)) '"'];
 
+%------ 
+% Color scheme
 
-%% color scheme
-
-if myisfield( Options, 'l' )
-    if isempty(Options.l)
-        Options.l = 'Greyscale' ;
+if myisfield( Parameters, 'l' )
+    if isempty(Parameters.l)
+        Parameters.l = DEFAULT_COLORMAP ; 
     end
-    viewOptions = [ viewOptions ' -l ' Options.l ] ;
+    viewParameters = [ viewParameters ' -l ' Parameters.l ] ;
 end
 
-%%
+filenames = {['view3dtmp1.nii']} ; 
+call2Fslview = strcat( filenames(1), viewParameters ) ;
 
-call2Fslview = strcat( tmpImgNames(1), viewOptions ) ;
+% =========================================================================
 
-%% Additional input images?
-numOverlays = nargin - 2 ;
+% =========================================================================
+Parameters.filename  = filenames{1} ;
+nii( img, Parameters ) ;
 
-for overlay = 1 : numOverlays
-    
-    img = make_nii( double( varargin{overlay} ) ) ;
-    
-    tmpImgNames{(overlay + 1)} = ['view3dtmp' int2str( overlay + 1 ) '.nii'] ;
-    
-    save_nii(img, char(tmpImgNames(overlay + 1)) ) ;
+%------ 
+% Additional input images?
+nImgs = nargin - 2 ;
 
-    call2Fslview = strcat( call2Fslview, {' '}, tmpImgNames{(overlay + 1)}, viewOptions) ;
+for iImg = 1 : nImgs
+   
+    filenames( iImg + 1 ) = {['view3dtmp' int2str( iImg + 1 ) '.nii']} ;
+    Parameters.filename = filenames( iImg + 1 ) ;
+    nii( varargin{iImg}, Parameters ) ;
+
+    call2Fslview = strcat( call2Fslview, {' '}, Parameters.filename, viewParameters) ;
 end
     
 call2Fslview = ['fslview ', char(call2Fslview), ' & '] ;
@@ -92,16 +107,9 @@ call2Fslview = ['fslview ', char(call2Fslview), ' & '] ;
 system( call2Fslview ) ;
 pause(5)
 
-call2rm = char( tmpImgNames ) ;
-call2rm(:, end + 1) = ' ' ;
-
-tmp = [] ;
-for k = 1 : size( call2rm, 1 ) 
-    tmp = [ tmp call2rm(k, :) ] ;
-end
-
-call2rm = tmp ;
-
-system( ['rm ' call2rm] ) ;
+% =========================================================================
+% Clean up
+% =========================================================================
+delete('view3dtmp*') ;
 
 end

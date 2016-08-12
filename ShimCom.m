@@ -29,7 +29,7 @@ classdef ShimCom
 %     ShimUse
 %     
 % =========================================================================
-% Updated::ryan.topfer@polymtl.ca::Tue 28 Jun 2016 18:23:55 EDT
+% Updated::20160802::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -81,11 +81,6 @@ classdef ShimCom
 %   replace ISACKRECEIVED() with this.
 %   Whenever the length of the received data differs from expectation
 %   (i.e. when it is 5) call CHECKCONTROLRESPONSE()
-%
-% ..... 
-% CALCULATECRC() 
-%
-%   shouldn't be static. 
 %     
 % ..... 
 %     
@@ -104,27 +99,15 @@ classdef ShimCom
 %  
 %   Documentation for how two's complement works.
 %
-% ..... 
-% MAPCOILSTOMXD()
-%
-%   currently performs 2 functions: the mapping of coil index (1-24) to bank/channel
-%   and also the display function, showing current for each channel. The latter 
-%   should be a separate function entirely, and should not be within this class.
-%
-%   also,
-%   skewed 4th column output corresponding to current for MXD channels > 9 ??
-%
 %     
 % =========================================================================
 
 properties   
-
     Cmd;
     ComPort;
     Data;
     Parameters;
     Specs;
-
 end
 
 % =========================================================================
@@ -152,7 +135,7 @@ Shims.Data.input  = uint8(0) ;
 % where C0 & C1 are the CRC bytes 
 %
 Shims.Parameters.ACK             = {'02'; '05'; '00'; '00'; 'CB'} ;
-Shims.Parameters.Unimplemented   = '01';
+Shims.Parameters.Unimplemented   = '01' ;
 Shims.Parameters.ParamOutOfRange = '02' ;
 Shims.Parameters.ErrorPresent    = '03' ;
 Shims.Parameters.NACK            = {'02'; '05'; 'FF'; '78'; 'C4'} ;
@@ -274,8 +257,18 @@ end
 % =========================================================================
 function SystemInfo = getsysteminformation( Shims ) 
 % SystemInfo = GETSYSTEMINFORMATION( Shims )
+% 
+% SystemInfo has fields
+%
+%   .SoftwareVersion
+%       .majorRevision
+%       .minorRevision
+%   .SystemModel
+%       .name
+%       .numberOfChannels
+%   .serialNumber
     
-% return byte: (1) sync ; (2) length; (3-6) data; (7-8) crc;  
+% return byte: (1) sync ; (2) length; (3-8) data; (9-10) crc;  
 Shims.Parameters.nBytesToRead = 10 ; % 
 
 % output message to read in shim values
@@ -301,6 +294,94 @@ SystemInfo.serialNumber = ...
     double( ShimCom.mergeints( Shims.Data.input(7), ...
                                Shims.Data.input(8), false ) ) ;
     
+end
+% =========================================================================
+function [] = setsystemcurrenttime( Shims, SystemTime ) 
+% [] = SETSYSTEMCURRENTTIME( Shims, SystemTime )
+%
+% SystemTime has fields
+%   
+%   .year
+%   .month
+%   .day
+%   .hour
+%   .minute
+%   .second
+    
+% -------
+Shims.Parameters.nBytesToRead = 5 ; 
+
+Shims.Data.output  = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
+
+if nargin < 2
+    error('Not enough arguments')
+end
+
+
+Shims.Data.output(2) = 12 ;
+Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setSystemCurrentTime ) ;
+
+Shims.Data.output(4) = uint8( SystemTime.month ) ;
+Shims.Data.output(5) = uint8( SystemTime.day ) ;
+
+[yearLB, yearHB] = Shims.splitint( uint16( SystemTim.year ) ) ;    
+Shims.Data.output(6) = yearHB ;
+Shims.Data.output(7) = yearLB ; 
+
+Shims.Data.output(8)  = uint8( SystemTime.hours ) ;
+Shims.Data.output(9)  = uint8( SystemTime.minutes ) ;
+Shims.Data.output(10) = uint8( SystemTime.seconds ) ;
+
+
+Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
+                        ShimCom.calculatecrc( Shims.Data.output ) ) ; 
+
+[Shims, isSendOk] = Shims.sendcmd() ;
+
+if isSendOk
+    Shims.isackreceived() ;
+end
+    
+end
+% =========================================================================
+function SystemTime = getsystemcurrenttime( Shims ) 
+% SystemTime = GETSYSTEMCURRENTTIME( Shims )
+%
+% SystemTime has fields
+%   
+%   .year
+%   .month
+%   .day
+%   .hour
+%   .minute
+%   .second
+    
+% return byte: (1) sync ; (2) length; (3-10) data; (10-11) crc;  
+Shims.Parameters.nBytesToRead = 11 ; % 
+
+% output message to read in shim values
+Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ; 
+Shims.Data.output(2) = 5 ; 
+Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getSystemCurrentTime ) ;
+
+Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
+                        ShimCom.calculatecrc( Shims.Data.output ) ) ; 
+
+[Shims, isSendOk] = Shims.sendcmd() ;
+if isSendOk
+    Shims.isackreceived() ;
+end
+
+Shims.Data.input(:) 
+SystemTime.month = double( Shims.Data.input(3) ) ; 
+SystemTime.day   = double( Shims.Data.input(4) ) ; 
+
+SystemTime.year = double( ShimCom.mergeints( Shims.Data.input(5), ...
+                    Shims.Data.input(6), false ) ) ;
+
+SystemTime.hours   = double( Shims.Data.input(7) ) ; 
+SystemTime.minutes = double( Shims.Data.input(8) ) ; 
+SystemTime.seconds = double( Shims.Data.input(9) ) ; 
     
 end
 % =========================================================================
@@ -345,7 +426,7 @@ iByteOut = 4 ;
 
 for iChannel = 1 : Shims.Specs.Amp.nChannels
     [currentLB, currentHB] = Shims.splitint( ...
-        Shims.Specs.ampstoint( currents(iChannel) ) ) ;    
+        Shims.Specs.numtodac( currents(iChannel) ) ) ;    
     
     Shims.Data.output(iByteOut) = currentHB ;
     iByteOut = iByteOut + 1 ;
@@ -360,9 +441,7 @@ Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
 
 if isSendOk
     [isAckReceived, systemResponse] = isackreceived( Shims ) ;
-    if isAckReceived
-        disp('OK')
-    else
+    if ~isAckReceived
         disp(systemResponse)
     end
 end
@@ -385,7 +464,7 @@ function [] = setandloadshim( Shims, varargin )
 % -------
 Shims.Parameters.nBytesToRead = 5 ; 
 
-Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
+Shims.Data.output  = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
 
 if nargin < 3
     error('Not enough arguments')
@@ -395,7 +474,7 @@ elseif nargin == 3
     iChannel = varargin{1} ;
     current  = varargin{2} ;
 
-    [currentLB, currentHB] = Shims.splitint( Shims.Specs.ampstoint( current ) ) ;    
+    [currentLB, currentHB] = Shims.splitint( Shims.Specs.numtodac( current ) ) ;    
 
     Shims.Data.output(2) = 8 ;
     Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setAndLoadShimByChannel ) ;
@@ -408,7 +487,7 @@ elseif nargin == 4
     iChannel = varargin{2} ;
     current  = varargin{3} ;
 
-    [currentLB, currentHB] = Shims.splitint( Shims.Specs.ampstoint( current ) ) ;    
+    [currentLB, currentHB] = Shims.splitint( Shims.Specs.numtodac( current ) ) ;    
     Shims.Data.output(2) = 9 ;
     Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setAndLoadShimByBankChannel ) ;
     Shims.Data.output(4) = uint8( iBank ) ;
@@ -436,48 +515,48 @@ end
 % =========================================================================
 function [] = setchannelbuffer( Shims, iBank, iChannel, current ) 
 %SETCHANNELBUFFER
-    if current > Shims.Specs.Amp.maxCurrentPerChannel
-        fprintf( [ 'WARNING: \n Requested current of ' num2str(current) ...
-                ' exceeds MAX channel current of ' ...
-                num2str(Shims.Specs.Amp.maxCurrentPerChannel) 
-                '\n Resulting current will be clipped.\n'] ) ;
+if current > Shims.Specs.Amp.maxCurrentPerChannel
+    fprintf( [ 'WARNING: \n Requested current of ' num2str(current) ...
+            ' exceeds MAX channel current of ' ...
+            num2str(Shims.Specs.Amp.maxCurrentPerChannel) 
+            '\n Resulting current will be clipped.\n'] ) ;
+end
+
+[currentLB, currentHB] = Shims.splitint( Shims.Specs.numtodac( current ) ) 
+
+Shims.Parameters.nBytesToRead = 5 ; 
+
+Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
+
+% % apparently this command is INVALID
+% Shims.Data.output(2) = 8 ;
+% Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setShimBufferByChannel ) ;
+% Shims.Data.output(4) = uint8( iChannel ) ;
+% Shims.Data.output(5) = currentHB ;
+% Shims.Data.output(6) = currentLB ; 
+
+% apparently this command is also INVALID
+Shims.Data.output(2) = 9 ;
+Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setShimBufferByBankChannel ) ;
+Shims.Data.output(4) = uint8( iBank ) ;
+Shims.Data.output(5) = uint8( iChannel ) ;
+Shims.Data.output(6) = currentHB ;
+Shims.Data.output(7) = currentLB ; 
+
+
+Shims.Data.output    = ShimCom.appendcrc( Shims.Data.output, ...
+                        ShimCom.calculatecrc( Shims.Data.output ) ) ; 
+
+[Shims, isSendOk] = Shims.sendcmd( ) ;
+
+if isSendOk
+    [isAckReceived, systemResponse] = isackreceived( Shims ) ;
+    if isAckReceived
+        disp('OK')
+    else
+        disp(systemResponse)
     end
-
-    [currentLB, currentHB] = Shims.splitint( Shims.Specs.ampstoint( current ) ) 
-
-    Shims.Parameters.nBytesToRead = 5 ; 
-
-    Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
-    
-    % % apparently this command is INVALID
-    % Shims.Data.output(2) = 8 ;
-    % Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setShimBufferByChannel ) ;
-    % Shims.Data.output(4) = uint8( iChannel ) ;
-    % Shims.Data.output(5) = currentHB ;
-    % Shims.Data.output(6) = currentLB ; 
-
-    % apparently this command is also INVALID
-    Shims.Data.output(2) = 9 ;
-    Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setShimBufferByBankChannel ) ;
-    Shims.Data.output(4) = uint8( iBank ) ;
-    Shims.Data.output(5) = uint8( iChannel ) ;
-    Shims.Data.output(6) = currentHB ;
-    Shims.Data.output(7) = currentLB ; 
-    
-
-    Shims.Data.output    = ShimCom.appendcrc( Shims.Data.output, ...
-                            ShimCom.calculatecrc( Shims.Data.output ) ) ; 
-
-    [Shims, isSendOk] = Shims.sendcmd( ) ;
-    
-    if isSendOk
-        [isAckReceived, systemResponse] = isackreceived( Shims ) ;
-        if isAckReceived
-            disp('OK')
-        else
-            disp(systemResponse)
-        end
-    end
+end
 end
 % =========================================================================
 function [] = setpoweroff( Shims ) 
@@ -611,31 +690,96 @@ Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
 
 if isSendOk 
     [isAckReceived, systemResponse] = Shims.isackreceived( ) ;
-    if isAckReceived
-        disp('OK')
-    else
+    if ~isAckReceived
         disp(systemResponse)
     end
 end
 
 end
-% % =========================================================================
-% function [] = sendack( Shims )
-% %SENDACK
-% % write ACK or NACK to the ComPort
-% %
+% =========================================================================
+function percentSliceIntensity = getslice( Shims, iChannel, iSlice )
+%GETSLICE    (DSU cmd: E0)
 %
-%     if crc == 0
-%         Shims.Data.output = uint8( hex2dec( Shims.Parameters.ACK ) ) ;
-%         Shims.writetomachine( );
-%         disp('ACK sent')
-%     else
-%         Shims.Data.output = uint8( hex2dec( Shims.Parameters.NACK ) ) ;
-%         Shims.writetomachine( );
-%         disp('NACK sent')
-%     end   
+
+Shims.Parameters.nBytesToRead = 6 ; 
+
+Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Dsu.sync) ) ; 
+Shims.Data.output(2) = 8 ; 
+Shims.Data.output(3) = hex2dec( Shims.Cmd.Dsu.getSlice ) ;
+Shims.Data.output(4) = uint8( iChannel ) ;
+
+[iSliceLowByte, iSliceHighByte] = Shims.splitint( uint16( iSlice ) ) ;
+
+Shims.Data.output(5) = iSliceHighByte ;
+Shims.Data.output(6) = iSliceLowByte ;
+
+Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
+                        ShimCom.calculatecrc( Shims.Data.output ) ) ; 
+
+[Shims, isSendOk] = Shims.sendcmd() ;
+
+if isSendOk 
+    [isAckReceived, systemResponse] = Shims.isackreceived( ) ;
+    if ~isAckReceived
+        disp(systemResponse)
+    end
+end
+
+if( Shims.Data.input(2) ~= Shims.Parameters.nBytesToRead ) 
+    disp('error...')
+    % Shims.checkcontrolresponse( Shims.Data.input ); ??
+end
+
+percentSliceIntensity = double( ShimCom.mergeints( Shims.Data.input(3), ...
+                    Shims.Data.input(4), true ) ) ;
+
+end
+% =========================================================================
+function [] = setslice( Shims, iChannel, iSlice, percentSliceIntensity )
+%SETSLICE    (DSU cmd: D0)
 %
-% end
+% SETSLICE( Shims, channelIndex, sliceIndex, sliceIntensity ) 
+%
+%   channelIndex : number between 1 to 32 (see ShimCom.getchanneltobankkey)
+%   sliceIndex   : number between 1 and 1000 
+%   percentSliceIntensity : number between -100 and 100  
+
+Shims.Parameters.nBytesToRead = 5 ; % ACK only
+
+Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Dsu.sync) ) ; 
+Shims.Data.output(2) = 10 ; 
+Shims.Data.output(3) = hex2dec( Shims.Cmd.Dsu.setSlice ) ;
+Shims.Data.output(4) = uint8( iChannel ) ;
+
+[iSliceLowByte, iSliceHighByte] = Shims.splitint( uint16( iSlice ) ) ;
+
+Shims.Data.output(5) = iSliceHighByte ;
+Shims.Data.output(6) = iSliceLowByte ;
+
+[percentSliceIntensityLowByte, percentSliceIntensityHighByte] = ...
+    Shims.splitint( Shims.Specs.numtodac( percentSliceIntensity ) ) ;
+
+Shims.Data.output(7) = percentSliceIntensityHighByte ;
+Shims.Data.output(8) = percentSliceIntensityLowByte ;
+
+Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
+                        ShimCom.calculatecrc( Shims.Data.output ) ) ; 
+
+[Shims, isSendOk] = Shims.sendcmd() ;
+
+if isSendOk 
+    [isAckReceived, systemResponse] = Shims.isackreceived( ) ;
+    if ~isAckReceived
+        disp(systemResponse)
+    end
+end
+
+if( Shims.Data.input(2) ~= Shims.Parameters.nBytesToRead ) 
+    disp('error...')
+    % Shims.checkcontrolresponse( Shims.Data.input ); ??
+end
+
+end
 % =========================================================================
 function [] = delete( Shim  )
 %DELETE  
@@ -658,8 +802,6 @@ if myisfield( Shims, 'ComPort' ) && ~isempty( Shims.ComPort )
     fclose( Shims.ComPort ) ;
     delete( Shims.ComPort ) ;
     clear Shims.ComPort  ;
-else
-    disp('ComPort is not open.');
 end
 
 
@@ -681,7 +823,7 @@ function [isAckReceived, systemResponse] = isackreceived( Shims )
 isAckReceived = false ;
 
 % '3' because 1st is SYNC, 2nd byte is LNG,...
-systemResponse = Shims.Data.input(3) ;
+systemResponse = Shims.Data.input(3) ; 
 
 if systemResponse == hex2dec( Shims.Parameters.ACK(3) )
     systemResponse = 'ACK';
@@ -877,7 +1019,6 @@ function [channelToBankKey] = getchanneltobankkey( )
 
 nChannels = 24 ;
 
-% Indices: 1st column 'spine coil' | 2nd 'MXD' bank # | 3rd MXD ch #
 channelToBankKey       = zeros( nChannels, 4 ) ;
 channelToBankKey(:, 1) = 1 : nChannels ;
 
@@ -910,7 +1051,6 @@ channelToBankKey(22, 2:4) = [2 4 21] ;
 channelToBankKey(23, 2:4) = [3 3 28] ;
 channelToBankKey(24, 2:4) = [3 4 29] ;
 
-
 end
 % =========================================================================
 function [Cmd] = definecommands( )
@@ -939,7 +1079,11 @@ Cmd.Mxd.getBankLongStatus           = '26' ;
 % Cmd.Mxd.getBankChannelsStat       = '28' ;
 Cmd.Mxd.getSystemInformation        = '29' ;
 
-
+% Cmd.Mxd.getSystemHistoryFile  = '2A' ;
+Cmd.Mxd.setSystemCurrentTime       = '2B' ;
+Cmd.Mxd.getSystemCurrentTime       = '2C' ;
+% Cmd.Mxd.setAllShimsOn       = '2D' ;
+% Cmd.Mxd.setAllShimsOff       = '2E' ;
 
 
 Cmd.Mxd.setAndLoadShimByBankChannel = '44' ;
@@ -972,8 +1116,10 @@ Cmd.Mxd.loadShimByChannel           = '5B' ;
 % Cmd.Dsu.testWave                      = '21';
 % Cmd.Dsu.getEcc                        = 'A0';
 % Cmd.Dsu.setEcc                        = 'B0';
-% Cmd.Dsu.sync                          = 'C0';
-% Cmd.Dsu.setSlice                      = 'D0';
+Cmd.Dsu.sync                          = 'C0';
+
+Cmd.Dsu.setSlice           = 'D0';
+Cmd.Dsu.getSlice           = 'E0';
 %
 % Cmd.Dsu.diagnosticsOn                 = 'D2';
 % Cmd.Dsu.triggerOn                     = 'D3';
@@ -981,7 +1127,6 @@ Cmd.Mxd.loadShimByChannel           = '5B' ;
 % Cmd.Dsu.triggerStat                   = 'D5';
 % Cmd.Dsu.stopPulse                     = 'D6';
 %
-% Cmd.Dsu.getSlice                      = 'E0';
 % Cmd.Dsu.errorReport                   = 'F0';
 % Cmd.Dsu.writeRampRate                 = 'F1';
 % Cmd.Dsu.readRampRate                  = 'F2';
@@ -1135,11 +1280,13 @@ function [lowByte, highByte] = splitint( z )
         z = abs(int32(abs(z)) - int32(65536)) ;
         
         lowByte  = uint8( bitand( z, int32(255) ))  ;
+
         % bitshift by -8 discards the lowest 8 bits
         highByte = uint8( bitshift( z, -8 ) ) ;
     else
         error('Input must be int16 or uint16') ;
     end 
+
 end
 % =========================================================================
 function z = mergeints( highByte, lowByte, isSigned )

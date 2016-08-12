@@ -5,7 +5,11 @@ classdef ShimOpt < MaRdI
 %
 % .......
 %
-% Shim = ShimOpt( pathToCalibrationInfo )
+% Shim = ShimOpt( )
+% Shim = ShimOpt( pathToShimReferenceMaps )
+%
+% 
+% Default pathToShimReferenceMaps = '~/Projects/Shimming/RRI/data/SpineShimReferenceMaps.mat' ;
 %
 %   Shim contains fields
 %
@@ -89,39 +93,44 @@ end
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOpt( pathToCalibrationInfo )
+function Shim = ShimOpt( pathToShimReferenceMaps )
 %SHIMOPT - Shim Optimization
-%
-    fprintf(['\n Preparing for shim \n\n #####  \n\n'...
-            'Loading SpineShim calibration info from ' pathToCalibrationInfo '\n\n']) ;
 
-    load( pathToCalibrationInfo ) ;
+if nargin < 1
+    pathToShimReferenceMaps = '~/Projects/Shimming/RRI/data/SpineShimReferenceMaps.mat' ;
+end
 
-    Shim.Hdr  = SpineShim.Hdr ;
+fprintf(['\n Preparing for shim \n\n #####  \n\n'...
+        'Loading SpineShim calibration info from ' pathToShimReferenceMaps '\n\n']) ;
 
-    nVoxels = numel( SpineShim.img(:,:,:, 1) ) ;
+load( pathToShimReferenceMaps ) ;
 
-    Shim.Parameters.nActiveChannels = size( SpineShim.img, 4 ) ;
-    % Parameters for conjugate-gradient optimization
-    Shim.Parameters.CG.tolerance     = 1E-6 ;
-    Shim.Parameters.CG.maxIterations = 10000 ;    
+%%-----
+% dBdI linear 'Current-to-Field' operator
+Shim.img              = SpineShim.img ;
+Shim.Hdr.MaskingImage = SpineShim.mask ;
+Shim.Hdr              = SpineShim.Hdr ;
 
-    %%-----
-    % dBdI linear 'Current-to-Field' operator
-    Shim.img = SpineShim.img ;
-    Shim.Hdr.MaskingImage = SpineShim.mask ;
+nVoxels = numel( SpineShim.img(:,:,:, 1) ) ;
 
-    Shim.Field = [ ] ;       
-    Shim.Model = [ ] ; 
-    Shim.Probe = [ ] ; 
+Shim.Parameters.nActiveChannels = size( SpineShim.img, 4 ) ;
+% Parameters for conjugate-gradient optimization
+Shim.Parameters.CG.tolerance     = 1E-6 ;
+Shim.Parameters.CG.maxIterations = 10000 ;    
+
+
+Shim.Field = [ ] ;       
+Shim.Model = [ ] ; 
+Shim.Probe = [ ] ; 
 
 end
 % =========================================================================
 function Shim = extractharmonicfield( Shim )
 %EXTRACTHARMONICFIELD
-% Extract (smooth) harmonic field via RESHARP (Sun, H. Magn Res Med, 2014)
 %
+% Extract (smooth) harmonic field via RESHARP (Sun, H. Magn Res Med, 2014)
 % ------
+
 [localField, reducedMask ] = resharp( Shim.Field.img, ...
                                  Shim.Field.Hdr.MaskingImage, ... 
                                  Shim.Field.getvoxelsize(), ...
@@ -211,42 +220,15 @@ pressureLogs      = cell{ nCalibrationScans, 1 } ;
 medianPressures   = zeros( nCalibrationScans, 1 ) ;
 
 % -------
-% Record pressure    
+% load pressure logs    
 for iCalibrationScan = 1 : nCalibrationScans
     
-    % isUserSatisfied = false ;
-    %
-    % while ~isUserSatisfied
-    %     
-    %     disp(' ')
-    %     msg = ['Press [Enter] to begin recording calibration pressure log ' ...
-    %           num2str(iCalibrationScan) ' of ' num2str(nCalibrationScans) '.']
-    %     assert(isempty(msg),'Cancelled calibration.')
-    %     
-    %     Shim.Probe.Data.pressure = 0 ;
-    %     Shim.Probe = Shim.Probe.recordpressurelog( Params ) ;
-    %
-    %     % ------
-    %     % save p-log
-    %     pressureLogFid = fopen( ...
-    %         Params.pressureLogFilename{iCalibrationScan}, 'w+' ) ;
-    %     fwrite( pressureLogFid, Shim.Probe.Data.pressure, 'double' ) ;
-    %     fclose( pressureLogFid );
-    %
-    %     figure ;
-    %     plot( pressureLog, '+' ) ;
-    %     title( Params.pressureLogFilename{iCalibrationScan} ) ;
-    %     xlabel('Sample index');
-    %     ylabel('Pressure (0.01 mbar)');
-    %     
-    %     response = input(['Is the current pressure log satisfactory?' ...
-    %         'Enter 0 to rerecord; 1 to continue']) ;
-    %
-    %     isUserSatisfied = logical(response) ;
-    %
-    % end
-    %
-    % pressureLogs{ iCalibrationScan } = pressureLog ;
+    pressureLogFid = fopen( ...
+        Params.pressureLogFilename{iCalibrationScan}, 'r' ) ;
+    pressureLogs{ iCalibrationScan } = ...
+        fread( pressureLogFid, inf, 'double' ) ;
+    fclose( pressureLogFid );
+    
 end
 
 % -------
@@ -256,7 +238,7 @@ for iCalibrationScan = 1 : nCalibrationScans
     fprintf(['\n Determine median pressure during apnea : \n \t ' ...
           num2str(iCalibrationScan) ' of ' num2str(nCalibrationScans) '.\n']) ;
     
-    medianPressures{ iCalibrationScan } = ...
+    medianPressures( iCalibrationScan ) = ...
         ProbeTracking.userselectmedianpressure(  pressureLogs{ iCalibrationScan } ) ; 
 
 end

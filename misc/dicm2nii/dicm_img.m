@@ -34,7 +34,9 @@ function img = dicm_img(s, xpose)
 % 150115 SamplesPerPixel>1 works: put it as dim3, and push rest to dim4.
 % 150211 dim3 reserved for RGB, even if SamplesPerPixel=1 (like dicomread). 
 % 150404 Add 'if' block for numeric s.PixelData (BVfile). 
-
+%
+% 20160802 If .PixelComponentPhysicalUnits is not == 0000H, convert img to double,
+%   (ryan.topfer@polymtl.ca)
 persistent flds dict;
 if isempty(flds)
     flds = {'Columns' 'Rows' 'BitsAllocated'};
@@ -129,6 +131,7 @@ else % rely on imread for decompression
     end
     if ~xpose, img = permute(img, [2 1 3 4]); end
 end
+
 
 if isfield(s, 'PixelRepresentation') && s.PixelRepresentation>0
     img = reshape(typecast(img(:), fmt(3:end)), size(img)); % signed
