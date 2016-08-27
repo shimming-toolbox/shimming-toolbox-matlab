@@ -1,15 +1,21 @@
 classdef ShimTest < ShimUse
-%SHIMTEST
+%SHIMTEST - Shim Testing
 %
 % .......
 % 
-%   ShimTest is a ShimUse subclass containing miscellaneous functions for
-%   testing the 24-channel shim array.
+% Description
+%
+%   ShimTest contains various methods for testing the 24-channel shim.
 %
 % =========================================================================
+% Notes
+% 
+% ShimTest is a ShimUse subclass [ShimTest < ShimUse]
+%
 % Part of series of classes pertaining to shimming:
 %
 %     ProbeTracking
+%     ShimCal
 %     ShimCom
 %     ShimOpt
 %     ShimSpecs
@@ -17,7 +23,7 @@ classdef ShimTest < ShimUse
 %     ShimTest 
 %
 % =========================================================================
-% Updated::20160802::ryan.topfer@polymtl.ca
+% Updated::20160827::ryan.topfer@polymtl.ca
 % =========================================================================
 properties   
 
@@ -37,13 +43,13 @@ function [elapsedTime] = testresponsetime( Shim, command, nCycles )
 %
 % Repeatedly queries MXD to test rapidity of command & response. 
 % .......
-%   Usage
+%
+% Usage
 %
 % elapsedTime = TESTRESPONSETIME( Shim, command )
 % elapsedTime = TESTRESPONSETIME( Shim, command, nCycles )
 % 
-% .......
-%   Inputs
+% Inputs
 %
 %   command
 %       function handle (i.e. to a shim command)
@@ -82,34 +88,35 @@ Shim.display(['Avg. time per command (accounting for pauses)\n: ' ...
 
 end
 % =========================================================================
-function [] = shimsine( Shim, testChannel, Params )
-%SHIMSINE
-%   
-
-% Params.currentAmplitude = 1 ; % [units: A]
-% Params.nTestCycles      = 10 ;
-% Params.period           = 1 ; % period of waveform [units: s]
-% Params.updateFrequency  = 1/0.05 ; % update freq of shims [units: Hz]
+function [] = shimsine( Shim, Params )
+%SHIMSINE 
 %
+% Issue sinusoidal current waveform   
+
+Params.maxCurrent       = 0.25 ; % [units: A]
+Params.nTestCycles      = 10 ;
+Params.period           = 1 ; % period of waveform [units: s]
+Params.updateFrequency  = 1/0.25 ; % update freq of shims [units: Hz]
+Params.testTime         = 60 ;
+
+% channelsToBankKey = Shim.getchanneltobankkey ;
+% activeChannelIndices = channelsToBankKey(:,4) ;
+
+currents = zeros(24,1);
+
 % assert( (testChannel>0) && testChannel<=Shim.Specs.nActiveChannels) )
 %
-% channelsToBankKey = Shim.getchanneltobankkey ;
 %
-% testTIme = Params.nTestCycles * Params.period ;
-%
-% t=0;
-% tic 
-% % systemResponse = Shim.setandloadshim( bankIndex, channelIndexByBank, current ) 
-%     
-% while t < testTime
-%     t = toc ;
-%     currents( testChannel ) = currentAmplitude sin( t*Params.updateFrequency  ) ;
-%
-%     % % write updateallshims() function!
-%     % for iChannel = 1 : Shim.Specs.nActiveChannels
-%         ShimsC.setandloadshim( channelsToBankKey(iChannel, 2), channelsToBankKey(iChannel,3), currents( iChannel ) ) ;
-%     % end
-% end
+% testTime = Params.nTestCycles * Params.period ;
+
+t=0;
+tic 
+while t < Params.testTime
+    t = toc ;
+    currents( : ) = Params.maxCurrent * sin( t*Params.updateFrequency  ) ;
+    setandloadallshims( Shim, currents )
+    disp(currents(1));
+end
 
 end
 % =========================================================================

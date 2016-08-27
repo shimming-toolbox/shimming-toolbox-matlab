@@ -1,7 +1,15 @@
 classdef ShimUse < ShimCom
-%SHIMUSE
+%SHIMUSE - Shim Use
 %
 % .......
+% 
+% Description
+% 
+% ShimUse is a high-level user interface to operate the shim system. 
+%
+% .......
+%   
+% Usage
 %
 % Shim = ShimUse( pathToCalibrationInfo )
 %
@@ -14,6 +22,10 @@ classdef ShimUse < ShimCom
 %           Object of type ShimSpecs
 %
 % =========================================================================
+% Notes 
+%
+% ShimUse is a ShimCom subclass [ShimUse < ShimCom]
+% 
 % Part of series of classes pertaining to shimming:
 %
 %    ProbeTracking
@@ -25,12 +37,9 @@ classdef ShimUse < ShimCom
 %    ShimTest 
 %
 % =========================================================================
-% Updated::20160802::ryan.topfer@polymtl.ca
+% Updated::20160826::ryan.topfer@polymtl.ca
 % =========================================================================
-%
-% =========================================================================
-% NB
-%
+
 % =========================================================================
 % *** TODO 
 %
@@ -132,20 +141,37 @@ end
 
 end
 % =========================================================================
-function [] = setandloadallshims( Shim )
-%SETANDLOADALLSHIMS
-
-
-% setallshims( Shim, currents )
-%   Sets all shims based on [nChannel x 1] current vector (in amps)
-% 
-% (e.g. for our system, currents vector has 32 (and not 24) entries.
-% Currents for inactive channels should be zero.
+function [] = resetallshims( Shims ) 
+%RESETALLSHIMS  
 %
-% 1. convert 24-currents into 32-current (~zero-padded~ vector)
-% 2. set all channel buffers using 32-component vector
-% 3. issue load all channels command
+% Reset all shims to 0 A.
+%
+% [] = RESETALLSHIMS( Shims )
 
+Shims.setallshims( zeros(Shims.Specs.Amp.nChannels, 1) ) ;
+Shims.setloadallshims ;
+
+end
+% =========================================================================
+function [] = setandloadallshims( Shims, currents )
+%SETANDLOADALLSHIMS
+%
+% 
+% [] = SETANDLOADALLSHIMS( Shimss, currents )
+%
+% numel(currents) == Shims.Specs.nChannels || Shims.Specs.nActiveChannels
+% 
+% i.e. currents vector is either length 24 or 32
+ 
+
+if numel(currents) == Shims.Specs.Amp.nChannels
+    Shims.setallshims( currents  ) ;
+    
+elseif numel(currents) == Shims.Specs.Amp.nActiveChannels
+    Shims.setallshims( Shims.mapcurrentstomxd( currents ) ) ;
+end
+
+Shims.setloadallshims ;
 
 end
 % =========================================================================

@@ -90,6 +90,7 @@ while k < Options.maxIterations && discrepancy > Options.tolerance
 
     k = k + 1 ;
 end
+
 disp( ['Discrepancy after ' int2str(k) ' iterations: '  num2str(discrepancy) ] )
     clear matrixOperator
 

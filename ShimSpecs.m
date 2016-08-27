@@ -22,27 +22,19 @@ classdef ShimSpecs
 %
 %   Description
 %   
-%   
-%
-%
 % =========================================================================
-% NB
+% Part of series of classes pertaining to shimming:
 %
+%    ProbeTracking
+%    ShimCal
+%    ShimCom
+%    ShimOpt
+%    ShimSpecs
+%    ShimUse
+%    ShimTest 
+%     
 % =========================================================================
-% *** TODO 
-% ..... 
-% AMPSTOINT()
-%
-%   consider output 'clipFlag' for instance where input current exceeds 
-%   max allowable current?
-%
-%   likewise for any set() function in ShimCom for shim currents.
-%
-% ..... 
-% ()
-%
-%
-% ..... 
+% Updated::20160824::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties   
@@ -87,20 +79,7 @@ Shims.Amp.maxSlices = 1000 ; % specific to DSU. Consider alt class def.
 
 Shims.Dac.resolution = 16 ; % [bits]
 Shims.Dac.maxCurrent = 5 ; % (absolute) [units: amps]
-
-end
-% =========================================================================
-function dacCount = numtodac( Shims, current )
-%NUMTODAC
-%
-% Wraps real number x (e.g. current in Amperes) to a count within the 
-% range of the DAC
-% 
-% dacCount = NUMTODAC( Shims, x ) 
-
-MAX_DIGI = (2^(Shims.Dac.resolution-1)) - 1 ; % Digital to Analog Converter max value
-
-dacCount = int16( current*( MAX_DIGI/Shims.Dac.maxCurrent ) ) ;
+Shims.Dac.maxTimeConstant = hex2dec('3FFF') ;
 
 end
 % =========================================================================

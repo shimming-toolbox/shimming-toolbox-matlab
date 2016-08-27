@@ -16,25 +16,29 @@ Series of classes pertaining to shimming:
     ShimSpecs
     ShimUse
     ShimTest 
-    
 
-==========
-Usage
+Type 'doc [class name]' for the documentation.
+
 
 -------------------------------------------------------------------------
 Usage:
-
-    Shimming is controlled by the user through an object of type ShimUse.
     
+    classdef ShimUse
+        Shimming is controlled by the user through an object of type ShimUse.
+    ShimUse is a subclass of ShimCom and thus inherits its methods.
+
+    classdef ShimCom
+        ShimCom is responsible for communicating with the RRI equipment.
+
+    Methods
+
 -------------------------------------------------------------------------
 Notes:
 
-
 -------------------------------------------------------------------------
-Updated::20160802::ryan.topfer@polymtl.ca
+Updated::20160826::ryan.topfer@polymtl.ca
 
 
 -------------------------------------------------------------------------
 Todo:
 
-    ShimCal class definition for calibrating shim reference maps

@@ -18,12 +18,14 @@ classdef ProbeTracking
 % =========================================================================
 % Part of series of classes pertaining to shimming:
 %
-%     ProbeTracking
-%     ShimCom
-%     ShimOpt
-%     ShimSpecs
-%     ShimUse
-%     
+%    ProbeTracking
+%    ShimCal
+%    ShimCom
+%    ShimOpt
+%    ShimSpecs
+%    ShimUse
+%    ShimTest 
+%
 % =========================================================================
 % Updated::ryan.topfer@polymtl.ca::Mon 20 Jun 2016 18:15:05 EDT
 % =========================================================================

@@ -1,9 +1,9 @@
 classdef ShimOpt < MaRdI
-%SHIMOPT
-%
-% Shim Optimization, a MaRdI subclass (i.e. ShimOpt < MaRdI)
+%SHIMOPT - Shim Optimization
 %
 % .......
+% 
+% Usage
 %
 % Shim = ShimOpt( )
 % Shim = ShimOpt( pathToShimReferenceMaps )
@@ -36,25 +36,26 @@ classdef ShimOpt < MaRdI
 %           (i.e. the respiratory probe for real-time shimming.)
 %
 % =========================================================================
+% Notes
+%
 % Part of series of classes pertaining to shimming:
 %
-%     ProbeTracking
-%     ShimCom
-%     ShimOpt
-%     ShimSpecs
-%     ShimUse
+%    ProbeTracking
+%    ShimCal
+%    ShimCom
+%    ShimOpt
+%    ShimSpecs
+%    ShimUse
+%    ShimTest 
+%
+% ShimOpt is a MaRdI subclass [ShimOpt < MaRdI]
 %     
 % =========================================================================
-% Updated::ryan.topfer@polymtl.ca::Mon 20 Jun 2016 18:15:05 EDT
+% Updated::20160826::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
 % *** TODO 
-% .....
-%   Shim optimization and (more importantly) field map interpolation
-%   would be faster were the field maps initially cropped to the approximate
-%   dimensions of the shim VOI. Procedurally (re:scan) this may not make sense
-%   if our protocol remains [1) acq. field maps 2) acq. anatomical for VOI]...
 %
 % .....
 % OPTIMIZESHIMCURRENTS()
@@ -69,21 +70,13 @@ classdef ShimOpt < MaRdI
 %   be performed to fill in some of the missing field.
 %   
 % .....
-% extractharmonicfield() & optimizeshimcurrents()
-%   
-%   documentation + optional params
-% .....
-% RESLICEIMG()
-%   griddata takes too f-ing long.
-%   write interp function in cpp
-% .....
 % RE: Pressure reading (e.g. CALIBRATE...) 
 %   Do not write to file until finish. (unless this can be done very rapidly!) 
 %
 % =========================================================================
 
 properties
-    Field ;
+    Field ; % object of type MaRdI
     Model ;
     Parameters ;
     Probe ;
@@ -125,36 +118,17 @@ Shim.Probe = [ ] ;
 
 end
 % =========================================================================
-function Shim = extractharmonicfield( Shim )
-%EXTRACTHARMONICFIELD
-%
-% Extract (smooth) harmonic field via RESHARP (Sun, H. Magn Res Med, 2014)
-% ------
-
-[localField, reducedMask ] = resharp( Shim.Field.img, ...
-                                 Shim.Field.Hdr.MaskingImage, ... 
-                                 Shim.Field.getvoxelsize(), ...
-                                 2*Shim.Field.getvoxelsize(), ...
-                                 0) ;
-
-reducedMask                 = shaver(reducedMask, 1) ;
-Shim.Field.img              = reducedMask .* ( Shim.Field.img - localField ) ;
-Shim.Field.Hdr.MaskingImage = reducedMask ;
-
-end
-% =========================================================================
-function Shim = computecurrentsoffset( Shim, ...
+function Shim = setdccurrentoffset( Shim, ...
                     currentsInspired, currentsExpired, ...
                     pressureInspired, pressureExpired )
-%COMPUTECURRENTSOFFSET
-% (DC offset // bias)
+%SETDCCURRENTOFFSET
+% 
+% Compute and set optimal shim DC current offset (bias)
 %
-%   Syntax
+% Shim = COMPUTECURRENTSOFFSET( Shim, iIn, iEx, pIn, pEx  )
 %
-%   Shim = COMPUTECURRENTSOFFSET( Shim, iIn, iEx, pIn, pEx  )
-%
-%       creates field Shim.Model.currentsOffset
-% ------
+% Sets Shim.Model.currentsOffset
+
 Specs = ShimSpecs();
 
 A = Shim.getshimoperator ;
@@ -166,16 +140,16 @@ shimFieldOffset = ...
 % ------- 
 % Least-squares solution via conjugate gradients
 Shim.Model.currentsOffset = cgls( A'*M'*M*A, ... % least squares operator
-                            A'*M'*M*shimFieldOffset, ... % effective solution vector
-                            zeros( [Shim.Parameters.nActiveChannels 1] ), ... % initial model (currents) guess
-                            Shim.Parameters.CG ) ;
+    A'*M'*M*shimFieldOffset, ... % effective solution vector
+    zeros( [Shim.Parameters.nActiveChannels 1] ), ... % initial model (currents) guess
+    Shim.Parameters.CG ) ;
 
 end
 % =========================================================================
 function Shim = calibraterealtimeupdates( Shim, Params )
-%CALIBRATEREALTIMEUPDATESPROBE
-%
-%   Syntax
+%CALIBRATEREALTIMEUPDATES
+% 
+% Shim = calibraterealtimeupdates( Shim, Params ) 
 %
 %   Params.
 %       .pressureLogFilenames
@@ -298,15 +272,12 @@ function Shim = setcouplingcoefficients( Shim, ...
                     pressureInspired, pressureExpired )
 %SETCOUPLINGCOEFFICIENTS
 %
-%   Syntax
+% Shim = SETCOUPLINGCOEFFICIENTS( Shim, iIn, iEx, pIn, pEx )
 %
-%   Shim = SETCOUPLINGCOEFFICIENTS( Shim, iIn, iEx, pIn, pEx )
+% iIn & iEx are vectors of optimal currents for inspired and expired fields.
+% pIn & pEx the associated pressures (scalars)
 %
-%   iIn & iEx are vectors of optimal currents for inspired and expired fields.
-%   pIn & pEx the associated pressures (scalars)
-%
-%       creates field Shim.Model.couplingCoefficients
-% ------
+% Sets Shim.Model.couplingCoefficients
 
 A = Shim.getshimoperator ;
 
@@ -318,14 +289,13 @@ end
 function [Shim] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESHIMCURRENTS 
 %
-%   OPTIMIZESHIMCURRENTS( Shim, Params )
+% Shim = OPTIMIZESHIMCURRENTS( Shim, Params )
 %   
 % Params can have the following fields 
 %   
 %   .maxCurrentPerChannel
 %       [default: 4 A,  determined by class ShimSpecs.Amp.maxCurrentPerChannel]
-%
-% ------
+
 Specs = ShimSpecs();
 
 if nargin < 1

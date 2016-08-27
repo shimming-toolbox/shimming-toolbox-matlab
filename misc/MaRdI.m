@@ -1,4 +1,28 @@
 classdef MaRdI
+%MaRdI Ma(t)-R-dI(com)
+%
+% .......
+%   
+% Description
+%
+%   Dicom into Matlab for Siemens MRI data
+%
+% .......
+%   
+% Usage
+%
+% Img = MaRdI( dataLoadDirectory )
+% Img = MaRdI( dataLoadDirectory, Params )
+%
+%   Img contains fields
+%
+%       .img    (array of images - 3D if there are multiple DICOMs in directory)
+%
+%       .Hdr    (header of the first DICOM file read by dir( dataLoadDirectory ) ) 
+%
+% =========================================================================
+% Updated::20160802::ryan.topfer@polymtl.ca
+% =========================================================================
 
 % =========================================================================
 % =========================================================================
@@ -12,23 +36,6 @@ end
 methods
 % =========================================================================    
 function Img = MaRdI( dataLoadDirectory )
-%MaRdI Ma(t)-R-dI(com)
-%
-%   Dicom into Matlab for Siemens MRI data
-%
-% Img = MaRdI( dataLoadDirectory )
-% Img = MaRdI( dataLoadDirectory, Params )
-%
-%   Img contains fields
-%
-%       .img    (array of images - 3D if there are multiple DICOMs in directory)
-%
-%       .Hdr    (header of the first DICOM file read by dir( dataLoadDirectory ) ) 
-% .......
-%
-% =========================================================================
-% Updated::20160802::ryan.topfer@polymtl.ca
-% =========================================================================
 
 if ( nargin == 0 )
     help(mfilename); 
@@ -104,57 +111,62 @@ end
 %   Siemens private header apprently contains field SliceNormalVector.
 %
 % ..... 
-% NII()
-%  Write function to save as Nifti
+% WRITE()
+%   Neither 'as dcm' nor 'as nii' functionalities work properly.
+% ..... 
+% EXTRACTHARMONICFIELD()
+%  Clean up 
+%     
 %     
 % =========================================================================
 
 function Img = scaleimgtophysical( Img, undoFlag )
 %SCALEIMGTOPHYSICAL
+%
 % Img = SCALEIMGTOPHYSICAL( Img, isUndoing ) 
 
-    if (nargin < 2) 
-        undoFlag = 0 ;
-    end 
+if (nargin < 2) 
+    undoFlag = 0 ;
+end 
+
+if  ~myisfield( Img.Hdr, 'RescaleIntercept' ) 
+    Img.Hdr.RescaleIntercept = 0 ;
+end
+
+if ~myisfield( Img.Hdr, 'RescaleSlope' )
+    Img.Hdr.RescaleSlope = 1 ;
+end
+
+
+if undoFlag ~= -1
     
-    if  ~myisfield( Img.Hdr, 'RescaleIntercept' ) 
-        Img.Hdr.RescaleIntercept = 0 ;
+    Img.img = (Img.Hdr.RescaleSlope .* double( Img.img ) ...
+                + Img.Hdr.RescaleIntercept)/double(2^Img.Hdr.BitsStored) ;
+
+    % note: the replacement of Hdr.ImageType here is invalid.
+    if ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) ) % is raw SIEMENS phase
+        Img.img            = pi*Img.img ; % scale to rad
+        Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\P\' ; 
+        Img.Hdr.PixelRepresentation = uint8(1) ; % i.e. signed 
+    
+    else ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) ) % is raw SIEMENS mag
+        Img.img            = Img.img/max(Img.img(:)) ; % normalize 
+        Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\M\' ; 
     end
     
-    if ~myisfield( Img.Hdr, 'RescaleSlope' )
-        Img.Hdr.RescaleSlope = 1 ;
-    end
+    Img.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
 
+    % if ~isempty( strfind( Img.Hdr.ImageType, 'FREQUENCY\' ) )
+    %     Img.Hdr.PixelComponentPhysicalUnits = '0005H' ; % i.e. Hz
+    % end
 
-    if undoFlag ~= -1
-        
-        Img.img = (Img.Hdr.RescaleSlope .* double( Img.img ) ...
-                    + Img.Hdr.RescaleIntercept)/double(2^Img.Hdr.BitsStored) ;
+else
+    Img.Hdr.RescaleIntercept = min( Img.img(:) ) ;
+    Img.img                  = Img.img - Img.Hdr.RescaleIntercept ;
+    Img.Hdr.RescaleSlope     = max( Img.img(:) )/double(2^Img.Hdr.BitsStored ) ;
+    Img.img                  = uint16( Img.img / Img.Hdr.RescaleSlope ) ;
 
-        % note: the replacement of Hdr.ImageType here is invalid.
-        if ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) ) % is raw SIEMENS phase
-            Img.img            = pi*Img.img ; % scale to rad
-            Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\P\' ; 
-            Img.Hdr.PixelRepresentation = uint8(1) ; % i.e. signed 
-        
-        else ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) ) % is raw SIEMENS mag
-            Img.img            = Img.img/max(Img.img(:)) ; % normalize 
-            Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\M\' ; 
-        end
-        
-        Img.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
-
-        % if ~isempty( strfind( Img.Hdr.ImageType, 'FREQUENCY\' ) )
-        %     Img.Hdr.PixelComponentPhysicalUnits = '0005H' ; % i.e. Hz
-        % end
-
-    else
-        Img.Hdr.RescaleIntercept = min( Img.img(:) ) ;
-        Img.img                  = Img.img - Img.Hdr.RescaleIntercept ;
-        Img.Hdr.RescaleSlope     = max( Img.img(:) )/double(2^Img.Hdr.BitsStored ) ;
-        Img.img                  = uint16( Img.img / Img.Hdr.RescaleSlope ) ;
-
-    end
+end
 
 
 
@@ -166,51 +178,51 @@ function Img = cropimg( Img, gridSizeImgCropped )
 %
 % -------
     
-    gridSizeImgOriginal = size(Img.img) ;
+gridSizeImgOriginal = size(Img.img) ;
 
-    % isOdd = logical(mod( gridSizeImgCropped, 2 )) ;
-    %
-    % if any(isOdd)
+% isOdd = logical(mod( gridSizeImgCropped, 2 )) ;
+%
+% if any(isOdd)
 
-    midPoint = round( gridSizeImgOriginal/2 ) ;
+midPoint = round( gridSizeImgOriginal/2 ) ;
 
-    low  = midPoint - round(gridSizeImgCropped/2) + [1 1 1] ;
-    high = midPoint + round(gridSizeImgCropped/2) ;
+low  = midPoint - round(gridSizeImgCropped/2) + [1 1 1] ;
+high = midPoint + round(gridSizeImgCropped/2) ;
+
+for dim = 1: 3
+   if low(dim) < 1
+      low(dim) = 1 ;
+   end
+   if high(dim) > gridSizeImgOriginal(dim)
+      high(dim) = gridSizeImgOriginal(dim) ;
+  end
+end
     
-    for dim = 1: 3
-       if low(dim) < 1
-          low(dim) = 1 ;
-       end
-       if high(dim) > gridSizeImgOriginal(dim)
-          high(dim) = gridSizeImgOriginal(dim) ;
-      end
-    end
-        
-    % Update header
-    [X, Y, Z] = Img.getvoxelpositions( ); 
-    x0        = X(low(1),low(2),low(3)) ;
-    y0        = Y(low(1),low(2),low(3)) ;
-    z0        = Z(low(1),low(2),low(3)) ;
-   
-    Img.Hdr.ImagePositionPatient = [x0 y0 z0] ;
+% Update header
+[X, Y, Z] = Img.getvoxelpositions( ); 
+x0        = X(low(1),low(2),low(3)) ;
+y0        = Y(low(1),low(2),low(3)) ;
+z0        = Z(low(1),low(2),low(3)) ;
 
-    [rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
+Img.Hdr.ImagePositionPatient = [x0 y0 z0] ;
 
-    Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
+[rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 
-    % crop img
-    Img.img = Img.img( low(1):high(1), low(2):high(2), low(3):high(3) ) ; 
+Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
 
-    % Update header
-    Img.Hdr.Rows                 = size(Img.img, 1) ;
-    Img.Hdr.Columns              = size(Img.img, 2) ;       
-    Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
+% crop img
+Img.img = Img.img( low(1):high(1), low(2):high(2), low(3):high(3) ) ; 
 
-    % point of the assertion is to remind me to change the function as i
-    % know it won't work for odd grid size.
-    assert( (Img.Hdr.Rows    == gridSizeImgCropped(1)) && ...
-            (Img.Hdr.Columns == gridSizeImgCropped(2)) && ...
-            (Img.Hdr.NumberOfSlices == gridSizeImgCropped(3)) ) ;
+% Update header
+Img.Hdr.Rows                 = size(Img.img, 1) ;
+Img.Hdr.Columns              = size(Img.img, 2) ;       
+Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
+
+% point of the assertion is to remind me to change the function as i
+% know it won't work for odd grid size.
+assert( (Img.Hdr.Rows    == gridSizeImgCropped(1)) && ...
+        (Img.Hdr.Columns == gridSizeImgCropped(2)) && ...
+        (Img.Hdr.NumberOfSlices == gridSizeImgCropped(3)) ) ;
         
 
 end
@@ -226,44 +238,44 @@ function Img = zeropad( Img, padSize, padDirection )
 % -------
 %   See also PADARRAY()
     
-    gridSizeOriginalImg = size(Img.img) ;
+gridSizeOriginalImg = size(Img.img) ;
 
-    Img.img = padarray( Img.img, padSize, 0, padDirection ) ; 
+Img.img = padarray( Img.img, padSize, 0, padDirection ) ; 
+
+% Update header
+Img.Hdr.Rows                 = size(Img.img, 1) ;
+Img.Hdr.Columns              = size(Img.img, 2) ;       
+Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
+
+if ~strcmp( padDirection, 'post' )
+% update image position 
+% (i.e. location in DICOM RCS of 1st voxel in data array (.img))
     
-    % Update header
-    Img.Hdr.Rows                 = size(Img.img, 1) ;
-    Img.Hdr.Columns              = size(Img.img, 2) ;       
-    Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
+    voxelSize = Img.getvoxelsize() ;
 
-    if ~strcmp( padDirection, 'post' )
-    % update image position 
-    % (i.e. location in DICOM RCS of 1st voxel in data array (.img))
-        
-        voxelSize = Img.getvoxelsize() ;
+    dr = voxelSize(1) ; % spacing btwn rows 
+    dc = voxelSize(2) ; % spacing btwn columns
+    ds = voxelSize(3) ;
+    
+    nr = padSize(1) ;
+    nc = padSize(2) ;
+    ns = padSize(3) ;
+    
+    [r, c, s] = Img.getdirectioncosines( ) ;
 
-        dr = voxelSize(1) ; % spacing btwn rows 
-        dc = voxelSize(2) ; % spacing btwn columns
-        ds = voxelSize(3) ;
-        
-        nr = padSize(1) ;
-        nc = padSize(2) ;
-        ns = padSize(3) ;
-        
-        [r, c, s] = Img.getdirectioncosines( ) ;
+    % -1 because the zeros are padded before ('pre') 1st element (origin)        
+    dx = -1*( r(1)*dr*nr + c(1)*dc*nc + s(1)*ds*ns ) ; 
+    dy = -1*( r(2)*dr*nr + c(2)*dc*nc + s(2)*ds*ns ) ;
+    dz = -1*( r(3)*dr*nr + c(3)*dc*nc + s(3)*ds*ns ) ;
 
-        % -1 because the zeros are padded before ('pre') 1st element (origin)        
-        dx = -1*( r(1)*dr*nr + c(1)*dc*nc + s(1)*ds*ns ) ; 
-        dy = -1*( r(2)*dr*nr + c(2)*dc*nc + s(2)*ds*ns ) ;
-        dz = -1*( r(3)*dr*nr + c(3)*dc*nc + s(3)*ds*ns ) ;
+    x1 = Img.Hdr.ImagePositionPatient(1) + dx ;
+    y1 = Img.Hdr.ImagePositionPatient(2) + dy ;
+    z1 = Img.Hdr.ImagePositionPatient(3) + dz ;
 
-        x1 = Img.Hdr.ImagePositionPatient(1) + dx ;
-        y1 = Img.Hdr.ImagePositionPatient(2) + dy ;
-        z1 = Img.Hdr.ImagePositionPatient(3) + dz ;
+    Img.Hdr.ImagePositionPatient = [x1 y1 z1] ;
 
-        Img.Hdr.ImagePositionPatient = [x1 y1 z1] ;
-   
-        Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, s ) ;
-    end
+    Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, s ) ;
+end
 
 end
 % =========================================================================
@@ -278,20 +290,20 @@ function Img = scalephasetofrequency( Img, undoFlag )
 %
 % UnwrappedPhase.Hdr.EchoTime              [units: ms]
 
-    scalingFactor = 1/( 2*pi*Img.Hdr.EchoTime*(1E-3)  ) ;
-    
-    if (nargin < 2) || (undoFlag ~= -1)
-        assert( strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0000H' ) )
+scalingFactor = 1/( 2*pi*Img.Hdr.EchoTime*(1E-3)  ) ;
 
-        Img.img       = scalingFactor * Img.img ;
-        Img.Hdr.PixelComponentPhysicalUnits = '0005H' ; % i.e. Hz
-    
-    elseif (undoFlag == -1)
-        assert( strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0005H' ) )
+if (nargin < 2) || (undoFlag ~= -1)
+    assert( strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0000H' ) )
 
-        Img.img       = (scalingFactor^-1 )* Img.img ;
-        Img.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
-    end
+    Img.img       = scalingFactor * Img.img ;
+    Img.Hdr.PixelComponentPhysicalUnits = '0005H' ; % i.e. Hz
+
+elseif (undoFlag == -1)
+    assert( strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0005H' ) )
+
+    Img.img       = (scalingFactor^-1 )* Img.img ;
+    Img.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
+end
 
 end
 % =========================================================================
@@ -305,12 +317,13 @@ function GYRO = getgyromagneticratio( Img )
 %
 % Gyro = getgyromagneticratio( Img )
 
-    switch Img.Hdr.ImagedNucleus 
-        case '1H' 
-            GYRO = 267.513E6 ; 
-        otherwise
-            error('Unknown nucleus. Do something useful: add case and corresponding gyromagnetic ratio.') ;
-        end
+switch Img.Hdr.ImagedNucleus 
+    case '1H' 
+        GYRO = 267.513E6 ; 
+    otherwise
+        error('Unknown nucleus. Do something useful: add case and corresponding gyromagnetic ratio.') ;
+end
+
 end
 % =========================================================================
 function Phase = unwrapphase( Phase, varargin )
@@ -382,43 +395,155 @@ function Phase = unwrapphase( Phase, varargin )
     Img.Hdr.SeriesDescription = ['phase_unwrapped_' seriesDescriptionUnwrapper ] ; 
 end
 % =========================================================================
+function [LocalField, BackgroundField] = extractharmonicfield( ...
+        Field, Params )
+%EXTRACTHARMONICFIELD
+%
+% Extract (smooth) harmonic field via RESHARP (Sun, H. Magn Res Med, 2014)
+% ------
+%
+%   Syntax
+%
+%   [LocalField, BkgrField] = EXTRACTHARMONICFIELD( Field, Params )
+%
+%   Returns 2 MaRdI-type Field objects: 
+%       LocalField : LocalField.img is the non-harmonic (high-pass) signal element
+%       BkgrField  : BkgrField.img is the harmonic (low-pass) signal element
+%
+%   Inputs
+%       
+%   Field
+%       MaRdI-type object containing GRE field data in Field.img
+%
+%  Params
+%   .filterRadius 
+%       scalar filter radius [units: mm] 
+%           (default = 4)
+%
+%   .regularization
+%       Tikhonov regularization parameter
+%           (default = 0)
+%
+%   .maxIterations
+%      max iterations of conjugate gradient solver 
+%           (default = 500)
+%
+%   .tolerance
+%      min acceptable discepancy (Ax - b)/|norm(b)| for conjugate gradient solver
+%           (default = 1E-6)
+
+DEFAULT_FILTERRADIUS   = 4;
+DEFAULT_REGULARIZATION = 0 ;
+DEFAULT_MAXITERATIONS = 500 ;
+DEFAULT_TOLERANCE     = 1E-6 ;
+
+if ~myisfield(Params, 'filterRadius') || isempty(Params.filterRadius)
+    Params.filterRadius = DEFAULT_FILTERRADIUS ;
+end
+
+if ~myisfield(Params, 'regularization') || isempty(Params.regularization)
+    Params.regularization = DEFAULT_REGULARIZATION ;
+end
+
+if  ~myisfield( Params, 'maxIterations' ) || isempty(Params.maxIterations)
+    Params.maxIterations = DEFAULT_MAXITERATIONS ;
+end
+
+if  ~myisfield( Params, 'tolerance' ) || isempty(Params.tolerance)
+    Params.tolerance = DEFAULT_TOLERANCE ;
+end
+
+voxelSize  = Field.getvoxelsize() ;
+
+% make spherical/ellipsoidal convolution kernel (ker)
+rx = round(Params.filterRadius/voxelSize(1));
+ry = round(Params.filterRadius/voxelSize(2));
+rz = round(Params.filterRadius/voxelSize(3));
+rx = max(rx,2);
+ry = max(ry,2);
+rz = max(rz,2);
+% rz = ceil(Params.filterRadius/voxelSize(3));
+[X,Y,Z] = ndgrid(-rx:rx,-ry:ry,-rz:rz);
+h = (X.^2/rx^2 + Y.^2/ry^2 + Z.^2/rz^2 <= 1);
+ker = h/sum(h(:));
+
+% circularshift, linear conv to Fourier multiplication
+csh = [rx,ry,rz]; % circularshift
+
+% erode the mask by convolving with the kernel
+% cvsize = Field.getgridsize + [2*rx+1, 2*ry+1, 2*rz+1] -1; % linear conv size
+% mask_tmp = real(ifftn(fftn(mask,cvsize).*fftn(ker,cvsize)));
+% mask_tmp = mask_tmp(rx+1:end-rx, ry+1:end-ry, rz+1:end-rz); % same size
+mask_ero = zeros(Field.getgridsize);
+mask_tmp = convn(Field.Hdr.MaskingImage, ker,'same');
+mask_ero(mask_tmp > 1-1/sum(h(:))) = 1; % no error points tolerence 
+
+
+% prepare convolution kernel: delta-ker
+dker = -ker;
+dker(rx+1,ry+1,rz+1) = 1-ker(rx+1,ry+1,rz+1);
+DKER = fftn(dker,Field.getgridsize); % dker in Fourier domain
+
+b = ifftn( conj(DKER).*fftn( circshift( ...
+    mask_ero .* circshift( ifftn( DKER.*fftn(Field.img) ), -csh), csh)));
+b = b(:);
+
+localField = cgs(@Afun, b, Params.tolerance, Params.maxIterations );
+localField = real( reshape( localField, Field.getgridsize)).*mask_ero;
+
+LocalField = Field ;
+LocalField.img = localField;
+LocalField.Hdr.MaskingImage = mask_ero ;
+
+BackgroundField = Field ;
+BackgroundField.img = mask_ero .* (Field.img - localField);
+BackgroundField.Hdr.MaskingImage = mask_ero ;
+
+function y = Afun(x)
+    x = reshape( x, Field.getgridsize );
+    y = ifftn( conj(DKER) .* fftn( circshift( mask_ero.* ...
+        circshift(ifftn(DKER.*fftn(x)),-csh),csh))) + Params.regularization*x;
+    y = y(:);
+end
+
+end
+% =========================================================================
 function Field = mapfrequencydifference( Phase1, Phase2 )
 %MAPFREQUENCYDIFFERENCE
 % 
 % Field = MAPFREQUENCYDIFFERENCE( UnwrappedEcho1, UnwrappedEcho2 ) 
-%
-    
-    Field = Phase1 ;
-    
-    assert( strcmp(Phase1.Hdr.PixelComponentPhysicalUnits, '0000H') && ...
-            strcmp(Phase2.Hdr.PixelComponentPhysicalUnits, '0000H'), ...
-    'Inputs should be 2 MaRdI objects where .img is the unwrapped phase.' ) ;
-    
-    %-------
-    % mask
-    if myisfield( Phase1.Hdr, 'MaskingImage' ) || ~isempty( Phase1.Hdr.MaskingImage ) ; 
-        mask = Phase1.Hdr.MaskingImage ;
-    end
-    if myisfield( Phase2.Hdr, 'MaskingImage' ) || ~isempty( Phase2.Hdr.MaskingImage ) ; 
-        mask = mask .* Phase2.Hdr.MaskingImage ;
-    end
 
-    %-------
-    % field map
-    Field.img = (Phase2.img - Phase1.img)/(Phase2.Hdr.EchoTime - Phase1.Hdr.EchoTime) ;
-    Field.img = mask .* Field.img ;
-    Field.img = (1000/(2*pi)) * Field.img ;
+Field = Phase1 ;
 
-    %-------    
-    % update header
-    Field.Hdr.MaskingImage = mask ;
-    Field.Hdr.EchoTime = abs( Phase2.Hdr.EchoTime - Phase1.Hdr.EchoTime ) ;
+assert( strcmp(Phase1.Hdr.PixelComponentPhysicalUnits, '0000H') && ...
+        strcmp(Phase2.Hdr.PixelComponentPhysicalUnits, '0000H'), ...
+'Inputs should be 2 MaRdI objects where .img is the unwrapped phase.' ) ;
 
-    Field.Hdr.PixelComponentPhysicalUnits = '0005H' ; % Hz
-    Field.Hdr.ImageType         = 'DERIVED\SECONDARY\FREQUENCY' ; 
-    Field.Hdr.SeriesDescription = ['frequency_' Field.Hdr.SeriesDescription] ; 
+%-------
+% mask
+if myisfield( Phase1.Hdr, 'MaskingImage' ) || ~isempty( Phase1.Hdr.MaskingImage ) ; 
+    mask = Phase1.Hdr.MaskingImage ;
+end
+if myisfield( Phase2.Hdr, 'MaskingImage' ) || ~isempty( Phase2.Hdr.MaskingImage ) ; 
+    mask = mask .* Phase2.Hdr.MaskingImage ;
 end
 
+%-------
+% field map
+Field.img = (Phase2.img - Phase1.img)/(Phase2.Hdr.EchoTime - Phase1.Hdr.EchoTime) ;
+Field.img = mask .* Field.img ;
+Field.img = (1000/(2*pi)) * Field.img ;
+
+%-------    
+% update header
+Field.Hdr.MaskingImage = mask ;
+Field.Hdr.EchoTime = abs( Phase2.Hdr.EchoTime - Phase1.Hdr.EchoTime ) ;
+
+Field.Hdr.PixelComponentPhysicalUnits = '0005H' ; % Hz
+Field.Hdr.ImageType         = 'DERIVED\SECONDARY\FREQUENCY' ; 
+Field.Hdr.SeriesDescription = ['frequency_' Field.Hdr.SeriesDescription] ; 
+
+end
 % =========================================================================
 function [r,c,s] = getdirectioncosines( Img ) 
 % GETDIRECTIONALCOSINES

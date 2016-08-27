@@ -1,7 +1,19 @@
 classdef ShimCom
 %SHIMCOM - Shim Communication
 %
-% Shims = ShimCom(  )
+% .......
+% 
+% Description
+%
+%   SHIMCOM is responsible for all direct communication with the shim system
+%   (MXD & DSU). Declaration of a ShimCom object immediately opens a serial
+%   (Com) port.
+%
+% .......
+%   
+% Usage
+%
+%   Shims = ShimCom(  )
 %
 %   Shims contains fields
 %
@@ -12,42 +24,32 @@ classdef ShimCom
 %       .Data 
 %
 %       .Parameters
-% .......
-%
-%   Description
-%
-%   Declaration of ShimCom object immediately opens a serial (aka Com) port
-%   (see ShimCom.opencomport() for the expected port names).
 %
 % =========================================================================
-% Part of series of classes pertaining to shimming:
-%
-%     ProbeTracking
-%     ShimCom
-%     ShimOpt
-%     ShimSpecs
-%     ShimUse
-%     
-% =========================================================================
-% Updated::20160802::ryan.topfer@polymtl.ca
-% =========================================================================
-
-% =========================================================================
-% NB
+% Notes
 %
 %   Large portions of the following code are effectively a translation, into
 %   MATLAB, of the VB source code for "Demo DSU Host Software ver. 2.00"
 %   courtesy of Resonance Research, Inc.  
 %
-% For primer on RS-232 communication in Matlab see 
+%   For a primer on RS-232 communication in Matlab see
+% http://www.mathworks.com/help/matlab/matlab_external/overview-of-the-serial-port.html
 %
-% http://www.mathworks.com/help/matlab/matlab_external/overview-of-the-serial-
-% port.html
+%   Part of series of classes pertaining to shimming:
 %
-%   Careful with implicit casting in matlab -
-%   Hex Communication Protocol for the shims deals exclusively with 8-bit 
-%   words. By default, however, Matlab sets numerical variables to type double.
+%    ProbeTracking
+%    ShimCal
+%    ShimCom
+%    ShimOpt
+%    ShimSpecs
+%    ShimUse
+%    ShimTest 
+%     
 % =========================================================================
+% Updated::20160827::ryan.topfer@polymtl.ca
+% =========================================================================
+
+
 % *** TODO 
 % 
 %     .debug parameter or something? When true: Notify user if 'isSendOk' + what type
@@ -99,7 +101,17 @@ classdef ShimCom
 %  
 %   Documentation for how two's complement works.
 %
+% ..... 
+% AMPSTOINT()
+%
+%   consider output 'clipFlag' for instance where input current exceeds 
+%   max allowable current?
+%
+%   likewise for any set() function in ShimCom for shim currents.
 %     
+% ..... 
+% Parameters.isDebug 
+%   ? for outputting system responses to screen
 % =========================================================================
 
 properties   
@@ -148,14 +160,43 @@ Shims.Parameters.nSendAttemptsMax = 5; % # communication attempts before error
 % Shims.Parameters.isConnectedMxd   = true ;
 % Shims.Parameters.isConnectedDsu   = true ;
 
+end
+% =========================================================================
+function [offset, slope] = getbankadccalibrationdata( Shims, iBank ) 
+%GETBANKADCCALIBRATIONDATA      (*INVALID? MXD cmd 0x02)
+%
+% [offset, slope] = GETBANKADCCALIBRATIONDATA( Shims, bankIndex ) 
+%
+%   bankIndex = 0, 1, 2, or 3
 
-% % -------
-% % ?? could absorb isSendOk into this
-% Shims.status = '';
+Shims.Parameters.nBytesToRead = 8 ;  
+
+% output message to read in shim values
+Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ; 
+Shims.Data.output(2) = 6 ; 
+Shims.Data.output(3) = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ; 
+Shims.Data.output(4) = uint8( iBank ) ;
+
+Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
+                        ShimCom.calculatecrc( Shims.Data.output ) ) ; 
+
+[Shims, isSendOk] = Shims.sendcmd() ;
+if isSendOk
+    Shims.isackreceived() ;
+end
+
+Shims.Data.input
+offset = double( ShimCom.mergeints( Shims.Data.input(3), ...
+                               Shims.Data.input(4), true ) ) ;
+
+slope = double( ShimCom.mergeints( Shims.Data.input(5), ...
+                               Shims.Data.input(6), false ) ) ;
 end
 % =========================================================================
 function [] = clearsystemerrors( Shims ) 
-%CLEARSYSTEMERRORS    
+%CLEARSYSTEMERRORS      (MXD cmd 0x0A)
+%
+% [] = CLEARSYSTEMERRORS( Shims ) 
 
 Shims.Parameters.nBytesToRead = 5 ; % (ACK only)
 
@@ -175,9 +216,17 @@ end
 end
 % =========================================================================
 function SystemStatus = getsystemlongstatus( Shims ) 
-%GETSYSTEMLONGSTATUS
+%GETSYSTEMLONGSTATUS    (MXD cmd 0x25)
 %
 % SystemStatus = GETSYSTEMLONGSTATUS( Shims )
+%
+% SystemStatus has fields
+%   .totalOutputPower [in W]
+%   .onOff [1 - ON, 0 - OFF] 
+%   .globlErrorRegister  
+%       [0-7 bitwise: Error on a bank, Bank is missing, Bank communication
+%       error, TBD, TBD, TBD, Interlock Error, Fatal Error Requiring Shutdown
+%       Present)]
     
 % return byte: (1) sync ; (2) length; (3-6) data; (7-8) crc;  
 Shims.Parameters.nBytesToRead = 8 ; % 
@@ -207,8 +256,11 @@ SystemStatus.globalErrorRegister = Shims.Data.input(6) ;
 end
 % =========================================================================
 function BankStatus = getbanklongstatus( Shims, iBank ) 
+%GETBANKLONGSTATUS      (MXD cmd 0x26)
+%
 % BankStatus = GETBANKLONGSTATUS( Shims, bankIndex )
-%   where bankIndex = 0, 1, 2, or 3
+%   
+%   bankIndex = 0, 1, 2, or 3
 %
 % BankStatus has fields
 %   .highVoltagePositiveRail [in V]
@@ -256,6 +308,8 @@ end
 end
 % =========================================================================
 function SystemInfo = getsysteminformation( Shims ) 
+%GETSYSTEMINFORMATION (MXD cmd 0x29)
+%
 % SystemInfo = GETSYSTEMINFORMATION( Shims )
 % 
 % SystemInfo has fields
@@ -297,6 +351,8 @@ SystemInfo.serialNumber = ...
 end
 % =========================================================================
 function [] = setsystemcurrenttime( Shims, SystemTime ) 
+%SETSYSTEMCURRENTTIME (MXD cmd 0x2B)
+%
 % [] = SETSYSTEMCURRENTTIME( Shims, SystemTime )
 %
 % SystemTime has fields
@@ -308,8 +364,7 @@ function [] = setsystemcurrenttime( Shims, SystemTime )
 %   .minute
 %   .second
     
-% -------
-Shims.Parameters.nBytesToRead = 5 ; 
+Shims.Parameters.nBytesToRead = 5 ; % ACK only
 
 Shims.Data.output  = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
 
@@ -345,6 +400,8 @@ end
 end
 % =========================================================================
 function SystemTime = getsystemcurrenttime( Shims ) 
+%GETSYSTEMCURRENTTIME   (MXD cmd 0x2C)
+%
 % SystemTime = GETSYSTEMCURRENTTIME( Shims )
 %
 % SystemTime has fields
@@ -385,27 +442,16 @@ SystemTime.seconds = double( Shims.Data.input(9) ) ;
     
 end
 % =========================================================================
-function [] = resetallshims( Shims ) 
-%RESETALLSHIMS
-%
-% RESETALLSHIMS( Shims )
-% 
-% Sets all shims to 0 amps.
-
-Shims.setallshims( zeros(Shims.Specs.Amp.nChannels, 1) ) ;
-Shims.setloadallshims ;
-
-end
-% =========================================================================
 function [] = setallshims( Shims, currents ) 
-%SETALLSHIMS
+%SETALLSHIMS    (MXD cmd: 0x22)
 %
 % SETALLSHIMS( Shims, currents )
 % 
 % Sets all shims based on [nChannel x 1] current vector (in amps)
 % 
-% (e.g. for our system, currents vector has 32 (and not 24) entries.
-% Currents for inactive channels should be zero.
+% NB: for our system, currents vector has 32 entries (=total # amplifier
+% channels, including inactive channels).  Currents for inactive channels
+% should be zero.
 
 assert( length(currents) == Shims.Specs.Amp.nChannels )
 
@@ -426,7 +472,7 @@ iByteOut = 4 ;
 
 for iChannel = 1 : Shims.Specs.Amp.nChannels
     [currentLB, currentHB] = Shims.splitint( ...
-        Shims.Specs.numtodac( currents(iChannel) ) ) ;    
+        Shims.ampstodac( currents(iChannel) ) ) ;    
     
     Shims.Data.output(iByteOut) = currentHB ;
     iByteOut = iByteOut + 1 ;
@@ -449,19 +495,14 @@ end
 end
 % =========================================================================
 function [] = setandloadshim( Shims, varargin ) 
-%SETANDLOADSHIM
+%SETANDLOADSHIM     (MXD cmd 0x44 || 0x54)
 %
-% Set shim current for single channel 
+% Set shim current (in amps) for single channel 
 % 
-% systemResponse = setandloadshim( Shims, channelIndexGlobal, current ) 
-% systemResponse = setandloadshim( Shims, bankIndex, channelIndexByBank, current ) 
-%
-% current is in amps
-%
-% systemResponse is a HEX code. For the list of responses, try 
-%   help ShimUse.definesystemresponses 
-%
-% -------
+% [] = SETANDLOADSHIM( Shims, channelIndexGlobal, current ) 
+% [] = SETANDLOADSHIM( Shims, bankIndex, channelIndexByBank, current ) 
+
+
 Shims.Parameters.nBytesToRead = 5 ; 
 
 Shims.Data.output  = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
@@ -474,7 +515,7 @@ elseif nargin == 3
     iChannel = varargin{1} ;
     current  = varargin{2} ;
 
-    [currentLB, currentHB] = Shims.splitint( Shims.Specs.numtodac( current ) ) ;    
+    [currentLB, currentHB] = Shims.splitint( Shims.ampstodac( current ) ) ;    
 
     Shims.Data.output(2) = 8 ;
     Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setAndLoadShimByChannel ) ;
@@ -487,7 +528,7 @@ elseif nargin == 4
     iChannel = varargin{2} ;
     current  = varargin{3} ;
 
-    [currentLB, currentHB] = Shims.splitint( Shims.Specs.numtodac( current ) ) ;    
+    [currentLB, currentHB] = Shims.splitint( Shims.ampstodac( current ) ) ;    
     Shims.Data.output(2) = 9 ;
     Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setAndLoadShimByBankChannel ) ;
     Shims.Data.output(4) = uint8( iBank ) ;
@@ -514,7 +555,7 @@ end
 end
 % =========================================================================
 function [] = setchannelbuffer( Shims, iBank, iChannel, current ) 
-%SETCHANNELBUFFER
+%SETCHANNELBUFFER *INVALID?
 if current > Shims.Specs.Amp.maxCurrentPerChannel
     fprintf( [ 'WARNING: \n Requested current of ' num2str(current) ...
             ' exceeds MAX channel current of ' ...
@@ -522,7 +563,7 @@ if current > Shims.Specs.Amp.maxCurrentPerChannel
             '\n Resulting current will be clipped.\n'] ) ;
 end
 
-[currentLB, currentHB] = Shims.splitint( Shims.Specs.numtodac( current ) ) 
+[currentLB, currentHB] = Shims.splitint( Shims.ampstodac( current ) ) 
 
 Shims.Parameters.nBytesToRead = 5 ; 
 
@@ -557,10 +598,14 @@ if isSendOk
         disp(systemResponse)
     end
 end
+
 end
 % =========================================================================
 function [] = setpoweroff( Shims ) 
+%SETPOWEROFF    (MXD cmd 0x21)
+%
 % [] = SETPOWEROFF( Shims )
+
 Shims.Parameters.nBytesToRead = 5 ; % (ACK only)
 
 % output message to read in shim values
@@ -575,9 +620,12 @@ Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
 if isSendOk
     Shims.isackreceived() ;
 end
+
 end
 % =========================================================================
 function [] = setpoweron( Shims ) 
+%SETPOWERON     (MXD cmd 0x20)
+% 
 % [] = SETPOWERON( Shims )
 Shims.Parameters.nBytesToRead = 5 ; % (ACK only)
 
@@ -593,12 +641,11 @@ Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
 if isSendOk
     Shims.isackreceived() ;
 end
+
 end
 % =========================================================================
 function ChannelOutput = getchanneloutput( Shims, iBank, iChannel ) 
-%GETCHANNELOUTPUT 
-%
-% Return channel values 
+%GETCHANNELOUTPUT   (MXD cmd 0x47)
 % 
 % ChannelOutput = getchanneloutput( Shims, bankIndex, channelIndex ) 
 %
@@ -609,8 +656,8 @@ function ChannelOutput = getchanneloutput( Shims, iBank, iChannel )
 %   .disspitatedPower [in Watts]
 
 % return byte: (1) sync ; (2) length; (3-10) data; (11-12) crc;  
-
 Shims.Parameters.nBytesToRead = 12 ; 
+
 Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
 Shims.Data.output(2) = 7 ;
 Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getChannelOutput ) ;
@@ -647,7 +694,9 @@ ChannelOutput.dissipatedPower = ...
 end
 % =========================================================================
 function [] = getsystemheartbeat( Shims ) 
-%GETSYSTEMHEARTBEAT
+%GETSYSTEMHEARTBEAT     (MXD cmd 0x09)
+%
+% Queries MXD and returns 'ACK' if responsive
     
 Shims.Parameters.nBytesToRead = 5 ; % (ACK only)
 
@@ -662,19 +711,17 @@ Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
 [Shims, isSendOk] = Shims.sendcmd() ;
 if isSendOk 
     [isAckReceived, systemResponse] = Shims.isackreceived( ) ;
-    if isAckReceived
-        disp('OK')
-    else
-        disp(systemResponse)
-    end
+    disp(systemResponse)
 end
 
 end
 % =========================================================================
 function [] = setloadallshims( Shims ) 
-%SETANDLOADALLSHIMS
+%SETLOADALLSHIMS     (MXD cmd 0x23)
 %
-%   Load buffered shim settings    
+%   Loads buffered shim settings.
+% 
+%   [] = SETLOADALLSHIMS( Shims ) 
 
 Shims.Parameters.nBytesToRead = 5 ; % (ACK only)
 
@@ -698,14 +745,20 @@ end
 end
 % =========================================================================
 function percentSliceIntensity = getslice( Shims, iChannel, iSlice )
-%GETSLICE    (DSU cmd: E0)
+%GETSLICE    (DSU cmd 0xE0)
 %
+% percentSliceIntensity = GETSLICE( Shims, channelIndex, sliceIndex ) 
+%
+%   channelIndex : number between 1 to 32 (see ShimCom.getchanneltobankkey)
+%   sliceIndex   : number between 1 and 1000 
+%
+%   percentSliceIntensity : number between -100 and 100  
 
 Shims.Parameters.nBytesToRead = 6 ; 
 
 Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Dsu.sync) ) ; 
 Shims.Data.output(2) = 8 ; 
-Shims.Data.output(3) = hex2dec( Shims.Cmd.Dsu.getSlice ) ;
+Shims.Data.output(3) = uint8( hex2dec( Shims.Cmd.Dsu.getSlice ) ) ;
 Shims.Data.output(4) = uint8( iChannel ) ;
 
 [iSliceLowByte, iSliceHighByte] = Shims.splitint( uint16( iSlice ) ) ;
@@ -730,19 +783,29 @@ if( Shims.Data.input(2) ~= Shims.Parameters.nBytesToRead )
     % Shims.checkcontrolresponse( Shims.Data.input ); ??
 end
 
-percentSliceIntensity = double( ShimCom.mergeints( Shims.Data.input(3), ...
-                    Shims.Data.input(4), true ) ) ;
+percentSliceIntensity = dactopercentsliceintensity( ...
+    ShimCom.mergeints( Shims.Data.input(3), Shims.Data.input(4), true ) ) ;
+
+function ps = dactopercentsliceintensity( dc )
+% Convert dac counts (dc, between 0 and 65535)) to percent slice intensity (ps,
+% between -100 to 100)  
+    ps = double( dc ) - 32768 ; % offset
+    ps = (100/32768)*ps ; % scale
+end
 
 end
 % =========================================================================
 function [] = setslice( Shims, iChannel, iSlice, percentSliceIntensity )
-%SETSLICE    (DSU cmd: D0)
+%SETSLICE    (DSU cmd 0xD0)
 %
-% SETSLICE( Shims, channelIndex, sliceIndex, sliceIntensity ) 
+% [] = SETSLICE( Shims, channelIndex, sliceIndex, sliceIntensity ) 
 %
 %   channelIndex : number between 1 to 32 (see ShimCom.getchanneltobankkey)
 %   sliceIndex   : number between 1 and 1000 
 %   percentSliceIntensity : number between -100 and 100  
+
+assert( abs(percentSliceIntensity) <= 100, ...
+        'Input slice intensity (%) must be between -100 and 100' )
 
 Shims.Parameters.nBytesToRead = 5 ; % ACK only
 
@@ -757,7 +820,7 @@ Shims.Data.output(5) = iSliceHighByte ;
 Shims.Data.output(6) = iSliceLowByte ;
 
 [percentSliceIntensityLowByte, percentSliceIntensityHighByte] = ...
-    Shims.splitint( Shims.Specs.numtodac( percentSliceIntensity ) ) ;
+    Shims.splitint( percentsliceintensitytodac( percentSliceIntensity)  ) ;
 
 Shims.Data.output(7) = percentSliceIntensityHighByte ;
 Shims.Data.output(8) = percentSliceIntensityLowByte ;
@@ -779,23 +842,160 @@ if( Shims.Data.input(2) ~= Shims.Parameters.nBytesToRead )
     % Shims.checkcontrolresponse( Shims.Data.input ); ??
 end
 
+function dc = percentsliceintensitytodac( ps )
+% convert percent slice intensity (ps, between -100 to 100) to DAC counts 
+% (dc, between 0 and 65535)
+    assert( abs(percentSliceIntensity) <= 100, ...
+        'Input slice intensity (%) must be between -100 and 100' )
+    dc = ps + 100 ; % floor set to 0x0000
+    dc = dc*32767.5/100 ;
+    dc = uint16( dc ) ;
+end
+
 end
 % =========================================================================
+function [] = setmatrixinterconnectiontoself( Shims, iChannel, iSlot )
+%SETMATRIXINTERCONNECTIONTOSELF    (DSU cmd 0x20)
+%
+% [] = SETMATRIXINTERCONNECTIONTOSELF( Shims, channelIndex, slotIndex ) 
+%
+%   channelIndex : number between 1 to 32 (see ShimCom.getchanneltobankkey)
+%   slotIndex : [time constant module 1-4]: 
+%       0x00 (no connection), 
+%       0x01 (first module), 
+%       0x02 (second), 
+%       0x04 (third), 
+%       0x08 (fourth), 
+%       0x09 (first and fourth) etc. 
+%
+%       (See corresponding entry in Hex Communication manual)
+
+Shims.Parameters.nBytesToRead = 5 ; % ACK only. 
+
+Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Dsu.sync) ) ; 
+Shims.Data.output(2) = 7 ; 
+Shims.Data.output(3) = hex2dec( Shims.Cmd.Dsu.setMatrixInterconnectionToSelf ) ;
+Shims.Data.output(4) = uint8( iChannel ) ;
+Shims.Data.output(5) = uint8( hex2dec( iSlot ) ) ;
+
+Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
+                        ShimCom.calculatecrc( Shims.Data.output ) ) ; 
+
+[Shims, isSendOk] = Shims.sendcmd() ;
+
+if isSendOk 
+    [isAckReceived, systemResponse] = Shims.isackreceived( ) ;
+    if ~isAckReceived
+        disp(systemResponse)
+    end
+end
+
+if( Shims.Data.input(2) ~= Shims.Parameters.nBytesToRead ) 
+    disp('error...')
+    % Shims.checkcontrolresponse( Shims.Data.input ); ??
+end
+
+end
+% =========================================================================
+function interconnections = getchannelmatrixinterconnection( Shims, iChannel )
+%GETCHANNELMATRIXINTERCONNECTION (DSU cmd 0xFB)
+%
+% interconnections = GETMATRIXINTERCONNECTION( Shims, channelIndex ) 
+%
+%   channelIndex : number between 1 to 32 (see ShimCom.getchanneltobankkey)
+
+
+Shims.Parameters.nBytesToRead = 68 ; 
+
+Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Dsu.sync) ) ; 
+Shims.Data.output(2) = 6 ; 
+Shims.Data.output(3) = hex2dec( Shims.Cmd.Dsu.getMatrixInterconnections ) ;
+Shims.Data.output(4) = uint8( iChannel ) ;
+
+Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
+                        ShimCom.calculatecrc( Shims.Data.output ) ) ; 
+
+[Shims, isSendOk] = Shims.sendcmd() ;
+
+if isSendOk 
+    [isAckReceived, systemResponse] = Shims.isackreceived( ) ;
+    if ~isAckReceived
+        disp(systemResponse)
+    end
+end
+
+if( Shims.Data.input(2) ~= Shims.Parameters.nBytesToRead ) 
+    disp('error...')
+    % Shims.checkcontrolresponse( Shims.Data.input ); ??
+end
+
+interconnections = zeros(32,2) ;
+
+for iChannel = 3 : 2 : 65
+    interconnections( iChannel, 1 ) = Shims.Data.input( iChannel ) ;
+    interconnections( iChannel, 2 ) = Shims.Data.input( iChannel + 1) ;
+end
+
+end
+% =========================================================================
+function [] = testwave( Shims, iChannel, isOn )
+%TESTWAVE    (DSU cmd 0x21)
+%
+% [] = TESTWAVE( Shims, channelIndex, isOn ) 
+%
+%   channelIndex : number between 1 to 32 (see ShimCom.getchanneltobankkey)
+%   isOn : true (1) OR false (0) 
+
+Shims.Parameters.nBytesToRead = 5 ; 
+
+Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Dsu.sync) ) ; 
+Shims.Data.output(2) = 7 ; 
+Shims.Data.output(3) = hex2dec( Shims.Cmd.Dsu.testWave ) ;
+Shims.Data.output(4) = uint8( iChannel ) ;
+
+if isOn == 1
+    Shims.Data.output(5) = uint8( 1 ) ;
+else
+    Shims.Data.output(5) = uint8( 2 ) ;
+end
+
+Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
+                        ShimCom.calculatecrc( Shims.Data.output ) ) ; 
+
+[Shims, isSendOk] = Shims.sendcmd() ;
+
+if isSendOk 
+    [isAckReceived, systemResponse] = Shims.isackreceived( ) 
+    if ~isAckReceived
+        disp(systemResponse)
+    end
+end
+
+if( Shims.Data.input(2) ~= Shims.Parameters.nBytesToRead ) 
+    disp('error...')
+    % Shims.checkcontrolresponse( Shims.Data.input ); ??
+end
+
+end
+%=========================================================================
 function [] = delete( Shim  )
-%DELETE  
+%DELETE  (custom helper function)
+% 
 % DELETE( Shim )
 % 
 % Destructor. Calls Shim.deletecomport( ) 
 
 Shim.deletecomport();
 clear Shim ;
+
 end
 % =========================================================================
 function [Shims] = deletecomport( Shims )
-%DELETECOMPORT  
+%DELETECOMPORT  (custom helper function)
+% 
 % Shims = DELETECOMPORT( Shims )
 % 
-% Proper way to delete the serial port object
+% Correct way to delete and clear the serial port object
 
 % check existence?
 if myisfield( Shims, 'ComPort' ) && ~isempty( Shims.ComPort ) 
@@ -803,7 +1003,6 @@ if myisfield( Shims, 'ComPort' ) && ~isempty( Shims.ComPort )
     delete( Shims.ComPort ) ;
     clear Shims.ComPort  ;
 end
-
 
 end
 % =========================================================================
@@ -926,6 +1125,34 @@ end
 
 end
 % =========================================================================
+function dacCount = ampstodac( Shims, current )
+%AMPSTODAC
+%
+% Wraps a current value in Amperes to a count within the DAC's range. 
+% 
+% dacCount = AMPSTODAC( Shims, current ) 
+
+MAX_DIGI = (2^(Shims.Specs.Dac.resolution-1)) - 1 ; % Digital to Analog Converter max value
+
+dacCount = int16( current*( MAX_DIGI/Shims.Specs.Dac.maxCurrent  ) ) ;
+
+end
+% =========================================================================
+function dacCount = numtodac( Shims, current, maxValue )
+%NUMTODAC
+%
+% Wraps a value to a count within the DAC's range. 
+% 
+% dacCount = NUMTODAC( Shims, current ) 
+
+% offset = 8192 ; % (i.e. 0x8000, see p.34 of Hex Communication manual, v.G)
+%
+% MAX_DIGI = (2^(Shims.Specs.Dac.resolution-1)) - 1 ; % Digital to Analog Converter max value
+%
+% dacCount = int16( current*( MAX_DIGI/Shims.Dac.maxCurrent  ) ) ;
+dacCount = 0;
+end
+% =========================================================================
 % =========================================================================
 
 end
@@ -934,7 +1161,7 @@ end
 methods(Static)
 % =========================================================================
 function [X0,X1,X2,X3] = getchanneltobankmatrices( )
-%GETCHANNELTOBANKMATRICES
+%GETCHANNELTOBANKMATRICES   (custom helper function)
 %
 % [X0,X1,X2,X3] = GETCHANNELTOBANKMATRICES()
 %
@@ -971,21 +1198,58 @@ X3 = X{4} ;
 end
 % =========================================================================
 function [currentsOut] = mapcurrentstomxd( currents )
-%MAPCURRENTSTOMXD
+%MAPCURRENTSTOMXD   (custom helper function)
+%
+% currentsOut = MAPCURRENTSTOMXD( currentsIn )
+%
+% e.g. Insert active channel indices into corresponding cells in full currents
+%   vector (i.e. 32 channels, including inactive channels)
+%
+% >> currentsOut = ShimCom.mapcurrentstomxd( [1 : 24] ) 
+%
+% currentsOut =
+%
+%      2
+%      5
+%      6
+%      9
+%     10
+%      1
+%      3
+%      0
+%      4
+%      7
+%      8
+%     11
+%     12
+%      0
+%      0
+%      0
+%     14
+%     17
+%     18
+%     21
+%     22
+%     13
+%     15
+%      0
+%     16
+%     19
+%     20
+%     23
+%     24
+%      0
+%      0
+%      0
 
 channelToBankKey = ShimCom.getchanneltobankkey() ;
-
-nActiveChannels = size( channelToBankKey, 1 ) ;
 currentsOut = zeros( 32, 1 ) ;
-
-for iChannel = 1 : nActiveChannels 
-    currentsOut( channelToBankKey( iChannel, 4 ) ) = currents(iChannel);
-end
+currentsOut( channelToBankKey( :, 4 ) ) = currents ;
 
 end    
 % =========================================================================
 function [channelToBankKey] = getchanneltobankkey( )
-%GETCHANNELTOBANKKEY
+%GETCHANNELTOBANKKEY    (custom helper function)
 %
 % Maps the spine coil channels (1-24) to the corresponding MXD banks (0-3) 
 % & channels (1-32)
@@ -1053,98 +1317,6 @@ channelToBankKey(24, 2:4) = [3 4 29] ;
 
 end
 % =========================================================================
-function [Cmd] = definecommands( )
-%DEFINECOMMANDS
-%
-% [] = DEFINECOMMANDS( )
-% -------------------------------------------------------------------------
-% System commands (as Hexadecimal strings) 
-% I.  for the MXD 
-% II. for DSU
-
-Cmd.Mxd.sync                        = '02' ;
-
-Cmd.Mxd.getSystemHeartbeat          = '09' ;
-
-Cmd.Mxd.clearSystemErrors           = '0A' ;
-
-Cmd.Mxd.setPowerOn                  = '20' ;
-Cmd.Mxd.setPowerOff                 = '21' ;
-Cmd.Mxd.setAllShims                 = '22' ;
-Cmd.Mxd.setLoadAllShims             = '23' ;
-% Cmd.Mxd.getSystemStatShort        = '24' ;
-Cmd.Mxd.getSystemLongStatus         = '25' ;
-Cmd.Mxd.getBankLongStatus           = '26' ;
-% Cmd.Mxd.getBankShortStatus        = '27' ;
-% Cmd.Mxd.getBankChannelsStat       = '28' ;
-Cmd.Mxd.getSystemInformation        = '29' ;
-
-% Cmd.Mxd.getSystemHistoryFile  = '2A' ;
-Cmd.Mxd.setSystemCurrentTime       = '2B' ;
-Cmd.Mxd.getSystemCurrentTime       = '2C' ;
-% Cmd.Mxd.setAllShimsOn       = '2D' ;
-% Cmd.Mxd.setAllShimsOff       = '2E' ;
-
-
-Cmd.Mxd.setAndLoadShimByBankChannel = '44' ;
-Cmd.Mxd.getChannelOutput            = '47' ;
-
-% Cmd.Mxd.setChannelPowerON         = '50' ;
-% Cmd.Mxd.setChannelPowerOFF        = '51' ;
-% Cmd.Mxd.setChannelAuxEnable       = '52' ;
-% Cmd.Mxd.setChannelAuxDisable      = '53' ;
-Cmd.Mxd.setAndLoadShimByChannel     = '54' ;
-% Cmd.Mxd.getChannelStatLong        = '55' ;
-% Cmd.Mxd.getChannelStatShort       = '56' ;
-% Cmd.Mxd.getChannelOutput          = '57' ;
-% Cmd.Mxd.getChannelInput           = '58' ;
-% Cmd.Mxd.getChannelControl         = '59' ;
-Cmd.Mxd.setShimBufferByBankChannel  = '4A' ;
-Cmd.Mxd.loadShimByBankChannel       = '4B' ;
-
-Cmd.Mxd.setShimBufferByChannel      = '5A' ;
-Cmd.Mxd.loadShimByChannel           = '5B' ;
-
-% -------------------------------------------------------------------------
-% II. Hex commands for DSU
-
-
-% Cmd.Dsu.heartbeat                     = '09';
-% Cmd.Dsu.intTrigger                    = '10';
-%
-% Cmd.Dsu.tcConnect                     = '20';
-% Cmd.Dsu.testWave                      = '21';
-% Cmd.Dsu.getEcc                        = 'A0';
-% Cmd.Dsu.setEcc                        = 'B0';
-Cmd.Dsu.sync                          = 'C0';
-
-Cmd.Dsu.setSlice           = 'D0';
-Cmd.Dsu.getSlice           = 'E0';
-%
-% Cmd.Dsu.diagnosticsOn                 = 'D2';
-% Cmd.Dsu.triggerOn                     = 'D3';
-% Cmd.Dsu.triggerOff                    = 'D4';
-% Cmd.Dsu.triggerStat                   = 'D5';
-% Cmd.Dsu.stopPulse                     = 'D6';
-%
-% Cmd.Dsu.errorReport                   = 'F0';
-% Cmd.Dsu.writeRampRate                 = 'F1';
-% Cmd.Dsu.readRampRate                  = 'F2';
-%
-% Cmd.Dsu.setNewSliceNumber             = 'F4';
-% Cmd.Dsu.resetToSlice01                = 'F5';
-% Cmd.Dsu.resetToSlice02                = 'F6';
-% Cmd.Dsu.setLoopLastSliceLoopReady     = 'F7';
-% Cmd.Dsu.stopLoop                      = 'F8';
-% Cmd.Dsu.pulseShapeSequence            = 'F9';
-% Cmd.Dsu.setMatrixIntercon             = 'FA';
-% Cmd.Dsu.getMatrixIntercon             = 'FB';
-% Cmd.Dsu.getTcData                     = 'FD';
-% Cmd.Dsu.getTcConfig                   = 'FE';
-% Cmd.Dsu.triggerAck                    = 'FF';
-
-end
-% =========================================================================
 % =========================================================================
 
 end
@@ -1205,6 +1377,99 @@ for iMsg = 1 : length( dataMsg )
         end
     end
 end
+
+end
+% =========================================================================
+function [Cmd] = definecommands( )
+%DEFINECOMMANDS
+%
+% [] = DEFINECOMMANDS( )
+% -------------------------------------------------------------------------
+% System commands (as Hexadecimal strings) 
+% I.  for the MXD 
+% II. for DSU
+
+Cmd.Mxd.sync                        = '02' ;
+
+Cmd.Mxd.getSystemHeartbeat          = '09' ;
+
+Cmd.Mxd.clearSystemErrors           = '0A' ;
+
+Cmd.Mxd.setPowerOn                  = '20' ;
+Cmd.Mxd.setPowerOff                 = '21' ;
+Cmd.Mxd.setAllShims                 = '22' ;
+Cmd.Mxd.setLoadAllShims             = '23' ;
+% Cmd.Mxd.getSystemStatShort        = '24' ;
+Cmd.Mxd.getSystemLongStatus         = '25' ;
+Cmd.Mxd.getBankLongStatus           = '26' ;
+% Cmd.Mxd.getBankShortStatus        = '27' ;
+% Cmd.Mxd.getBankChannelsStat       = '28' ;
+Cmd.Mxd.getSystemInformation        = '29' ;
+
+% Cmd.Mxd.getSystemHistoryFile  = '2A' ;
+Cmd.Mxd.setSystemCurrentTime       = '2B' ;
+Cmd.Mxd.getSystemCurrentTime       = '2C' ;
+% Cmd.Mxd.setAllShimsOn       = '2D' ;
+% Cmd.Mxd.setAllShimsOff       = '2E' ;
+
+
+Cmd.Mxd.setAndLoadShimByBankChannel = '44' ;
+Cmd.Mxd.getChannelOutput            = '47' ;
+
+% Cmd.Mxd.setChannelPowerON         = '50' ;
+% Cmd.Mxd.setChannelPowerOFF        = '51' ;
+% Cmd.Mxd.setChannelAuxEnable       = '52' ;
+% Cmd.Mxd.setChannelAuxDisable      = '53' ;
+Cmd.Mxd.setAndLoadShimByChannel     = '54' ;
+% Cmd.Mxd.getChannelStatLong        = '55' ;
+% Cmd.Mxd.getChannelStatShort       = '56' ;
+% Cmd.Mxd.getChannelOutput          = '57' ;
+% Cmd.Mxd.getChannelInput           = '58' ;
+% Cmd.Mxd.getChannelControl         = '59' ;
+Cmd.Mxd.setShimBufferByBankChannel  = '4A' ;
+Cmd.Mxd.loadShimByBankChannel       = '4B' ;
+
+Cmd.Mxd.setShimBufferByChannel      = '5A' ;
+Cmd.Mxd.loadShimByChannel           = '5B' ;
+
+% -------------------------------------------------------------------------
+% II. Hex commands for DSU
+
+
+% Cmd.Dsu.heartbeat                     = '09';
+% Cmd.Dsu.intTrigger                    = '10';
+%
+
+Cmd.Dsu.setMatrixInterconnectionToSelf  = '20';
+Cmd.Dsu.testWave                        = '21';
+% Cmd.Dsu.getEcc                        = 'A0';
+% Cmd.Dsu.setEcc                        = 'B0';
+Cmd.Dsu.sync                          = 'C0';
+
+Cmd.Dsu.setSlice                      = 'D0';
+Cmd.Dsu.getSlice                      = 'E0';
+%
+% Cmd.Dsu.diagnosticsOn                 = 'D2';
+% Cmd.Dsu.triggerOn                     = 'D3';
+% Cmd.Dsu.triggerOff                    = 'D4';
+% Cmd.Dsu.triggerStat                   = 'D5';
+% Cmd.Dsu.stopPulse                     = 'D6';
+%
+% Cmd.Dsu.errorReport                   = 'F0';
+% Cmd.Dsu.writeRampRate                 = 'F1';
+% Cmd.Dsu.readRampRate                  = 'F2';
+%
+% Cmd.Dsu.setNewSliceNumber             = 'F4';
+% Cmd.Dsu.resetToSlice01                = 'F5';
+% Cmd.Dsu.resetToSlice02                = 'F6';
+% Cmd.Dsu.setLoopLastSliceLoopReady     = 'F7';
+% Cmd.Dsu.stopLoop                      = 'F8';
+% Cmd.Dsu.pulseShapeSequence            = 'F9';
+% Cmd.Dsu.setMatrixIntercon             = 'FA';
+Cmd.Dsu.getMatrixInterconnections       = 'FB';
+% Cmd.Dsu.getTcData                     = 'FD';
+% Cmd.Dsu.getTcConfig                   = 'FE';
+% Cmd.Dsu.triggerAck                    = 'FF';
 
 end
 % =========================================================================
