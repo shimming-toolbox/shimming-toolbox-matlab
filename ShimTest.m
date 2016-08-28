@@ -94,7 +94,7 @@ function [] = shimsine( Shim, Params )
 % Issue sinusoidal current waveform   
 
 Params.maxCurrent       = 0.25 ; % [units: A]
-Params.nTestCycles      = 10 ;
+Params.nTestCycles      = 100 ;
 Params.period           = 1 ; % period of waveform [units: s]
 Params.updateFrequency  = 1/0.25 ; % update freq of shims [units: Hz]
 Params.testTime         = 60 ;
@@ -102,20 +102,43 @@ Params.testTime         = 60 ;
 % channelsToBankKey = Shim.getchanneltobankkey ;
 % activeChannelIndices = channelsToBankKey(:,4) ;
 
-currents = zeros(24,1);
 
 % assert( (testChannel>0) && testChannel<=Shim.Specs.nActiveChannels) )
-%
-%
-% testTime = Params.nTestCycles * Params.period ;
+
+
+% if ~exist(Params.testTime 
+Params.testTime = Params.nTestCycles * Params.period ;
+
+currents = zeros(24,1);
+
+figure(1)
+axis([0 Params.testTime -0.51 0.51])
+ylabel('Current (A)');
+xlabel('Time (s)');
 
 t=0;
+for iChannel = 1 : 24
+    hold on;
+    plot( t, currents(iChannel),'*' ) ;
+end
+drawnow;
+
 tic 
 while t < Params.testTime
     t = toc ;
     currents( : ) = Params.maxCurrent * sin( t*Params.updateFrequency  ) ;
-    setandloadallshims( Shim, currents )
+    % Shim.setandloadallshims( currents )
+    % Shims.setallshims( zeros(Shims.Specs.Amp.nChannels, 1) ) ;
     disp(currents(1));
+    
+    for iChannel = 1 : 24
+        
+        figure(1)
+        hold on;
+        plot( t, currents(iChannel),'*' ) ;
+    end
+    drawnow;
+    pause(0.1);
 end
 
 end

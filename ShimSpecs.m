@@ -66,7 +66,7 @@ Shims.Com.byteOrder   = 'bigEndian' ;
 % reception of data is 0.001 s. However, resetting shims at this interval
 % causes a fatal system error (84). 0.125 s appears to be about the min
 % delay time that won't eventually result in an error.
-Shims.Com.txRxDelay            = 0.125 ; % [units: s]
+Shims.Com.txRxDelay            = 0.001 ; % [units: s]
 
 Shims.Amp.maxCurrentPerChannel = 5 ; % (absolute) [units: amps]
 Shims.Amp.maxCurrentPerBank    = 20 ; % (absolute) [units: amps]

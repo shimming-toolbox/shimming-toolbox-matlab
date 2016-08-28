@@ -443,8 +443,8 @@ function Shim = forwardmodelfield( Shim )
 %
 % Shim = FORWARDMODELFIELD( Shim ) ;
 %
-%   Predicts shim field (output: Shim.Model.field) for given set of currents 
-%   (input: Shim.Model.currents)
+% Predicts shim field (output: Shim.Model.field) for given set of currents 
+% (input: Shim.Model.currents)
     
 A = Shim.getshimoperator() ;
 

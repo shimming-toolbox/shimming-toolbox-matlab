@@ -95,15 +95,16 @@ function [] = display( Shim, msg )
 if nargin < 2 || isempty(msg)
     SystemInfo = Shim.getsysteminformation( )
     msg = SystemInfo ;
-end
 
-assert( isstr(msg), 'Given message is not a string.' ) ;
+else 
+    assert( isstr(msg), 'Given message is not a string.' ) ;
 
-switch Shim.Parameters.runMode 
-    case 'isCmdLine'
-        fprintf(['\n' msg '\n']) ;
-    case 'isGui'
-        fprintf(['\n' 'Error: GUI not yet supported!' '\n\n']) ;
+    switch Shim.Parameters.runMode 
+        case 'isCmdLine'
+            fprintf(['\n' msg '\n']) ;
+        case 'isGui'
+            fprintf(['\n' 'Error: GUI not yet supported!' '\n\n']) ;
+    end
 end
 
 end
@@ -113,29 +114,28 @@ function ChannelOutputs = getallchanneloutputs( Shim )
 %
 % ChannelOutputs = GETALLCHANNELOUTPUTS( Shim ) 
 % 
-% Returns struct ChannelOutputs with fields
+% ChannelOutputs has fields
 %
-%   .current
-%   .voltage
-%   .power
-%   .dissipatedPower
+%   .current [amperes]
+%   .voltage [volts]
+%   .power [watts]
+%   .dissipatedPower [watts]
 
 
 channelsToBankKey = Shim.getchanneltobankkey ;
 
-ChannelOutputs.current = zeros( 1, Shim.Specs.nActiveChannels ) ;
-ChannelOutputs.voltage = zeros( 1, Shim.Specs.nActiveChannels ) ;
-ChannelOutputs.power   = zeros( 1, Shim.Specs.nActiveChannels ) ;
-ChannelOutputs.dissipatedPower = zeros( 1, Shim.Specs.nActiveChannels ) ; 
+ChannelOutputs.current = zeros( 1, Shim.Specs.Amp.nActiveChannels ) ;
+ChannelOutputs.voltage = zeros( 1, Shim.Specs.Amp.nActiveChannels ) ;
+ChannelOutputs.power   = zeros( 1, Shim.Specs.Amp.nActiveChannels ) ;
+ChannelOutputs.dissipatedPower = zeros( 1, Shim.Specs.Amp.nActiveChannels ) ; 
 
-for iChannel = 1 : Shim.Specs.nActiveChannels 
+for iChannel = 1 : Shim.Specs.Amp.nActiveChannels 
     
     ChannelOutput = Shim.getchanneloutput( channelsToBankKey(iChannel,2), channelsToBankKey(iChannel,3) ) ;
-
-    ChannelOutputs.current(iChannel)         = ChannelOutputs.current ;
-    ChannelOutputs.voltage(iChannel)         = ChannelOutputs.voltage ;
-    ChannelOutputs.power(iChannel)           = ChannelOutputs.power ;
-    ChannelOutputs.dissipatedPower(iChannel) = ChannelOutputs.dissipatedPower ;
+    ChannelOutputs.current(iChannel)         = ChannelOutput.current ;
+    ChannelOutputs.voltage(iChannel)         = ChannelOutput.voltage ;
+    ChannelOutputs.power(iChannel)           = ChannelOutput.power ;
+    ChannelOutputs.dissipatedPower(iChannel) = ChannelOutput.dissipatedPower ;
 
 end
 

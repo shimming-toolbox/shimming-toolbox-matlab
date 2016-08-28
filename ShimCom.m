@@ -215,6 +215,50 @@ end
 
 end
 % =========================================================================
+function ThresholdData = getchannelthresholddata( Shims, iBank, iChannel ) 
+%GETCHANNELTHRESHOLDDATA   (NACK? MXD cmd 0x16)
+% 
+% ThresholdData = getchannelthresholddata( Shims, bankIndex, channelIndex ) 
+%
+% ThresholdData contains fields
+%   .maxControlVoltage [in volts]
+%   .maxOutputCurrent [in amps]
+%   .maxOutputPower [in Watts]
+
+% return byte: (1) sync ; (2) length; (3-10) data; (11-12) crc;  
+Shims.Parameters.nBytesToRead = 10 ; 
+
+Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
+Shims.Data.output(2) = 7 ;
+Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getChannelThresholdData ) ;
+Shims.Data.output(4) = uint8( iBank ) ;
+Shims.Data.output(5) = uint8( iChannel ) ;
+
+Shims.Data.output    = ShimCom.appendcrc( Shims.Data.output, ...
+                        ShimCom.calculatecrc( Shims.Data.output ) ) ; 
+
+[Shims, isSendOk] = Shims.sendcmd( ) ;
+
+if( Shims.Data.input(2) ~= Shims.Parameters.nBytesToRead ) 
+    disp('error...')
+    % Shims.checkcontrolresponse( Shims.Data.input );
+end
+
+% in volts
+ThresholdData.maxControlVoltage = ...
+     (1/1000)*double( ShimCom.mergeints( Shims.Data.input(3), ...
+                                      Shims.Data.input(4), true ) ) ;
+% in amperes
+ThresholdData.maxOutputCurrent = ...
+     (1/1000)*double( ShimCom.mergeints( Shims.Data.input(5), ...
+                                     Shims.Data.input(6), true ) ) ;
+% in Watts
+ThresholdData.maxOutputPower   = ...
+     double( ShimCom.mergeints( Shims.Data.input(7), ...
+                                 Shims.Data.input(8), false ) ) ;
+
+end
+% =========================================================================
 function SystemStatus = getsystemlongstatus( Shims ) 
 %GETSYSTEMLONGSTATUS    (MXD cmd 0x25)
 %
@@ -243,13 +287,12 @@ Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
 if isSendOk
     Shims.isackreceived() ;
 end
-
 % in Watts
 SystemStatus.totalOutputPower = ...
     double( ShimCom.mergeints( Shims.Data.input(3), ...
                                Shims.Data.input(4), false ) ) ;
 
-SystemStatus.onOff = Shims.Data.input(5) ;
+SystemStatus.onOff = logical( Shims.Data.input(5) ) ;
 
 SystemStatus.globalErrorRegister = Shims.Data.input(6) ;
     
@@ -268,8 +311,8 @@ function BankStatus = getbanklongstatus( Shims, iBank )
 %   .lowVoltagePositiveRail  [in V]
 %   .lowVoltageNegativeRail  [in V]
 %   .heatsinkTemperature     [in degrees C]
-%   .channelsWithFaults      [    ]
-%   .faultsPresent           [    ]
+%   .channelsWithFaults     [0-7 bitwise: ch0, ch1, ch2,... ch7] 
+%   .faults           [See HEX protocol document]
 
 % return byte: (1) sync ; (2) length; (3-9) data; (10-11) crc;  
 Shims.Parameters.nBytesToRead = 11 ; % 
@@ -300,7 +343,7 @@ if isSendOk
     BankStatus.heatsinkTemperature = Shims.Data.input(7) ;
     
     BankStatus.channelsWithFaults = Shims.Data.input(8) ;
-    BankStatus.faultsPresent = Shims.Data.input(9) ;
+    BankStatus.faults = Shims.Data.input(9) ;
 else
     error('?')
 end
@@ -641,6 +684,75 @@ Shims.Data.output = ShimCom.appendcrc( Shims.Data.output, ...
 if isSendOk
     Shims.isackreceived() ;
 end
+
+end
+% =========================================================================
+function ChannelStatus = getchannellongstatus( Shims, iBank, iChannel ) 
+%GETCHANNELLONGSTATUS   (MXD cmd 0x45)
+% 
+% ChannelStatus = getchannellongstatus( Shims, bankIndex, channelIndex ) 
+%
+% ChannelStatus contains fields
+%   .current [in amps]
+%   .voltage [in volts]
+%   .power [in Watts]
+%   .dissipatedPower [in Watts]
+%   .dacInputVoltage [in volts]
+%   .auxiliaryInputVoltage [in volts]
+%   .onOff [0=Off, 1=On]
+%   .auxiliaryEnable [0=Off, 1=On]
+%   .faults [see HEX protocol]
+
+% return byte: (1) sync ; (2) length; (3-10) data; (11-12) crc;  
+Shims.Parameters.nBytesToRead = 19 ; 
+
+Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
+Shims.Data.output(2) = 7 ;
+Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getChannelLongStatus ) ;
+Shims.Data.output(4) = uint8( iBank ) ;
+Shims.Data.output(5) = uint8( iChannel ) ;
+
+Shims.Data.output    = ShimCom.appendcrc( Shims.Data.output, ...
+                        ShimCom.calculatecrc( Shims.Data.output ) ) ; 
+
+[Shims, isSendOk] = Shims.sendcmd( ) ;
+
+if( Shims.Data.input(2) ~= Shims.Parameters.nBytesToRead ) 
+    disp('error...')
+    % Shims.checkcontrolresponse( Shims.Data.input );
+end
+
+% in amperes
+ChannelStatus.current = ...
+     (1/1000)*double( ShimCom.mergeints( Shims.Data.input(3), ...
+                                      Shims.Data.input(4), true ) ) ;
+% in volts
+ChannelStatus.voltage = ...
+     (1/100)*double( ShimCom.mergeints( Shims.Data.input(5), ...
+                                     Shims.Data.input(6), true ) ) ;
+% in Watts
+ChannelStatus.power   = ...
+     double( ShimCom.mergeints( Shims.Data.input(7), ...
+                                 Shims.Data.input(8), false ) ) ;
+
+ChannelStatus.dissipatedPower = ...
+     double( ShimCom.mergeints( Shims.Data.input(9), ...
+                                 Shims.Data.input(10), false ) ) ;
+
+% in volts
+ChannelStatus.dacInputVoltage = ...
+     (1/100)*double( ShimCom.mergeints( Shims.Data.input(11), ...
+                                     Shims.Data.input(12), true ) ) ;
+
+ChannelStatus.auxiliaryInputVoltage = ...
+     (1/100)*double( ShimCom.mergeints( Shims.Data.input(13), ...
+                                     Shims.Data.input(14), true ) ) ;
+
+ChannelStatus.onOff = logical( Shims.Data.input(15) ) ;
+
+ChannelStatus.auxiliaryEnable = logical( Shims.Data.input(16) ) ;
+
+ChannelStatus.faults = Shims.Data.input(17)  ;
 
 end
 % =========================================================================
@@ -1076,8 +1188,7 @@ iSendAttempt = 0 ;
 while ~isSendOk && (iSendAttempt < Shims.Parameters.nSendAttemptsMax) 
 
     [Shims, isMsgRead] = Shims.writetomachine() ;
-    
-    if isMsgRead % now check message was read properly:
+    if isMsgRead % check message was read properly:
         crc = ShimCom.calculatecrc( Shims.Data.input( 1 :end-2) ) ;
     
         if ( Shims.Data.input( end - 1) == bitand(crc, uint16(255) ) ) ...
@@ -1102,8 +1213,9 @@ isMsgRead = false ;
 
 if strcmp( Shims.ComPort.Status, 'closed' ) ;
     fopen( Shims.ComPort ) ;
-
+    disp('here')
 else 
+    
     %-----
     % write
     fwrite( Shims.ComPort, Shims.Data.output, 'uint8' ) ;
@@ -1395,6 +1507,8 @@ Cmd.Mxd.getSystemHeartbeat          = '09' ;
 
 Cmd.Mxd.clearSystemErrors           = '0A' ;
 
+Cmd.Mxd.getChannelThresholdData     = '16' ;
+
 Cmd.Mxd.setPowerOn                  = '20' ;
 Cmd.Mxd.setPowerOff                 = '21' ;
 Cmd.Mxd.setAllShims                 = '22' ;
@@ -1414,6 +1528,7 @@ Cmd.Mxd.getSystemCurrentTime       = '2C' ;
 
 
 Cmd.Mxd.setAndLoadShimByBankChannel = '44' ;
+Cmd.Mxd.getChannelLongStatus        = '45' ;
 Cmd.Mxd.getChannelOutput            = '47' ;
 
 % Cmd.Mxd.setChannelPowerON         = '50' ;
