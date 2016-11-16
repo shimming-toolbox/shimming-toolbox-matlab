@@ -159,7 +159,6 @@ if ismac
 %     end
 end
 
-dbstop in probe at 163
 ComPort = serial(portName);
 fopen(ComPort);
 % =========================================================================
@@ -186,13 +185,20 @@ while(~isSamplingFrequencyReceived && iAttempt <= maxCommunicationAttempts )
     
     if(~isempty(start_word) && isnumeric(start_word) && start_word == Params.arduinoPeriod/10)  
         isSamplingFrequencyReceived = true;
-        disp('Communication successful')
     end
     
     iAttempt = iAttempt + 1;
 
 end
 
+if isSamplingFrequencyReceived 
+    disp('Communication successful. Ready to read IO port.')
+else
+    fclose(ComPort);
+    delete(ComPort);
+    clear ComPort;
+    error('Communication to respiratory probe failed.')
+end
 
 
 

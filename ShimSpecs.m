@@ -10,13 +10,13 @@ classdef ShimSpecs
 %
 %           
 %       .Amp    
-%           pertaining to amplifcation
+%           relating to amplifcation
 %
 %       .Com
-%           pertaining to communication (e.g. RS-232)
+%           relating to communication (e.g. RS-232)
 %
 %       .Dac 
-%           pertaining to digital-to-analog conversion
+%           relating to digital-to-analog conversion
 %             
 % .......
 %
@@ -28,19 +28,20 @@ classdef ShimSpecs
 %    ProbeTracking
 %    ShimCal
 %    ShimCom
+%    ShimEval
 %    ShimOpt
 %    ShimSpecs
-%    ShimUse
 %    ShimTest 
+%    ShimUse
 %     
 % =========================================================================
 % Updated::20160824::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties   
-Amp; % pertaining to amplification
-Com; % pertaining to communication (e.g. RS-232)
-Dac; % pertaining to digital-to-analog conversion 
+Amp; % relating to amplification
+Com; % relating to communication (e.g. RS-232)
+Dac; % relating to digital-to-analog conversion 
 
 end
 
@@ -66,7 +67,8 @@ Shims.Com.byteOrder   = 'bigEndian' ;
 % reception of data is 0.001 s. However, resetting shims at this interval
 % causes a fatal system error (84). 0.125 s appears to be about the min
 % delay time that won't eventually result in an error.
-Shims.Com.txRxDelay            = 0.001 ; % [units: s]
+Shims.Com.txRxDelay       = 0.001 ; % [units: s]
+Shims.Com.mxdUpdatePeriod = 0.250 ; % [units: s]
 
 Shims.Amp.maxCurrentPerChannel = 5 ; % (absolute) [units: amps]
 Shims.Amp.maxCurrentPerBank    = 20 ; % (absolute) [units: amps]

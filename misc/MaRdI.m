@@ -1,4 +1,4 @@
-classdef MaRdI
+classdef MaRdI < matlab.mixin.SetGet 
 %MaRdI Ma(t)-R-dI(com)
 %
 % .......
@@ -21,7 +21,7 @@ classdef MaRdI
 %       .Hdr    (header of the first DICOM file read by dir( dataLoadDirectory ) ) 
 %
 % =========================================================================
-% Updated::20160802::ryan.topfer@polymtl.ca
+% Updated::20160921::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -37,34 +37,36 @@ methods
 % =========================================================================    
 function Img = MaRdI( dataLoadDirectory )
 
-if ( nargin == 0 )
-    help(mfilename); 
-    return; 
-end;
-
-listOfDicoms = dir( [ dataLoadDirectory '/*.dcm'] );
-Img.Hdr      = dicominfo( [ dataLoadDirectory '/' listOfDicoms(1).name] ) ;
-
-Img.img      = double( dicomread( [ dataLoadDirectory '/' listOfDicoms(1).name] ) )  ;
-
-if (length(listOfDicoms)==1) && ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
-
-    Img = reshapemosaic( Img ) ;
-
-else
+Img.img = [] ;
+Img.Hdr = [] ;
     
+if nargin == 1 && ~isempty(dataLoadDirectory)
+
+    listOfDicoms = dir( [ dataLoadDirectory '/*.dcm'] );
+    Img.Hdr      = dicominfo( [ dataLoadDirectory '/' listOfDicoms(1).name] ) ;
+
+    Img.img      = double( dicomread( [ dataLoadDirectory '/' listOfDicoms(1).name] ) )  ;
+
     Img.Hdr.NumberOfSlices = uint16( length(listOfDicoms) ) ;
     
     for sliceIndex = 2 : Img.Hdr.NumberOfSlices
         Img.img(:,:,sliceIndex) = dicomread([ dataLoadDirectory '/' listOfDicoms(sliceIndex).name]) ;
     end
 
-end
+    Params = [] ;
 
-Img = Img.scaleimgtophysical( ) ;   
+    if ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
+        
+        Params.isNormalizingMagnitude = false ;        
+        Img = reshapemosaic( Img ) ;
 
-if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
-    Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
+    end
+        
+    Img = Img.scaleimgtophysical( Params ) ;   
+
+    if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
+        Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
+    end
 end
 
 end
@@ -113,32 +115,69 @@ end
 % ..... 
 % WRITE()
 %   Neither 'as dcm' nor 'as nii' functionalities work properly.
+% 
 % ..... 
 % EXTRACTHARMONICFIELD()
 %  Clean up 
 %     
-%     
+% ..... 
+%   Should MaRdI be a subclass of matlab.mixin.SetGet ???
 % =========================================================================
 
-function Img = scaleimgtophysical( Img, undoFlag )
+function ImgCopy = copy(Img)
+%COPY 
+% 
+% Make a copy of a MaRdI (i.e. handle) object.
+% 
+% ImgCopy = Copy( Img ) ;
+
+ImgCopy     = MaRdI() ;
+ImgCopy.img = Img.img;
+ImgCopy.Hdr = Img.Hdr ;
+
+% from https://www.mathworks.com/matlabcentral/newsreader/view_thread/257925
+% % Instantiate new object of the same class.
+% ImgCopy = feval(class(Img));
+% Copy all non-hidden properties.
+% ImgProperties = properties(Img)
+% for iProperty = 1 : length(ImgProperties)
+%     ImgCopy.(ImgProperties{i}) = Img.(ImgProperties{i});
+% end
+end
+% =========================================================================
+function Img = scaleimgtophysical( Img, Params )
 %SCALEIMGTOPHYSICAL
 %
-% Img = SCALEIMGTOPHYSICAL( Img, isUndoing ) 
+% Img = SCALEIMGTOPHYSICAL( Img ) 
+% Img = SCALEIMGTOPHYSICAL( Img, Params ) 
 
-if (nargin < 2) 
-    undoFlag = 0 ;
+DEFAULT_ISUNDOING              = false ;
+DEFAULT_ISNORMALIZINGMAGNITUDE = true ;
+
+DEFAULT_RESCALEINTERCEPT = 0 ;
+DEFAULT_RESCALESLOPE     = 1 ;
+
+if (nargin < 2) || isempty( Params ) 
+    Params.dummy = [] ;
 end 
 
-if  ~myisfield( Img.Hdr, 'RescaleIntercept' ) 
-    Img.Hdr.RescaleIntercept = 0 ;
+if  ~myisfield( Params, 'isUndoing' ) || isempty( Params.isUndoing )
+    Params.isUndoing = DEFAULT_ISUNDOING ;
 end
 
-if ~myisfield( Img.Hdr, 'RescaleSlope' )
-    Img.Hdr.RescaleSlope = 1 ;
+if  ~myisfield( Params, 'isNormalizingMagnitude' ) || isempty( Params.isNormalizingMagnitude )
+    Params.isNormalizingMagnitude = DEFAULT_ISNORMALIZINGMAGNITUDE ;
 end
 
+if  ~myisfield( Img.Hdr, 'RescaleIntercept' ) || isempty( Img.Hdr.RescaleIntercept )
+    Img.Hdr.RescaleIntercept = DEFAULT_RESCALEINTERCEPT ;
+end
 
-if undoFlag ~= -1
+if ~myisfield( Img.Hdr, 'RescaleSlope' ) || isempty( Img.Hdr.RescaleSlope )
+    Img.Hdr.RescaleSlope = DEFAULT_RESCALESLOPE ;
+end
+
+if ~Params.isUndoing
     
     Img.img = (Img.Hdr.RescaleSlope .* double( Img.img ) ...
                 + Img.Hdr.RescaleIntercept)/double(2^Img.Hdr.BitsStored) ;
@@ -150,7 +189,11 @@ if undoFlag ~= -1
         Img.Hdr.PixelRepresentation = uint8(1) ; % i.e. signed 
     
     else ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) ) % is raw SIEMENS mag
-        Img.img            = Img.img/max(Img.img(:)) ; % normalize 
+        
+        if Params.isNormalizingMagnitude
+            Img = Img.normalizeimg() ;
+        end
+
         Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\M\' ; 
     end
     
@@ -168,7 +211,14 @@ else
 
 end
 
+end
+% =========================================================================
+function Img = normalizeimg( Img )
+%NORMALIZEIMG
+%
+% Img = NORMALIZEIMG( Img )
 
+Img.img = Img.img/max(Img.img(:)) ; % normalize 
 
 end
 % =========================================================================
@@ -187,7 +237,7 @@ gridSizeImgOriginal = size(Img.img) ;
 midPoint = round( gridSizeImgOriginal/2 ) ;
 
 low  = midPoint - round(gridSizeImgCropped/2) + [1 1 1] ;
-high = midPoint + round(gridSizeImgCropped/2) ;
+high = low + gridSizeImgCropped - [1 1 1] ;  
 
 for dim = 1: 3
    if low(dim) < 1
@@ -213,17 +263,17 @@ Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
 % crop img
 Img.img = Img.img( low(1):high(1), low(2):high(2), low(3):high(3) ) ; 
 
+if myisfield( Img.Hdr, 'MaskingImage' )  && ~isempty( Img.Hdr.MaskingImage ) 
+    
+   Img.Hdr.MaskingImage = Img.Hdr.MaskingImage( low(1):high(1), low(2):high(2), low(3):high(3) ) ; 
+
+end
+
 % Update header
 Img.Hdr.Rows                 = size(Img.img, 1) ;
 Img.Hdr.Columns              = size(Img.img, 2) ;       
 Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
 
-% point of the assertion is to remind me to change the function as i
-% know it won't work for odd grid size.
-assert( (Img.Hdr.Rows    == gridSizeImgCropped(1)) && ...
-        (Img.Hdr.Columns == gridSizeImgCropped(2)) && ...
-        (Img.Hdr.NumberOfSlices == gridSizeImgCropped(3)) ) ;
-        
 
 end
 % =========================================================================
@@ -241,6 +291,12 @@ function Img = zeropad( Img, padSize, padDirection )
 gridSizeOriginalImg = size(Img.img) ;
 
 Img.img = padarray( Img.img, padSize, 0, padDirection ) ; 
+
+if myisfield( Img.Hdr, 'MaskingImage' )  && ~isempty( Img.Hdr.MaskingImage ) 
+    
+   Img.Hdr.MaskingImage = padarray( Img.Hdr.MaskingImage, padSize, 0, padDirection ) ; 
+
+end
 
 % Update header
 Img.Hdr.Rows                 = size(Img.img, 1) ;
@@ -432,7 +488,7 @@ function [LocalField, BackgroundField] = extractharmonicfield( ...
 %      min acceptable discepancy (Ax - b)/|norm(b)| for conjugate gradient solver
 %           (default = 1E-6)
 
-DEFAULT_FILTERRADIUS   = 4;
+DEFAULT_FILTERRADIUS   = 3;
 DEFAULT_REGULARIZATION = 0 ;
 DEFAULT_MAXITERATIONS = 500 ;
 DEFAULT_TOLERANCE     = 1E-6 ;
@@ -454,15 +510,13 @@ if  ~myisfield( Params, 'tolerance' ) || isempty(Params.tolerance)
 end
 
 voxelSize  = Field.getvoxelsize() ;
+mask = Field.Hdr.MaskingImage ;
 
 % make spherical/ellipsoidal convolution kernel (ker)
-rx = round(Params.filterRadius/voxelSize(1));
-ry = round(Params.filterRadius/voxelSize(2));
-rz = round(Params.filterRadius/voxelSize(3));
-rx = max(rx,2);
-ry = max(ry,2);
-rz = max(rz,2);
-% rz = ceil(Params.filterRadius/voxelSize(3));
+rx = round(Params.filterRadius/voxelSize(1)) ; 
+ry = round(Params.filterRadius/voxelSize(2)) ;
+rz = round(Params.filterRadius/voxelSize(3)) ;
+
 [X,Y,Z] = ndgrid(-rx:rx,-ry:ry,-rz:rz);
 h = (X.^2/rx^2 + Y.^2/ry^2 + Z.^2/rz^2 <= 1);
 ker = h/sum(h(:));
@@ -471,37 +525,38 @@ ker = h/sum(h(:));
 csh = [rx,ry,rz]; % circularshift
 
 % erode the mask by convolving with the kernel
-% cvsize = Field.getgridsize + [2*rx+1, 2*ry+1, 2*rz+1] -1; % linear conv size
-% mask_tmp = real(ifftn(fftn(mask,cvsize).*fftn(ker,cvsize)));
-% mask_tmp = mask_tmp(rx+1:end-rx, ry+1:end-ry, rz+1:end-rz); % same size
-mask_ero = zeros(Field.getgridsize);
-mask_tmp = convn(Field.Hdr.MaskingImage, ker,'same');
-mask_ero(mask_tmp > 1-1/sum(h(:))) = 1; % no error points tolerence 
-
-
+cvsize = Field.getgridsize + [2*rx+1, 2*ry+1, 2*rz+1] -1; % linear conv size
+mask_tmp = real(ifftn(fftn(mask,cvsize).*fftn(ker,cvsize)));
+mask_tmp = mask_tmp(rx+1:end-rx, ry+1:end-ry, rz+1:end-rz); % same size
+reducedMask = shaver( Field.Hdr.MaskingImage, round(Params.filterRadius ./ voxelSize) ) ;  
+reducedMask = mask_tmp ;
+% dbstop in MaRdI at 502
 % prepare convolution kernel: delta-ker
 dker = -ker;
 dker(rx+1,ry+1,rz+1) = 1-ker(rx+1,ry+1,rz+1);
 DKER = fftn(dker,Field.getgridsize); % dker in Fourier domain
 
 b = ifftn( conj(DKER).*fftn( circshift( ...
-    mask_ero .* circshift( ifftn( DKER.*fftn(Field.img) ), -csh), csh)));
+    reducedMask .* circshift( ifftn( DKER.*fftn(Field.img) ), -csh), csh)));
 b = b(:);
 
 localField = cgs(@Afun, b, Params.tolerance, Params.maxIterations );
-localField = real( reshape( localField, Field.getgridsize)).*mask_ero;
+localField = real( reshape( localField, Field.getgridsize)).*reducedMask;
 
-LocalField = Field ;
-LocalField.img = localField;
-LocalField.Hdr.MaskingImage = mask_ero ;
+LocalField                       = MaRdI();
+LocalField.Hdr                   = Field.Hdr ;
+LocalField.Hdr.MaskingImage      = reducedMask ;
+LocalField.img                   = reducedMask .* localField;
 
-BackgroundField = Field ;
-BackgroundField.img = mask_ero .* (Field.img - localField);
-BackgroundField.Hdr.MaskingImage = mask_ero ;
+BackgroundField                  = MaRdI() ;
+BackgroundField.Hdr              = Field.Hdr ;
+BackgroundField.img              = reducedMask .* (Field.img  - localField);
+BackgroundField.Hdr.MaskingImage = reducedMask ;
 
 function y = Afun(x)
+
     x = reshape( x, Field.getgridsize );
-    y = ifftn( conj(DKER) .* fftn( circshift( mask_ero.* ...
+    y = ifftn( conj(DKER) .* fftn( circshift( reducedMask.* ...
         circshift(ifftn(DKER.*fftn(x)),-csh),csh))) + Params.regularization*x;
     y = y(:);
 end
@@ -513,7 +568,7 @@ function Field = mapfrequencydifference( Phase1, Phase2 )
 % 
 % Field = MAPFREQUENCYDIFFERENCE( UnwrappedEcho1, UnwrappedEcho2 ) 
 
-Field = Phase1 ;
+Field = MaRdI() ;
 
 assert( strcmp(Phase1.Hdr.PixelComponentPhysicalUnits, '0000H') && ...
         strcmp(Phase2.Hdr.PixelComponentPhysicalUnits, '0000H'), ...
@@ -524,6 +579,7 @@ assert( strcmp(Phase1.Hdr.PixelComponentPhysicalUnits, '0000H') && ...
 if myisfield( Phase1.Hdr, 'MaskingImage' ) || ~isempty( Phase1.Hdr.MaskingImage ) ; 
     mask = Phase1.Hdr.MaskingImage ;
 end
+
 if myisfield( Phase2.Hdr, 'MaskingImage' ) || ~isempty( Phase2.Hdr.MaskingImage ) ; 
     mask = mask .* Phase2.Hdr.MaskingImage ;
 end
@@ -533,6 +589,9 @@ end
 Field.img = (Phase2.img - Phase1.img)/(Phase2.Hdr.EchoTime - Phase1.Hdr.EchoTime) ;
 Field.img = mask .* Field.img ;
 Field.img = (1000/(2*pi)) * Field.img ;
+
+
+Field.Hdr = Phase1.Hdr ;
 
 %-------    
 % update header
@@ -684,6 +743,7 @@ function Img = resliceimg( Img, X_1, Y_1, Z_1, interpolationMethod )
 %   reference coordinate system)
 %   
 %   Optional interpolationMethod is a string supported by griddata().
+%
 %   See: help griddata  
 
 %------ 
@@ -760,7 +820,6 @@ Img.Hdr.SpacingBetweenSlices = ( (X_1(1,1,2) - X_1(1,1,1))^2 + ...
                                  (Y_1(1,1,2) - Y_1(1,1,1))^2 + ...
                                  (Z_1(1,1,2) - Z_1(1,1,1))^2 ) ^(0.5) ;
 
-fprintf('\n WARNING \n Img.Hdr.SliceLocation may be incorrect. \n') ;
 
 Img.Hdr.SliceLocation = dot( [X_1(1) Y_1(1) Z_1(1)],  ... 
     cross( Img.Hdr.ImageOrientationPatient(1:3), Img.Hdr.ImageOrientationPatient(4:6) ) ) ;
@@ -944,6 +1003,7 @@ Img.Hdr.Rows    = uint16(nRows) ;
 Img.Hdr.Columns = uint16(nColumns) ;
 
 tmp = strfind( Img.Hdr.ImageType, '\MOSAIC' ) ;
+
 if ~isempty(tmp) && (tmp > 1)
     Img.Hdr.ImageType = Img.Hdr.ImageType(1:tmp-1) ;
 else
@@ -952,11 +1012,73 @@ end
 
 end
 % =========================================================================
+function timeStd = timestd( Img )
+%TIMESTD
+% 
+% standardDeviation = TIMESTD( Img ) 
+% 
+% Assumes 4th dimension of Img.img corresponds to time:
+%   
+%   standardDeviation = std( Img.img, 0, 4 ) ;
+
+timeStd = std( Img.img, 0, 4 ) ;
+
+end
+% =========================================================================
+function timeAverage = timeaverage( Img )
+%TIMEAVERAGE
+% 
+% Img = TIMEAVERAGE( Img) 
+% 
+% Assumes 4th dimension of Img.img corresponds to time:
+%   
+%   timeAverage = mean( Img.img, 4 ) ;
+
+timeAverage = mean( Img.img, 4 ) ;
+
+end
+% =========================================================================
 
 end
 % =========================================================================
 % =========================================================================
 methods(Static)
+% =========================================================================
+function fullDir = getfulldir( dataLoadDir, iDir )
+%GETFULLDIR
+% 
+% fullDir = GETFULLDIR( parentDir, index ) 
+%
+%   Searches parentDir[ectory] for subdirectory beginning with index- (e.g.
+%   .../dataLoadDir/[index]-* ) to return its full path.
+%
+%   (Useful for rapidly initializing MaRdI with a dicom folder.)
+
+if nargin < 2
+    error('Function requires 2 input arguments: parent directory and index.')
+end
+
+if isnumeric(iDir)
+    iDir = num2str( iDir ) ;
+end
+
+if length( iDir ) == 1
+    iDir = ['0' iDir] ;
+end
+
+if ~strcmp( dataLoadDir(end), '/' )
+    dataLoadDir(end+1) = '/' ;
+end
+
+Tmp = dir( [ dataLoadDir iDir '-*'] ) ;
+fldrName = Tmp.name ;
+
+[fullDir,~,~] = fileparts( [dataLoadDir fldrName '/'] ) ;
+
+fullDir(end+1) = '/' ;
+
+end
+% =========================================================================
 
    
 end
