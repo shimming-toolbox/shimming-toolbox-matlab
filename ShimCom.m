@@ -1477,13 +1477,9 @@ function [Cmd] = definecommands( )
 % II. for DSU
 
 Cmd.Mxd.sync                        = '02' ;
-
 Cmd.Mxd.getSystemHeartbeat          = '09' ;
-
 Cmd.Mxd.clearSystemErrors           = '0A' ;
-
 Cmd.Mxd.getChannelThresholdData     = '16' ;
-
 Cmd.Mxd.setPowerOn                  = '20' ;
 Cmd.Mxd.setPowerOff                 = '21' ;
 Cmd.Mxd.setAllShims                 = '22' ;

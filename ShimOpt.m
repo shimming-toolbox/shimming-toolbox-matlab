@@ -552,8 +552,8 @@ function M = gettruncationoperator( Shim )
 %
 % M = GETTRUNCATIONOPERATOR( Shim ) ;
 %
-% Truncation Shim.Field.Hdr.MaskingImage) operator (e.g. M*b, 'picks out' the voi
-% voxels from vector b)
+% Truncation Shim.Field.Hdr.MaskingImage) operator (e.g. M*b, 'picks out' the
+% VOI voxels from vector b)
 
 nVoxelsImg = numel( Shim.Field.Hdr.MaskingImage ) ;
 nVoxelsVoi = nnz( Shim.Field.Hdr.MaskingImage ) ;
@@ -589,7 +589,7 @@ function shimSupport = getshimsupport( Shim )
 % shimSupport is a logical map over the grid (voxel positions) defined by Shim.img 
 % of where the shim reference maps have well defined values.
 
-shimSupport = sum(abs(Shim.img),4) > 24*eps  ;
+shimSupport = sum(abs(Shim.img),4) > Shim.Params.nActiveChannels*eps  ;
 
 end
 % =========================================================================
