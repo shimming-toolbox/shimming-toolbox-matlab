@@ -1,8 +1,6 @@
 # realtime_shimming
 
-=========================================================================
-
-=========================================================================
+## Overview 
 
 This library consists of programs to perform shimming (static and real-time).
 First designed for use with the 24-channel spine shim (Topfer R, et al., MRM,
@@ -10,42 +8,43 @@ First designed for use with the 24-channel spine shim (Topfer R, et al., MRM,
 
 Series of classes pertaining to shimming:
 
-* ShimCom
-    Low-level communication with the amplifier/hardware.
+ShimCom()
+*Low-level communication with the amplifier/hardware.*
 
-* ShimUse
-    Shim control via high-level commands. Subclass of ShimCom. 
+ShimUse()
+*Shim control via high-level commands. Subclass of ShimCom.*
 
-* ShimOpt
-    Optimization of shim currents. Subclass of MaRdI.
+ShimOpt()
+*Optimization of shim currents. Subclass of MaRdI.*
 
-* ShimEval
-    Evaluation of shim results. Subclass of ShimOpt.
+ShimEval()
+*Evaluation of shim results. Subclass of ShimOpt.*
 
-* ShimCal 
-    Calibration - for creating shim reference maps used in optimization.
-    Subclass of MaRdI.
+ShimCal() 
+*Calibration - for creating shim reference maps used in optimization.
+Subclass of MaRdI.*
 
-* ProbeTracking
-    Recording pressure-sensing respiratory probe. 
+ProbeTracking()
+*Recording pressure-sensing respiratory probe.*
 
-* ShimSpecs
-    System specifications re: amplifier, DAC, etc.
+ShimSpecs()
+*System specifications re: amplifier, DAC, etc.*
 
-* ShimTest
-    Miscellaneous functions to hardware performance. Subclass of ShimUse.
+ShimTest()
+*Miscellaneous functions to hardware performance. Subclass of ShimUse.*
 
-Type 'doc [class name]' for the documentation.
+For the documentation, in the Matlab command prompt type: 
+    'doc [class name]'
 
 -------------------------------------------------------------------------
-# Notes:
+## Notes:
 
     All classes are * handle * as opposed to * value * classes. For more info:
     https://www.mathworks.com/help/matlab/matlab_oop/comparing-handle-and-value-classes.html  
 
 
 =========================================================================
-Updated::20161120::ryan.topfer@polymtl.ca
-=========================================================================
-Todo:
+##Updated::20161120::ryan.topfer@polymtl.ca
+
+## Todo...
 
