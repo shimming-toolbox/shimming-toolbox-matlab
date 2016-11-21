@@ -8,7 +8,7 @@ classdef ShimCom < matlab.mixin.SetGet
 %   SHIMCOM is responsible for all direct communication with the shim system
 %   (MXD & DSU). Declaration of a ShimCom object immediately opens a serial
 %   (Com) port.
-%
+% 
 % .......
 %   
 % Usage
@@ -27,6 +27,9 @@ classdef ShimCom < matlab.mixin.SetGet
 %
 % =========================================================================
 % Notes
+%
+%   MXD and DSU commands are listed in the RRI Hex Protocol Specification guide:
+%   9700052-0000 HexProtocolSpecification_REV-G
 %
 %   Large portions of the following code are effectively a translation, into
 %   MATLAB, of the VB source code for "Demo DSU Host Software ver. 2.00"
@@ -56,9 +59,11 @@ classdef ShimCom < matlab.mixin.SetGet
 % ..... 
 %   Error codes (system responses) as enumerations? 
 % ..... 
-%
-%   .debug parameter or something? When true: Notify user if 'isSendOk' + what type
-%   of system responses are returned. 
+%   Params.isDebug 
+%   possible parameter for outputting system responses to screen
+%   
+%   e.g. When true: Notify user if 'isSendOk' + what type of system responses
+%   are returned. 
 % ..... 
 %   Shims.Params.INVALID -
 %   Main.vb and HexProtocol (manual pdf) define this differently. Therefore,
@@ -73,22 +78,20 @@ classdef ShimCom < matlab.mixin.SetGet
 % ..... 
 %   .Status as property?
 % ..... 
-%     -checkcontrolresponse(  )
+%   checkcontrolresponse(  )
 %
 %   only control responses have a single data bit returned.
 %   replace ISACKRECEIVED() with this.
 %   Whenever the length of the received data differs from expectation
 %   (i.e. when it is 5) call CHECKCONTROLRESPONSE()
-%     
 % .....   
-%   -Lookup table:
+%   Lookup table:
 %   definitions of MXD/DSU errors from MXD manual such that a returned error
 %   msg to the serial port can indicate sth useful to the user
 % ..... 
 % SPLITINT( ) 
 %  
 %   Documentation for how two's complement works.
-%
 % ..... 
 % When converting to DAC counts (e.g ampstodac())
 %   consider output 'clipFlag' for instance where input current exceeds 
@@ -96,9 +99,6 @@ classdef ShimCom < matlab.mixin.SetGet
 %
 % Likewise for any set() function in ShimCom for shim currents.
 %     
-% ..... 
-% Params.isDebug 
-%   ? for outputting system responses to screen
 % =========================================================================
 
 properties   
