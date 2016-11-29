@@ -16,7 +16,8 @@ classdef MaRdI < matlab.mixin.SetGet
 %
 %   Img contains fields
 %
-%       .img    (array of images - 3D if there are multiple DICOMs in directory)
+%       .img    (array of images - 3D if there are multiple DICOMs in directory, 
+%           4D for time series data (WIP))
 %
 %       .Hdr    (header of the first DICOM file read by dir( dataLoadDirectory ) ) 
 %

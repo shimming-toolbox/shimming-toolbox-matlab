@@ -15,7 +15,7 @@ Series of classes pertaining to shimming:
 
 **ShimUse( )**
 
-*Shim control via high-level commands. Subclass of ShimCom.*
+*Shim control via high-level commands.*
 
 **ShimOpt( )**
 
@@ -36,11 +36,11 @@ Subclass of MaRdI.*
 
 **ShimSpecs( )**
 
-*System specifications re: amplifier, DAC, etc.*
+*System specifications Re: amplifier, DAC, etc.*
 
 **ShimTest( )**
 
-*Miscellaneous functions to hardware performance. Subclass of ShimUse.*
+*Miscellaneous functions to test hardware performance. Subclass of ShimUse.*
 
 
 

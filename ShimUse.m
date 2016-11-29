@@ -1,4 +1,4 @@
-classdef ShimUse < ShimCom
+classdef ShimUse 
 %SHIMUSE - Shim Use
 %
 % .......
@@ -11,20 +11,30 @@ classdef ShimUse < ShimCom
 %   
 % Usage
 %
-% Shim = ShimUse( pathToCalibrationInfo )
+% Shim = ShimUse( Params )
+% 
+% Params
+%   
+%   .shimSystem 
+%       'Acdc' or 'Rri' [default]
+%
+%   .pathToShimReferenceMaps
+%   
+%   .ProbeSpecs
+%       .arduinoPeriod
+%
 %
 %   Shim contains fields
+%
+%       .Com
+%           Object of type ShimCom
 %
 %       .Opt
 %           Object of type ShimOpt
 %
-%       .Specs
-%           Object of type ShimSpecs
 %
 % =========================================================================
 % Notes 
-%
-% ShimUse is a ShimCom subclass [ShimUse < ShimCom]
 % 
 % Part of series of classes pertaining to shimming:
 %
@@ -38,7 +48,7 @@ classdef ShimUse < ShimCom
 %    ShimUse
 %
 % =========================================================================
-% Updated::20160912::ryan.topfer@polymtl.ca
+% Updated::20161129::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -52,9 +62,8 @@ classdef ShimUse < ShimCom
 % =========================================================================
 
 properties   
-
-Opt;
-
+    Com;
+    Opt;
 end
 
 
@@ -64,18 +73,9 @@ methods
 % =========================================================================
 function Shim = ShimUse( Params )
 %SHIMUSE   
-%
-% SHIMUSE( Params )
-%
-% Params
-%   .pathToShimReferenceMaps
-%   .ProbeSpecs
-%       .arduinoPeriod
 
-
-DEFAULT_RUNMODE = 'isCmdLine' ;% vs. 'isGui'
-
-
+DEFAULT_SHIMSYSTEM = 'Rri' ; 
+DEFAULT_RUNMODE    = 'isCmdLine' ;% vs. 'isGui'
 
 if nargin < 1
     Params.dummy = [];
@@ -85,11 +85,24 @@ if ~myisfield( Params, 'runMode' ) || isempty( Params.runMode )
    Params.runMode = DEFAULT_RUNMODE ;
 end
 
+if ~myisfield( Params, 'shimSystem' ) || isempty( Params.shimSystem ) 
+   Params.shimSystem = DEFAULT_SHIMSYSTEM ;
+end
 
+switch Params.shimSystem
+    
+    case 'Rri'
+        Shim.Opt = ShimOptRri( Params ) ;
+        Shim.Com = ShimComRri( ) ;
 
-Shim.Opt = ShimOpt( Params ) ;
+    case 'Acdc'
+        Shim.Opt = ShimOptAcdc( Params ) ;
+        Shim.Com = ShimComAcdc( ) ;
 
+    otherwise
+        error([ Params.shimSystem 'is an invalid or unimplemented shim system. See HELP ShimUse().' ])
 
+end
 
 if ~strcmp( Params.runMode,  'isDebugging' ) ;
     Shim.testshimconnection() ;
@@ -97,76 +110,16 @@ end
 
 end
 % =========================================================================
-function [] = delete( Shim  )
+function [] = delete( Shim )
 %DELETE  (custom helper function)
 % 
 % DELETE( Shim )
 % 
-% Destructor. Calls Shim.deletecomport( ) 
+% Destructor method: calls Shim.Com.delete( ) and Shim.Opt.delete( ) 
 
 Shim.Opt.delete();
-Shim.deletecomport();
+Shim.Com.delete();
 clear Shim ;
-
-end
-% =========================================================================
-function [Shim] = deletecomport( Shim )
-%DELETECOMPORT  (custom helper function)
-% 
-% Shims = DELETECOMPORT( Shims )
-% 
-% Correct way to delete and clear the serial port object
-
-% check existence?
-if myisfield( Shim, 'ComPort' ) && isvalid( Shim.ComPort ) 
-    fclose( Shim.ComPort ) ;
-    delete( Shim.ComPort ) ;
-    clear Shim.ComPort  ;
-end
-
-end
-% =========================================================================
-function ChannelOutputs = getallchanneloutputs( Shim )
-%GETALLCHANNELSOUTPUTS
-%
-% ChannelOutputs = GETALLCHANNELOUTPUTS( Shim ) 
-% 
-% ChannelOutputs has fields
-%
-%   .current [amperes]
-%   .voltage [volts]
-%   .power [watts]
-%   .dissipatedPower [watts]
-
-
-channelsToBankKey = Shim.getchanneltobankkey ;
-
-ChannelOutputs.current = zeros( 1, Shim.Specs.Amp.nActiveChannels ) ;
-ChannelOutputs.voltage = zeros( 1, Shim.Specs.Amp.nActiveChannels ) ;
-ChannelOutputs.power   = zeros( 1, Shim.Specs.Amp.nActiveChannels ) ;
-ChannelOutputs.dissipatedPower = zeros( 1, Shim.Specs.Amp.nActiveChannels ) ; 
-
-for iChannel = 1 : Shim.Specs.Amp.nActiveChannels 
-    
-    ChannelOutput = Shim.getchanneloutput( channelsToBankKey(iChannel,2), channelsToBankKey(iChannel,3) ) ;
-    ChannelOutputs.current(iChannel)         = ChannelOutput.current ;
-    ChannelOutputs.voltage(iChannel)         = ChannelOutput.voltage ;
-    ChannelOutputs.power(iChannel)           = ChannelOutput.power ;
-    ChannelOutputs.dissipatedPower(iChannel) = ChannelOutput.dissipatedPower ;
-
-end
-
-end
-% =========================================================================
-function [] = resetallshims( Shim ) 
-%RESETALLSHIMS  
-%
-% Reset all shims to 0 A.
-%
-% [] = RESETALLSHIMS( Shim )
-
-Shim.setallshims( zeros(Shim.Specs.Amp.nChannels, 1) ) ;
-Shim.setloadallshims ;
 
 end
 % =========================================================================
@@ -235,11 +188,11 @@ if  ~myisfield( Params, 'isPlottingInRealTime' ) || isempty(Params.isPlottingInR
 end
 
 if  ~myisfield( Params, 'maxCurrents' ) || isempty(Params.maxCurrents)
-    Params.maxCurrents  = ones( Shim.Specs.Amp.nActiveChannels, 1) ; 
+    Params.maxCurrents  = ones( Shim.Com.Specs.Amp.nActiveChannels, 1) ; 
 end
 
 if  ~myisfield( Params, 'minCurrents' ) || isempty(Params.minCurrents)
-    Params.minCurrents  = -ones( Shim.Specs.Amp.nActiveChannels, 1) ; 
+    Params.minCurrents  = -ones( Shim.Com.Specs.Amp.nActiveChannels, 1) ; 
 end
 
 if  ~myisfield( Params, 'isFilteringPressure' ) || isempty(Params.isFilteringPressure)
@@ -277,8 +230,8 @@ Shim.Opt.Probe.Data.pressure = [] ;
 nSamples = Params.runTime / (Shim.Opt.Probe.Specs.arduinoPeriod/1000) ;
 iSample  = 0 ; 
 
-nSamplesBetweenUpdates = ...
-    Shim.Specs.Com.mxdUpdatePeriod/(Shim.Opt.Probe.Specs.arduinoPeriod/1000)
+nSamplesBetweenUpdates = ... % CHANGE THIS LINE FOR ACDC
+    Shim.Com.Specs.Com.mxdUpdatePeriod/(Shim.Opt.Probe.Specs.arduinoPeriod/1000)
 
 % ------- 
 % figure
@@ -355,7 +308,7 @@ while ( iSample < nSamples ) && ~StopButton.Stop()
     % currents = limitcurrents( currents ) ;
     currentsNorm = norm(currents) 
     
-    Shim.setandloadallshims( currents ) ;
+    Shim.Com.setandloadallshims( currents ) ;
     
     if Params.isPlottingInRealTime
         set(plotHandle,'YData',Shim.Opt.Probe.Data.pressure,'XData',sampleIndices);
@@ -418,29 +371,6 @@ end
 
 end
 % =========================================================================
-function [] = setandloadallshims( Shim, currents )
-%SETANDLOADALLSHIMS
-% 
-% Sets shim buffers (MXD cmd 0x22) and loads the settings (MXD cmd 0x23).
-%
-% [] = SETANDLOADALLSHIMS( Shim, currents )
-%
-% numel(currents) == Shims.Specs.nChannels || Shims.Specs.nActiveChannels
-% 
-% i.e. currents vector is either length 24 or 32
- 
-
-if numel(currents) == Shim.Specs.Amp.nChannels
-    Shim.setallshims( currents ) ;
-    
-elseif numel(currents) == Shim.Specs.Amp.nActiveChannels
-    Shim.setallshims( Shim.mapcurrentstomxd( currents ) ) ;
-end
-
-Shim.setloadallshims ;
-
-end
-% =========================================================================
 function isAckReceived = testshimconnection( Shim )
 %TESTSHIMCONNECTION
 % 
@@ -448,7 +378,7 @@ function isAckReceived = testshimconnection( Shim )
 % 
 % Queries shim amp for response (1 or 0)
 
-isAckReceived = Shim.getsystemheartbeat ; % should respond with 'ACK'
+isAckReceived = Shim.Com.getsystemheartbeat ; % should respond with 'ACK'
 
 if isAckReceived
     msg = [ '-----\n'...
@@ -504,6 +434,7 @@ end
 % =========================================================================
 function [] = display( msg )
 %DISPLAY
+%
 
 if nargin < 1 || isempty(msg)
     fprintf('\n')    ;
@@ -522,35 +453,35 @@ else
 end
 
 end
-% =========================================================================
-function [] = listcommands( option )
-%LISTCOMMANDS
+% % =========================================================================
+% function [] = listcommands( option )
+% %LISTCOMMANDS
+% %
+% %   Displays all the implemented HEX commands for MXD/DSU.
+% %   
+% %   [] = LISTCOMMANDS( )
 %
-%   Displays all the implemented HEX commands for MXD/DSU.
-%   
-%   [] = LISTCOMMANDS( )
-
-Cmd = ShimCom.definecommands( ) ;
-
-fprintf(['\n ---------------------------------------------------------\n'])
-fprintf(['\n MXD Commands:\n\n'])
-commands = fieldnames( Cmd.Mxd ) ;
-
-for iCmd = 1 : length(commands)
-    fprintf([ commands{iCmd} '\n'])
-end
-
-fprintf(['\n ---------------------------------------------------------\n'])
-fprintf(['\n DSU Commands:\n\n'])
-commands = fieldnames( Cmd.Dsu ) ;
-
-for iCmd = 1 : length(commands)
-    fprintf([commands{iCmd} '\n'])
-end
-
-fprintf(['\n\n'])
-
-end
+% Cmd = ShimCom.definecommands( ) ;
+%
+% fprintf(['\n ---------------------------------------------------------\n'])
+% fprintf(['\n MXD Commands:\n\n'])
+% commands = fieldnames( Cmd.Mxd ) ;
+%
+% for iCmd = 1 : length(commands)
+%     fprintf([ commands{iCmd} '\n'])
+% end
+%
+% fprintf(['\n ---------------------------------------------------------\n'])
+% fprintf(['\n DSU Commands:\n\n'])
+% commands = fieldnames( Cmd.Dsu ) ;
+%
+% for iCmd = 1 : length(commands)
+%     fprintf([commands{iCmd} '\n'])
+% end
+%
+% fprintf(['\n\n'])
+%
+% end
 % =========================================================================
 
 end
