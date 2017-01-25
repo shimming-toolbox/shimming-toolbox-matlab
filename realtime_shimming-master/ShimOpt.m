@@ -1,4 +1,4 @@
-classdef ShimOptRri < ShimOpt
+classdef (Abstract) ShimOpt < MaRdI 
 %SHIMOPT - Shim Optimization
 %
 % .......
@@ -87,6 +87,9 @@ classdef ShimOptRri < ShimOpt
 %   If solution achievable given system constraints, return solution;
 %   Else, run fmincon given constraints & return that solution instead;
 %
+%   Should optionally accept Field and mask as inputs, +then run setoriginalfield()
+%   and setshimvolumeofinterest() 
+%
 % .....
 % EXTENDHARMONICFIELD()
 %   Write function to check if field map is exists + is reasonable over
@@ -105,14 +108,20 @@ classdef ShimOptRri < ShimOpt
 %
 % =========================================================================
 
+properties
+    Field ; % object of type MaRdI
+    Model ;
+    Probe ; % object of type ProbeTracking
+end
+
 % =========================================================================
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOptRri( Params )
+function Shim = ShimOpt( Params )
 %SHIMOPT - Shim Optimization
 
-DEFAULT_PATHTOSHIMREFERENCEMAPS = 'SpineShimReferenceMaps20161007.mat';
+DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161007.mat';
 DEFAULT_PROBESPECS = [] ;
 
 if nargin < 1 || isempty( Params ) 
@@ -475,21 +484,20 @@ function mask = getvaliditymask( Shim, Params, Field1, Field2 )
 % Field1/2 are MaRdI-type objects and may correspond to 'Inspired' and 
 % 'Expired' fields.
 %
-%    .......................
+% .......................
 %   
-%   The following Params.fields are supported
+% The following Params.fields are supported
 %
-%       .maxAbsField 
-%           maximum absolute voxel value assumed to represent an accurate
-%           field measurement. Voxels with abs-values greater than this
-%           might stem from errors in the unwrapping.
-%           default: 500 Hz
+% .maxAbsField 
+%   maximum absolute voxel value assumed to represent an accurate field
+%   measurement. Voxels with abs-values greater than this might stem from
+%   errors in the unwrapping.  [default: 500 Hz]
 %
-%       .maxFieldDifference
-%           maximum absolute voxel-wise difference assumed to be valid between 
-%           Field1 & Field2 (e.g. 'inspired field' vs. 'expired field')
-%           default: 150 Hz (See Verma T, Magn Reson Med, 2014)
-%
+% .maxFieldDifference
+%   maximum absolute voxel-wise difference assumed to be valid between Field1 &
+%   Field2 (e.g. 'inspired field' vs. 'expired field') [default: 150 Hz] (See
+%   Verma T, Magn Reson Med, 2014)
+
 DEFAULT_MAXABSFIELD        = 500 ;
 DEFAULT_MAXFIELDDIFFERENCE = 150 ;
 
@@ -639,7 +647,7 @@ methods(Access=protected)
 end
 % =========================================================================
 % =========================================================================
-methods(Static)
+methods(Static=true)
 
 % =========================================================================
 function [Field, Extras] = mapfield( Params )
