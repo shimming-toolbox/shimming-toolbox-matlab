@@ -105,20 +105,14 @@ classdef ShimOptRri < ShimOpt
 %
 % =========================================================================
 
-properties
-    Field ; % object of type MaRdI
-    Model ;
-    Probe ; % object of type ProbeTracking
-end
-
 % =========================================================================
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOpt( Params )
+function Shim = ShimOptRri( Params )
 %SHIMOPT - Shim Optimization
 
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161007.mat';
+DEFAULT_PATHTOSHIMREFERENCEMAPS = 'SpineShimReferenceMaps20161007.mat';
 DEFAULT_PROBESPECS = [] ;
 
 if nargin < 1 || isempty( Params ) 
