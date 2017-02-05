@@ -52,44 +52,13 @@ classdef (Abstract) ShimCom < matlab.mixin.SetGet
 %    ShimCom is an Abstract class.
 %
 % =========================================================================
-% Updated::20161125::ryan.topfer@polymtl.ca
+% Updated::20170204::ryan.topfer@polymtl.ca
 % =========================================================================
+
 
 
 % *** TODO 
 % 
-% ..... 
-%   Error codes (system responses) as enumerations? 
-% ..... 
-%   Params.isDebug 
-%   possible parameter for outputting system responses to screen
-%   
-%   e.g. When true: Notify user if 'isSendOk' + what type of system responses
-%   are returned. 
-% ..... 
-%   Shims.Params.INVALID -
-%   Main.vb and HexProtocol (manual pdf) define this differently. Therefore,
-%   bytes 3-5 of INVALID might be wrong.
-% ..... 
-%   SETCHANNELBUFFER()
-%   does this work? clean up &/or fix.
-% ..... 
-%   Way of checking what the ComPort names are?
-%   +Optional input params:
-%       portName 
-% ..... 
-%   .Status as property?
-% ..... 
-%   checkcontrolresponse(  )
-%
-%   only control responses have a single data bit returned.
-%   replace ISACKRECEIVED() with this.
-%   Whenever the length of the received data differs from expectation
-%   (i.e. when it is 5) call CHECKCONTROLRESPONSE()
-% .....   
-%   Lookup table:
-%   definitions of MXD/DSU errors from MXD manual such that a returned error
-%   msg to the serial port can indicate sth useful to the user
 % ..... 
 % SPLITINT( ) 
 %  
@@ -98,8 +67,6 @@ classdef (Abstract) ShimCom < matlab.mixin.SetGet
 % When converting to DAC counts (e.g ampstodac())
 %   consider output 'clipFlag' for instance where input current exceeds 
 %   max allowable current?
-%
-% Likewise for any set() function in ShimCom for shim currents.
 %     
 % =========================================================================
 
@@ -365,6 +332,7 @@ methods(Abstract)
 %   .power [watts]
 %   .dissipatedPower [watts]
 
+% =========================================================================
 % =========================================================================
 end
     

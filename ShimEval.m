@@ -25,7 +25,7 @@ classdef ShimEval < ShimOpt
 % ShimEval is a ShimOpt subclass [ShimEval < ShimOpt < MaRdI]
 %     
 % =========================================================================
-% Updated::20160925::ryan.topfer@polymtl.ca
+% Updated::20170204::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
@@ -36,7 +36,7 @@ end
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimEval( Params )
+function Shim = ShimEval( Shims )
 %SHIMEVAL - Shim Evaluation 
 
 if nargin < 1
@@ -360,7 +360,10 @@ img = imread( Params.filename, 'png' ) ;
 imwrite( img( 5:end-3, 5:end-3, : ), Params.filename, 'png' ) ;
 
 end
+% =========================================================================
 
 end
+% =========================================================================
+% =========================================================================
 
 end

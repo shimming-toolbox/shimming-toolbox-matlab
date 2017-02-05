@@ -64,7 +64,7 @@ classdef (Abstract) ShimOpt < MaRdI
 % ShimOpt is a MaRdI subclass [ShimOpt < MaRdI]
 %     
 % =========================================================================
-% Updated::20161122::ryan.topfer@polymtl.ca
+% Updated::20170204::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -80,15 +80,6 @@ classdef (Abstract) ShimOpt < MaRdI
 % ASSESSSHIMVOLUME()
 %   write function to compare spatial support of shim reference maps to the
 %   voxel positions of the field map to be shimmed.
-%
-% .....
-% OPTIMIZESHIMCURRENTS()
-%   Run (unconstrained) Cg solver;
-%   If solution achievable given system constraints, return solution;
-%   Else, run fmincon given constraints & return that solution instead;
-%
-%   Should optionally accept Field and mask as inputs, +then run setoriginalfield()
-%   and setshimvolumeofinterest() 
 %
 % .....
 % EXTENDHARMONICFIELD()
@@ -309,133 +300,6 @@ function Shim = setshimvolumeofinterest( Shim, mask )
 % the desired shim region.
 
 Shim.Field.Hdr.MaskingImage = mask ;
-
-end
-% =========================================================================
-function Shim = optimizeshimcurrents( Shim, Params )
-%OPTIMIZESHIMCURRENTS 
-%
-% Shim = OPTIMIZESHIMCURRENTS( Shim, Params )
-%   
-% Params can have the following fields 
-%   
-%   .maxCurrentPerChannel
-%       [default: 4 A,  determined by class ShimSpecs.Amp.maxCurrentPerChannel]
-
-Specs = ShimSpecs();
-
-if nargin < 1
-    error('Function requires at least 1 argument of type ShimOpt')
-elseif nargin == 1
-    Params.dummy = [];
-end
-
-if ~myisfield(Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerChannel ) 
-    Params.maxCurrentPerChannel = Specs.Amp.maxCurrentPerChannel ; 
-end
-
-% Params for conjugate-gradient optimization
-CgParams.tolerance     = 1E-6 ;
-CgParams.maxIterations = 10000 ;    
-
-A = Shim.getshimoperator ;
-M = Shim.gettruncationoperator ;
-
-b = M*(-Shim.Field.img(:)) ;
-
-% ------- 
-% Least-squares solution via conjugate gradients
-Shim.Model.currents = cgls( A'*M'*M*A, ... % least squares operator
-                            A'*M'*b, ... % effective solution vector
-                            zeros( [Specs.Amp.nActiveChannels 1] ), ... % initial model (currents) guess
-                            CgParams ) ;
-% ------- 
-% TODO: CHECK SOL. VECTOR FOR CONDITIONS 
-% + allow more optional params for optimization 
-isCurrentSolutionOk = false ;
-
-if ~isCurrentSolutionOk
-    
-    [X0,X1,X2,X3] = ShimCom.getchanneltobankmatrices( ) ;
-
-    Options = optimset(...
-        'DerivativeCheck','off',...
-        'GradObj','on',...
-        'Display', 'off',... %'iter-detailed',...
-        'MaxFunEvals',36000,...
-        'TolX',1e-11,...
-        'TolCon',1E-8);
-
-    A=M*A;
-    tic
-    [Shim.Model.currents] = fmincon( ...
-        @shimcost,...
-        ones(Specs.Amp.nActiveChannels,1),...
-        [],...
-        [],...
-        [],...
-        [],...
-        -Params.maxCurrentPerChannel*ones(Specs.Amp.nActiveChannels,1),...
-        Params.maxCurrentPerChannel*ones(Specs.Amp.nActiveChannels,1),...
-        @first_order_norm,...
-        Options);
-    toc
-    
-end
-
-function [f, df] = shimcost( currents )
-    
-     y=A*currents - b;
-     f=y'*y;
-     df=2*A'*y;
-    
-end
-
-function [C, Ceq] = first_order_norm( currents )
-% C(x) <= 0
-% (e.g. x = currents)
-%
-    C   = 0; 
-    Ceq = [];
-    waterLevel = 1E-8;
-    % split currents up into banks
-    % -------
-    % bank 0
-    i0 = X0*currents;
-
-    % -------
-    % bank 1
-    i1 = X1*currents;
-
-    % -------
-    % bank 2
-    i2 = X2*currents;
-
-    % -------
-    % bank 3
-    i3 = X3*currents;
-
-    % Overall abs current cannot exceed Specs.Amp.maxCurrentPerBank (e.g. 20 A)
-    C(1) = sum( abs(i0) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-    C(2) = sum( abs(i1) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-    C(3) = sum( abs(i2) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-    C(4) = sum( abs(i3) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-
-    % pos. current cannot exceed Specs.Amp.maxCurrentPerRail (e.g. + 10 A) 
-    C(5) = abs(sum( ((i0>0) .* i0) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(6) = abs(sum( ((i1>0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(7) = abs(sum( ((i2>0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(8) = abs(sum( ((i3>0) .* i3) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    
-    % neg. current cannot be below Specs.Amp.maxCurrentPerRail (e.g. - 10 A) 
-    C(9)  = abs(sum( ((i0<0) .* i0) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(10) = abs(sum( ((i1<0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(11) = abs(sum( ((i2<0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(12) = abs(sum( ((i3<0) .* i3) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-
-end
-    
-Shim = Shim.setforwardmodelfield ;
 
 end
 % =========================================================================
@@ -804,6 +668,18 @@ end
 end
 % =========================================================================
 % =========================================================================
+methods(Abstract)
+% =========================================================================
+[Shim] = optimizeshimcurrents( Shim, Params )
+%OPTIMIZESHIMCURRENTS 
+%
+% Shim = OPTIMIZESHIMCURRENTS( Shim, Params )
+%   
+% OPTIMIZESHIMCURRENTS should return the optimal shim currents in the field
+% Shim.Model.currents
 
+% =========================================================================
+% =========================================================================
 end
 
+end

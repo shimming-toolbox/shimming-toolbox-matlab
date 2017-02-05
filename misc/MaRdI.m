@@ -44,6 +44,20 @@ Img.Hdr = [] ;
 if nargin == 1 && ~isempty(dataLoadDirectory)
 
     listOfDicoms = dir( [ dataLoadDirectory '/*.dcm'] );
+
+    if length(listOfDicoms) == 0
+        % try .IMA
+        isImaDir = MaRdI.changefilesuffix( dataLoadDirectory ) ;
+        
+        if isImaDir == true
+            display('Converted .IMA to .dcm');
+        else
+            error('No .dcm or .IMA files found in given directory') ;
+        end
+
+        listOfDicoms = dir( [ dataLoadDirectory '/*.dcm'] );
+    end
+
     Img.Hdr      = dicominfo( [ dataLoadDirectory '/' listOfDicoms(1).name] ) ;
 
     Img.img      = double( dicomread( [ dataLoadDirectory '/' listOfDicoms(1).name] ) )  ;
@@ -121,8 +135,6 @@ end
 % EXTRACTHARMONICFIELD()
 %  Clean up 
 %     
-% ..... 
-%   Should MaRdI be a subclass of matlab.mixin.SetGet ???
 % =========================================================================
 
 function ImgCopy = copy(Img)
@@ -1044,6 +1056,35 @@ end
 % =========================================================================
 % =========================================================================
 methods(Static)
+% =========================================================================
+function [isImaDir] = changefilesuffix( imgDirectory )
+%CHANGEFILESUFFIX
+% 
+% Renames all .IMA files in imgDirectory to .dcm
+% Returns true if directory contains .IMA files, false otherwise.
+% 
+% isImaDir = CHANGEFILESUFFIX( imgDirectory )
+
+listOfImages = dir( [imgDirectory '/*.IMA'] ) ;
+
+listOfImages.name ;
+
+nImg = length(listOfImages) ;
+
+if nImg == 0
+    isImaDir = false ;
+    display('Given directory does not contain .IMA files') ;
+
+else 
+    isImaDir = true ;
+    for img = 1 : length(listOfImages)
+        [PATHSTR,NAME,EXT] = fileparts( listOfImages(img).name ) ;
+        cmd =  ['mv ' imgDirectory '/' NAME EXT ' ' imgDirectory '/' NAME '.dcm'] ;
+        system( cmd ) ;
+    end
+end
+
+end
 % =========================================================================
 function fullDir = getfulldir( dataLoadDir, iDir )
 %GETFULLDIR
