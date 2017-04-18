@@ -20,8 +20,8 @@ classdef ShimUse
 %
 %   .pathToShimReferenceMaps
 %   
-%   .ProbeSpecs
-%       .arduinoPeriod
+%   .TrackerSpecs
+%       .dt
 %
 %
 %   Shim contains fields
@@ -38,7 +38,7 @@ classdef ShimUse
 % 
 % Part of series of classes pertaining to shimming:
 %
-%    ProbeTracking
+%    Tracking
 %    ShimCal
 %    ShimCom
 %    ShimEval
@@ -73,6 +73,9 @@ methods
 % =========================================================================
 function Shim = ShimUse( Params )
 %SHIMUSE   
+
+Shim.Opt = [];
+Shim.Com = [];
 
 DEFAULT_SHIMSYSTEM = 'Rri' ; 
 DEFAULT_RUNMODE    = 'isCmdLine' ;% vs. 'isGui'
@@ -130,23 +133,23 @@ function [] = runrealtimeshim( Shim, Params )
 %
 % [] = RUNREALTIMESHIM( Shim, Params  )
 
-assert( strcmp( Shim.Opt.Probe.ComPort.Status, 'closed' ), ...
-    'Error: Serial port is open/in use.' );
+% assert( strcmp( Shim.Opt.Tracker.ComPort.Status, 'closed' ), ...
+%     'Error: Serial port is open/in use.' );
 
-DEFAULT_ISSAVINGDATA          = true ;
-DEFAULT_ISFORCINGOVERWRITE    = false ;
-DEFAULT_PRESSURELOGFILENAME   = ['./' datestr(now,30) '-pressureLog.bin' ] ;
-DEFAULT_SAMPLETIMESFILENAME   = ['./' datestr(now,30) '-sampleTimes.bin' ] ;
-DEFAULT_RUNTIME               = 5*60 ; % [units: s]
-DEFAULT_EXTRAPOLATIONORDER    = 0 ;
-DEFAULT_EXTRAPOLATIONDELAY    = 0 ;
+DEFAULT_ISSAVINGDATA            = true ;
+DEFAULT_ISFORCINGOVERWRITE      = false ;
+DEFAULT_MEASUREMENTLOGFILENAME  = ['./' datestr(now,30) '-pressureLog.bin' ] ;
+DEFAULT_SAMPLETIMESFILENAME     = ['./' datestr(now,30) '-sampleTimes.bin' ] ;
+DEFAULT_RUNTIME                 = 5*60 ; % [units: s]
+DEFAULT_EXTRAPOLATIONORDER      = 0 ;
+DEFAULT_EXTRAPOLATIONDELAY      = 0 ;
 
-DEFAULT_ISFILTERINGPRESSURE   = false ;
-DEFAULT_ISPLOTTINGINREALTIME  = true ;
+DEFAULT_ISFILTERINGMEASUREMENTS = false ; % Tracker measurements
+DEFAULT_ISPLOTTINGINREALTIME    = true ;
 
-DEFAULT_ISCLIPPINGPRESSURE    = true ;
-DEFAULT_MINCLIPPINGPRESSURE   = 1 ;
-DEFAULT_MAXCLIPPINGPRESSURE   = 1000 ;
+DEFAULT_ISCLIPPING            = true ;
+DEFAULT_MINCLIPTHRESHOLD  = 1 ;
+DEFAULT_MAXCLIPTHRESHOLD  = 1000 ;
 
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;
@@ -160,12 +163,12 @@ if  ~myisfield( Params, 'isForcingOverwrite' ) || isempty(Params.isForcingOverwr
     Params.isForcingOverwrite = DEFAULT_ISFORCINGOVERWRITE ;
 end
 
-if  ~myisfield( Params, 'pressureLogFilename' ) || isempty(Params.pressureLogFilename)
-    Params.pressureLogFilename = DEFAULT_PRESSURELOGFILENAME ;
+if  ~myisfield( Params, 'measurementLogFilename' ) || isempty(Params.measurementLogFilename)
+    Params.measurementLogFilename = DEFAULT_MEASUREMENTLOGFILENAME ;
 end
 
-[pathStr,name,ext] = fileparts( Params.pressureLogFilename ) ;
-Params.rawPressureLogFilename = [pathStr name '_raw' ext] ;
+[pathStr,name,ext] = fileparts( Params.measurementLogFilename ) ;
+Params.rawMeasurementLogFilename = [pathStr name '_raw' ext] ;
 
 if  ~myisfield( Params, 'sampleTimesFilename' ) || isempty(Params.sampleTimesFilename)
     Params.sampleTimesFilename  = DEFAULT_SAMPLETIMESFILENAME ; 
@@ -195,21 +198,25 @@ if  ~myisfield( Params, 'minCurrents' ) || isempty(Params.minCurrents)
     Params.minCurrents  = -ones( Shim.Com.Specs.Amp.nActiveChannels, 1) ; 
 end
 
-if  ~myisfield( Params, 'isFilteringPressure' ) || isempty(Params.isFilteringPressure)
-    Params.isFilteringPressure  = DEFAULT_ISFILTERINGPRESSURE ; 
+if  ~myisfield( Params, 'isFilteringMeasurements' ) || isempty(Params.isFilteringMeasurements)
+    Params.isFilteringMeasurements  = DEFAULT_ISFILTERINGMEASUREMENTS ; 
 end
 
-if  ~myisfield( Params, 'isClippingPressure' ) || isempty(Params.isClippingPressure)
-    Params.isClippingPressure  = DEFAULT_ISCLIPPINGPRESSURE ; 
+if  ~myisfield( Params, 'isClipping' ) || isempty(Params.isClipping)
+    Params.isClipping  = DEFAULT_ISCLIPPING ; 
 end
 
-if  ~myisfield( Params, 'minClippingPressure' ) || isempty(Params.minClippingPressure)
-    Params.minClippingPressure  = DEFAULT_MINCLIPPINGPRESSURE ; 
+if  ~myisfield( Params, 'minClipThreshold' ) || isempty(Params.minClipThreshold)
+    Params.minClipThreshold  = DEFAULT_MINCLIPTHRESHOLD ; 
 end
 
-if  ~myisfield( Params, 'maxClippingPressure' ) || isempty(Params.maxClippingPressure)
-    Params.maxClippingPressure  = DEFAULT_MAXCLIPPINGPRESSURE ; 
+if  ~myisfield( Params, 'maxClipThreshold' ) || isempty(Params.maxClipThreshold)
+    Params.maxClipThreshold  = DEFAULT_MAXCLIPTHRESHOLD ; 
 end
+
+
+
+
 
 Params.nSamplesFilter = 10 ;
 Params.filterScaling  = 4 ; 
@@ -222,133 +229,146 @@ summedWeights = sum( filterWeights ) ;
 filterWeights = filterWeights' / summedWeights ;
 
     
+
+
+
+
 normCurrents = [];
 
 % ------- 
-Shim.Opt.Probe.Data.pressure = [] ;
+Shim.Opt.Tracker.Data.p = [] ;
 
-nSamples = Params.runTime / (Shim.Opt.Probe.Specs.arduinoPeriod/1000) ;
+nSamples = Params.runTime / (Shim.Opt.Tracker.Specs.dt/1000) ;
 iSample  = 0 ; 
 
 nSamplesBetweenUpdates = ... % CHANGE THIS LINE FOR ACDC
-    Shim.Com.Specs.Com.mxdUpdatePeriod/(Shim.Opt.Probe.Specs.arduinoPeriod/1000)
+    Shim.Com.Specs.Com.mxdUpdatePeriod/(Shim.Opt.Tracker.Specs.dt/1000)
 
-% ------- 
-% figure
-figureHandle = figure('NumberTitle','off',...
-    'Name','Sonde de respiration',...
-    'Color',[0 0 0],'Visible','off');
-    
-% Set axes
-axesHandle = axes('Parent',figureHandle,...
-    'YGrid','on',...
-    'YColor',[0.9725 0.9725 0.9725],...
-    'XGrid','on',...
-    'XColor',[0.9725 0.9725 0.9725],...
-    'Color',[0 0 0]);
 
-hold on;
-    
-plotHandle = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
-    
-xlim(axesHandle,[0 nSamples]);
-    
-title('Pressure log','FontSize',15,'Color',[1 1 0]);
-xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-ylabel('Pressure (Pa)','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-
-drawnow limitrate; 
  
 if Params.isPlottingInRealTime
+
+    % ------- 
+    % figure
+    figureHandle = figure('NumberTitle','off',...
+        'Name','Sonde de respiration',...
+        'Color',[0 0 0],'Visible','off');
+        
+    % Set axes
+    axesHandle = axes('Parent',figureHandle,...
+        'YGrid','on',...
+        'YColor',[0.9725 0.9725 0.9725],...
+        'XGrid','on',...
+        'XColor',[0.9725 0.9725 0.9725],...
+        'Color',[0 0 0]);
+
+    hold on;
+        
+    plotHandle = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
+        
+    xlim(axesHandle,[0 nSamples]);
+        
+    title('Respiration Tracking','FontSize',15,'Color',[1 1 0]);
+    xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+    ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+
+    drawnow limitrate; 
     set(figureHandle,'Visible','on');
+
 end
 
 sampleIndices = [] ;
 
 % ------- 
 StopButton = stoploop({'Stop recording'}) ;
-Shim.Opt.Probe = Shim.Opt.Probe.initializecomport() ;
-ShimUse.display( 'Issuing real-time shim updates. Begin scanning!' )
-ShimUse.display( 'Warning: 1st shim update based on raw pressure recording.' )
 
-rawPressureLog = [] ;
+isTracking = Shim.Opt.Tracker.begintracking(); 
 
-while ( iSample < nSamples ) && ~StopButton.Stop()
-    
-    iSamplesBetweenUpdates = 0;
+if isTracking
+    ShimUse.display( 'Issuing real-time shim updates. Begin scanning!' )
+    ShimUse.display( 'Warning: 1st shim update based on raw Tracker.Data recording.' )
 
-    for iSamplesBetweenUpdates = 1 : nSamplesBetweenUpdates 
+    rawMeasurementLog = [] ;
 
-        iSample = iSample + 1 ;
+    while ( iSample < nSamples ) && ~StopButton.Stop()
         
-        sampleIndices(iSample) = iSample ;
-       
-        rawPressureLog(iSample) = Shim.Opt.Probe.readpressure() ;
-        
-        if Params.isFilteringPressure  && ( iSample > Params.nSamplesFilter )
-            Shim.Opt.Probe.Data.pressure(iSample) = rawPressureLog(iSample) ;
-            Shim.Opt.Probe.Data.pressure(end) = ...
-                sum( filterWeights .* Shim.Opt.Probe.Data.pressure( (end - (Params.nSamplesFilter-1)) : end ) ) ;
+        iSamplesBetweenUpdates = 0;
 
-        else
+        for iSamplesBetweenUpdates = 1 : nSamplesBetweenUpdates 
+
+            iSample = iSample + 1 ;
             
-            Shim.Opt.Probe.Data.pressure(iSample) = rawPressureLog(iSample) ;
-        
+            sampleIndices(iSample) = iSample ;
+           
+            rawMeasurementLog(iSample) = Shim.Opt.Tracker.getupdate() ;
+            
+            if Params.isFilteringMeasurements  && ( iSample > Params.nSamplesFilter )
+                Shim.Opt.Tracker.Data.p(iSample) = rawMeasurementLog(iSample) ;
+                Shim.Opt.Tracker.Data.p(end) = ...
+                    sum( filterWeights .* Shim.Opt.Tracker.Data.p( (end - (Params.nSamplesFilter-1)) : end ) ) ;
+
+            else
+                
+                Shim.Opt.Tracker.Data.p(iSample) = rawMeasurementLog(iSample) ;
+            
+            end
+            
+            if Params.isClipping 
+                
+                Shim.Opt.Tracker.Data.p(iSample) = clipvalue( Shim.Opt.Tracker.Data.p(iSample) ) ;
+            
+            end
+
         end
+
+        currents = Shim.Opt.computerealtimeupdate( Params ) 
+        % currents = limitcurrents( currents ) ;
+        currentsNorm = norm(currents) 
         
-        if Params.isClippingPressure 
-            
-            Shim.Opt.Probe.Data.pressure(iSample) = clippressure( Shim.Opt.Probe.Data.pressure(iSample) ) ;
+        Shim.Com.setandloadallshims( currents ) ;
         
+        if Params.isPlottingInRealTime
+            set(plotHandle,'YData',Shim.Opt.Tracker.Data.p,'XData',sampleIndices);
         end
 
     end
 
-    currents = Shim.Opt.computerealtimeupdate( Params ) 
-    % currents = limitcurrents( currents ) ;
-    currentsNorm = norm(currents) 
-    
-    Shim.Com.setandloadallshims( currents ) ;
-    
-    if Params.isPlottingInRealTime
-        set(plotHandle,'YData',Shim.Opt.Probe.Data.pressure,'XData',sampleIndices);
+    Shim.Opt.Tracker.stoptracking() ;
+
+    sampleTimes = (Shim.Opt.Tracker.Specs.dt/1000)*[0:(numel(Shim.Opt.Tracker.Data.p)-1)] ;
+
+    Shim.Com.resetallshims() ;
+
+    % ------- 
+    if Params.isSavingData
+        measurementLogFid = fopen( Params.measurementLogFilename, 'w+' ) ;
+        fwrite( measurementLogFid, Shim.Opt.Tracker.Data.p, 'double' ) ;
+        fclose( measurementLogFid );
+        
+        measurementLogFid = fopen( Params.rawMeasurementLogFilename, 'w+' ) ;
+        fwrite( measurementLogFid, rawMeasurementLog, 'double' ) ;
+        fclose( measurementLogFid );
+
+        sampleTimesFid = fopen( Params.sampleTimesFilename, 'w+' ) ;
+        fwrite( sampleTimesFid, sampleTimes, 'double' ) ;
+        fclose( sampleTimesFid );
     end
 
 end
-
-sampleTimes = (Shim.Opt.Probe.Specs.arduinoPeriod/1000)*[0:(numel(Shim.Opt.Probe.Data.pressure)-1)] ;
-
-fclose( Shim.Opt.Probe.ComPort )
 
 StopButton.Clear() ;
 
 
-Shim.resetallshims() ;
 
-% ------- 
-if Params.isSavingData
-    pressureLogFid = fopen( Params.pressureLogFilename, 'w+' ) ;
-    fwrite( pressureLogFid, Shim.Opt.Probe.Data.pressure, 'double' ) ;
-    fclose( pressureLogFid );
-    
-    pressureLogFid = fopen( Params.rawPressureLogFilename, 'w+' ) ;
-    fwrite( pressureLogFid, rawPressureLog, 'double' ) ;
-    fclose( pressureLogFid );
-
-    sampleTimesFid = fopen( Params.sampleTimesFilename, 'w+' ) ;
-    fwrite( sampleTimesFid, sampleTimes, 'double' ) ;
-    fclose( sampleTimesFid );
-end
-
-function pressureSample = clippressure( pressureSample )
-%CLIPPRESSURE
+function p = clipvalue( p )
+%CLIPVALUE
 % 
-% pressureSample = clippressure( pressureSample )
+% pClipped = CLIPVALUE( p )
 
-if pressureSample < Params.minClippingPressure
-    pressureSample = Params.minClippingPressure ;
-elseif pressureSample > Params.maxClippingPressure ;
-    pressureSample = Params.maxClippingPressure ;
+if p < Params.minClipThreshold
+    p = Params.minClipThreshold ;
+elseif p > Params.maxClipThreshold ;
+    p = Params.maxClipThreshold ;
 end
 
 end

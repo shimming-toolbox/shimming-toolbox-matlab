@@ -1164,7 +1164,7 @@ function [Shims] = deletecomport( Shims )
 if myisfield( Shims, 'ComPort' ) && ~isempty( Shims.ComPort ) 
     fclose( Shims.ComPort ) ;
     delete( Shims.ComPort ) ;
-    clear Shims.ComPort  ;
+    % clear Shims.ComPort  ;
 end
 
 end

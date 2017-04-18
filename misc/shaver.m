@@ -1,4 +1,4 @@
-function[ ROIout ] = shaver( ROIin, R )
+function[ roiOut ] = shaver( roiIn, R )
 %SHAVER shaves a 3D binary mask by 'R'
 %
 %   SHAVER convolves binary input image ROI with an ellipsoid defined by
@@ -13,41 +13,54 @@ function[ ROIout ] = shaver( ROIin, R )
 %   ROIshaved = SHAVER(ROI,R) returns ROI eroded by R. If R is a single
 %   scalar, every dimension is eroded by R. If R is a 3-component vector
 %   [Rx Ry Rz], each dimension is then eroded by its corresponding R value.
+%   
 %
+%   see also DILATER( )
+%
+% =========================================================================
+% Updated::20170210::ryan.topfer@polymtl.ca
+% =========================================================================
 
-if any( R == 0 )
-	ROIout = ROIin ;
-	disp('Radius cannot be zero. Returning input array') 
+if any( R <= 0 )
+	
+    roiOut = roiIn ;
+	disp('Shaver: Radius should be a positive integer. Returning input array') 
+
 else
-	inputIsFloat = true;
-    tmp = whos('ROIin');
-	switch tmp.class
+	
+    inputIsFloat = true;
+    tmp = whos('roiIn');
+	
+    switch tmp.class
 	    case {'single','double'}
 	        inputIsFloat   = true ;
-	        ROIin          = logical( ROIin ) ;
+	        roiIn          = logical( roiIn ) ;
 	    case {'logical'}
 	        inputIsFloat = false ;
 	end
-
-	if any( mod( size( ROIin ), 2 ) == 0 )
-	    isCroppingToOddDimensions = true ;
-	    ROIin                     = makeodd( ROIin ) ;
-	    gridDimensionVector       = size( ROIin ) ;
-	else
-	    isCroppingToOddDimensions = false ;
-	    gridDimensionVector = size( ROIin ) ;
-	end
-
-	sphere              = createellipsoid( gridDimensionVector, R) ;
-	ROIout              = ifftc( fftc(ROIin) .* fftc( sphere/sum( sphere(:)) ) ) ;
-	ROIout              = abs(ROIout) >= 1 - 0.99/sum(sphere(:)) ;
-
+    
+    if numel(R) == 1
+        R = [R R R];
+    end
+    
+    gridSize = size( roiIn ) ;
+	
+    sphericalKernel     = createellipsoid( 2*R + [1 1 1] , R) ;
+    nPointsKernel       = sum( sphericalKernel(:) ) ;
+	sphericalKernel     = sphericalKernel/nPointsKernel  ;
+    
+    % convolve with the kernel
+    convSize = gridSize + size(sphericalKernel) - [1 1 1]; % *linear convolution size
+    tmp = real(ifftn(fftn(roiIn,convSize).*fftn(sphericalKernel,convSize)));
+   
+    % erode regions of non or partial overlap btwn kernel & roi 
+    tmp = tmp > (1 - 0.99/nPointsKernel) ;
+  
+    % extract central region 
+    roiOut = croparray( tmp, gridSize ) ;
+    
 	if inputIsFloat
-	    ROIout = double( ROIout ) ;
-	end
-
-	if isCroppingToOddDimensions
-	    ROIout = makeodd( ROIout, 'isUndoing' ) ;
+	    roiOut = double( roiOut ) ;
 	end
 
 end

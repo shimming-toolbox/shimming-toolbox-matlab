@@ -40,7 +40,7 @@ classdef (Abstract) ShimCom < matlab.mixin.SetGet
 %
 %   Part of series of classes pertaining to shimming:
 %
-%    ProbeTracking
+%    Tracking
 %    ShimCal
 %    ShimCom
 %    ShimEval

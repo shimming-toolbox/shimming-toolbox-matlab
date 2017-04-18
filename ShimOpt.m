@@ -7,15 +7,29 @@ classdef (Abstract) ShimOpt < MaRdI
 %
 % Shim = ShimOpt( )
 % Shim = ShimOpt( Params )
+% Shim = ShimOpt( Params, Field )
 % 
-% Defaults 
-% 
-% Params.pathToShimReferenceMaps =
-%   '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161007.mat'
+% Inputs
 %
-% Params.ProbeSpecs = [] ;
-%   .ProbeSpecs is a parameters struct for ProbeTracking(). 
-%   See HELP ProbeTracking() for more information.
+%   Field [MaRdI-type object]
+%       The original field to be shimmed. (Optional.)
+%
+%   Params can have the following fields
+%
+%       .pathToShimReferenceMaps
+%           file path to .mat containing shim reference maps (ie basis fields) &
+%           .Hdr info
+%
+%       .TrackerSpecs 
+%           parameters struct for ProbeTracking(). 
+%           See HELP ProbeTracking() for more information.
+%       
+%       .isInterpolatingReferenceMaps [== true (default) OR false] 
+%           if true,
+%           when ShimOpt() is called with the Field argument, interpolation of the
+%           reference maps onto the grid of the Field image is done automatically.
+%
+% Outputs
 %
 %   Shim contains fields
 %
@@ -37,22 +51,23 @@ classdef (Abstract) ShimOpt < MaRdI
 %               Optimal shim field from projection of i onto reference maps (Ai)
 %               [units Hz]
 %           .couplingCoefficients
-%               For realtime shimming, relates vector relating field to pressure
-%               [units Hz/Pa]
+%               For realtime shimming, relates vector relating field to tracker
+%               measurement (.Tracker.Data.p)
+%               [units: Hz/Pa (Probe), or Hz/rad (Nav) ]
 %           .dcCurrentsOffsets
 %               For realtime shimming, vector of "y-intercept" currents 
-%               (i.e. currents for pressure = 0 Pa)
+%               (i.e. currents when Tracker.Data.p = 0)
 %               [units A]
 %
-%       .Probe
-%           Object of type ProbeTracking
+%       .Tracker
+%           Object of type Tracking (e.g ProbeTracking, NavTracking)
 %
 % =========================================================================
 % Notes
 %
 % Part of series of classes pertaining to shimming:
 %
-%    ProbeTracking
+%    Tracking
 %    ShimCal
 %    ShimCom
 %    ShimEval
@@ -64,14 +79,15 @@ classdef (Abstract) ShimOpt < MaRdI
 % ShimOpt is a MaRdI subclass [ShimOpt < MaRdI]
 %     
 % =========================================================================
-% Updated::20170204::ryan.topfer@polymtl.ca
+% Updated::20170214::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
 % *** TODO 
 %
 % .....
-% .Probe
+%   .Tracker
+%
 %   Should be optional // ShimOpt constructor should not 
 %   necessarily instantiate a ProbeTracking type object, eliciting a msg
 %   "Error: Device not found..." if it isn't connected.
@@ -88,11 +104,6 @@ classdef (Abstract) ShimOpt < MaRdI
 %   be performed to fill in some of the missing field.
 % 
 % .....
-% CALIBRATEREALTIMEUPDATES()
-%   Routine to extract relevant pressure measurements, process field maps,
-%   set model parameters, etc.
-%
-% .....
 % SETORIGINALFIELD()
 %   This will overwrite Shim.Field.Hdr.MaskingImage --- may not be desired/
 %   expected by user. Avoid or issue warning?
@@ -102,59 +113,70 @@ classdef (Abstract) ShimOpt < MaRdI
 properties
     Field ; % object of type MaRdI
     Model ;
-    Probe ; % object of type ProbeTracking
+    Tracker ; % object of type Tracking (e.g. ProbeTracking)
 end
 
 % =========================================================================
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOpt( Params )
+function Shim = ShimOpt( Params, Field )
 %SHIMOPT - Shim Optimization
 
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161007.mat';
-DEFAULT_PROBESPECS = [] ;
 
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
 end
 
-if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
-   Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
+Params = ShimOpt.assigndefaultparameters( Params ) ;
+
+Shim.img = [];
+Shim.Hdr = [];
+
+% .......
+% Load shim basis if provided 
+if ~isempty(Params.pathToShimReferenceMaps)
+    ShimUse.display(['\n Preparing for shim ...  \n\n'...
+            'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
+
+    load( Params.pathToShimReferenceMaps ) ;
+    % Loads .mat containing Shim struct
+    % which has fields
+    % Shim.img              - linear dB/dI 'current-to-field' opterator
+    % Shim.Hdr              - defines info like voxel locations 
+    % Shim.Hdr.MaskingImage - defines spatial support of reference maps
 end
 
-if ~myisfield( Params, 'ProbeSpecs' ) || isempty(Params.ProbeSpecs)
-   Params.ProbeSpecs = DEFAULT_PROBESPECS ;
-end
-
-ShimUse.display(['\n Preparing for shim ...  \n\n'...
-        'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
-
-load( Params.pathToShimReferenceMaps ) ;
-
-%%-----
-% dB/dI linear 'Current-to-Field' operator
-Shim.img              = SpineShim.img ;
-Shim.Hdr              = SpineShim.Hdr ;
-
-if myisfield( SpineShim, 'mask' )
-    Shim.Hdr.MaskingImage = SpineShim.mask ;
-end
-
-Shim.Field = [ ] ;       
 Shim.Model = [ ] ; 
-Shim.Probe = ProbeTracking( Params.ProbeSpecs )  ; 
+Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
+
+if (nargin == 2) && (~isempty(Field))
+    
+    Shim = Shim.setoriginalfield( Field ) ;
+    
+    if Params.isInterpolatingReferenceMaps
+        
+        Shim = interpolatetoimggrid( Shim, Field ) ;
+        Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
+
+    end
+
+else
+
+    Shim.Field = [ ] ; % user can assign later via Shim.setoriginalfield() 
+end
 
 end
 % =========================================================================
 function [] = delete( Shim )
 %DELETE  
+% 
 % DELETE( Shim )
 % 
 % Destructor. Calls Probe.deletecomport( ) 
 
-if ~isempty( Shim.Probe )
-    Shim.Probe.delete();
+if ~isempty( Shim.Tracker )
+    Shim.Tracker.delete();
 end
 
 clear Shim ;
@@ -164,9 +186,9 @@ end
 function Shim = calibraterealtimeupdates( Shim, Params )
 %CALIBRATEREALTIMEUPDATES
 % 
-% CALIBRATEREALTIMEUPDATES asks user to select the median pressure from the
-% pressure logs corresponding to the inspired & expired field maps. From
-% these, and the associated optimal currents for the 2 respiratory states,
+% CALIBRATEREALTIMEUPDATES asks user to select the median Tracker measurement
+% from the measurement logs corresponding to the inspired & expired field maps.
+% From these, and the associated optimal currents for the 2 respiratory states,
 % the following function calls are made:
 %
 % Shim.Opt.setcouplingcofficients()
@@ -178,35 +200,37 @@ function Shim = calibraterealtimeupdates( Shim, Params )
 %   Params.
 %       .Inspired
 %           .currents
-%           .pressureLog
+%           .measurementLog
 %
 %       .Expired
 %           .currents
-%           .pressureLog
+%           .measurementLog
         
 ShimUse.display( ['\n ------- \n ' ...
-    'Determine median pressure over inspired apnea : \n \n '] ) ;
+    'Determine median measurement over inspired apnea : \n \n '] ) ;
 
-Params.Inspired.medianPressure = ...
-    Shim.Probe.userselectmedianpressure( Params.Inspired.pressureLog ) ; 
+Params.Inspired.medianP = ...
+    Shim.Tracker.userselectmedianmeasurement( Params.Inspired.measurementLog ) ; 
+
 ShimUse.display( ...
-    ['Median pressure : ' num2str( Params.Inspired.medianPressure )] ) ;
+    ['Median measurement : ' num2str( Params.Inspired.medianP )] ) ;
 
 ShimUse.display( ['\n ------- \n ' ...
-    'Determine median pressure over expired apnea : \n \n '] ) ;
+    'Determine median measurement over expired apnea : \n \n '] ) ;
 
-Params.Expired.medianPressure = ...
-    Shim.Probe.userselectmedianpressure( Params.Expired.pressureLog ) ; 
+Params.Expired.medianP = ...
+    Shim.Tracker.userselectmedianmeasurement( Params.Expired.measurementLog ) ; 
+
 ShimUse.display( ...
-    ['Median pressure : ' num2str( Params.Expired.medianPressure )] ) ;
+    ['Median measurement : ' num2str( Params.Expired.medianP )] ) ;
 
 Shim.setcouplingcoefficients( ...
     Params.Inspired.currents, Params.Expired.currents, ...
-    Params.Inspired.medianPressure, Params.Expired.medianPressure ) ;
+    Params.Inspired.medianP, Params.Expired.medianP ) ;
 
 Shim.setdccurrentoffsets( ...
     Params.Inspired.currents, Params.Expired.currents, ...
-    Params.Inspired.medianPressure, Params.Expired.medianPressure ) ;
+    Params.Inspired.medianP, Params.Expired.medianP ) ;
 
 ShimUse.display( ['\n ------- \n ' ...
     'Optimal DC current offsets (in amperes): ' num2str(Shim.Model.dcCurrentOffsets') '\n \n '] ) ;
@@ -217,7 +241,7 @@ end
 % =========================================================================
 function Shim = setcouplingcoefficients( Shim, ...
                     currentsInspired, currentsExpired, ...
-                    pressureInspired, pressureExpired )
+                    pInspired, pExpired )
 %SETCOUPLINGCOEFFICIENTS
 %
 % Shim = SETCOUPLINGCOEFFICIENTS( Shim, iIn, iEx, pIn, pEx )
@@ -230,13 +254,13 @@ function Shim = setcouplingcoefficients( Shim, ...
 A = Shim.getshimoperator ;
 
 Shim.Model.couplingCoefficients = ...
-    A*(currentsInspired - currentsExpired)/(pressureInspired - pressureExpired) ;
+    A*(currentsInspired - currentsExpired)/(pInspired - pExpired) ;
 
 end
 % =========================================================================
 function Shim = setdccurrentoffsets( Shim, ...
                     currentsInspired, currentsExpired, ...
-                    pressureInspired, pressureExpired )
+                    pInspired, pExpired )
 %SETDCCURRENTOFFSETS
 % 
 % Compute and set optimal shim DC current offsets (bias)
@@ -245,13 +269,11 @@ function Shim = setdccurrentoffsets( Shim, ...
 %
 % Sets Shim.Model.dcCurrentsOffsets
 
-Specs = ShimSpecs();
-
 A = Shim.getshimoperator ;
 M = Shim.gettruncationoperator ;
 
 shimFieldOffset = ...
-    A*(currentsExpired*pressureInspired - currentsInspired*pressureExpired)/(pressureInspired - pressureExpired);
+    A*(currentsExpired*pInspired - currentsInspired*pExpired)/(pInspired - pExpired);
 
 X  = (A'*M'*M*A)\A'*M'*M ;
 Shim.Model.dcCurrentOffsets = X*shimFieldOffset ;
@@ -271,7 +293,12 @@ function Shim = interpolatetoimggrid( Shim, Field )
 %   [X,Y,Z] = Field.getvoxelpositions ;
 %   Shim.resliceimg( X, Y, Z ) ;
 
-[X,Y,Z] = Field.getvoxelpositions ;
+[X,Y,Z]      = Field.getvoxelpositions ;
+[X0, Y0, Z0] = Shim.getvoxelpositions ;
+
+% check if voxel positions already happen to coincide
+% if all( size(X) == size(X0) )
+%     if ~all( X(:)==X0(:)) || ~
 Shim.resliceimg( X, Y, Z ) ;
 
 end
@@ -322,7 +349,7 @@ function UO = getupdateoperator( Shim )
 %
 % UO = GETUPDATEOPERATOR( Shim ) ;
 %
-%   where UO * pressure = currentsUpdate
+%   where UO * Shim.Tracker.Data.p = currentsUpdate
 
 A = Shim.getshimoperator ;
 M = Shim.gettruncationoperator ;
@@ -412,7 +439,7 @@ function M = gettruncationoperator( Shim )
 %
 % M = GETTRUNCATIONOPERATOR( Shim ) ;
 %
-% Truncation Shim.Field.Hdr.MaskingImage) operator (e.g. M*b, 'picks out' the
+% Truncation Shim.Field.Hdr.MaskingImage operator (e.g. M*b, 'picks out' the
 % VOI voxels from vector b)
 
 nVoxelsImg = numel( Shim.Field.Hdr.MaskingImage ) ;
@@ -472,31 +499,38 @@ function currents = computerealtimeupdate( Shim, Params )
 %
 % currents = COMPUTEREALTIMEUPDATE( Shim, pressures, Params ) ;
 
-if Params.extrapolationOrder == 0
+% if Params.extrapolationOrder == 0
 
     currents = Shim.Model.dcCurrentOffsets + ...
-        Shim.Model.updateOperator * Shim.Probe.Data.pressure(end) ; 
+        Shim.Model.updateOperator * Shim.Tracker.Data.p(end) ; 
 
 % else
-%     currents = Shim.Model.dcCurrentOffsets + Shim.Model.updateOperator * ...
-%         predictpressure( Shim.Probe.Data.pressure, Params.extrapolationDelay,  )
-%    % do not pass by value all of the pressure reading... (unnecesary copying increases with duration of experiment) 
+%     currents = Shim.Model.dcCurrentOffsets + ...
+%         Shim.Model.updateOperator * Shim.Tracker.predictmeasurement( ...  )
 
-end        
 
-% function [predictedPressure] = predictpressure( pressures, delay, period )
-% % PREDICTPRESSURE 
+end
+% =========================================================================
+function [predictedField, Stats] = predictshim( Shim )
+%PREDICTSHIM 
 %
-% if Params.extrapolationOrder == 1
-%
-%     predictedPressure = pressures(end) + (Params.extrapolationDelay/Shim.Opt.Probe.Specs.arduinoPeriod/1000)* ...
-%             (pressure(end) - pressure(end-1)) );
-%
-% elseif Params.extrapolationOrder == 2
-%
-%     % predictedPressure = pressures(end) + (Params.extrapolationDelay/Shim.Opt.Probe.Specs.arduinoPeriod/1000)* ...
-%     %         (pressure(end) - pressure(end-1)) );
-% end
+% [predictedField, Stats] = PREDICTSHIM( Shim ) ;
+
+
+mask = logical( Shim.Field.Hdr.MaskingImage ) ;
+
+predictedField = mask .* ( Shim.Field.img + Shim.Model.field ) ;
+
+Stats.Mean = [] ; 
+Stats.Mean.predicted = mean( predictedField( mask ) ) ;
+Stats.Mean.original  = mean( Shim.Field.img( mask ) ) ;
+Stats.Mean.percentImprovement = 100*(1-Stats.Mean.predicted/Stats.Mean.original) ;
+
+Stats.Deviation = [] ;
+Stats.Deviation.predicted = std( predictedField( mask ) ) ;
+Stats.Deviation.original  = std( Shim.Field.img( mask ) ) ;
+Stats.Deviation.percentImprovement = 100*(1-Stats.Deviation.predicted/Stats.Deviation.original) ;
+
 
 end
 % =========================================================================
@@ -514,25 +548,69 @@ end
 methods(Static=true)
 
 % =========================================================================
-function [Field, Extras] = mapfield( Params )
+function [Field, Extras] = mapfield( ImgArray, Params, ObjectiveImg )
 % MAPFIELD
 %
-% Field = MAPFIELD( Params ) 
+% Field = MAPFIELD( ImgArray ) 
+% Field = MAPFIELD( ImgArray, Params ) 
+% Field = MAPFIELD( ImgArray, Params, ObjectiveImg ) 
+% 
+% ImgArray --- a cell array where the 1st dimension (i.e. row) corresponds to
+% echo number and the index along the second dimension (i=1,2) corresponds to
+% Magnitude & Wrapped Phase respectively (each a MaRdI-type object) 
 %
-% Params must contain the following fields
+% if nEchoes == 1 
+%   (i.e. ImgArray = { Mag, Phase } )
+%   It is assumed that Phase is in fact a phase-difference image.
 %
-%   .Path.Mag.echo1
-%   .Path.Mag.echo2
-%   .Path.Phase.echo1
-%   .Path.Phase.echo2
-%   .threshold (as a fraction (<1) of max measured magnitude intensity)
-%       determines the phase region to be unwrapped (i.e. areas of low signal
-%       are ignored)
+% if nEchoes == 2
+%   (i.e. ImgArray = { MagEcho1, PhaseEcho1 ; MagEcho2, PhaseEcho2 } )
+%
+% ObjectiveImg --- a MaRdI-type object *example* image (e.g. EPI volume!) 
+% that, most importantly, has its voxels positioned precisely where the field
+% information/shim is desired. That is, if a spherical harmonic fitting of
+% the field is performed (see below) then the fitted-field will be interpolated
+% at the voxel positions from ObjectiveImg. 
+%
+% What is the immediate purpose of this? To enabled gapped/partial gre_field_map
+% acquisitions in order to reduce the acquisition time for real-time shim training
+% i.e. these generally involve the subject holding their breath, so, for
+% feasibility + patient comfort, the acquisitions should be as brief as
+% possible.
+%
+% Params --- *must* contain the following fields
+%
+% if nEchoes == 1
+%   .echoTimeDifference [units: ms]
+%       
+%
+% Params --- may contain the following fields
+%
+%   .mask
+%       binary array indicating phase region to be unwrapped 
+%       [default: formed by thresholding magnitude images > Params.threshold)
+%
+%   .threshold  
+%   (as a fraction (<1) of max measured magnitude intensity)
+%   Determines the phase region to be unwrapped (i.e. areas of low signal are
+%   ignored) 
+%       [default: 0.01] 
+%
 %   .isFilteringField 
+%       Fits field map to spherical harmonic basis set & returns the fitted field map.
+%       [default: false]
+%   
+%   .ordersToGenerate
+%       Orders of SH incorporated into fitting 
+%       [default: [0:1:8]]
 
-DEFAULT_ISCORRECTINGPHASEOFFSET        = true ;
-DEFAULT_ISUNWRAPPINGECHOESINDIVIDUALLY = false ; 
+DEFAULT_ISCORRECTINGPHASEOFFSET        = true ; % deprecated
+DEFAULT_ISUNWRAPPINGECHOESINDIVIDUALLY = false ; % deprecated
 DEFAULT_ISFILTERINGFIELD               = false ;
+DEFAULT_THRESHOLD                      = 0.01 ;
+DEFAULT_ORDERSTOGENERATE               = [0:10] ;
+
+assert( (nargin >= 1) && ~isempty( ImgArray ) ) ;
 
 if ~myisfield( Params, 'isCorrectingPhaseOffset' ) || isempty( Params.isCorrectingPhaseOffset ) 
     Params.isCorrectingPhaseOffset = DEFAULT_ISCORRECTINGPHASEOFFSET ;
@@ -546,121 +624,204 @@ if ~myisfield( Params, 'isFilteringField' ) || isempty( Params.isFilteringField 
     Params.isFilteringField = DEFAULT_ISFILTERINGFIELD ;
 end
 
+if ~myisfield( Params, 'threshold' ) || isempty( Params.threshold ) 
+    Params.threshold = DEFAULT_THRESHOLD ;
+end
+
+if ~myisfield( Params, 'ordersToGenerate' ) || isempty( Params.ordersToGenerate ) 
+    Params.ordersToGenerate = DEFAULT_ORDERSTOGENERATE ;
+end
+
 Extras = [] ;
 
-MagEcho1   = MaRdI(  Params.Path.Mag.echo1  ) ;
-MagEcho2   = MaRdI(  Params.Path.Mag.echo2  ) ;
+% .......
+nEchoes = size( ImgArray, 1 ) ;
 
-PhaseEcho1 = MaRdI(  Params.Path.Phase.echo1  ) ;
-PhaseEcho2 = MaRdI(  Params.Path.Phase.echo2  ) ;
+% -------
+% define spatial support for unwrapping
+if ~myisfield( Params, 'mask' ) || isempty( Params.mask )
 
-%-------
-% Mask 
-PhaseEcho1.Hdr.MaskingImage = ( MagEcho1.img ) > Params.threshold ;
-PhaseEcho2.Hdr.MaskingImage = PhaseEcho1.Hdr.MaskingImage ;
+    Params.mask = ones( ImgArray{1,1}.getgridsize ) ;
 
-if ~Params.isUnwrappingEchoesIndividually
+    for iEcho = 1 : nEchoes 
 
-    img            = MagEcho1.img .* exp(-i*PhaseEcho1.img) ;
-    img(:,:,:,2)   = MagEcho2.img .* exp(-i*PhaseEcho2.img) ;
-    PhaseEcho1.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
-    PhaseEcho1.unwrapphase( ) ;
-    PhaseEcho1.Hdr.EchoTime = (PhaseEcho1.Hdr.EchoTime - PhaseEcho2.Hdr.EchoTime);
-    Field = PhaseEcho1.scalephasetofrequency() ;
+        Params.mask = Params.mask .* ( ImgArray{ iEcho, 1 }.img > Params.threshold ) ;
 
-
-else
-    % ------
-    % Unwrap phase (Using Abdul-Rahman method)
-    PhaseEcho1 = PhaseEcho1.unwrapphase( ) ;
-    PhaseEcho2 = PhaseEcho2.unwrapphase( ) ;
-
-    %-------
-    % Compute field map
-    mask = logical( PhaseEcho1.Hdr.MaskingImage .* PhaseEcho2.Hdr.MaskingImage ) ;
-
-    Params.isCorrectingPhaseOffset =false;
-
-    if Params.isCorrectingPhaseOffset    
-
-        PhaseEcho2Plus2Pi              = PhaseEcho2.copy() ;
-        PhaseEcho2Plus2Pi.img( mask )  = PhaseEcho2.img( mask ) + 2*pi ;
-
-        PhaseEcho2Minus2Pi             = PhaseEcho2.copy() ;
-        PhaseEcho2Minus2Pi.img( mask ) = PhaseEcho2.img( mask ) - 2*pi ;
-
-        Field0        = PhaseEcho1.mapfrequencydifference( PhaseEcho2 ) ;
-        FieldPlus2Pi  = PhaseEcho1.mapfrequencydifference( PhaseEcho2Plus2Pi ) ;
-        FieldMinus2Pi = PhaseEcho1.mapfrequencydifference( PhaseEcho2Minus2Pi ) ;
-
-        fieldNorms    = [0 0 0];
-        fieldNorms(1) = norm( Field0.img( mask ) ) ;
-        fieldNorms(2) = norm( FieldPlus2Pi.img( mask ) ) ;
-        fieldNorms(3) = norm( FieldMinus2Pi.img( mask ) ) ;
-
-        [~,iField] = min( fieldNorms ) ;
-
-        if iField == 1
-
-            Field = Field0;
-
-        elseif iField == 2
-
-            ShimUse.display('Correcting field offset: Adding 2pi to phase of 2nd echo.')
-            PhaseEcho2 = PhaseEcho2Plus2Pi ;
-            Field = FieldPlus2Pi;
-
-        elseif iField == 3
-
-            ShimUse.display('Correcting field offset: Subtracting 2pi from phase of 2nd echo.')
-            PhaseEcho2 = PhaseEcho2Minus2Pi ;
-            Field = FieldMinus2Pi;
-
-        end
     end
 
-    Field = Field0;
-    Field.Hdr.MaskingImage = mask ;  
-    Extras.PhaseEcho1 = PhaseEcho1 ;
-    Extras.PhaseEcho2 = PhaseEcho2 ;
-
 end
 
-Params.isExtrapolatingField = true ;
-Params.filterRadius = 3 ;
+
+if nEchoes == 1
+    
+    PhaseDiff = ImgArray{ 1, 2 } ;
+    PhaseDiff.Hdr.EchoTime = Params.echoTimeDifference ;
+
+else
+    
+    % -------
+    % phase difference image via complex division
+    PhaseDiff      = ImgArray{ 1, 2}.copy() ;
+
+    img            = ImgArray{ 1, 1 }.img .* exp(-i*ImgArray{ 1, 2 }.img) ;
+    img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(-i*ImgArray{ 2, 2 }.img) ;
+
+    PhaseDiff.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
+
+    PhaseDiff.Hdr.EchoTime = ( ImgArray{ 1, 2 }.Hdr.EchoTime - ImgArray{ 2, 2 }.Hdr.EchoTime );
+end
+
+% -------
+% 3d path-based unwrapping
+PhaseDiff.Hdr.MaskingImage = Params.mask ;
+
+PhaseDiff = PhaseDiff.unwrapphase(  ) ;
+
+Field     = PhaseDiff.scalephasetofrequency( ) ;
+
 
 if Params.isFilteringField
+% -------
+% fit spherical harmonic basis set to input Field 
 
-    disp('Filtering field map...') 
+    dbstop in ShimOpt at 689
+    % generates basis set, with field positions same as those of input Field 
+    Shims = ShimOptSHarmonics( Params, Field ) ;
 
-    gridSizeImg = Field.getgridsize(); 
-    Field = Field.zeropad( [3 3 3], 'both' ) ;
+    % calculate fitting coefficients ('currents')
+    Shims = Shims.optimizeshimcurrents( Params ) ;
     
-    mask = Field.Hdr.MaskingImage ;
+    Extras.FieldResidual = Field.img + Shims.Model.field ;
 
-    [Extras.LocalField, Field] = Field.extractharmonicfield( Params ) ;
+    Field.img = -Shims.Model.field ;
+    
+    if (nargin == 3) & ~isempty( ObjectiveImg )
+        % Interpolate the field @ VoxelPositions
+        %
+        % Main purpose: to enable gapped slices in the field map acquisitions
+        % for real-time shim training --- by reducing nSlices, acq. time is
+        % reduced, & therefore, the necessary duration of the breath hold.
 
-    Field = Field.cropimg( gridSizeImg ) ;
-    % dbstop in ShimOpt at 770   
-    % mask = dilater( mask, [5 5 5] ) ;
-    % mask(:,:,end) = [] ;    
-    % Tmp.voxelSize            = Field.getvoxelsize() ;
-    % Tmp.expansionOrder       = 1 ;
-    % Tmp.radius               = 10 ;
-    % Tmp.isDisplayingProgress = true ;
-    % [xEp,A,M] = extendharmonicfield( Field.Hdr.MaskingImage .* Field.img, logical(mask), logical(Field.Hdr.MaskingImage), Tmp ) ;
-    %
-    % Field.img = (Field.Hdr.MaskingImage .* Field.img) + xEp ;
-    % Field.Hdr.MaskingImage = (Field.img ~=0) ;
-    %
-    % NiiOptions.filename = './precrop'
-    % nii(Field.img, NiiOptions) ;
-    %
-    % NiiOptions.filename = './postcrop'
-    % nii(Field.img, NiiOptions) ;
+        [X0, Y0, Z0] = Field.getvoxelpositions( ) ; % original
+        [X, Y, Z]    = ObjectiveImg.getvoxelpositions( ) ; % final
+
+        % recalculate the set of harmonics at the given voxel positions      
+        basisFields = ShimOptSHarmonics.generatebasisfields( Params.ordersToGenerate, X, Y, Z ) ;
+        
+        % scale each harmonic by the fitted 'currents' (coefficients)
+        for iHarmonic = 1 : size( basisFields, 4 ) 
+            basisFields(:,:,:, iHarmonic) = Shims.Model.currents(iHarmonic) * basisFields(:,:,:, iHarmonic) ;
+        end
+        
+        Field.img = sum( -basisFields, 4 ) ;
+        
+
+        disp( ['Interpolating phase/field mask...' ]) ;
+            
+        Field.Hdr.MaskingImage = griddata( X0, Y0, Z0, Field.Hdr.MaskingImage, X, Y, Z, 'nearest' ) ;
+
+        % if new positions are outside the range of the original, 
+        % interp3/griddata replaces array entries with NaN
+        Field.Hdr.MaskingImage( isnan( Field.Hdr.MaskingImage ) ) = 0 ; 
+
+        % -------
+        % Update Hdr 
+        %
+        % Note: the Hdr could probably simply be copied from ObjectiveImg but recalculating the entries 
+        % is more general ('extensible') should the future user not have a
+        % fully-formed 'ObjectiveImg' set of dicoms, but merely the target
+        % voxel positions [X,Y,Z]
+        % 
+        % That said, the way SliceLocation is updated below may not always be correct.
+        % (borrowed from MaRdI.resliceimg() )
+        
+        Field.Hdr.ImagePositionPatient( 1 ) = X(1) ; 
+        Field.Hdr.ImagePositionPatient( 2 ) = Y(1) ;
+        Field.Hdr.ImagePositionPatient( 3 ) = Z(1) ;
+
+        %-------
+        % Rows 
+        Field.Hdr.Rows = size(Field.img, 1) ;
+
+        dx = X(2,1,1) - X(1,1,1) ;
+        dy = Y(2,1,1) - Y(1,1,1) ;
+        dz = Z(2,1,1) - Z(1,1,1) ;  
+
+        % vertical (row) spacing
+        Field.Hdr.PixelSpacing(1) = ( dx^2 + dy^2 + dz^2 )^0.5 ; 
+
+        % column direction cosine (expressing angle btw column direction and X,Y,Z axes)
+        Field.Hdr.ImageOrientationPatient(4) = dx/Field.Hdr.PixelSpacing(1) ;
+        Field.Hdr.ImageOrientationPatient(5) = dy/Field.Hdr.PixelSpacing(1) ;
+        Field.Hdr.ImageOrientationPatient(6) = dz/Field.Hdr.PixelSpacing(1) ;
+
+        %-------
+        % Columns 
+        Field.Hdr.Columns = size(Field.img, 2) ;       
+
+        dx = X(1,2,1) - X(1,1,1) ;
+        dy = Y(1,2,1) - Y(1,1,1) ;
+        dz = Z(1,2,1) - Z(1,1,1) ;  
+
+        % horizontal (column) spacing
+        Field.Hdr.PixelSpacing(2) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
+
+        % row direction cosine (expressing angle btw column direction and X,Y,Z axes)
+        Field.Hdr.ImageOrientationPatient(1) = dx/Field.Hdr.PixelSpacing(2) ;
+        Field.Hdr.ImageOrientationPatient(2) = dy/Field.Hdr.PixelSpacing(2) ;
+        Field.Hdr.ImageOrientationPatient(3) = dz/Field.Hdr.PixelSpacing(2) ;
+
+        %-------
+        % Slices
+        Field.Hdr.NumberOfSlices       = size(Field.img, 3) ;
+        Field.Hdr.SpacingBetweenSlices = ( (X(1,1,2) - X(1,1,1))^2 + ...
+                                           (Y(1,1,2) - Y(1,1,1))^2 + ...
+                                           (Z(1,1,2) - Z(1,1,1))^2 ) ^(0.5) ;
+
+        [~, ~, sHat] = Field.getdirectioncosines( ) ;  
+        Field.Hdr.SliceLocation = dot( Field.Hdr.ImagePositionPatient, sHat ) ;
+
+
+    end
 
 end
 
+end
+% =========================================================================
+
+end
+% =========================================================================
+% =========================================================================
+methods(Static=true, Hidden=true)
+% =========================================================================
+function  [ Params ] = assigndefaultparameters( Params )
+%ASSIGNDEFAULTPARAMETERS  
+% 
+% Params = ASSIGNDEFAULTPARAMETERS( Params )
+% 
+% Add default parameters fields to Params without replacing values (unless empty)
+%
+% DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
+% DEFAULT_TRACKERSPECS = [] ;
+%
+% DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
+
+DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
+DEFAULT_TRACKERSPECS            = [] ;
+
+DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
+
+if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
+   Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
+end
+
+if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
+   Params.TrackerSpecs = DEFAULT_TRACKERSPECS ;
+end
+
+if ~myisfield( Params, 'isInterpolatingReferenceMaps' ) || isempty(Params.isInterpolatingReferenceMaps)
+   Params.isInterpolatingReferenceMaps = DEFAULT_ISINTERPOLATINGREFERENCEMAPS ;
+end
 
 end
 % =========================================================================

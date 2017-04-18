@@ -1,19 +1,19 @@
-classdef ShimOptRri < ShimOpt
-%SHIMOPTRRI - Shim Optimization for RRI 24 channel array (aka spine shim)
-%
+classdef ShimOptMartinos7TSiemens < ShimOpt
+%SHIMOPTMARTINOS7TSIEMENS - Shim Optimization for Siemens shims on 7T (Bay 5) at Martinos
+% 
 % .......
 % 
 % Usage
 %
-% Shim = ShimOptRri( Params )
+% Shim = ShimOptMartinos7TSiemens( Params )
 % 
 % Defaults 
 % 
 % Params.pathToShimReferenceMaps =
 %   '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161007.mat'
 %
-% Params.TrackerSpecs = [] ;
-%   .TrackerSpecs is a parameters struct for ProbeTracking(). See HELP
+% Params.ProbeSpecs = [] ;
+%   .ProbeSpecs is a parameters struct for ProbeTracking(). See HELP
 %   ProbeTracking() for more information.
 %
 %   Shim contains fields
@@ -43,15 +43,15 @@ classdef ShimOptRri < ShimOpt
 %               (i.e. currents for pressure = 0 Pa)
 %               [units A]
 %
-%       .Tracker
-%           Object of type TrackerTracking
+%       .Probe
+%           Object of type ProbeTracking
 %
 % =========================================================================
 % Notes
 %
 % Part of series of classes pertaining to shimming:
 %
-%    Tracking
+%    ProbeTracking
 %    ShimCal
 %    ShimCom
 %    ShimEval
@@ -63,7 +63,7 @@ classdef ShimOptRri < ShimOpt
 % ShimOpt is a MaRdI subclass [ShimOpt < MaRdI]
 %     
 % =========================================================================
-% Updated::20170214::ryan.topfer@polymtl.ca
+% Updated::20170213::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -79,63 +79,49 @@ classdef ShimOptRri < ShimOpt
 % properties % defined in parent class ShimOpt 
     % Field ; % object of type MaRdI
     % Model ;
-    % Tracker ; % object of type ProbeTracking
+    % Probe ; % object of type ProbeTracking
 % end
 
 % =========================================================================
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOptRri( Params )
-%SHIMOPTRRI - Shim Optimization
+function Shim = ShimOptMartinos7TSiemens( Params )
+%SHIMOPT - Shim Optimization
+
+% dbstop in ShimOptMartinos7TSiemens at 93;
+
+Shim.Field = [ ] ;       
+Shim.Model = [ ] ; 
+% Shim.Probe = ProbeTracking( Params.ProbeSpecs )  ; 
+Shim.Probe = [ ]  ; 
+
+DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/Martinos7TReferenceMaps20170216_fit.mat';
+DEFAULT_PROBESPECS = [] ;
 
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
 end
 
-Params = ShimOptRri.assigndefaultparameters( Params )
+if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
+   Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
+end
 
+if ~myisfield( Params, 'ProbeSpecs' ) || isempty(Params.ProbeSpecs)
+   Params.ProbeSpecs = DEFAULT_PROBESPECS ;
+end
 
 ShimUse.display(['\n Preparing for shim ...  \n\n'...
         'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
 
-% Loads .mat containing Shim struct
-% which has fields
-% Shim.img              - linear dB/dI 'current-to-field' opterator
-% Shim.Hdr              - defines info like voxel locations 
-% Shim.Hdr.MaskingImage - defines spatial support of reference maps
-RefMaps = load( Params.pathToShimReferenceMaps ) ; % load shim ref maps
+Tmp = load( Params.pathToShimReferenceMaps ) ;
 
 %%-----
 % dB/dI linear 'Current-to-Field' operator
-Shim.img              = RefMaps.Shim.img ;
-Shim.Hdr              = RefMaps.Shim.Hdr ;
+Shim.img              = Tmp.Shim.img ;
+Shim.Hdr              = Tmp.Shim.Hdr ;
 
-% if myisfield( SpineShim, 'mask' )
-%     Shim.Hdr.MaskingImage = SpineShim.mask ;
-% end
-%
-% load( Params.pathToShimReferenceMaps ) ;
 
-Shim.Field = [ ] ;       
-Shim.Model = [ ] ; 
-Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
-
-if (nargin == 2) && (~isempty(Field))
-    
-    Shim = Shim.setoriginalfield( Field ) ;
-    
-    if Params.isInterpolatingReferenceMaps
-        
-        Shim = interpolatetoimggrid( Shim, Field ) ;
-        Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
-
-    end
-
-else
-    Shim.Field = [ ] ; % user can assign later via Shim.setoriginalfield() 
-
-end
 
 end
 % =========================================================================
@@ -149,7 +135,7 @@ function Shim = optimizeshimcurrents( Shim, Params )
 %   .maxCurrentPerChannel
 %       [default: 4 A,  determined by class ShimSpecs.Amp.maxCurrentPerChannel]
 
-Specs = ShimSpecsRri();
+Specs = ShimSpecsMartinos7TSiemens();
 
 if nargin < 1
     error('Function requires at least 1 argument of type ShimOpt')
@@ -175,15 +161,15 @@ b = M*(-Shim.Field.img(:)) ;
 Shim.Model.currents = cgls( A'*M'*M*A, ... % least squares operator
                             A'*M'*b, ... % effective solution vector
                             zeros( [Specs.Amp.nActiveChannels 1] ), ... % initial model (currents) guess
-                            CgParams ) ;
+                            CgParams ) 
+
+pseudoInvCurrents = Shim.Model.currents
 % ------- 
 % TODO: CHECK SOL. VECTOR FOR CONDITIONS 
 % + allow more optional params for optimization 
 isCurrentSolutionOk = false ;
 
 if ~isCurrentSolutionOk
-    
-    [X0,X1,X2,X3] = ShimComRri.getchanneltobankmatrices( ) ;
 
     Options = optimset(...
         'DerivativeCheck','off',...
@@ -194,75 +180,76 @@ if ~isCurrentSolutionOk
         'TolCon',1E-8);
 
     A=M*A;
+
     tic
     [Shim.Model.currents] = fmincon( ...
         @shimcost,...
-        ones(Specs.Amp.nActiveChannels,1),...
+        Shim.Model.currents,...
         [],...
         [],...
         [],...
         [],...
         -Params.maxCurrentPerChannel*ones(Specs.Amp.nActiveChannels,1),...
         Params.maxCurrentPerChannel*ones(Specs.Amp.nActiveChannels,1),...
-        @first_order_norm,...
+        [],...
         Options);
     toc
-    
+
 end
 
 function [f, df] = shimcost( currents )
-    
+
      y=A*currents - b;
      f=y'*y;
      df=2*A'*y;
-    
-end
-
-function [C, Ceq] = first_order_norm( currents )
-% C(x) <= 0
-% (e.g. x = currents)
-
-    C   = 0; 
-    Ceq = [];
-    waterLevel = 1E-8; % small number (relative to |currents|) for stability
-
-    % split currents up into banks
-    % -------
-    % bank 0
-    i0 = X0*currents;
-
-    % -------
-    % bank 1
-    i1 = X1*currents;
-
-    % -------
-    % bank 2
-    i2 = X2*currents;
-
-    % -------
-    % bank 3
-    i3 = X3*currents;
-
-    % Overall abs current cannot exceed Specs.Amp.maxCurrentPerBank (e.g. 20 A)
-    % This condition is redundant given the following 2 on pos/neg currents
-    C(1) = sum( abs(i0) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-    C(2) = sum( abs(i1) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-    C(3) = sum( abs(i2) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-    C(4) = sum( abs(i3) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-
-    % pos. current cannot exceed Specs.Amp.maxCurrentPerRail (e.g. + 10 A) 
-    C(5) = abs(sum( ((i0>0) .* i0) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(6) = abs(sum( ((i1>0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(7) = abs(sum( ((i2>0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(8) = abs(sum( ((i3>0) .* i3) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    
-    % neg. current cannot be below Specs.Amp.maxCurrentPerRail (e.g. - 10 A) 
-    C(9)  = abs(sum( ((i0<0) .* i0) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(10) = abs(sum( ((i1<0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(11) = abs(sum( ((i2<0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-    C(12) = abs(sum( ((i3<0) .* i3) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
 
 end
+
+% function [C, Ceq] = first_order_norm( currents )
+% % C(x) <= 0
+% % (e.g. x = currents)
+%
+%     C   = 0; 
+%     Ceq = [];
+%     waterLevel = 1E-8; % small number (relative to |currents|) for stability
+%
+%     % split currents up into banks
+%     % -------
+%     % bank 0
+%     i0 = X0*currents;
+%
+%     % -------
+%     % bank 1
+%     i1 = X1*currents;
+%
+%     % -------
+%     % bank 2
+%     i2 = X2*currents;
+%
+%     % -------
+%     % bank 3
+%     i3 = X3*currents;
+%
+%     % Overall abs current cannot exceed Specs.Amp.maxCurrentPerBank (e.g. 20 A)
+%     % This condition is redundant given the following 2 on pos/neg currents
+%     C(1) = sum( abs(i0) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
+%     C(2) = sum( abs(i1) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
+%     C(3) = sum( abs(i2) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
+%     C(4) = sum( abs(i3) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
+%
+%     % pos. current cannot exceed Specs.Amp.maxCurrentPerRail (e.g. + 10 A) 
+%     C(5) = abs(sum( ((i0>0) .* i0) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
+%     C(6) = abs(sum( ((i1>0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
+%     C(7) = abs(sum( ((i2>0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
+%     C(8) = abs(sum( ((i3>0) .* i3) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
+%
+%     % neg. current cannot be below Specs.Amp.maxCurrentPerRail (e.g. - 10 A) 
+%     C(9)  = abs(sum( ((i0<0) .* i0) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
+%     C(10) = abs(sum( ((i1<0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
+%     C(11) = abs(sum( ((i2<0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
+%     C(12) = abs(sum( ((i3<0) .* i3) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
+%
+% end
     
 Shim = Shim.setforwardmodelfield ;
 
@@ -278,45 +265,6 @@ methods(Access=protected)
 end
 % =========================================================================
 % =========================================================================
-methods(Static=true, Hidden=true)
-% =========================================================================
-function  [ Params ] = assigndefaultparameters( Params )
-%ASSIGNDEFAULTPARAMETERS  
-% 
-% Params = ASSIGNDEFAULTPARAMETERS( Params )
-% 
-% Add default parameters fields to Params without replacing values (unless empty)
-%
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
-% DEFAULT_PROBESPECS = [] ;
-%
-% DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
-
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161007.mat';
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170410.mat';
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170418.mat';
-DEFAULT_PROBESPECS              = [] ;
-
-DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
-
-if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
-   Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
-end
-
-if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
-   Params.TrackerSpecs = DEFAULT_PROBESPECS ;
-end
-
-if ~myisfield( Params, 'isInterpolatingReferenceMaps' ) || isempty(Params.isInterpolatingReferenceMaps)
-   Params.isInterpolatingReferenceMaps = DEFAULT_ISINTERPOLATINGREFERENCEMAPS ;
-end
-
-end
-% =========================================================================
-
-end
-% =========================================================================
-% =========================================================================
 methods(Static)
 % =========================================================================
 
@@ -325,4 +273,6 @@ end
 % =========================================================================
 
 end
+
+
 

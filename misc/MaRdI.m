@@ -235,21 +235,29 @@ Img.img = Img.img/max(Img.img(:)) ; % normalize
 
 end
 % =========================================================================
-function Img = cropimg( Img, gridSizeImgCropped )
+function Img = cropimg( Img, gridSizeImgCropped, centralPoint )
 %CROPIMG
-% Img = CROPIMG( Img, croppedDims )
 %
+% Img = CROPIMG( Img, croppedDims )
+% Img = CROPIMG( Img, croppedDims, centralPoint )
+% 
+% centralPoint are the indices of the original img voxel to become the centralPoint of 
+% the cropped array.
+%
+% default  (nargin == 2)
+%   centralPoint = round( size(Img.img)/2 );
+% 
+% note: 
+% if centralPoint +/- croppedDims/2 exceeds the original bounds, the array is cropped at the bound (as opposed to zero filling)
 % -------
     
 gridSizeImgOriginal = size(Img.img) ;
 
-% isOdd = logical(mod( gridSizeImgCropped, 2 )) ;
-%
-% if any(isOdd)
+if (nargin == 2) || isempty(centralPoint)
+    centralPoint = round( gridSizeImgOriginal/2 ) ;
+end
 
-midPoint = round( gridSizeImgOriginal/2 ) ;
-
-low  = midPoint - round(gridSizeImgCropped/2) + [1 1 1] ;
+low  = centralPoint - round(gridSizeImgCropped/2) + [1 1 1] ;
 high = low + gridSizeImgCropped - [1 1 1] ;  
 
 for dim = 1: 3
@@ -534,16 +542,18 @@ rz = round(Params.filterRadius/voxelSize(3)) ;
 h = (X.^2/rx^2 + Y.^2/ry^2 + Z.^2/rz^2 <= 1);
 ker = h/sum(h(:));
 
+
+% erode the mask by convolving with the kernel
+reducedMask = shaver( Field.Hdr.MaskingImage, round(Params.filterRadius ./ voxelSize) ) ;  
+
+% cvsize = Field.getgridsize + [2*rx+1, 2*ry+1, 2*rz+1] -1; % linear conv size
+% mask_tmp = real(ifftn(fftn(mask,cvsize).*fftn(ker,cvsize)));
+% mask_tmp = mask_tmp(rx+1:end-rx, ry+1:end-ry, rz+1:end-rz); % same size
+
+
 % circularshift, linear conv to Fourier multiplication
 csh = [rx,ry,rz]; % circularshift
 
-% erode the mask by convolving with the kernel
-cvsize = Field.getgridsize + [2*rx+1, 2*ry+1, 2*rz+1] -1; % linear conv size
-mask_tmp = real(ifftn(fftn(mask,cvsize).*fftn(ker,cvsize)));
-mask_tmp = mask_tmp(rx+1:end-rx, ry+1:end-ry, rz+1:end-rz); % same size
-reducedMask = shaver( Field.Hdr.MaskingImage, round(Params.filterRadius ./ voxelSize) ) ;  
-reducedMask = mask_tmp ;
-% dbstop in MaRdI at 502
 % prepare convolution kernel: delta-ker
 dker = -ker;
 dker(rx+1,ry+1,rz+1) = 1-ker(rx+1,ry+1,rz+1);
@@ -653,9 +663,13 @@ end
 % =========================================================================
 function fieldOfView = getfieldofview( Img )
 %GETFIELDOFVIEW
-fieldOfView = [ Img.Hdr.PixelSpacing(1) * double( Img.Hdr.Rows -1 ), ...
-                Img.Hdr.PixelSpacing(2) * double( Img.Hdr.Columns -1 ), ...
-                Img.Hdr.SpacingBetweenSlices * double( Img.Hdr.NumberOfSlices -1 ) ] ;
+% 
+% fov = getfieldofview( Img ) ;
+%
+% Returns field of view in units of mm : [Row Column Slice] dimensions
+fieldOfView = [ Img.Hdr.PixelSpacing(1) * double( Img.Hdr.Rows ), ...
+                Img.Hdr.PixelSpacing(2) * double( Img.Hdr.Columns ), ...
+                Img.Hdr.SpacingBetweenSlices * double( Img.Hdr.NumberOfSlices ) ] ;
 end
 % =========================================================================
 function gridSize = getgridsize( Img )
@@ -834,8 +848,11 @@ Img.Hdr.SpacingBetweenSlices = ( (X_1(1,1,2) - X_1(1,1,1))^2 + ...
                                  (Z_1(1,1,2) - Z_1(1,1,1))^2 ) ^(0.5) ;
 
 
-Img.Hdr.SliceLocation = dot( [X_1(1) Y_1(1) Z_1(1)],  ... 
-    cross( Img.Hdr.ImageOrientationPatient(1:3), Img.Hdr.ImageOrientationPatient(4:6) ) ) ;
+[rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
+
+Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
+% Img.Hdr.SliceLocation = dot( [X_1(1) Y_1(1) Z_1(1)],  ... 
+%     cross( Img.Hdr.ImageOrientationPatient(1:3), Img.Hdr.ImageOrientationPatient(4:6) ) ) ;
 
 end
 % =========================================================================
@@ -909,7 +926,7 @@ Hdr.ImageOrientationPatient = Img.Hdr.ImageOrientationPatient ;
 Hdr.SliceLocation           = Img.Hdr.SliceLocation ; 
 Hdr.NumberOfSlices          = Img.Hdr.NumberOfSlices ; 
 
-sHat = cross( Hdr.ImageOrientationPatient(4:6), Hdr.ImageOrientationPatient(1:3) ) ;
+[rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 
 for sliceIndex = 1 : Img.Hdr.NumberOfSlices 
     
@@ -1077,10 +1094,10 @@ if nImg == 0
 
 else 
     isImaDir = true ;
+
     for img = 1 : length(listOfImages)
         [PATHSTR,NAME,EXT] = fileparts( listOfImages(img).name ) ;
-        cmd =  ['mv ' imgDirectory '/' NAME EXT ' ' imgDirectory '/' NAME '.dcm'] ;
-        system( cmd ) ;
+        [s,msg,~] = movefile( [ imgDirectory '/' NAME EXT ], [imgDirectory '/' NAME '.dcm'] ) ;
     end
 end
 
@@ -1121,6 +1138,147 @@ fullDir(end+1) = '/' ;
 
 end
 % =========================================================================
+function [] = writeimg( img, Params )
+%WRITEIMG
+%
+%   Description
+%   
+%   Write .png image to file using the 'export_fig' tool
+%
+%    .......................
+%
+%   Syntax
+%
+%   WRITEIMG( img, Parameters )
+%
+%    .......................
+%   
+%   The following Parameter.fields are supported
+%
+%   .filename
+%       default = './tmp'
+%
+%   .colormap
+%       default = 'gray'
+%
+%   .scaling
+%       default = [min(img) max(img)]
+%
+%   .magnification
+%       default = 1
+%
+%   .isColorbar
+%       default = false
+%
+%   .isBackgroundTransparent
+%       default = false
+
+DEFAULT_FILENAME      = './tmp.bin' ;
+DEFAULT_COLORMAP      = 'gray' ;
+DEFAULT_MAGNIFICATION = 1 ;
+DEFAULT_ISCOLORBAR    = false ;
+DEFAULT_ISBACKGROUNDTRANSPARENT = false ;
+% =========================================================================
+% Check inputs
+% =========================================================================
+if nargin < 1 || isempty(img)
+    disp('Error: function requires at least 1 argument (2D image-matrix)')
+    help(mfilename);
+    return;  
+end
+
+if nargin < 2 || isempty(Params)
+    disp('Default parameters will be used')
+    Params.dummy = [] ;
+end
+
+if  ~myisfield( Params, 'filename' ) || isempty(Params.filename)
+    Params.filename = DEFAULT_FILENAME ;
+end
+
+if  ~myisfield( Params, 'colormap' ) || isempty(Params.colormap)
+    Params.colormap = DEFAULT_COLORMAP ;
+end
+
+if  ~myisfield( Params, 'magnification' ) || isempty(Params.magnification)
+    Params.magnification = DEFAULT_MAGNIFICATION ;
+end
+
+if  ~myisfield( Params, 'isColorbar' ) || isempty(Params.isColorbar)
+    Params.isColorbar = DEFAULT_ISCOLORBAR ;
+end
+
+if  ~myisfield( Params, 'isBackgroundTransparent' ) || isempty(Params.isBackgroundTransparent)
+    Params.isBackgroundTransparent = DEFAULT_ISBACKGROUNDTRANSPARENT ;
+end
+
+if  ~myisfield( Params, 'scaling' ) || isempty(Params.scaling)
+    Params.scaling = [min(img(:)) max(img(:))] ;
+end
+
+[~,~,extension] = fileparts( Params.filename ) ;
+
+if ~strcmp( extension, '.png' )
+    Params.filename = [Params.filename '.png' ] ;
+end
+
+% =========================================================================
+% Create figure
+% =========================================================================
+
+
+figure
+Params
+
+imagesc( img, Params.scaling ) ; 
+colormap(Params.colormap); 
+axis image ;
+
+if Params.isColorbar
+    colorbar;
+    hcb=colorbar;
+    set(hcb,'YTick',[])
+end
+
+set(gca,'XTick',[]) % Remove the ticks in the x axis
+set(gca,'YTick',[]) % Remove the ticks in the y axis
+set(gca,'Position',[0 0 1 1]) % Make the axes occupy the hole figure
+
+if Params.isBackgroundTransparent
+    export_fig(Params.filename, '-png', '-transparent', ['-m' num2str(Params.magnification)]) 
+else
+    export_fig(Params.filename, '-png', ['-m' num2str(Params.magnification)]) 
+end
+
+% close gcf
+
+% crop out border voxels ?
+img = imread( Params.filename, 'png' ) ;
+imwrite( img( 5:end-3, 5:end-3, : ), Params.filename, 'png' ) ;
+
+end
+% =========================================================================
+% function [] = separateechoesintosubdirectories( dataLoadDir ) 
+% %separateechoesintosubdirectories
+% %
+% %   [] = SEPARATEECHOESINTOSUBDIRECTORIES( dataLoadDir ) 
+% %
+% % Siemens img files on Martinos 7T do not separate echoes into different 
+% % directories. As it stands, this means that instantiation of a MaRdI-type
+% % object of these files will load them all in a single 3d array.
+% % This function reorganizes them into subdirectories 
+%
+% nImg = size( Img.img, 3 ) ;
+%
+% echoTimes = [] ;
+% img       = Img.img(:,:,1) ;
+%
+% % for iImg = 2 : nImg
+% %     
+% %     Img.Hdr.
+%
+%
+% end
 
    
 end

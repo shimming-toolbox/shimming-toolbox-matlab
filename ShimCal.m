@@ -1,4 +1,4 @@
-classdef ShimCal < MaRdI
+classdef (Abstract) ShimCal < MaRdI
 %SHIMCAL - Shim Calibration 
 %
 % .......
@@ -10,7 +10,7 @@ classdef ShimCal < MaRdI
 %   Shim contains fields
 %
 %       .img
-%           Shim reference maps
+%           Shim reference maps (4d array) [units: Hz/ampere]
 %
 %       .Hdr
 %           Info re: calibration data
@@ -19,12 +19,10 @@ classdef ShimCal < MaRdI
 %
 % =========================================================================
 % Notes
-% 
-% ShimCal is a MaRdI subclass [ShimCal < MaRdI]
 %
 % Part of series of classes pertaining to shimming:
 %
-%    ProbeTracking
+%    Tracking
 %    ShimCal
 %    ShimCom
 %    ShimOpt
@@ -32,9 +30,11 @@ classdef ShimCal < MaRdI
 %    ShimUse
 %    ShimTest 
 %     
+% 
+% ShimCal is a MaRdI subclass [ShimCal < MaRdI]
 %
 % =========================================================================
-% Updated::20160829::ryan.topfer@polymtl.ca
+% Updated::20170206::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
@@ -48,201 +48,16 @@ methods
 function Shim = ShimCal( Params )
 %SHIMCAL - Shim calibration (i.e. reference maps) 
 
-if nargin < 1
-    % Params = ShimCal.declarecalibrationparameters20160809() ;
-    % Params = ShimCal.declarecalibrationparameters20161003() ;
-    % Params = ShimCal.declarecalibrationparameters20161004() ;
-    Params = ShimCal.declarecalibrationparameters20161007() ;
-end
+Shim.img = [] ;
+Shim.Hdr = [] ;
 
-% -------
-% Process Zero-current data
-Mag   = MaRdI( Params.dataLoadDirectories{1} ) ;
-Phase = MaRdI( Params.dataLoadDirectories{2} ) ;
-
-%-----
-% Define data support (used for all field maps)
-Phase.Hdr.MaskingImage = zeros( Phase.getgridsize( ) ) ;
-Phase.Hdr.MaskingImage( Params.limitsForUnwrapping(1,1) : (Params.limitsForUnwrapping(1,2)), ...
-                   Params.limitsForUnwrapping(2,1) : (Params.limitsForUnwrapping(2,2)), ...
-                   Params.limitsForUnwrapping(3,1) : (Params.limitsForUnwrapping(3,2)) ) = 1 ;
-
-% NB: zero-current acquisition assumed to be the first 2 directories (mag, phase)
-BackgroundField = ShimCal.preprocessfielddata( Phase, Params ) ;
-
-Shim.Hdr = BackgroundField.Hdr ;
-Shim.img = zeros( BackgroundField.getgridsize ) ;
-
-Params.DataDir.Phase = Params.dataLoadDirectories(2) ; % just to fill field/declare variable
-
-for iChannel = 1 : Params.nChannels 
-    
-    for iCurrent = 1 : (Params.nCurrents-1)
-        % Collect the list of directories corresponding to iChannel
-        iImg = 4*iChannel + 2*(iCurrent-1) ;
-        Params.DataDir.Phase( iCurrent ) = Params.dataLoadDirectories(iImg) ;
-    end
-
-    disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
-    currents = [0 Params.currents(iChannel, 1) Params.currents(iChannel, 2)] ;
-    Shim.img(:,:,:, iChannel) = ...
-        ShimCal.mapdbdi( BackgroundField.img, currents, Phase.Hdr.MaskingImage, Params ) ;
-
-end 
-
-if Params.Extension.isExtending
-    
-    disp(['Performing harmonic extension...']) ;
-    disp(['Channel 1 of ' num2str(Params.nChannels) ] ) ;
-
-    gridSizeImg = size( Shim.img(:,:,:,1) ) ;
-    Params.Extension.voxelSize = Shim.getvoxelsize() ;
-    
-    maskReduced = (sum(abs(Shim.img),4))~=0 ; % initial spatial support
-    mask        = maskReduced ; % extended spatial support
-    mask( Params.Extension.limitsForExtension(1,1) : (Params.Extension.limitsForExtension(1,2)), ...
-        Params.Extension.limitsForExtension(2,1) : (Params.Extension.limitsForExtension(2,2)), ...
-        Params.Extension.limitsForExtension(3,1) : (Params.Extension.limitsForExtension(3,2)) ) = 1 ;
-    
-    BackgroundField.Hdr.MaskingImage = mask ;
-
-    [ ~, A, M ] = extendharmonicfield( Shim.img(:,:,:, 1) , mask, maskReduced, Params.Extension ) ;
-
-    for iChannel = 1 : Params.nChannels 
-        disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] ) ;
-        
-        reducedField              = maskReduced .* Shim.img(:,:,:, iChannel) ;
-        extendedField             = reshape( M'*A*reducedField(:), gridSizeImg ) ;
-        Shim.img(:,:,:, iChannel) = extendedField + reducedField ;
-    end
-    
-end
-
-
-SpineShim = [] ;
-SpineShim.img  = Shim.img ;
-SpineShim.Hdr  = Shim.Hdr ;
-SpineShim.mask = BackgroundField.Hdr.MaskingImage ;
-save( Params.filenameSave ,'SpineShim');
-
-end
-% =========================================================================
-% =========================================================================
-% =========================================================================
-end
-% =========================================================================
-% =========================================================================
-methods(Static)
-% =========================================================================
-
-function [] = acquirecalibrationdata( )
-%ACQUIRECALIBRATIONDATA 
-%
-%  Re-acquiring calibration data on "waterproof phantom" (28 L water) 
-%  Experiment performed: 20160809
-%
-%  Notes
-%
-%   **This is a demo script to accompany reference field map acquisition 
-%   ( i.e. it's not meant to be run as a standalone function).**
-%
-%   Halfway through the acquisitions I realised I should record the channel
-%   output currents rather than simply the assigned test currents (ideally,
-%   these would be identical, but owing to the finite (16 bit) precision of 
-%   the DACs, and perhaps other factors, they are close, but not identical).
-%
-%   Therefore I created a variable called measuredCurrents to keep track of 
-%   subsequent recordings, and printed the terminal display output to a file
-%   ( ~/Projects/Shimming/Static/Calibration/Data/20160809_currentsLog.pdf)
-%   Unfortunately, "infinte scrollback" was disabled on iterm2, so, the 
-%   measured currents for the first 7.5 channels were lost. (7.5 because 
-%   the *positive* measured current for the 8th channel was recovered.)
-%
-%   To correct for this, I'm substituting the average measured currents for
-%   the remaining channels into the absent values for these first 7.5 
-%   channels. (See the last section below.)
-%
-
-% -------
-% Connect to shim amplifier 
-ShimsC = ShimCom;
-ShimsC.getsystemheartbeat 
-
-channelsToBankKey = ShimsC.getchanneltobankkey ;
-
-testCurrents = [-0.5 0.5]; % [units : A]
-
-iChannel = 0;
-
-measuredCurrents = zeros(24, length(testCurrents) ) ;
-% -------
-% Perform routine for iChannel = 1 : 24
-iChannel = iChannel + 1 
-
-ShimsC.resetallshims()
-iTestCurrent = 1 ;
-
-ShimsC.setandloadshim( channelsToBankKey(iChannel, 2), channelsToBankKey(iChannel,3), testCurrents(iTestCurrent) ) ;
-
-pause(0.5)
-ChannelOutput = ShimsC.getchanneloutput(channelsToBankKey(iChannel,2), channelsToBankKey(iChannel,3) )
-
-measuredCurrents( iChannel, iTestCurrent ) = ChannelOutput.current ;
-
-
-ShimsC.resetallshims()
-iTestCurrent = 2 ;
-
-ShimsC.setandloadshim( channelsToBankKey(iChannel, 2), channelsToBankKey(iChannel,3), testCurrents(iTestCurrent) ) ;
-
-pause(0.5)
-ChannelOutput = ShimsC.getchanneloutput(channelsToBankKey(iChannel,2), channelsToBankKey(iChannel,3) )
-
-measuredCurrents( iChannel, iTestCurrent ) = ChannelOutput.current ;
-% ------- 
-% Account for missing measured currents & save as .txt (see 'Notes' above)
-
-measuredCurrents(1:8,1) = mean( measuredCurrents(9:end,1) ) ;
-measuredCurrents(1:7,2) = mean( measuredCurrents(8:end,2) ) ;
-
-filenameSave = ...
-    '~/Projects/Shimming/Static/Calibration/Data/20160809_measuredCurrents.txt' ;
-
-fid = fopen( filenameSave, 'w' ) ;
-fprintf( fid, '%f %f \n', measuredCurrents' ) ;
-fclose( fid ) ;
-
-end
-% =========================================================================
-function [] = comparereferencemaps( )
-%COMPAREREFERENCEMAPS 
-%
-
-Params.pathToShimReferenceMaps = '~/Projects/Shimming/RRI/data/SpineShimReferenceMaps.mat' ; 
-ShimsOld = ShimOpt(Params) ;
-
-Params.pathToShimReferenceMaps = '~/Projects/Shimming/RRI/data/SpineShimReferenceMaps20160809.mat' ;
-ShimsNew = ShimOpt(Params) ;
-
-[X,Y,Z] = ShimsOld.getvoxelpositions() ;
-ShimsNew.resliceimg( X, Y, Z ) ;
-
-NiiOptions.filename = './old_ref_maps' ;
-nii( ShimsOld.img, NiiOptions ) ;
-
-NiiOptions.filename = './new_ref_maps' ;
-nii( ShimsNew.img, NiiOptions ) ;
 end
 % =========================================================================
 function Params = declarecalibrationparameters20160809( )
 %DECLARECALIBRATIONPARAMETERS20160809 
 % 
 % Initializes parameters for shim reference map construction (i.e. shim calibration)
-%
-% Notes
-%
-%   This doesn't need to be a ShimCom method, and could be written as a
-%   separate file.
+
 
 fprintf('##### \n WARNING: Ignoring EchoTime DICOM header when normalizing phase to field. \n\n')
 Params.isHardCodingEchoTime = true ;
@@ -273,54 +88,18 @@ Params.limitsForUnwrapping = [2 90; 2 28; 1 80] ;
 
 end
 % =========================================================================
-function Params = declarecalibrationparameters20161003( )
-    
-Params = ShimCal.declarecalibrationparameters20160809( );
-Params.Filtering.isFiltering  = false ;
-
-Params.filenameSave = ...
-    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161003_nofiltering' ;
 
 end
 % =========================================================================
-function Params = declarecalibrationparameters20161004( )
-    
-Params = ShimCal.declarecalibrationparameters20160809( );
-
-% Define data support (used for all field maps)
-Params.limitsForUnwrapping = [11 80; 3 26; 12 69] ; 
-
-Params.filenameSave = ...
-    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161004' ;
-
-end
 % =========================================================================
-function Params = declarecalibrationparameters20161007( )
-    
-Params = ShimCal.declarecalibrationparameters20160809( );
-
-% Define data support (used for all field maps)
-Params.limitsForUnwrapping = [11 80; 3 26; 12 69] ; 
-
-Params.Extension.isExtending = true ; % harmonic field extrapolation 
-Params.Extension.radius      = 10 ;
-Params.Extension.isDisplayingProgress = true ;
-Params.Extension.limitsForExtension = [10 80; 1 28; 13 70] ;
-
-Params.filenameSave = ...
-    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161007' ;
-
-end
+methods(Static)
 % =========================================================================
 function [ FitResults ] = fitfieldtocurrent( field, currents, mask, Parameters )
 %FITFIELD2CURRENT 
 %
 % Magnitude-weighted least square regression of field (unwrapped phase) to coil current.
 %   
-%   b_ij is the field measurement at the i-th pixel for the j-th applied current
-%   x_ij is the n-th current applied to the i-th pixel
-%   a_i0 is the y-intercept of the line describing the i-th pixel
-%   a_i1 is its slope
+% FITFIELDTOCURRENT( field, currents, mask, Parameters )
 
 
 DEFAULT_TOLERANCE 	  = 1E-6 ;
@@ -366,7 +145,8 @@ M_1 = spalloc( nVoxels, 2*nVoxels, nVoxels ) ; % extracts dBdI a_1
 
 placeHolder = 1 ;
 for voxel = 1 : nVoxels
-	M_0(voxel, placeHolder ) 	= 1 ;
+	disp(voxel/nVoxels)
+    M_0(voxel, placeHolder ) 	= 1 ;
 	M_1(voxel, placeHolder + 1) = 1 ;
 	placeHolder = placeHolder + 2 ;
 end 
@@ -438,42 +218,37 @@ function dBdI = mapdbdi( fieldMaps, currents, mask, Params )
 % mask
 %   binary mask indicating voi over which dB/dI is to be calculated
 %
-% Params has fields
+% if # fieldMaps == # curents == 2
+%   dBdI = mask .* diff(fieldMaps)/diff(currents);
+% else
+%   performs linear fitting.
 %
-%   .DataDir
-%       .Phase 
+% Params has fields...
 
 ShimUse.display('Fitting dB/dI...' )
 
-dBdI  = [] ; % change in field per change in shim current
-
-nCurrents = length( currents ) ;
-
-if isempty( fieldMaps )
-    fieldMaps = [] ; % the field maps to be fitted to current
-    nInputFieldMaps = 0 ;
-else
-    nInputFieldMaps = size( fieldMaps, 4 );
-    assert( nCurrents >= nInputFieldMaps )
-end
-
-for iCurrent = (nInputFieldMaps + 1) : nCurrents 
-
-    Phase = MaRdI( Params.DataDir.Phase{ (iCurrent - nInputFieldMaps) }  ) ;
-    Phase.Hdr.MaskingImage = mask ;    
-
-    Field = ShimCal.preprocessfielddata( Phase, Params ) ;
-
-    fieldMaps( :,:,:, iCurrent ) = Field.img ;
-
-end
-
 Params.isDisplayingProgress = true;
 
-FitResults = ShimCal.fitfieldtocurrent( ...
-    fieldMaps, currents, Field.Hdr.MaskingImage, Params ) ;
+dBdI  = [] ; % change in field per change in shim current
 
-dBdI = FitResults.dBdI ;
+nCurrents       = length( currents ) ;
+nInputFieldMaps = size( fieldMaps, 4 );
+
+assert( nCurrents == nInputFieldMaps )
+
+if nInputFieldMaps == 2
+
+    dB   = fieldMaps(:,:,:, 2) - fieldMaps(:,:,:, 1) ;
+    dI   = currents(2) - currents(1) ;
+    dBdI = mask .* (dB/dI) ;
+
+else
+
+    FitResults = ShimCal.fitfieldtocurrent( fieldMaps, currents, mask, Params ) ;
+
+    dBdI = FitResults.dBdI ;
+end
+
 
 end
 % =========================================================================
@@ -488,14 +263,18 @@ function Field = preprocessfielddata( Phase, Params )
 % 
 % Params has fields
 %
-% .isHardCodingEchoTime
-% .EchoTimes
-%   uses the difference of .EchoTimes rather than the DICOM header to scale 
-%   phase to frequency
+%   .isHardCodingEchoTime
+%   
+%   .EchoTimes
+%       uses the difference of Params.EchoTimes rather than the DICOM header to scale 
+%       phase to frequency
 %
-% .Filtering.filterRadius
-%   radius [in mm] of RESHARP kernel. See help MaRdI.extractharmonicfield() for
-%   additional parameters
+%   .Filtering.isFiltering
+%       low-pass filtering? [logical]
+%
+%   .Filtering.filterRadius
+%       radius [in mm] of RESHARP kernel. See help MaRdI.extractharmonicfield() for
+%       additional parameters
 
 %-----
 % 3d path-based unwrapping

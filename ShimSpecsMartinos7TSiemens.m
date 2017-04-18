@@ -1,13 +1,13 @@
-classdef (Abstract) ShimSpecs
-%SHIMSPECS
+classdef ShimSpecsMartinos7TSiemens < ShimSpecs
+%SHIMSPECSMARTINOS7TSIEMENS
 % 
-% Shim System Specifications
+% Shim System Specifications for Siemens shims on 7T (Bay 5) at Martinos
 %
 % .......
 %   
 % Usage
 %
-% Specs = ShimSpecs(  )
+% Specs = ShimSpecsMartinos7TSiemens(  )
 %
 %   Specs contains fields
 %           
@@ -23,7 +23,7 @@ classdef (Abstract) ShimSpecs
 % =========================================================================
 % Part of series of classes pertaining to shimming:
 %
-%    Tracking
+%    ProbeTracking
 %    ShimCal
 %    ShimCom
 %    ShimEval
@@ -31,56 +31,31 @@ classdef (Abstract) ShimSpecs
 %    ShimSpecs
 %    ShimTest 
 %    ShimUse
-%     
-%    ShimSpecs is an Abstract class.
+%    
+%    ShimSpecsRri is a ShimSpecs subclass
 %
 % =========================================================================
-% Updated::20161129::ryan.topfer@polymtl.ca
+% Updated::20170213::ryan.topfer@polymtl.ca
 % =========================================================================
-
-properties   
-Amp; % relating to amplification
-Com; % relating to communication (e.g. RS-232)
-Dac; % relating to digital-to-analog conversion 
-
-end
 
 % =========================================================================
 % =========================================================================
 methods
 % =========================================================================
-function Shims = ShimSpecs(  )
+function Shims = ShimSpecsMartinos7TSiemens(  )
 %SHIMSPECS - Shim System Specifications 
-% 
-% The following default Specs are informed by the 24-channel RRI system.
 
-% ------- 
-% COM 
-Shims.Com.baudRate    = 57600 ;  
-Shims.Com.readTimeout = 500 ; % [units: ms] 
+    
+Shims.Com = [] ;  
 
-Shims.Com.dataBits    = 8 ;
-Shims.Com.stopBits    = 1 ;
-Shims.Com.flowControl = 'NONE' ;
-Shims.Com.parity      = 'NONE' ;
-Shims.Com.byteOrder   = 'bigEndian' ;
-
-% min delay (in seconds) between transmission and reception of data.
-Shims.Com.txRxDelay   = 0.001 ; % [units: s]
-
-% ------- 
-% AMP 
 Shims.Amp.maxCurrentPerChannel = 5 ; % (absolute) [units: amps]
-Shims.Amp.maxCurrentPerBank    = 20 ; % (absolute) [units: amps]
-% Shims.Amp.maxCurrentPerRail    = 10 ; % +/- [units: amps]
 
-Shims.Amp.nChannels       = 32 ;  
-Shims.Amp.nActiveChannels = 24 ;
+Shims.Amp.nChannels       = 8 ;  
+Shims.Amp.nActiveChannels = 8 ;
 
-% ------- 
-% DAC
-Shims.Dac.resolution = 16 ; % [bits]
-Shims.Dac.maxCurrent = 5 ; % (absolute) [units: amps]
+Shims.Dac = [] ;
+% Shims.Dac.resolution = 16 ; % [bits]
+% Shims.Dac.maxCurrent = 5 ; % (absolute) [units: amps]
 
 end
 % =========================================================================
@@ -90,3 +65,4 @@ end
 % =========================================================================
 
 end
+

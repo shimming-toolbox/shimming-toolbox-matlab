@@ -7,7 +7,7 @@ classdef ShimSpecsRri < ShimSpecs
 %   
 % Usage
 %
-% Specs = ShimSpecsAcdc(  )
+% Specs = ShimSpecsRri(  )
 %
 %   Specs contains fields
 %

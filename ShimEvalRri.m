@@ -5,7 +5,8 @@ classdef ShimEvalRri < ShimEval & ShimOptRri
 % 
 % Usage
 %
-% Shim = ShimOpt( )
+% Shim = ShimEvalRri( )
+% Shim = ShimEvalRri( Params )
 %
 % =========================================================================
 % Notes
@@ -24,7 +25,7 @@ classdef ShimEvalRri < ShimEval & ShimOptRri
 % ShimEvalRri is a ShimEval & ShimOptRri subclass 
 %     
 % =========================================================================
-% Updated::20170204::ryan.topfer@polymtl.ca
+% Updated::20170411::ryan.topfer@polymtl.ca
 % =========================================================================
 
 

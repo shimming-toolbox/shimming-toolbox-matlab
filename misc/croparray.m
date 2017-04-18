@@ -1,5 +1,4 @@
 function[ dataArray ] = croparray( dataArray, gridSizeOut ) 
-
 %CROPARRAY returns cropped/central portion of 3D array
 %
 % Syntax
@@ -8,8 +7,11 @@ function[ dataArray ] = croparray( dataArray, gridSizeOut )
 %   returns central portion of 3D array A: data outside 'desiredSize' is
 %   trimmed away.
 %
-% See Also
-% padarray
+% see also PADARRAY( )
+%
+% =========================================================================
+% Updated::20170210::ryan.topfer@polymtl.ca
+% =========================================================================
 
 % TODO
 % Arbitrary dimensions

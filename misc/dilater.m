@@ -2,8 +2,7 @@ function[ roiOut ] = dialter( roiIn, R )
 %DILATER dilates a 3D binary mask by 'R'
 %
 %   DILATER convolves binary input image ROI with an ellipsoid defined by
-%   radius (or radii) R to return an expanded ROI
-% =========================================================================
+%   radius (or radii) R to return an expanded ROI.
 %
 %   Syntax
 %
@@ -11,21 +10,28 @@ function[ roiOut ] = dialter( roiIn, R )
 %
 %   Description
 %
-% Also see:
-%   shaver.m
+%   dilatedRoi = RILATER(ROI,R) returns ROI dilated by R. If R is a single
+%   scalar, every dimension is dilated by R. If R is a 3-component vector
+%   [Rx Ry Rz], each dimension is then dilated by its corresponding R value.
+%
+% see also SHAVER( ) 
 %
 % =========================================================================
-% Created: RT, topfer@ualberta.ca
-%   Mon  9 Nov 2015 16:23:26 EST
+% Updated::20170210::ryan.topfer@polymtl.ca
 % =========================================================================
 
-if any( R == 0 )
-	roiOut = roiIn ;
-	disp('Radius cannot be zero. Returning input array') 
+
+if any( R <= 0 )
+	
+    roiOut = roiIn ;
+	disp('Shaver: Radius should be a positive integer. Returning input array') 
+
 else
-	inputIsFloat = true;
+
+    inputIsFloat = true;
     tmp = whos('roiIn');
-	switch tmp.class
+
+    switch tmp.class
 	    case {'single','double'}
 	        inputIsFloat   = true ;
 	        roiIn          = logical( roiIn ) ;
@@ -33,25 +39,27 @@ else
 	        inputIsFloat = false ;
 	end
 
-	if any( mod( size( roiIn ), 2 ) == 0 )
-	    isCroppingToOddDimensions = true ;
-	    roiIn                     = makeodd( roiIn ) ;
-	    gridDimensionVector       = size( roiIn ) ;
-	else
-	    isCroppingToOddDimensions = false ;
-	    gridDimensionVector = size( roiIn ) ;
-	end
+    if numel(R) == 1
+        R = [R R R] ;
+    end
 
-	sphere              = createellipsoid( gridDimensionVector, R) ;
-	roiOut              = ifftc( fftc(roiIn) .* fftc( sphere/sum( sphere(:)) ) ) ;
-	roiOut              = abs(roiOut) >= ( 1/( 1 + sum(sphere(:) ) ) ) ;
+    gridSize = size( roiIn ) ;
+    
+    sphericalKernel     = createellipsoid( 2*R + [1 1 1] , R) ;
+    nPointsKernel       = sum( sphericalKernel(:) ) ;
+	sphericalKernel     = sphericalKernel/nPointsKernel  ;
+
+    % convolve with the kernel
+    convSize = gridSize + size(sphericalKernel) - [1 1 1]; % *linear convolution size
+    tmp = real(ifftn(fftn(roiIn,convSize).*fftn(sphericalKernel,convSize)));
+   
+    % retain regions of overlap btwn kernel & roi 
+    tmp = tmp >= 1/(1 + nPointsKernel) ;
+	
+    roiOut = croparray( tmp, gridSize ) ;
 
 	if inputIsFloat
 	    roiOut = double( roiOut ) ;
-	end
-
-	if isCroppingToOddDimensions
-	    roiOut = makeodd( roiOut, 'isUndoing' ) ;
 	end
 
 end
