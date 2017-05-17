@@ -161,6 +161,10 @@ if ~myisfield(Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerCh
     Params.maxCurrentPerChannel = Specs.Amp.maxCurrentPerChannel ; 
 end
 
+if ~myisfield(Params, 'controlOffsetAndLinear')
+    Params.controlOffsetAndLinear = false;
+end
+
 % Params for conjugate-gradient optimization
 CgParams.tolerance     = 1E-6 ;
 CgParams.maxIterations = 10000 ;    
@@ -169,6 +173,34 @@ A = Shim.getshimoperator ;
 M = Shim.gettruncationoperator ;
 
 b = M*(-Shim.Field.img(:)) ;
+
+if Params.controlOffsetAndLinear
+    
+    % compute the shimming offset (Hz)
+    
+    offset = sum(b)/sum(M*ones(size(b)));
+    
+    %compute the desired linear shimming (Hz/mm)
+    
+    [X,Y,Z] = Shim.Field.getvoxelpositions();
+    
+    xx = M*X(:);
+    yy = M*Y(:);
+    zz = M*Z(:);
+    
+    dBdx = xx'*b./(xx'*xx);
+    dBdy = yy'*b./(yy'*yy);
+    dBdz = zz'*b./(zz'*zz);
+    
+    % Create and write on test file
+    
+    fid = fopen([Params.dataLoadDir datestr(now, 30) '-values_for_offline_shimming.txt'], 'w+');
+    fprintf(fid, '%f\n', offset);
+    fprintf(fid, '%f\n', dBdx);
+    fprintf(fid, '%f\n', dBdy);
+    fprintf(fid, '%f\n', dBdz);
+    fclose(fid);
+end
 
 % ------- 
 % Least-squares solution via conjugate gradients
