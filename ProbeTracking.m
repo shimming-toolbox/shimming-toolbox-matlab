@@ -29,7 +29,7 @@ classdef ProbeTracking < Tracking
 %    ShimUse
 %
 % =========================================================================
-% Updated::20170406::ryan.topfer@polymtl.ca
+% Updated::20170521::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % *** TODO 
@@ -111,29 +111,25 @@ maxCommunicationAttempts = 3;
 
 fopen(Tracker.ComPort);
 
-isSamplingFrequencyReceived = false;
-
 iAttempt = 1 ;
-disp('Attempting to assign probe sample frequency (may take about 15 s)...')
+disp('Connecting to respiratory probe...')
 
-while(~isSamplingFrequencyReceived && iAttempt <= maxCommunicationAttempts )
+while(~isTracking && iAttempt <= maxCommunicationAttempts )
 
     % Send refresh time 
     disp(['Attempt #' num2str(iAttempt)]);    
-    fprintf( Tracker.ComPort, '%d', Tracker.Specs.dt);
-    pause(0.1)
+    
     firstWord = fscanf( Tracker.ComPort, '%f') 
     
-    if(~isempty(firstWord) && isnumeric(firstWord) && firstWord == Tracker.Specs.dt/10)  
-        isSamplingFrequencyReceived = true;
+    if( ~isempty(firstWord) && isnumeric(firstWord) )  
+        isTracking = true;
     end
 
     iAttempt = iAttempt + 1;
 
 end
 
-if isSamplingFrequencyReceived
-    isTracking = true;
+if isTracking
     disp('Communication successful. Reading in from serial port...')
 else
     Tracker.stoptracking() ;

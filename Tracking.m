@@ -66,15 +66,37 @@ end
 % =========================================================================
 function [predictedMeasurement] = predictmeasurement( Tracker, delay, order )
 % PREDICTMEASUREMENT
-
-% if Params.extrapolationOrder == 1
+% 
+% pPredicted = PREDICTMEASUREMENT( Tracker, delay, order ) 
 %
-if order == 1 || nargin == 2 % 1st order Taylor expansion
-    predictedMeasurement = Tracker.Data.p(end) + ...
-        delay*( Tracker.Data.p(end) - Tracker.Data.p( end - 1 ) )/(2*arduinoPeriod) ; 
-    %     delay
-    % /Shim.Opt.Probe.Specs.arduinoPeriod/1000)* ...
-    %             (pressure(end) - pressure(end-1)) );
+% delay
+%   [units: ms]
+%
+% order (0,1,2)
+%   of Taylor expansion (default = 1)
+%
+% TODO
+%  
+%  implement savitsky-golay weighting
+
+if nargin < 3
+    order = 1;
+end
+
+predictedMeasurement = Tracker.Data.p( end ) ; % 0th order prediction 
+
+if order >= 1  
+    
+    % 1st order Taylor expansion -- using central diff.
+
+    predictedMeasurement = Tracker.Data.p(end - 1) + ... % 0th order term
+        delay*( Tracker.Data.p(end) - Tracker.Data.p( end - 2 ) )/(2*Tracker.dt) ; 
+
+    if order == 2
+
+        predictedMeasurement = predictedMeasurement +  ((delay^2)/2) *...
+            ( Tracker.Data.p( end ) - 2*Tracker.Data.p( end - 1 ) + Tracker.Data.p( end - 2 ) )/(Tracker.dt^2) ; % d2p/dt2 
+    end 
 
 end
 
