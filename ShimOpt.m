@@ -205,7 +205,7 @@ function Shim = calibraterealtimeupdates( Shim, Params )
 %       .Expired
 %           .currents
 %           .measurementLog
-        
+close all; 
 ShimUse.display( ['\n ------- \n ' ...
     'Determine median measurement over inspired apnea : \n \n '] ) ;
 
@@ -534,6 +534,21 @@ Stats.Deviation.percentImprovement = 100*(1-Stats.Deviation.predicted/Stats.Devi
 
 end
 % =========================================================================
+function [f0, f0Voi, f0VoiShimmed] = optimizelarmor( Shim, voi )
+%OPTIMIZELARMOR 
+%
+
+voi = logical( voi ) ;
+
+predictedField = Shim.Field.img + Shim.Model.field ;
+
+f0           = Shim.Field.Hdr.ImagingFrequency *(1E6) ; % [units: Hz]
+
+f0Voi        = f0 + mean( Shim.Field.img( voi ) ) ;
+f0VoiShimmed = f0 + mean( predictedField( voi ) ) ;
+
+end
+% =========================================================================
 
 end
 % =========================================================================
@@ -597,9 +612,14 @@ function [Field, Extras] = mapfield( ImgArray, Params, ObjectiveImg )
 %       [default: 0.01] 
 %
 %   .isFilteringField 
-%       Fits field map to spherical harmonic basis set & returns the fitted field map.
+%       Applies harmonic ('RESHARP', i.e. low-pass) filtering & returns filtered field map.
 %       [default: false]
 %   
+%   .isFittingSphericalHarmonics 
+%       Fits field map to spherical harmonic basis set & returns the fitted field map.
+%       See doc MaRdI.extractharmonicfield() for relevant Params.
+%       [default: false]
+%
 %   .ordersToGenerate
 %       Orders of SH incorporated into fitting 
 %       [default: [0:1:8]]
@@ -608,7 +628,9 @@ DEFAULT_ISCORRECTINGPHASEOFFSET        = true ; % deprecated
 DEFAULT_ISUNWRAPPINGECHOESINDIVIDUALLY = false ; % deprecated
 DEFAULT_ISFILTERINGFIELD               = false ;
 DEFAULT_THRESHOLD                      = 0.01 ;
-DEFAULT_ORDERSTOGENERATE               = [0:10] ;
+
+DEFAULT_ISFITTINGSPHERICALHARMONICS    = false ;
+DEFAULT_ORDERSTOGENERATE               = [0:8] ;
 
 assert( (nargin >= 1) && ~isempty( ImgArray ) ) ;
 
@@ -626,6 +648,10 @@ end
 
 if ~myisfield( Params, 'threshold' ) || isempty( Params.threshold ) 
     Params.threshold = DEFAULT_THRESHOLD ;
+end
+
+if ~myisfield( Params, 'isFittingSphericalHarmonics' ) || isempty( Params.isFittingSphericalHarmonics ) 
+    Params.isFittingSphericalHarmonics = DEFAULT_ISFITTINGSPHERICALHARMONICS ;
 end
 
 if ~myisfield( Params, 'ordersToGenerate' ) || isempty( Params.ordersToGenerate ) 
@@ -681,10 +707,15 @@ Field     = PhaseDiff.scalephasetofrequency( ) ;
 
 
 if Params.isFilteringField
-% -------
-% fit spherical harmonic basis set to input Field 
 
-    dbstop in ShimOpt at 689
+[~,Field] = Field.extractharmonicfield( Params ) ;
+
+end
+
+    if Params.isFittingSphericalHarmonics % UNTESTED
+    % -------
+    % fit spherical harmonic basis set to input Field 
+
     % generates basis set, with field positions same as those of input Field 
     Shims = ShimOptSHarmonics( Params, Field ) ;
 
@@ -780,8 +811,6 @@ if Params.isFilteringField
 
         [~, ~, sHat] = Field.getdirectioncosines( ) ;  
         Field.Hdr.SliceLocation = dot( Field.Hdr.ImagePositionPatient, sHat ) ;
-
-
     end
 
 end

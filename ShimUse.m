@@ -168,7 +168,7 @@ if  ~myisfield( Params, 'measurementLogFilename' ) || isempty(Params.measurement
 end
 
 [pathStr,name,ext] = fileparts( Params.measurementLogFilename ) ;
-Params.rawMeasurementLogFilename = [pathStr name '_raw' ext] ;
+Params.rawMeasurementLogFilename = [pathStr '/' name '_raw' ext] ;
 
 if  ~myisfield( Params, 'sampleTimesFilename' ) || isempty(Params.sampleTimesFilename)
     Params.sampleTimesFilename  = DEFAULT_SAMPLETIMESFILENAME ; 
@@ -300,7 +300,7 @@ if isTracking
             
             sampleIndices(iSample) = iSample ;
            
-            rawMeasurementLog(iSample) = Shim.Opt.Tracker.getupdate() ;
+            rawMeasurementLog(iSample) = Shim.Opt.Tracker.getupdate() ; 
             
             if Params.isFilteringMeasurements  && ( iSample > Params.nSamplesFilter )
                 Shim.Opt.Tracker.Data.p(iSample) = rawMeasurementLog(iSample) ;
@@ -312,7 +312,7 @@ if isTracking
                 Shim.Opt.Tracker.Data.p(iSample) = rawMeasurementLog(iSample) ;
             
             end
-            
+
             if Params.isClipping 
                 
                 Shim.Opt.Tracker.Data.p(iSample) = clipvalue( Shim.Opt.Tracker.Data.p(iSample) ) ;
@@ -320,7 +320,7 @@ if isTracking
             end
 
         end
-
+        
         currents = Shim.Opt.computerealtimeupdate( Params ) 
         % currents = limitcurrents( currents ) ;
         currentsNorm = norm(currents) 
