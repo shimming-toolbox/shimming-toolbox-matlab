@@ -22,7 +22,7 @@ function varargout = ShimGUI(varargin)
 
 % Edit the above text to modify the response to help ShimGUI
 
-% Last Modified by GUIDE v2.5 16-May-2017 16:24:25
+% Last Modified by GUIDE v2.5 30-May-2017 13:41:43
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -106,6 +106,10 @@ handles.Params.nCalibrationScans = 2;
 set(handles.runtime,'String','10');
 handles.RecParams.runTime = 10;
 
+set(handles.sliceSelector, 'Value', 1);
+handles.sliceSelected = 1;
+
+handles.viewSelected = 'Sagittal';
 % Update handles structure
 guidata(hObject, handles);
 
@@ -174,10 +178,9 @@ function shimsystem_Callback(hObject, eventdata, handles)
 %        contents{get(hObject,'Value')} returns selected item from shimsystem
 contents = cellstr(get(hObject,'String'));
 
-shimSystem = contents{get(hObject,'Value')};
-handles.Params.shimSystem = shimSystem;
+handles.Params.shimSystem = contents{get(hObject,'Value')};
 
-set(handles.commandLine,'string',['Shim system changed to ',shimSystem]);
+set(handles.commandLine,'string',['Shim system changed to ',handles.shimSystem]);
 
 guidata(hObject,handles);
 
@@ -510,7 +513,7 @@ function staticshim_Callback(hObject, eventdata, handles)
 if myisfield(handles, 'Shims')
     Shims = handles.Shims;
     
-    if ~myisfield(handles.Params, 'Inspired')||~myisfield(handles.Params, 'Expired')
+    if ~myisfield(handles.Params, 'Inspired')
         set(handles.commandLine,'string','Please perform the calibration before running shimming');
     else
         % =========================================================================
@@ -524,16 +527,17 @@ if myisfield(handles, 'Shims')
         % Params.sampleTimesFilename = [Params.dataLoadDir datestr(now,30) '-sampleTimes-INS-ShimOn.bin'] ;
         % [pressureLog, sampleTimes] =Shims.Opt.Probe.recordandplotpressurelog( Params ) ;
         
-        Shims.Com.resetallshims() ;
-        
-        % -------
-        % Expired
-        Shims.Com.setandloadallshims( handles.Params.Expired.currents ) ;
-        % Params.pressureLogFilename = [Params.dataLoadDir datestr(now,30) '-pressureLog-EXP-ShimOn.bin'] ;
-        % Params.sampleTimesFilename = [Params.dataLoadDir datestr(now,30) '-sampleTimes-EXP-ShimOn.bin'] ;
-        % [pressureLog, sampleTimes] =Shims.Opt.Probe.recordandplotpressurelog( Params ) ;
-        
-        Shims.Com.resetallshims() ;
+%         Shims.Com.resetallshims() ;
+%         
+%         -------
+%         Expired
+%         Shims.Com.setandloadallshims( handles.Params.Expired.currents ) ;
+%         Params.pressureLogFilename = [Params.dataLoadDir datestr(now,30) '-pressureLog-EXP-ShimOn.bin'] ;
+%         Params.sampleTimesFilename = [Params.dataLoadDir datestr(now,30) '-sampleTimes-EXP-ShimOn.bin'] ;
+%         [pressureLog, sampleTimes] =Shims.Opt.Probe.recordandplotpressurelog( Params ) ;
+%         
+%         Shims.Com.resetallshims() ;
+
     end
 else
     set(handles.commandLine,'string','Please perform the calibration before running shimming');
@@ -592,6 +596,32 @@ function sliceSelector_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 
+if myisfield(handles,'imageToPlot')
+    switch handles.viewSelected
+        case 'Sagittal'
+            maxval = size(handles.imageToPlot,3);
+            handles.sliceSelected = round(get(hObject,'Value')*(maxval - 1) + 1);
+            imshow(image(:,:,handles.sliceSelected),'parent',handles.imageFromScan);
+            
+        case 'Coronal'
+            maxval = size(handles.imageToPlot,2);
+            handles.sliceSelected = round(get(hObject,'Value')*(maxval - 1) + 1);
+            imshow(image(:,handles.sliceSelected,:),'parent',handles.imageFromScan);
+            
+        case 'Axial'
+            maxval = size(handles.imageToPlot,1);
+            handles.sliceSelected = round(get(hObject,'Value')*(maxval - 1) + 1);
+            imshow(image(handles.sliceSelected,:,:),'parent',handles.imageFromScan);
+            
+    end
+    
+    set(handles.commandLine,'string',['Slice changed to ', num2str(round(get(hObject,'Value')*(maxval - 1) + 1))]);
+end
+            
+
+
+
+
 
 % --- Executes during object creation, after setting all properties.
 function sliceSelector_CreateFcn(hObject, eventdata, handles)
@@ -630,21 +660,37 @@ if myisfield(handles, 'imageToPlot');
             if sliceSelected > size(image,3)
                 sliceSelected = 1;
             end
+            
             imshow(image(:,:,sliceSelected),'parent',handles.imageFromScan);
+            set(handles.sliceSelector, 'Min', 1);
+            set(handles.sliceSelector, 'Max', size(image, 3));
+            set(handles.sliceSelector, 'Value', sliceSelected);
+            
         case 'Coronal'
             if sliceSelected > size(image,2)
                 sliceSelected = 1;
             end
+            
             imshow(image(:,sliceSelected,:),'parent',handles.imageFromScan);
+            set(handles.sliceSelector, 'Min', 1);
+            set(handles.sliceSelector, 'Max', size(image, 2));
+            set(handles.sliceSelector, 'Value', sliceSelected);
+            
         case 'Axial'
             if sliceSelected > size(image,1)
                 sliceSelected = 1;
             end
+            
             imshow(image(sliceSelected,:,:),'parent',handles.imageFromScan);
+            set(handles.sliceSelector, 'Min', 1);
+            set(handles.sliceSelector, 'Max', size(image, 1));
+            set(handles.sliceSelector, 'Value', sliceSelected);
     end
+    
+    
 end
 
-set(handles.commandLine,'string',['Shim system changed to ',viewSelected]);
+set(handles.commandLine,'string',['View changed to ',viewSelected]);
 
 guidata(hObject,handles);
 
@@ -722,9 +768,29 @@ handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataL
 
 [FieldInspired, Extras] = ShimOpt.mapfield( handles.Params ) ;
 
-imagesc(FieldInspired.img(:,:,1), 'parent', handles.pressureAxes);
+% Plot image on imageFromScan axes
 
 handles.imageToPlot = FieldInspired.img;
+
+switch handles.viewSelected
+        case 'Sagittal'
+            if handles.sliceSelected > size(image,3)
+                handles.sliceSelected = 1;
+            end
+            imshow(handles.imageToPlot(:,:,handles.sliceSelected),'parent',handles.imageFromScan);
+        case 'Coronal'
+            if handles.sliceSelected > size(image,2)
+                handles.sliceSelected = 1;
+            end
+            imshow(handles.imageToPlot(:,handles.sliceSelected,:),'parent',handles.imageFromScan);
+        case 'Axial'
+            if handles.sliceSelected > size(image,1)
+                handles.sliceSelected = 1;
+            end
+            imshow(handles.imageToPlot(handles.sliceSelected,:,:),'parent',handles.imageFromScan);
+end
+
+
 
 handles.FieldInspired = FieldInspired;
 
@@ -752,9 +818,28 @@ handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataL
 
 [FieldExpired, Extras] = ShimOpt.mapfield( handles.Params ) ;
 
-imagesc(FieldExpired.img(:,:,1), 'parent', handles.pressureAxes);
+% Plot the image on imageFromScan axes
 
 handles.imageToPlot = FieldExpired.img;
+
+switch handles.viewSelected
+        case 'Sagittal'
+            if handles.sliceSelected > size(image,3)
+                handles.sliceSelected = 1;
+            end
+            imshow(handles.imageToPlot(:,:,handles.sliceSelected),'parent',handles.imageFromScan);
+        case 'Coronal'
+            if handles.sliceSelected > size(image,2)
+                handles.sliceSelected = 1;
+            end
+            imshow(handles.imageToPlot(:,handles.sliceSelected,:),'parent',handles.imageFromScan);
+        case 'Axial'
+            if handles.sliceSelected > size(image,1)
+                handles.sliceSelected = 1;
+            end
+            imshow(handles.imageToPlot(handles.sliceSelected,:,:),'parent',handles.imageFromScan);
+end
+
 
 handles.FieldInspired = FieldExpired;
 
@@ -775,7 +860,12 @@ handles.Shims.Opt.interpolatetoimggrid( handles.FieldInspired ) ;
 % =========================================================================
 % DEFINE SHIM VOI 
 % =========================================================================
-handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;
+
+if ~myisfield(handles,'mask')
+    handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired );
+end
+
+handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ).*handles.mask ;
 
 % =========================================================================
 % STATIC OPTIMIZATION
@@ -800,3 +890,48 @@ handles.Shims.Opt.optimizeshimcurrents( handles.Params ) ;
 handles.Params.Expired.currents = handles.Shims.Opt.Model.currents ;
 
 guidata(hObject, handles) ;
+
+
+% --- Executes on button press in resetShims.
+function resetShims_Callback(hObject, eventdata, handles)
+% hObject    handle to resetShims (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+if myisfield(handles,'Shims')
+    handles.Shims.Com.resetallshims();
+end
+
+
+% --- Executes on button press in customROI.
+function customROI_Callback(hObject, eventdata, handles)
+% hObject    handle to customROI (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+if myisfield(handles, 'imageToPlot')
+    axes = handles.imageFromScan;
+    rect = getrect();
+    rect = round(rect);
+    
+    nslices = input('How many slices ?')
+    
+    switch handles.viewSelected
+        case 'Sagittal'
+            mask = zeros(size(imageToPlot));
+            mask(rect(1):(rect(1)+rect(3)),rect(2):(rect(2)+rect(4)),(selectedSlice+ round(-nSlices/2)):(selectedSlice+ round(nSlices/2))) =...
+                ones(rect(3),rect(4),nSlices);
+        case 'Coronal'
+            mask = zeros(size(imageToPlot));
+            mask(rect(1):(rect(1)+rect(3)),(selectedSlice+ round(-nSlices/2)):(selectedSlice+ round(nSlices/2)),rect(2):(rect(2)+rect(4))) =...
+                ones(rect(3),nSlices,rect(4));
+        case 'Axial'
+            mask = zeros(size(imageToPlot));
+            mask((selectedSlice+ round(-nSlices/2)):(selectedSlice+ round(nSlices/2)),rect(2):(rect(2)+rect(4)),rect(1):(rect(1)+rect(3))) =...
+                ones(nSlices,rect(3),rect(4));
+    end
+    handles.mask = mask;
+end
+
+axes = handles.imageFromScan;
+rect = getrect(axes);
