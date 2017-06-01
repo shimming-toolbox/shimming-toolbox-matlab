@@ -565,19 +565,27 @@ function inspiredStateRecord_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+if ~myisfield(handles, 'Shims')
+    handles.Shims = ShimUse(handles.Params) ;
+end
+
 handles.RecParams.axes = handles.pressureAxes;
 
 handles.RecParams.pressureLogFilename = [Params.dataLoadDir datestr(now,30) '-pressureLog-INS.bin'] ;
 handles.RecParams.sampleTimesFilename = [Params.dataLoadDir datestr(now,30) '-sampleTimes-INS.bin'] ;
 
-handles.Params.pressureLogFilenames(1,1) = { RecParams.pressureLogFilename } ;
-handles.Params.Inspired.pressureLog = Shims.Opt.Probe.recordandplotpressurelog( RecParams ) ;
+handles.Params.pressureLogFilenames(1,1) = { handles.RecParams.pressureLogFilename } ;
+handles.Params.Inspired.pressureLog = handles.Shims.Opt.Probe.recordandplotpressurelog( handles.RecParams ) ;
 
 % --- Executes on button press in expiredStateRecord.
 function expiredStateRecord_Callback(hObject, eventdata, handles)
 % hObject    handle to expiredStateRecord (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+if ~myisfield(handles, 'Shims')
+    handles.Shims = ShimUse(handles.Params) ;
+end
 
 handles.RecParams.axes = handles.pressureAxes;
 
@@ -657,34 +665,25 @@ if myisfield(handles, 'imageToPlot');
     image = handles.imageToPlot;
     switch viewSelected
         case 'Sagittal'
-            if sliceSelected > size(image,3)
+            if sliceSelected > size(handles.imageToPlot,3)
                 sliceSelected = 1;
             end
             
             imshow(image(:,:,sliceSelected),'parent',handles.imageFromScan);
-            set(handles.sliceSelector, 'Min', 1);
-            set(handles.sliceSelector, 'Max', size(image, 3));
-            set(handles.sliceSelector, 'Value', sliceSelected);
             
         case 'Coronal'
-            if sliceSelected > size(image,2)
+            if sliceSelected > size(handles.imageToPlot,2)
                 sliceSelected = 1;
             end
             
             imshow(image(:,sliceSelected,:),'parent',handles.imageFromScan);
-            set(handles.sliceSelector, 'Min', 1);
-            set(handles.sliceSelector, 'Max', size(image, 2));
-            set(handles.sliceSelector, 'Value', sliceSelected);
             
         case 'Axial'
-            if sliceSelected > size(image,1)
+            if sliceSelected > size(handles.imageToPlot,1)
                 sliceSelected = 1;
             end
             
             imshow(image(sliceSelected,:,:),'parent',handles.imageFromScan);
-            set(handles.sliceSelector, 'Min', 1);
-            set(handles.sliceSelector, 'Max', size(image, 1));
-            set(handles.sliceSelector, 'Value', sliceSelected);
     end
     
     
@@ -760,13 +759,18 @@ end
 % Prepare the calibration maps
 % =========================================================================
 
-handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_4.92' ] ;
-handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_7.64' ] ;
+ImgArray = cell(1 , 2);
 
-handles.Params.Path.Phase.echo1       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_4.92' ] ;
-handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_7.64' ] ;
+ImgArray{1,1} = uigetdir('','Path for the magnitude');
+ImgArray{1,2} = uigetdir('','Path for the phase');
 
-[FieldInspired, Extras] = ShimOpt.mapfield( handles.Params ) ;
+% handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_4.92' ] ;
+% handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_7.64' ] ;
+% 
+% handles.Params.Path.Phase.echo1       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_4.92' ] ;
+% handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_7.64' ] ;
+
+FieldInspired = ShimOpt.mapfield(ImgArray, handles.Params ) ;
 
 % Plot image on imageFromScan axes
 
@@ -774,17 +778,17 @@ handles.imageToPlot = FieldInspired.img;
 
 switch handles.viewSelected
         case 'Sagittal'
-            if handles.sliceSelected > size(image,3)
+            if handles.sliceSelected > size(handles.imageToPlot,3)
                 handles.sliceSelected = 1;
             end
             imshow(handles.imageToPlot(:,:,handles.sliceSelected),'parent',handles.imageFromScan);
         case 'Coronal'
-            if handles.sliceSelected > size(image,2)
+            if handles.sliceSelected > size(handles.imageToPlot,2)
                 handles.sliceSelected = 1;
             end
             imshow(handles.imageToPlot(:,handles.sliceSelected,:),'parent',handles.imageFromScan);
         case 'Axial'
-            if handles.sliceSelected > size(image,1)
+            if handles.sliceSelected > size(handles.imageToPlot,1)
                 handles.sliceSelected = 1;
             end
             imshow(handles.imageToPlot(handles.sliceSelected,:,:),'parent',handles.imageFromScan);
@@ -810,13 +814,18 @@ end
 % Prepare the calibration maps
 % =========================================================================
 
-handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_4.92' ] ;
-handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_7.64' ] ;
+ImgArray = cell(1 , 2);
 
-handles.Params.Path.Phase.echo1       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_4.92' ] ;
-handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_7.64' ] ;
+ImgArray{1,1} = uigetdir('','Path for the magnitude');
+ImgArray{1,2} = uigetdir('','Path for the phase');
 
-[FieldExpired, Extras] = ShimOpt.mapfield( handles.Params ) ;
+% handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_4.92' ] ;
+% handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_7.64' ] ;
+% 
+% handles.Params.Path.Phase.echo1       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_4.92' ] ;
+% handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_7.64' ] ;
+
+FieldExpired = ShimOpt.mapfield(ImgArray, handles.Params ) ;
 
 % Plot the image on imageFromScan axes
 
@@ -824,24 +833,24 @@ handles.imageToPlot = FieldExpired.img;
 
 switch handles.viewSelected
         case 'Sagittal'
-            if handles.sliceSelected > size(image,3)
+            if handles.sliceSelected > size(handles.imageToPlot,3)
                 handles.sliceSelected = 1;
             end
             imshow(handles.imageToPlot(:,:,handles.sliceSelected),'parent',handles.imageFromScan);
         case 'Coronal'
-            if handles.sliceSelected > size(image,2)
+            if handles.sliceSelected > size(handles.imageToPlot,2)
                 handles.sliceSelected = 1;
             end
             imshow(handles.imageToPlot(:,handles.sliceSelected,:),'parent',handles.imageFromScan);
         case 'Axial'
-            if handles.sliceSelected > size(image,1)
+            if handles.sliceSelected > size(handles.imageToPlot,1)
                 handles.sliceSelected = 1;
             end
             imshow(handles.imageToPlot(handles.sliceSelected,:,:),'parent',handles.imageFromScan);
 end
 
 
-handles.FieldInspired = FieldExpired;
+handles.FieldExpired = FieldExpired;
 
 guidata(hObject, handles) ;
 
@@ -860,13 +869,19 @@ handles.Shims.Opt.interpolatetoimggrid( handles.FieldInspired ) ;
 % =========================================================================
 % DEFINE SHIM VOI 
 % =========================================================================
-
-if ~myisfield(handles,'mask')
-    handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired );
+if myisfield(handles, 'FieldExpired')
+    if ~myisfield(handles,'mask')
+        handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired );
+    end
+    
+    handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ).*handles.mask ;
+else
+    if ~myisfield(handles,'mask')
+        handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired );
+    end
+    
+    handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired ).*handles.mask ;
 end
-
-handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ).*handles.mask ;
-
 % =========================================================================
 % STATIC OPTIMIZATION
 % =========================================================================
@@ -882,12 +897,15 @@ handles.Params.Inspired.currents = handles.Shims.Opt.Model.currents ;
 
 % -------
 % Expired 
-handles.Shims.Opt.setoriginalfield( handles.FieldExpired ) ;
-handles.Shims.Opt.setshimvolumeofinterest( handles.mask ) ;
 
-handles.Shims.Opt.optimizeshimcurrents( handles.Params ) ;
-
-handles.Params.Expired.currents = handles.Shims.Opt.Model.currents ;
+if myisfield(handles, 'FieldExpired')
+    handles.Shims.Opt.setoriginalfield( handles.FieldExpired ) ;
+    handles.Shims.Opt.setshimvolumeofinterest( handles.mask ) ;
+    
+    handles.Shims.Opt.optimizeshimcurrents( handles.Params ) ;
+    
+    handles.Params.Expired.currents = handles.Shims.Opt.Model.currents ;
+end
 
 guidata(hObject, handles) ;
 
