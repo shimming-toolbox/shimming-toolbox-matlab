@@ -218,15 +218,15 @@ end
 
 
 
-Params.nSamplesFilter = 10 ;
-Params.filterScaling  = 4 ; 
-
-filterWeights = (-Params.filterScaling/Params.nSamplesFilter)*[0:Params.nSamplesFilter-1]' ;
-filterWeights = flipud( filterWeights ) ;
-filterWeights = exp( filterWeights ) ;
-
-summedWeights = sum( filterWeights ) ;
-filterWeights = filterWeights' / summedWeights ;
+% Params.nSamplesFilter = 10 ;
+% Params.filterScaling  = 4 ; 
+%
+% filterWeights = (-Params.filterScaling/Params.nSamplesFilter)*[0:Params.nSamplesFilter-1]' ;
+% filterWeights = flipud( filterWeights ) ;
+% filterWeights = exp( filterWeights ) ;
+%
+% summedWeights = sum( filterWeights ) ;
+% filterWeights = filterWeights' / summedWeights ;
 
     
 
@@ -302,16 +302,16 @@ if isTracking
            
             rawMeasurementLog(iSample) = Shim.Opt.Tracker.getupdate() ; 
             
-            if Params.isFilteringMeasurements  && ( iSample > Params.nSamplesFilter )
-                Shim.Opt.Tracker.Data.p(iSample) = rawMeasurementLog(iSample) ;
-                Shim.Opt.Tracker.Data.p(end) = ...
-                    sum( filterWeights .* Shim.Opt.Tracker.Data.p( (end - (Params.nSamplesFilter-1)) : end ) ) ;
-
-            else
+            % if Params.isFilteringMeasurements  && ( iSample > Params.nSamplesFilter )
+            %     Shim.Opt.Tracker.Data.p(iSample) = rawMeasurementLog(iSample) ;
+            %     Shim.Opt.Tracker.Data.p(end) = ...
+            %         sum( filterWeights .* Shim.Opt.Tracker.Data.p( (end - (Params.nSamplesFilter-1)) : end ) ) ;
+            %
+            % else
                 
-                Shim.Opt.Tracker.Data.p(iSample) = rawMeasurementLog(iSample) ;
+            Shim.Opt.Tracker.Data.p(iSample) = rawMeasurementLog(iSample) ;
             
-            end
+            % end
 
             if Params.isClipping 
                 
@@ -320,7 +320,8 @@ if isTracking
             end
 
         end
-        
+
+        % predictmeasurement( ) ;        
         currents = Shim.Opt.computerealtimeupdate( Params ) 
         % currents = limitcurrents( currents ) ;
         currentsNorm = norm(currents) 

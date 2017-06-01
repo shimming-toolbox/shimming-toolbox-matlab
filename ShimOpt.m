@@ -522,14 +522,16 @@ mask = logical( Shim.Field.Hdr.MaskingImage ) ;
 predictedField = mask .* ( Shim.Field.img + Shim.Model.field ) ;
 
 Stats.Mean = [] ; 
-Stats.Mean.predicted = mean( predictedField( mask ) ) ;
-Stats.Mean.original  = mean( Shim.Field.img( mask ) ) ;
-Stats.Mean.percentImprovement = 100*(1-Stats.Mean.predicted/Stats.Mean.original) ;
+Stats.Mean.predicted          = mean( predictedField( mask ) ) ;
+Stats.Mean.original           = mean( Shim.Field.img( mask ) ) ;
+Stats.Mean.percentImprovement = ...
+    100*(1-Stats.Mean.predicted/Stats.Mean.original) ;
 
 Stats.Deviation = [] ;
-Stats.Deviation.predicted = std( predictedField( mask ) ) ;
-Stats.Deviation.original  = std( Shim.Field.img( mask ) ) ;
-Stats.Deviation.percentImprovement = 100*(1-Stats.Deviation.predicted/Stats.Deviation.original) ;
+Stats.Deviation.predicted          = std( predictedField( mask ) ) ;
+Stats.Deviation.original           = std( Shim.Field.img( mask ) ) ;
+Stats.Deviation.percentImprovement = ...
+    100*(1-Stats.Deviation.predicted/Stats.Deviation.original) ;
 
 
 end
@@ -540,7 +542,7 @@ function [f0, f0Voi, f0VoiShimmed] = optimizelarmor( Shim, voi )
 
 voi = logical( voi ) ;
 
-predictedField = Shim.Field.img + Shim.Model.field ;
+predictedField = Shim.predictshim() ;
 
 f0           = Shim.Field.Hdr.ImagingFrequency *(1E6) ; % [units: Hz]
 
