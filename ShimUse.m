@@ -218,9 +218,17 @@ end
 
 
 
-% Params.nSamplesFilter = 10 ;
+Params.nSamplesFilter  = 5 ; % Window length -> 5 samples * 10 ms/sample = 50 ms
+Params.nSamplesHalfWindow = (Params.nSamplesFilter + 1)/2 - 1 ; 
+
+Params.correctionOrder = 1;  % linear correction
+
+[~,Params.filterWeights] = sgolay(Params.correctionOrder, Params.nSamplesFilter);   % Calculate S-G coefficients
+
+% delay = tx/transmission delay plus the time shift involved from the filter
+delay = ( Params.txDelay + Shim.Opt.Tracker.Specs.dt*(Params.nSamplesFilter-1)/2)/1000 ; % [units: s]
+
 % Params.filterScaling  = 4 ; 
-%
 % filterWeights = (-Params.filterScaling/Params.nSamplesFilter)*[0:Params.nSamplesFilter-1]' ;
 % filterWeights = flipud( filterWeights ) ;
 % filterWeights = exp( filterWeights ) ;
@@ -244,7 +252,7 @@ iSample  = 0 ;
 nSamplesBetweenUpdates = ... % CHANGE THIS LINE FOR ACDC
     Shim.Com.Specs.Com.mxdUpdatePeriod/(Shim.Opt.Tracker.Specs.dt/1000)
 
-
+close all
  
 if Params.isPlottingInRealTime
 
@@ -268,7 +276,7 @@ if Params.isPlottingInRealTime
         
     xlim(axesHandle,[0 nSamples]);
         
-    title('Respiration Tracking','FontSize',15,'Color',[1 1 0]);
+    title('Respiration Tracker','FontSize',15,'Color',[1 1 0]);
     xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
     ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
 
@@ -278,17 +286,20 @@ if Params.isPlottingInRealTime
 end
 
 sampleIndices = [] ;
+currentsNorm  = 0 ;
 
 % ------- 
 StopButton = stoploop({'Stop recording'}) ;
 
 isTracking = Shim.Opt.Tracker.begintracking(); 
 
+
 if isTracking
     ShimUse.display( 'Issuing real-time shim updates. Begin scanning!' )
     ShimUse.display( 'Warning: 1st shim update based on raw Tracker.Data recording.' )
 
-    rawMeasurementLog = [] ;
+    rawMeasurementLog    = [] ;
+    Shims.Data.Tracker.p = [] ;
 
     while ( iSample < nSamples ) && ~StopButton.Stop()
         
@@ -302,14 +313,19 @@ if isTracking
            
             rawMeasurementLog(iSample) = Shim.Opt.Tracker.getupdate() ; 
             
+            Shim.Opt.Tracker.Data.p(iSample) = rawMeasurementLog(iSample) ;
             % if Params.isFilteringMeasurements  && ( iSample > Params.nSamplesFilter )
+            %
             %     Shim.Opt.Tracker.Data.p(iSample) = rawMeasurementLog(iSample) ;
-            %     Shim.Opt.Tracker.Data.p(end) = ...
-            %         sum( filterWeights .* Shim.Opt.Tracker.Data.p( (end - (Params.nSamplesFilter-1)) : end ) ) ;
+            %     
+            %     Shim.Opt.Tracker.Data.p(end - Params.nSamplesHalfWindow) = ...                
+            %          dot( Params.filterWeights(:,1), rawMeasurementLog( (iSample - Params.nSamplesFilter + 1) : iSample ) ) ;
+            %
+            %     % Shim.Opt.Tracker.Data.p(end) = ...
+            %     %     sum( filterWeights .* Shim.Opt.Tracker.Data.p( (end - (Params.nSamplesFilter-1)) : end ) ) ;
             %
             % else
                 
-            Shim.Opt.Tracker.Data.p(iSample) = rawMeasurementLog(iSample) ;
             
             % end
 
@@ -320,9 +336,23 @@ if isTracking
             end
 
         end
+    
+        if Params.isFilteringMeasurements  && ( iSample > Params.nSamplesFilter )
+                
+             % 0th order corr
+             p = dot( Params.filterWeights(:,1), rawMeasurementLog( (iSample - Params.nSamplesFilter + 1) : iSample ) ) ;
+             
+             % 1st order corr
+             p = p + delay*dot( Params.filterWeights(:,2), rawMeasurementLog( (iSample - Params.nSamplesFilter + 1) : iSample ) ) ;
 
-        % predictmeasurement( ) ;        
-        currents = Shim.Opt.computerealtimeupdate( Params ) 
+             p = clipvalue( p ) ;
+
+            currents = Shim.Opt.computerealtimeupdate( Params, p ) ;
+        else
+        
+            currents = Shim.Opt.computerealtimeupdate( Params ) ;
+        end
+        
         % currents = limitcurrents( currents ) ;
         currentsNorm = norm(currents) 
         

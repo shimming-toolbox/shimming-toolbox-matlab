@@ -571,8 +571,8 @@ end
 
 handles.RecParams.axes = handles.pressureAxes;
 
-handles.RecParams.pressureLogFilename = [Params.dataLoadDir datestr(now,30) '-pressureLog-INS.bin'] ;
-handles.RecParams.sampleTimesFilename = [Params.dataLoadDir datestr(now,30) '-sampleTimes-INS.bin'] ;
+handles.RecParams.pressureLogFilename = [handles.Params.dataLoadDir datestr(now,30) '-pressureLog-INS.bin'] ;
+handles.RecParams.sampleTimesFilename = [handles.Params.dataLoadDir datestr(now,30) '-sampleTimes-INS.bin'] ;
 
 handles.Params.pressureLogFilenames(1,1) = { handles.RecParams.pressureLogFilename } ;
 handles.Params.Inspired.pressureLog = handles.Shims.Opt.Probe.recordandplotpressurelog( handles.RecParams ) ;
@@ -609,17 +609,17 @@ if myisfield(handles,'imageToPlot')
         case 'Sagittal'
             maxval = size(handles.imageToPlot,3);
             handles.sliceSelected = round(get(hObject,'Value')*(maxval - 1) + 1);
-            imshow(image(:,:,handles.sliceSelected),'parent',handles.imageFromScan);
+            imshow(handles.imageToPlot(:,:,handles.sliceSelected),'parent',handles.imageFromScan);
             
         case 'Coronal'
             maxval = size(handles.imageToPlot,2);
             handles.sliceSelected = round(get(hObject,'Value')*(maxval - 1) + 1);
-            imshow(image(:,handles.sliceSelected,:),'parent',handles.imageFromScan);
+            imshow(handles.imageToPlot(:,handles.sliceSelected,:),'parent',handles.imageFromScan);
             
         case 'Axial'
             maxval = size(handles.imageToPlot,1);
             handles.sliceSelected = round(get(hObject,'Value')*(maxval - 1) + 1);
-            imshow(image(handles.sliceSelected,:,:),'parent',handles.imageFromScan);
+            imshow(handles.imageToPlot(handles.sliceSelected,:,:),'parent',handles.imageFromScan);
             
     end
     
@@ -761,8 +761,10 @@ end
 
 ImgArray = cell(1 , 2);
 
-ImgArray{1,1} = uigetdir('','Path for the magnitude');
-ImgArray{1,2} = uigetdir('','Path for the phase');
+ImgArray{1,1} = MaRdI( uigetdir('','Path for the magnitude') );
+ImgArray{1,2} = MaRdI( uigetdir('','Path for the phase') );
+
+handles.Params.echoTimeDifference = 2.5;
 
 % handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_4.92' ] ;
 % handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_7.64' ] ;
@@ -816,8 +818,8 @@ end
 
 ImgArray = cell(1 , 2);
 
-ImgArray{1,1} = uigetdir('','Path for the magnitude');
-ImgArray{1,2} = uigetdir('','Path for the phase');
+ImgArray{1,1} = MaRdI( uigetdir('','Path for the magnitude') );
+ImgArray{1,2} = MaRdI( uigetdir('','Path for the phase') );
 
 % handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_4.92' ] ;
 % handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_7.64' ] ;

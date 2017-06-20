@@ -52,6 +52,8 @@ end
 function Shim = histogramfield( Shim )
 %HISTOGRAMFIELD
 
+
+
 end
 % =========================================================================
 function [] = saveimages( Shim, Params )
@@ -241,6 +243,134 @@ end
 % =========================================================================
 % =========================================================================
 methods(Static)
+% =========================================================================
+function [] = plotfieldhistogram( field, Params )
+%PLOTFIELDHISTOGRAM
+% 
+% Params
+%
+%   .xLimits
+%        horizontal limits in Hz 
+%        [default : max(abs(field(:))) .* [ -1 1 ] ]
+%
+%   .yLimits
+%        vertical limits as count #
+%
+%   .fontSize
+%       [default : 16]
+%   .yAxisLocation
+%       [default : 'left'] 
+%
+%   .textContent
+%        string appears in textbox (e.g. 'Standard Deviation = 5 Hz')
+%        [default : '']
+%
+%   .textPosition
+%        [X Y]
+%        position of textbox relative to graph's origin 
+
+
+DEFAULT_ISTEXTBOX     = false ;
+DEFAULT_YAXISLOCATION = 'left' ;
+DEFAULT_FONTSIZE     = 16 ;
+
+% -------
+% Check inputs
+% -------
+if nargin < 1 || isempty(field) 
+    disp('Error: function require 1 argument (field vector, i.e. delta B0)')
+    help(mfilename);
+    return;  
+end
+
+if nargin < 2 || isempty(Params)
+    disp('Default parameters will be used')
+    Params.dummy = [] ;
+end
+
+if  ~myisfield( Params, 'xLimits' ) || isempty( Params.xLimits )
+    Params.xLimits = max(abs(field(:))) .* [ -1 1 ] ;
+end
+
+assert( length(Params.xLimits) == 2 ) ;
+
+
+if  ~myisfield( Params, 'xTick' ) 
+    midPoint = (max(Params.xLimits) + min(Params.xLimits))/2 ;
+    Params.xTick = [round(Params.xLimits(1)/2) midPoint round(Params.xLimits(2)/2)] ;
+end
+
+
+if  ~myisfield( Params, 'yAxisLocation' ) || isempty(Params.yAxisLocation)
+    Params.yAxisLocation = DEFAULT_YAXISLOCATION ;
+end
+
+if  ~myisfield( Params, 'fontSize' ) || isempty(Params.fontSize)
+    Params.fontSize = DEFAULT_FONTSIZE ;
+end
+
+if  ~myisfield( Params, 'textPosition' ) || isempty(Params.textPosition) || ...
+    ~myisfield( Params, 'textContent' ) || isempty(Params.textContent)
+    Params.isTextBox = DEFAULT_ISTEXTBOX ;
+else
+    Params.isTextBox = true;
+end
+
+scnsize = get(0,'ScreenSize');
+figure('Color',[1 1 1],...
+    'Position',scnsize-[-30 -40 60 120]);
+
+if ~myisfield( Params, 'binWidth') || isempty( Params.binWidth )
+    Histo = histogram( field, 'BinMethod', 'sqrt' ) ;
+    Params.nBins = ceil( sqrt(numel(field(:)))) ;
+else
+    Histo = histogram( field, Params.nBins, 'BinWidth', Params.binWidth );
+end
+
+if ~myisfield( Params, 'yLimits' )
+    Params.yLimits = [ min( Histo.Values ) round(1.05*max( Histo.Values ) ) ] ;
+end
+
+if  ~myisfield( Params, 'yTick' ) 
+    midPoint = round((max(Params.yLimits) + min(Params.yLimits))/2) ;
+    Params.yTick = [Params.yLimits(1) midPoint Params.yLimits(2)] ;
+end
+
+
+disp('Plot Params :')
+disp(' ')
+disp(' .xLimits')
+disp([' ' num2str(Params.xLimits)])
+disp(' .yLimits')
+disp([' ' num2str(Params.yLimits)])
+disp(' .nBins')
+disp([' ' num2str(Params.nBins)])
+
+Histo
+
+
+ylabel('Counts');
+xlabel('Field (Hz)')
+
+axis([Params.xLimits Params.yLimits]) ;
+
+ax = gca ;
+
+ax.XTick = Params.xTick ; 
+ax.YTick = Params.yTick ;
+
+ax.FontSize = Params.fontSize ;
+ax.AmbientLightColor =[1 1 1];
+
+ax.YAxisLocation = Params.yAxisLocation ; 
+
+if Params.isTextBox
+    text(Params.textPosition(1),Params.textPosition(2),...
+        Params.textContent,...
+        'FontSize', Params.fontSize ) ;
+end
+
+end
 
 end
 % =========================================================================

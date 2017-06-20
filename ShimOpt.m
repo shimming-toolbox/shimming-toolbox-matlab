@@ -494,17 +494,34 @@ shimSupport = sum(abs(Shim.img),4) > Shim.getnactivechannels()*eps  ;
 
 end
 % =========================================================================
-function currents = computerealtimeupdate( Shim, Params )
+function currents = computerealtimeupdate( Shim, p )
 % COMPUTEREALTIMEUPDATE
+% 
+% Usage
+% 
+% if nargin === 1
 %
-% currents = COMPUTEREALTIMEUPDATE( Shim, pressures, Params ) ;
+% currents = COMPUTEREALTIMEUPDATE( Shim )
+%
+%   currents = Shim.Model.dcCurrentOffsets + Shim.Model.updateOperator * Shim.Tracker.Data.p(end) ; 
+% 
+% if nargin == 2
+%
+% currents = COMPUTEREALTIMEUPDATE( Shim, p ) 
+%
+%   currents = Shim.Model.dcCurrentOffsets + Shim.Model.updateOperator * p ; 
 
-% if Params.extrapolationOrder == 0
+if nargin == 2
 
     currents = Shim.Model.dcCurrentOffsets + ...
         Shim.Model.updateOperator * Shim.Tracker.Data.p(end) ; 
 
-% else
+else
+
+    currents = Shim.Model.dcCurrentOffsets + ...
+        Shim.Model.updateOperator * p ; 
+end
+
 %     currents = Shim.Model.dcCurrentOffsets + ...
 %         Shim.Model.updateOperator * Shim.Tracker.predictmeasurement( ...  )
 

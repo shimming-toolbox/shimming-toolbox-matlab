@@ -171,7 +171,7 @@ function [p] = getupdate( Tracker )
 
 assert( strcmp( Tracker.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
 
-p = fscanf( Tracker.ComPort,'%f') ;
+p = fscanf( Tracker.ComPort,'%f',[1 1]);
 
 end  
 % =========================================================================
@@ -206,6 +206,14 @@ function [pressureLog, sampleTimes] = recordandplotpressurelog( Tracker, Params 
 %   .runTime 
 %       Total sampling time in seconds.
 %       default = 30
+%
+%   .isPlottingInRealTime
+%       [default : true ]
+%
+%   .refreshRate  
+%       Rate at which the real-time display refreshes. 
+%       Problems may arise if this is too fast!
+%       [default : 4 Hz ]
 
 assert( strcmp( Tracker.ComPort.Status, 'closed' ), 'Error: Serial port is open/in use.' );
 
@@ -253,6 +261,7 @@ while ~isUserSatisfied
     fprintf(['\n ----- \n Plotting pressure for user verification... \n']) ;
     figure ;
     plot( sampleTimes, Tracker.Data.p, '+' ) ;
+
     if Params.isSavingData
         title( Params.pressureLogFilename ) ;
     else
@@ -291,9 +300,19 @@ function [Tracker] = recordpressurelog( Tracker, Params )
 % Params
 %   .runTime
 %       [default : 30 s]
+%
+%   .isPlottingInRealTime
+%       [default : true ]
+%
+%   .refreshRate  
+%       Rate at which the real-time display refreshes. 
+%       Problems may arise if this is too fast!
+%       [default : 4 Hz ]
 
 DEFAULT_RUNTIME = 30 ; % [units : s]
 
+DEFAULT_ISPLOTTINGINREALTIME = true ; 
+DEFAULT_REFRESHRATE          = 4 ; % [units : Hz]
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;
 end
@@ -301,23 +320,78 @@ end
 if  ~myisfield( Params, 'runTime' ) || isempty(Params.runTime)
     Params.runTime = DEFAULT_RUNTIME ;
 end
+
+if  ~myisfield( Params, 'isPlottingInRealTime' ) || isempty(Params.isPlottingInRealTime)
+    Params.isPlottingInRealTime = DEFAULT_ISPLOTTINGINREALTIME ;
+end
+
+if  ~myisfield( Params, 'refreshRate' ) || isempty(Params.refreshRate)
+    Params.refreshRate = DEFAULT_REFRESHRATE ;
+end
     
 % ------- 
-StopButton = stoploop({'Stop recording'}) ;
+StopButton     = stoploop({'Stop recording'}) ;
 Tracker.Data.p = [] ;
+sampleIndices  = [] ;
 
 nSamples = Params.runTime / (Tracker.Specs.dt/1000) ;
-iSample  = 1 ; 
+iSample  = 0 ; 
 
 isTracking = Tracker.begintracking() ;
 
 assert(isTracking, 'Could not begin tracking. Check device connection.')
-while ( iSample < nSamples ) && ~StopButton.Stop()
 
-    Tracker.Data.p(end+1) = Tracker.getupdate() ;
-    iSample = iSample + 1 ;
+if Params.isPlottingInRealTime
+
+    % ------- 
+    % figure
+    figureHandle = figure('NumberTitle','off',...
+        'Name','Sonde de respiration',...
+        'Color',[0 0 0],'Visible','off');
+        
+    % Set axes
+    axesHandle = axes('Parent',figureHandle,...
+        'YGrid','on',...
+        'YColor',[0.9725 0.9725 0.9725],...
+        'XGrid','on',...
+        'XColor',[0.9725 0.9725 0.9725],...
+        'Color',[0 0 0]);
+
+    hold on;
+        
+    plotHandle = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
+        
+    xlim(axesHandle,[0 nSamples]);
+        
+    title('Respiration Tracker','FontSize',15,'Color',[1 1 0]);
+    xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+    ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+
+    drawnow limitrate; 
+    set(figureHandle,'Visible','on');
 
 end
+
+nSamplesBetweenRefresh = (1/Params.refreshRate)/(Tracker.Specs.dt/1000) ;
+
+while ( iSample < nSamples ) && ~StopButton.Stop()
+
+    iSamplesBetweenRefresh = 0;
+
+    for iSamplesBetweenRefresh = 1 : nSamplesBetweenRefresh 
+        
+        iSample = iSample + 1 ;
+        Tracker.Data.p(end+1) = Tracker.getupdate() ;
+        sampleIndices(end+1)  = iSample ;
+
+    end
+
+    if Params.isPlottingInRealTime
+        set(plotHandle,'YData',Tracker.Data.p,'XData',sampleIndices);
+    end
+
+end
+
 Tracker.stoptracking();
 
 StopButton.Clear() ;
