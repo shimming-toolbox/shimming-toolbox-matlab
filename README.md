@@ -30,9 +30,13 @@ Series of classes pertaining to shimming:
 *Calibration - for creating shim reference maps used in optimization.
 Subclass of MaRdI.*
 
+**Tracking( )**
+
+*Dynamic tracking of resonance offsets (for now: only subject respiration vis-a-vis the respiratory probe...).*
+
 **ProbeTracking( )**
 
-*Recording pressure-sensing respiratory probe.*
+*Recording pressure-sensing respiratory probe. Subclass of Tracking.*
 
 **ShimSpecs( )**
 
@@ -62,7 +66,7 @@ https://www.mathworks.com/help/matlab/matlab_oop/comparing-handle-and-value-clas
 
 
 =========================================================================
-###Updated::20161120::ryan.topfer@polymtl.ca
+###Updated::20170620::ryan.topfer@polymtl.ca
 
 ## Todo...
 

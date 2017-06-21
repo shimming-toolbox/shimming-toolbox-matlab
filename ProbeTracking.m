@@ -372,6 +372,9 @@ if Params.isPlottingInRealTime
 
 end
 
+% for real-time plotting, updating @the same rate as the pressure samples
+% (100 Hz) poses a problem (computer can't seem to keep up with the incoming samples).
+% solution is to update the display ~every so often~ (4x per second seems OK)
 nSamplesBetweenRefresh = (1/Params.refreshRate)/(Tracker.Specs.dt/1000) ;
 
 while ( iSample < nSamples ) && ~StopButton.Stop()
