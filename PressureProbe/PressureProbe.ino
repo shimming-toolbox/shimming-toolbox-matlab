@@ -2,7 +2,7 @@
 
 #include <Wire.h>
 
-//  create an SSC sensor with I2C address 0x78 and power pin 8.
+//  create an SSC sensor with I2C address 0x28 and power pin 8.
 
 SSC ssc(0x28, 8);
 
