@@ -1,29 +1,34 @@
+/* #include "SSC.h" */
+
+#include <Wire.h>
+
+#include <math.h>       /* pow */
+
 int pressurePin = A5; // pressure sensor
-int skip_cmpt;
-int sampling_per;
-int valP = 0;
+int pinBits;
+
 float pinVoltage;
 
-void setup() {
-  // put your setup code here, to run once:
+//  A reading of 1 bit for the ADC corresponds to 0.0048mV
+const float mVPerAdcBit = (5.0 / 1024.0) ;  // milli volts per ADC bit
+
+//  A reading of 1 mV corresponds to 20 mBar ?
+const float mBarPermV = (100.0 / 5.0) ;   
+
+void setup()
+{
+
   Serial.begin(9600);
-  sampling_per=-1;
 
 }
 
-void loop() {
+void loop() 
+{
 
-  if (sampling_per <= 0)
-    { sampling_per = Serial.parseInt();
-      if (sampling_per > 0)
-      { skip_cmpt = sampling_per / 10;
-        Serial.println(skip_cmpt);
-      }
-    }
-    else {
-      Serial.println(checkPressure());
-      delay(10);
-      }
-  // put your main code here, to run repeatedly:
+  Serial.println(checkPressure());
+  delay(10); // in ms
+    /* ssc.update();  */
+    /* Serial.println( ssc.pressure() ); */
+    /* delay(10); // in ms */
 
 }

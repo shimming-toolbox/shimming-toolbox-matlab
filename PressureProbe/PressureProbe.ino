@@ -2,6 +2,8 @@
 
 #include <Wire.h>
 
+#include <math.h>       /* pow */
+
 //  create an SSC sensor with I2C address 0x28 and power pin 8.
 
 SSC ssc(0x28, 8);
@@ -9,6 +11,14 @@ SSC ssc(0x28, 8);
 void setup() 
 {
 
+// ------- 
+// See Honeywell SSC series Datasheet for specifications
+  const uint16_t AdcResolution = pow(2, 14) ;
+
+  const float minPressure      = 0.0 ; // kPa 
+  const float maxPressure      = 10.0 ; // kPa
+
+// ------- 
   Serial.begin(9600); //
 
   Wire.begin();
@@ -16,10 +26,10 @@ void setup()
   //  set min / max reading and pressure, see datasheet for the values for your sensor
 
   ssc.setMinRaw(0);
-  ssc.setMaxRaw(16383);
+  ssc.setMaxRaw(AdcResolution - 1);
 
-  ssc.setMinPressure(0.0);
-  ssc.setMaxPressure(996.0);
+  ssc.setMinPressure(minPressure);
+  ssc.setMaxPressure(maxPressure); 
 
   //  start the sensor
   ssc.start();

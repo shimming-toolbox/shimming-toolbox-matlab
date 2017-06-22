@@ -59,7 +59,7 @@ Shims.Com.byteOrder   = 'bigEndian' ;
 
 % As specified in the manual, min delay (in seconds) between transmission and
 % reception of data is 0.001 s. However, resetting shims at this interval
-% causes a fatal system error (84). 0.125 s appears to be about the min
+% causes a fatal system error (84). 0.25 s appears to be about the min
 % delay time that won't eventually result in an error.
 Shims.Com.txRxDelay       = 0.001 ; % [units: s]
 Shims.Com.mxdUpdatePeriod = 0.250 ; % [units: s]

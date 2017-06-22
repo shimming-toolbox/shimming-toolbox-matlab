@@ -116,7 +116,6 @@ disp('Connecting to respiratory probe...')
 
 while(~isTracking && iAttempt <= maxCommunicationAttempts )
 
-    % Send refresh time 
     disp(['Attempt #' num2str(iAttempt)]);    
     
     firstWord = fscanf( Tracker.ComPort, '%f') 

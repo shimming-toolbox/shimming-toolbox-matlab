@@ -173,7 +173,7 @@ function [] = delete( Shim )
 % 
 % DELETE( Shim )
 % 
-% Destructor. Calls Probe.deletecomport( ) 
+% Destructor. Calls Probe.deletecomport( ) followed by clear Shim
 
 if ~isempty( Shim.Tracker )
     Shim.Tracker.delete();
@@ -183,19 +183,22 @@ clear Shim ;
 
 end
 % =========================================================================
-function Shim = calibraterealtimeupdates( Shim, Params )
+function Params = calibraterealtimeupdates( Shim, Params )
 %CALIBRATEREALTIMEUPDATES
 % 
-% CALIBRATEREALTIMEUPDATES asks user to select the median Tracker measurement
+% CALIBRATEREALTIMEUPDATES asks user to select the median tracker measurement
 % from the measurement logs corresponding to the inspired & expired field maps.
 % From these, and the associated optimal currents for the 2 respiratory states,
 % the following function calls are made:
 %
-% Shim.Opt.setcouplingcofficients()
-% Shim.Opt.setdccurrentoffsets()
-% Shim.Opt.setupdateoperator()
+% --> Shim.Opt.setcouplingcofficients()
+% --> Shim.Opt.setdccurrentoffsets()
+% --> Shim.Opt.setupdateoperator()
+% 
 %
-% Shim = CALIBRATEREALTIMEUPDATES( Shim, Params ) 
+% Usage
+%
+% Params = CALIBRATEREALTIMEUPDATES( Shim, Params ) 
 %
 %   Params.
 %       .Inspired
@@ -205,6 +208,11 @@ function Shim = calibraterealtimeupdates( Shim, Params )
 %       .Expired
 %           .currents
 %           .measurementLog
+% 
+% The returned Params struct has additional fields (Params.Inspired.medianP,
+% and Params.Expired.medianP) corresponding to the user-selected medians (e.g.
+% pressures)
+
 close all; 
 ShimUse.display( ['\n ------- \n ' ...
     'Determine median measurement over inspired apnea : \n \n '] ) ;
@@ -239,12 +247,12 @@ Shim.setupdateoperator() ;
 
 end
 % =========================================================================
-function Shim = setcouplingcoefficients( Shim, ...
+function [] = setcouplingcoefficients( Shim, ...
                     currentsInspired, currentsExpired, ...
                     pInspired, pExpired )
 %SETCOUPLINGCOEFFICIENTS
 %
-% Shim = SETCOUPLINGCOEFFICIENTS( Shim, iIn, iEx, pIn, pEx )
+% [] = SETCOUPLINGCOEFFICIENTS( Shim, iIn, iEx, pIn, pEx )
 %
 % iIn & iEx are vectors of optimal currents for inspired and expired fields.
 % pIn & pEx the associated pressures (scalars)
@@ -258,14 +266,14 @@ Shim.Model.couplingCoefficients = ...
 
 end
 % =========================================================================
-function Shim = setdccurrentoffsets( Shim, ...
+function [] = setdccurrentoffsets( Shim, ...
                     currentsInspired, currentsExpired, ...
                     pInspired, pExpired )
 %SETDCCURRENTOFFSETS
 % 
 % Compute and set optimal shim DC current offsets (bias)
 %
-% Shim = SETDCCURRENTOFFSET( Shim, iIn, iEx, pIn, pEx  )
+% [] = SETDCCURRENTOFFSET( Shim, iIn, iEx, pIn, pEx  )
 %
 % Sets Shim.Model.dcCurrentsOffsets
 
@@ -280,10 +288,10 @@ Shim.Model.dcCurrentOffsets = X*shimFieldOffset ;
 
 end
 % =========================================================================
-function Shim = interpolatetoimggrid( Shim, Field )
+function [] = interpolatetoimggrid( Shim, Field )
 %INTERPOLATETOIMGGRID 
 %
-% Shim = INTERPOLATETOIMGGRID( Shim, Field )
+% [] = INTERPOLATETOIMGGRID( Shim, Field )
 %
 % Interpolates Shim.img (reference maps) to the grid (voxel positions) of
 % MaRdI-type Img
@@ -303,10 +311,10 @@ Shim.resliceimg( X, Y, Z ) ;
 
 end
 % =========================================================================
-function Shim = setoriginalfield( Shim, Field )
+function [] = setoriginalfield( Shim, Field )
 %SETORIGINALFIELD 
 %
-% Shim = SETORIGINALFIELD( Shim, Field )
+% [] = SETORIGINALFIELD( Shim, Field )
 %
 % Sets Shim.Field
 %
@@ -316,10 +324,10 @@ Shim.Field = Field ;
 
 end
 % =========================================================================
-function Shim = setshimvolumeofinterest( Shim, mask )
+function [] = setshimvolumeofinterest( Shim, mask )
 %SETSHIMVOLUMEOFINTEREST 
 % 
-% Shim = SETSHIMVOLUMEOFINTEREST( Shim, mask )
+% [] = SETSHIMVOLUMEOFINTEREST( Shim, mask )
 %
 % Sets Shim.Field.Hdr.MaskingImage
 %
@@ -330,13 +338,13 @@ Shim.Field.Hdr.MaskingImage = mask ;
 
 end
 % =========================================================================
-function Shim = setforwardmodelfield( Shim )
+function [] = setforwardmodelfield( Shim )
 % SETFORWARDMODELFIELD
 %
-% Shim = SETFORWARDMODELFIELD( Shim ) ;
+% [] = SETFORWARDMODELFIELD( Shim ) ;
 %
-% Predicts shim field (output: Shim.Model.field) for given set of currents 
-% (input: Shim.Model.currents)
+% Sets Shim.Model.field --- the predicted shim field for the *current* set of currents 
+% (held in Shim.Model.currents)
     
 A = Shim.getshimoperator() ;
 
@@ -423,10 +431,10 @@ end
 
 end
 % =========================================================================
-function Shim = setupdateoperator( Shim )
+function [] = setupdateoperator( Shim )
 % SETUPDATEOPERATOR
 %
-% Shim = SETUPDATEOPERATOR( Shim ) ;
+% [] = SETUPDATEOPERATOR( Shim ) ;
 %
 % Calls Shim.getupdateoperator() to set field Shim.Model.updateOperator
 
