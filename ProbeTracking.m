@@ -549,7 +549,7 @@ else
         [pressureLog] = Tracking.loadmeasurementlog( pressureLogFilename ) ;
     elseif nargin == 2
         [pressureLog, sampleTimes] = ...
-            Tracking.loadmeasurementlog( pressureLogFilename, sampleTimesFilename )
+            Tracking.loadmeasurementlog( pressureLogFilename, sampleTimesFilename ) ;
     end
 end
 

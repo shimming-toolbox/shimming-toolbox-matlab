@@ -59,7 +59,7 @@ if nargin == 1 && ~isempty(dataLoadDirectory)
     end
 
     Img.Hdr      = dicominfo( [ dataLoadDirectory '/' listOfDicoms(1).name] ) ;
-
+    
     Img.img      = double( dicomread( [ dataLoadDirectory '/' listOfDicoms(1).name] ) )  ;
 
     Img.Hdr.NumberOfSlices = uint16( length(listOfDicoms) ) ;
@@ -76,7 +76,7 @@ if nargin == 1 && ~isempty(dataLoadDirectory)
         Img = reshapemosaic( Img ) ;
 
     end
-        
+
     Img = Img.scaleimgtophysical( Params ) ;   
 
     if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
@@ -165,10 +165,6 @@ function Img = scaleimgtophysical( Img, Params )
 % Img = SCALEIMGTOPHYSICAL( Img, Params ) 
 
 DEFAULT_ISUNDOING              = false ;
-DEFAULT_ISNORMALIZINGMAGNITUDE = true ;
-
-DEFAULT_RESCALEINTERCEPT = 0 ;
-DEFAULT_RESCALESLOPE     = 1 ;
 
 if (nargin < 2) || isempty( Params ) 
     Params.dummy = [] ;
@@ -178,45 +174,53 @@ if  ~myisfield( Params, 'isUndoing' ) || isempty( Params.isUndoing )
     Params.isUndoing = DEFAULT_ISUNDOING ;
 end
 
-if  ~myisfield( Params, 'isNormalizingMagnitude' ) || isempty( Params.isNormalizingMagnitude )
-    Params.isNormalizingMagnitude = DEFAULT_ISNORMALIZINGMAGNITUDE ;
-end
-
-if  ~myisfield( Img.Hdr, 'RescaleIntercept' ) || isempty( Img.Hdr.RescaleIntercept )
-    Img.Hdr.RescaleIntercept = DEFAULT_RESCALEINTERCEPT ;
-end
-
-if ~myisfield( Img.Hdr, 'RescaleSlope' ) || isempty( Img.Hdr.RescaleSlope )
-    Img.Hdr.RescaleSlope = DEFAULT_RESCALESLOPE ;
-end
 
 if ~Params.isUndoing
     
-    Img.img = (Img.Hdr.RescaleSlope .* double( Img.img ) ...
-                + Img.Hdr.RescaleIntercept)/double(2^Img.Hdr.BitsStored) ;
-
-    % note: the replacement of Hdr.ImageType here is invalid.
-    if ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) ) % is raw SIEMENS phase
-        Img.img            = pi*Img.img ; % scale to rad
-        Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\P\' ; 
-        Img.Hdr.PixelRepresentation = uint8(1) ; % i.e. signed 
-    
-    else ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) ) % is raw SIEMENS mag
+    if ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) ) % is raw SIEMENS mag
         
+        DEFAULT_ISNORMALIZINGMAGNITUDE = true ;
+        
+        if  ~myisfield( Params, 'isNormalizingMagnitude' ) || isempty( Params.isNormalizingMagnitude )
+            Params.isNormalizingMagnitude = DEFAULT_ISNORMALIZINGMAGNITUDE ;
+        end
+            
         if Params.isNormalizingMagnitude
             Img = Img.normalizeimg() ;
         end
 
         Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\M\' ; 
-    end
+        
+
+    elseif ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) ) % is raw SIEMENS phase
     
+        DEFAULT_RESCALEINTERCEPT = -(2^12) ;
+        DEFAULT_RESCALESLOPE     = 2 ;
+        
+        if  ~myisfield( Img.Hdr, 'RescaleIntercept' ) || isempty( Img.Hdr.RescaleIntercept )
+            Img.Hdr.RescaleIntercept = DEFAULT_RESCALEINTERCEPT ;
+        end
+
+        if ~myisfield( Img.Hdr, 'RescaleSlope' ) || isempty( Img.Hdr.RescaleSlope )
+            Img.Hdr.RescaleSlope = DEFAULT_RESCALESLOPE ;
+        end
+
+        Img.img = (Img.Hdr.RescaleSlope .* double( Img.img ) ...
+                    + Img.Hdr.RescaleIntercept)/double(2^Img.Hdr.BitsStored) ;
+    
+
+        Img.img            = pi*Img.img ; % scale to rad
+        Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\P\' ; 
+        Img.Hdr.PixelRepresentation = uint8(1) ; % i.e. signed 
+    
+    else 
+        error('Unknown Hdr.ImageType or invalid .Hdr') ;
+    end
+
     Img.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
 
-    % if ~isempty( strfind( Img.Hdr.ImageType, 'FREQUENCY\' ) )
-    %     Img.Hdr.PixelComponentPhysicalUnits = '0005H' ; % i.e. Hz
-    % end
-
-else
+elseif Params.isUndoing
+    
     Img.Hdr.RescaleIntercept = min( Img.img(:) ) ;
     Img.img                  = Img.img - Img.Hdr.RescaleIntercept ;
     Img.Hdr.RescaleSlope     = max( Img.img(:) )/double(2^Img.Hdr.BitsStored ) ;
@@ -231,7 +235,7 @@ function Img = normalizeimg( Img )
 %
 % Img = NORMALIZEIMG( Img )
 
-Img.img = Img.img/max(Img.img(:)) ; % normalize 
+Img.img = double(Img.img)/max(Img.img(:)) ; % normalize 
 
 end
 % =========================================================================

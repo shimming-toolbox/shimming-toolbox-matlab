@@ -520,6 +520,9 @@ function [predictedField, Stats] = predictshim( Shim )
 %PREDICTSHIM 
 %
 % [predictedField, Stats] = PREDICTSHIM( Shim ) ;
+%
+% where
+% predictedField = mask .* ( Shim.Field.img + Shim.Model.field ) ;
 
 
 mask = logical( Shim.Field.Hdr.MaskingImage ) ;
@@ -544,6 +547,8 @@ end
 function [f0, f0Voi, f0VoiShimmed] = optimizelarmor( Shim, voi )
 %OPTIMIZELARMOR 
 %
+% [f0, f0Voi, f0VoiShimmed] = OPTIMIZELARMOR( Shim, voi ) 
+
 
 voi = logical( voi ) ;
 

@@ -337,22 +337,25 @@ if isTracking
              % 1st order corr
              p = p + delay*dot( Params.filterWeights(:,2), rawMeasurementLog( (iSample - Params.nSamplesFilter + 1) : iSample ) ) ;
              %end
-             p = clipvalue( p ) ;
 
             Shim.Opt.Tracker.Data.p(iUpdate) = p ;
 
-            currents = Shim.Opt.computerealtimeupdate( ) 
         else
 
             Shim.Opt.Tracker.Data.p(iUpdate) = rawMeasurementLog(iSample) ;
 
-            currents = Shim.Opt.computerealtimeupdate(  ) ;
         end
         
-        % currents = limitcurrents( currents ) ;
-        currentsNorm = norm(currents) ; 
+         if Params.isClipping
+             Shim.Opt.Tracker.Data.p(iUpdate) = clipvalue( Shim.Opt.Tracker.Data.p(iUpdate) ) ;
+         end
+
+        currents = Shim.Opt.computerealtimeupdate(  ) ;
         
-        Shim.Com.setandloadallshims( currents ) ;
+        % currents = limitcurrents( currents ) ;
+        currentsNorm = norm(currents) 
+        
+        Shim.Com.setandloadallshims( currents ) 
         
         if Params.isPlottingInRealTime
             set(plotHandle,'YData',Shim.Opt.Tracker.Data.p,'XData',updateTimes);

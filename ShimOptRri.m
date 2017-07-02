@@ -296,7 +296,7 @@ function [C, Ceq] = first_order_norm( currents )
 
 end
     
-Shim = Shim.setforwardmodelfield ;
+Shim.setforwardmodelfield() ;
 
 end
 % =========================================================================
