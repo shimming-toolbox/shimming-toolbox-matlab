@@ -213,24 +213,46 @@ function Params = calibraterealtimeupdates( Shim, Params )
 % and Params.Expired.medianP) corresponding to the user-selected medians (e.g.
 % pressures)
 
-close all; 
-ShimUse.display( ['\n ------- \n ' ...
-    'Determine median measurement over inspired apnea : \n \n '] ) ;
+if ~myisfield( Params, 'Inspired' ) || ~myisfield( Params, 'Expired' )
+    error( 'See HELP ShimOpt.calibraterealtimeupdates' ) ;
+end
 
-Params.Inspired.medianP = ...
-    Shim.Tracker.userselectmedianmeasurement( Params.Inspired.measurementLog ) ; 
+if ~myisfield( Params.Inspired, 'medianP' ) || ~myisfield( Params.Expired, 'medianP' ) 
+% User selects median p-measurement
 
-ShimUse.display( ...
-    ['Median measurement : ' num2str( Params.Inspired.medianP )] ) ;
+    close all; 
+    ShimUse.display( ['\n ------- \n ' ...
+        'Determine median measurement over inspired apnea : \n \n '] ) ;
 
-ShimUse.display( ['\n ------- \n ' ...
-    'Determine median measurement over expired apnea : \n \n '] ) ;
+    Params.Inspired.medianP = ...
+        Shim.Tracker.userselectmedianmeasurement( Params.Inspired.measurementLog ) ; 
 
-Params.Expired.medianP = ...
-    Shim.Tracker.userselectmedianmeasurement( Params.Expired.measurementLog ) ; 
+    ShimUse.display( ...
+        ['Median measurement : ' num2str( Params.Inspired.medianP )] ) ;
 
-ShimUse.display( ...
-    ['Median measurement : ' num2str( Params.Expired.medianP )] ) ;
+    ShimUse.display( ['\n ------- \n ' ...
+        'Determine median measurement over expired apnea : \n \n '] ) ;
+
+    Params.Expired.medianP = ...
+        Shim.Tracker.userselectmedianmeasurement( Params.Expired.measurementLog ) ; 
+
+    ShimUse.display( ...
+        ['Median measurement : ' num2str( Params.Expired.medianP )] ) ;
+else
+
+    ShimUse.display( 'Using user-supplied median p-measurements...' ) ;
+    
+    ShimUse.display( ...
+        ['Inspired : ' ] ) ;
+    ShimUse.display( ...
+        ['Median measurement : ' num2str( Params.Inspired.medianP )] ) ;
+
+    ShimUse.display( ...
+        ['Expired : ' ] ) ;
+    ShimUse.display( ...
+        ['Median measurement : ' num2str( Params.Expired.medianP )] ) ;
+end
+
 
 Shim.setcouplingcoefficients( ...
     Params.Inspired.currents, Params.Expired.currents, ...
@@ -303,6 +325,17 @@ function [] = interpolatetoimggrid( Shim, Field )
 
 [X,Y,Z]      = Field.getvoxelpositions ;
 [X0, Y0, Z0] = Shim.getvoxelpositions ;
+
+% -------
+% translate original coordinates to shifted ref. frame
+dR = Field.Hdr.Private_0019_1014 ; % Private header field indicating shifted position of table w.r.t ISO
+assert( dR(1) == 0, 'Table shifted in L/R direction?' ) ;
+assert( dR(2) == 0, 'Table shifted in A/P direction?' ) ;
+
+if ( dR(3) ~= 0 ) 
+% field positions originally at Z0 have been shifted
+    Shim.Hdr.ImagePositionPatient(3) = Z0 - dR(3) ;   
+end
 
 % check if voxel positions already happen to coincide
 % if all( size(X) == size(X0) )
@@ -719,7 +752,6 @@ Field     = PhaseDiff.scalephasetofrequency( ) ;
 
 
 if Params.isFilteringField
-
 [~,Field] = Field.extractharmonicfield( Params ) ;
 
 end
