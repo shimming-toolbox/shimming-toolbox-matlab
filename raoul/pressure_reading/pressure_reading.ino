@@ -18,7 +18,7 @@ const float mBarPermV = (100.0 / 5.0) ;
 void setup()
 {
 
-  Serial.begin(9600);
+  Serial.begin(115200);
 
 }
 

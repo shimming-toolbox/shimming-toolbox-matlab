@@ -218,6 +218,7 @@ if ~myisfield( Params, 'Inspired' ) || ~myisfield( Params, 'Expired' )
 end
 
 if ~myisfield( Params.Inspired, 'medianP' ) || ~myisfield( Params.Expired, 'medianP' ) 
+    || isempty( Params.Inspired.medianP ) || isempty( Params.Expired.medianP ) 
 % User selects median p-measurement
 
     close all; 
@@ -241,7 +242,7 @@ if ~myisfield( Params.Inspired, 'medianP' ) || ~myisfield( Params.Expired, 'medi
 else
 
     ShimUse.display( 'Using user-supplied median p-measurements...' ) ;
-    
+
     ShimUse.display( ...
         ['Inspired : ' ] ) ;
     ShimUse.display( ...
@@ -334,7 +335,8 @@ assert( dR(2) == 0, 'Table shifted in A/P direction?' ) ;
 
 if ( dR(3) ~= 0 ) 
 % field positions originally at Z0 have been shifted
-    Shim.Hdr.ImagePositionPatient(3) = Z0 - dR(3) ;   
+    display('Correcting for table shift with respect to shim reference images')
+    Shim.Hdr.ImagePositionPatient(3) = Shim.Hdr.ImagePositionPatient(3) - dR(3) ;   
 end
 
 % check if voxel positions already happen to coincide

@@ -54,9 +54,13 @@ methods
 function Tracker = ProbeTracking( Specs )
 %PROBE - ProbeTracking  
 
+
+
+
 if nargin < 1
     Specs = [] ;
 end
+
 
 [Tracker.ComPort, Tracker.Specs] = ProbeTracking.declareprobe( Specs ) ;
 
@@ -419,6 +423,10 @@ function [ComPort, TrackerSpecs] = declareprobe( TrackerSpecs )
 % .dt
 %   Interval between pressure samples [units: ms]
 %   Should be a positive multiple of the minimum period of 10 ms.
+% 
+% .baudRate
+%   default :
+%
 %
 % .portName 
 %   Address of the probe-associated serial port within file system
@@ -432,10 +440,15 @@ ShimUse.display( ['\n----- Pressure probe -----\n'] );
 
 MIN_ARDUINOPERIOD     = 10 ; % [units: ms] 
 DEFAULT_ARDUINOPERIOD = 10 ; % [units: ms] 
+DEFAULT_BAUDRATE      = 115200 ;
 
 if nargin < 1 || isempty(TrackerSpecs)
     ShimUse.display('Default parameters will be used:')
     TrackerSpecs.dummy = [] ;
+end
+
+if ~myisfield( TrackerSpecs, 'baudRate' ) || isempty(TrackerSpecs.baudRate) ...
+    TrackerSpecs.baudRate = DEFAULT_BAUDRATE ;
 end
 
 if  ~myisfield( TrackerSpecs, 'dt' ) || isempty(TrackerSpecs.dt) ...
@@ -522,7 +535,7 @@ end
 
 
 if isAssigningSerialPort
-    ComPort = serial( TrackerSpecs.portName ) ;
+    ComPort = serial( TrackerSpecs.portName, 'BaudRate',  TrackerSpecs.baudRate ) ;
 
     ShimUse.display( [ 'Arduino sampling frequency = ' ...
         num2str(1000/TrackerSpecs.dt) ' Hz'] )
