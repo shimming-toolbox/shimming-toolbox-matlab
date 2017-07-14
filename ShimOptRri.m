@@ -326,7 +326,8 @@ function  [ Params ] = assigndefaultparameters( Params )
 
 % DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161007.mat';
 % DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170410.mat';
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170418.mat';
+% DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170418.mat';
+DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170706.mat';
 DEFAULT_PROBESPECS              = [] ;
 
 DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;

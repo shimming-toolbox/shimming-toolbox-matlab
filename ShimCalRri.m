@@ -59,16 +59,16 @@ if nargin < 1
     % Params = ShimCal.declarecalibrationparameters20161007() ;
     % Params = ShimCalRri.declarecalibrationparameters20170324() ;
     % Params = ShimCalRri.declarecalibrationparameters20170410() ;
-    Params = ShimCalRri.declarecalibrationparameters20170418() ;
+    % Params = ShimCalRri.declarecalibrationparameters20170418() ;
+    Params = ShimCalRri.declarecalibrationparameters20170706() ;
 end
 
 % -------
 % map dB/dI
-[Shim.img, Shim.Hdr] = ShimCalRri.mapdbdi20170410( Params ) ;
+% [Shim.img, Shim.Hdr] = ShimCalRri.mapdbdi20170410( Params ) ;
+[Shim.img, Shim.Hdr] = ShimCalRri.mapdbdi20170706(  ) ;
 
 save( Params.filenameSave ,'Shim');
-
-
 
 
 end
@@ -436,6 +436,26 @@ Params.reliabilityMask(:,:,end-9:end) = 0 ;
 
 end
 % =========================================================================
+function Params = declarecalibrationparameters20170706( )
+
+Params.filenameSave = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170706' ;
+
+% NOTE 
+% Params are otherwise the same as 2017/04/10 but with the extrapolated support
+% of from 2017/04/18 
+%
+% It seems the two in vivo experiments using the 2017/04/10 data (shim037 &
+% shim038) were actually quite accurate. The problem was that the scanner
+% updated the Tx-freq. for the EPI once the shims were ON. So, the shimmed
+% field maps looked pretty good, whereas the EPI were garbage.
+% 
+% This hybrid set of reference maps is a temporary solution for today
+% 2017/07/06 : shim052, 053, 054
+
+
+end
+% =========================================================================
+% =========================================================================
 function [img, Hdr] = mapdbdi20170410( Params ) 
 %MAPDBDI
 % 
@@ -541,11 +561,32 @@ end
 
 end
 % =========================================================================
+function [img, Hdr] = mapdbdi20170706(  ) 
+%MAPDBDI20170706
+%
+% Combining dBdI from 20170410( ) and 20170706
+
+Params.pathToShimReferenceMaps = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170410.mat' ;
+Shims20170410 = ShimOptRri( Params ) ;
+
+Params.pathToShimReferenceMaps = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170418.mat' ;
+Shims20170418 = ShimOptRri( Params ) ;
+
+shimSupport20170410 = Shims20170410.getshimsupport() ;
+shimSupport4d       = repmat( shimSupport20170410, 1, 1, 1, 24 ) ;
+
+% extended region courtesy of the 20170418 ref maps
+img = Shims20170418.img ;
+% interior region via the earlier 20170410 ref maps
+img( shimSupport4d ) = Shims20170410.img( shimSupport4d ) ;
+
+Hdr = Shims20170418.Hdr ;
+
+end
+% =========================================================================
 
 end
 % =========================================================================
 % =========================================================================
 
 end
-
-
