@@ -29,7 +29,10 @@ classdef ShimEval < ShimOpt
 % =========================================================================
 
 properties
-    ShimmedField;
+    Field ; % object of type MaRdI
+    Model ;
+    Tracker ; % object of type Tracking (e.g. ProbeTracking)
+    ShimmedField; % object of type MaRdI
 end
 
 % =========================================================================

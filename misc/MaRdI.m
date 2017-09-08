@@ -476,120 +476,6 @@ function Phase = unwrapphase( Phase, varargin )
     Img.Hdr.SeriesDescription = ['phase_unwrapped_' seriesDescriptionUnwrapper ] ; 
 end
 % =========================================================================
-function [LocalField, BackgroundField] = extractharmonicfield( ...
-        Field, Params )
-%EXTRACTHARMONICFIELD
-%
-% Extract (smooth) harmonic field via RESHARP (Sun, H. Magn Res Med, 2014)
-% ------
-%
-%   Syntax
-%
-%   [LocalField, BkgrField] = EXTRACTHARMONICFIELD( Field, Params )
-%
-%   Returns 2 MaRdI-type Field objects: 
-%       LocalField : LocalField.img is the non-harmonic (high-pass) signal element
-%       BkgrField  : BkgrField.img is the harmonic (low-pass) signal element
-%
-%   Inputs
-%       
-%   Field
-%       MaRdI-type object containing GRE field data in Field.img
-%
-%  Params
-%   .filterRadius 
-%       scalar filter radius [units: mm] 
-%           (default = 4)
-%
-%   .regularization
-%       Tikhonov regularization parameter
-%           (default = 0)
-%
-%   .maxIterations
-%      max iterations of conjugate gradient solver 
-%           (default = 500)
-%
-%   .tolerance
-%      min acceptable discepancy (Ax - b)/|norm(b)| for conjugate gradient solver
-%           (default = 1E-6)
-
-DEFAULT_FILTERRADIUS   = 3;
-DEFAULT_REGULARIZATION = 0 ;
-DEFAULT_MAXITERATIONS = 500 ;
-DEFAULT_TOLERANCE     = 1E-6 ;
-
-if ~myisfield(Params, 'filterRadius') || isempty(Params.filterRadius)
-    Params.filterRadius = DEFAULT_FILTERRADIUS ;
-end
-
-if ~myisfield(Params, 'regularization') || isempty(Params.regularization)
-    Params.regularization = DEFAULT_REGULARIZATION ;
-end
-
-if  ~myisfield( Params, 'maxIterations' ) || isempty(Params.maxIterations)
-    Params.maxIterations = DEFAULT_MAXITERATIONS ;
-end
-
-if  ~myisfield( Params, 'tolerance' ) || isempty(Params.tolerance)
-    Params.tolerance = DEFAULT_TOLERANCE ;
-end
-
-voxelSize  = Field.getvoxelsize() ;
-mask = Field.Hdr.MaskingImage ;
-
-% make spherical/ellipsoidal convolution kernel (ker)
-rx = round(Params.filterRadius/voxelSize(1)) ; 
-ry = round(Params.filterRadius/voxelSize(2)) ;
-rz = round(Params.filterRadius/voxelSize(3)) ;
-
-[X,Y,Z] = ndgrid(-rx:rx,-ry:ry,-rz:rz);
-h = (X.^2/rx^2 + Y.^2/ry^2 + Z.^2/rz^2 <= 1);
-ker = h/sum(h(:));
-
-
-% erode the mask by convolving with the kernel
-reducedMask = shaver( Field.Hdr.MaskingImage, round(Params.filterRadius ./ voxelSize) ) ;  
-
-% cvsize = Field.getgridsize + [2*rx+1, 2*ry+1, 2*rz+1] -1; % linear conv size
-% mask_tmp = real(ifftn(fftn(mask,cvsize).*fftn(ker,cvsize)));
-% mask_tmp = mask_tmp(rx+1:end-rx, ry+1:end-ry, rz+1:end-rz); % same size
-
-
-% circularshift, linear conv to Fourier multiplication
-csh = [rx,ry,rz]; % circularshift
-
-% prepare convolution kernel: delta-ker
-dker = -ker;
-dker(rx+1,ry+1,rz+1) = 1-ker(rx+1,ry+1,rz+1);
-DKER = fftn(dker,Field.getgridsize); % dker in Fourier domain
-
-b = ifftn( conj(DKER).*fftn( circshift( ...
-    reducedMask .* circshift( ifftn( DKER.*fftn(Field.img) ), -csh), csh)));
-b = b(:);
-
-localField = cgs(@Afun, b, Params.tolerance, Params.maxIterations );
-localField = real( reshape( localField, Field.getgridsize)).*reducedMask;
-
-LocalField                       = MaRdI();
-LocalField.Hdr                   = Field.Hdr ;
-LocalField.Hdr.MaskingImage      = reducedMask ;
-LocalField.img                   = reducedMask .* localField;
-
-BackgroundField                  = MaRdI() ;
-BackgroundField.Hdr              = Field.Hdr ;
-BackgroundField.img              = reducedMask .* (Field.img  - localField);
-BackgroundField.Hdr.MaskingImage = reducedMask ;
-
-function y = Afun(x)
-
-    x = reshape( x, Field.getgridsize );
-    y = ifftn( conj(DKER) .* fftn( circshift( reducedMask.* ...
-        circshift(ifftn(DKER.*fftn(x)),-csh),csh))) + Params.regularization*x;
-    y = y(:);
-end
-
-end
-% =========================================================================
 function Field = mapfrequencydifference( Phase1, Phase2 )
 %MAPFREQUENCYDIFFERENCE
 % 
@@ -1232,7 +1118,6 @@ end
 
 
 figure
-Params
 
 imagesc( img, Params.scaling ) ; 
 colormap(Params.colormap); 

@@ -1,4 +1,4 @@
-classdef (Abstract) ShimOpt < MaRdI 
+classdef (Abstract) ShimOpt < FieldEval 
 %SHIMOPT - Shim Optimization
 %
 % .......
@@ -76,7 +76,7 @@ classdef (Abstract) ShimOpt < MaRdI
 %    ShimTest 
 %    ShimUse
 %
-% ShimOpt is a MaRdI subclass [ShimOpt < MaRdI]
+% ShimOpt is a FieldEval subclass [ShimOpt < FieldEval < MaRdI]
 %     
 % =========================================================================
 % Updated::20170214::ryan.topfer@polymtl.ca
@@ -91,6 +91,12 @@ classdef (Abstract) ShimOpt < MaRdI
 %   Should be optional // ShimOpt constructor should not 
 %   necessarily instantiate a ProbeTracking type object, eliciting a msg
 %   "Error: Device not found..." if it isn't connected.
+%   
+%   --> implement   
+%
+%       bool ProbeTracking.checkconnection( )
+%
+%   
 %
 % .....
 % ASSESSSHIMVOLUME()
@@ -111,9 +117,10 @@ classdef (Abstract) ShimOpt < MaRdI
 % =========================================================================
 
 properties
-    Field ; % object of type MaRdI
-    Model ;
+    Field ; % object of type FieldEval
+    Model ; % Modeled quantities for shimming
     Tracker ; % object of type Tracking (e.g. ProbeTracking)
+    ShimmedField; % object of type FieldEval 
 end
 
 % =========================================================================
@@ -168,6 +175,69 @@ end
 
 end
 % =========================================================================
+function [Results] = assessshim( Shim, voi )
+%ASSESSSHIM  
+% 
+% ASSESSSHIM( Shim )
+
+DEFAULT_ISASSESSINGSHIMMEDFIELD = false;
+
+if nargin == 1
+    voi = Shim.Field.Hdr.MaskingImage ;
+end
+
+PredictedField = Shim.predictshimmedfield();
+
+Original  = Shim.Field.assessfielddistribution( voi ) ;
+Predicted = PredictedField.assessfielddistribution( voi ) ;
+
+Results.volume = Original.volume ; 
+
+Results.Std.Original     = Original.std ;
+Results.Std.Predicted    = Predicted.std ;
+
+Results.Std.PredictedImprovement = 100 * (1 - Predicted.std  ./ Original.std  )  ;
+
+Results.Mean.Original    = Original.mean ;
+Results.Mean.Predicted   = Predicted.mean ;
+
+Results.Median.Original  = Original.median ;
+Results.Median.Predicted = Predicted.median ;
+
+Results.Norm.Original    = Original.norm ;
+Results.Norm.Predicted   = Predicted.norm ;
+
+if ~myisfield( Shim, 'ShimmedField' ) || isempty( Shim.ShimmedField )
+    
+   isAssessingShimmedField = DEFAULT_ISASSESSINGSHIMMEDFIELD ;
+
+else
+
+    isAssessingShimmedField = true ;
+    
+    Shimmed = Shim.ShimmedField.assessfielddistribution( voi ) ;
+
+    Results.Std.Shimmed      = Shimmed.std ;
+    Results.Std.ShimmedImprovement = 100 * (1 - Shimmed.std  ./ Original.std  )  ;
+    Results.Mean.Shimmed     = Shimmed.mean ;
+    Results.Median.Shimmed   = Shimmed.median ;
+    Results.Norm.Shimmed     = Shimmed.norm ;
+end
+
+fprintf('\n')
+display( '----- Shim Results -----' )
+fprintf('\n')
+display( '---- St. dev. (Hz) & Improvement (%) -----' )
+display(Results.Std)
+display( '-----  Mean (Hz)   -----' )
+display(Results.Mean)
+display( '----- Median (Hz)  -----' )
+display(Results.Median)
+display( '-----    Norm (Hz) -----' )
+display(Results.Norm)
+
+end
+% =========================================================================
 function [] = delete( Shim )
 %DELETE  
 % 
@@ -217,7 +287,7 @@ if ~myisfield( Params, 'Inspired' ) || ~myisfield( Params, 'Expired' )
     error( 'See HELP ShimOpt.calibraterealtimeupdates' ) ;
 end
 
-if ~myisfield( Params.Inspired, 'medianP' ) || ~myisfield( Params.Expired, 'medianP' ) 
+if ~myisfield( Params.Inspired, 'medianP' ) || ~myisfield( Params.Expired, 'medianP' ) ...
     || isempty( Params.Inspired.medianP ) || isempty( Params.Expired.medianP ) 
 % User selects median p-measurement
 
@@ -353,9 +423,22 @@ function [] = setoriginalfield( Shim, Field )
 %
 % Sets Shim.Field
 %
-% Field is a MaRdI type object with .img in Hz
+% Field is a FieldEval type object with .img in Hz
 
 Shim.Field = Field ;
+
+end
+% =========================================================================
+function [] = setshimmedfield( Shim, Field )
+%SETSHIMMEDFIELD 
+%
+% [] = SETSHIMMEDFIELD( Shim, Field )
+%
+% Sets Shim.ShimmedField
+%
+% Field is a FieldEval type object with .img in Hz
+
+Shim.ShimmedField = Field ;
 
 end
 % =========================================================================
@@ -448,7 +531,7 @@ if ~myisfield( Params, 'maxFieldDifference' ) || isempty( Params.maxFieldDiffere
 end
 
 mask = Shim.getshimsupport() ;
-
+dbstop in ShimOpt at 532;
 if nargin >= 3
 
     mask = mask & logical(Field1.Hdr.MaskingImage) ;
@@ -551,31 +634,19 @@ currents = Shim.Model.dcCurrentOffsets + ...
 
 end
 % =========================================================================
-function [predictedField, Stats] = predictshim( Shim )
-%PREDICTSHIM 
+function [PredictedField, Stats] = predictshimmedfield( Shim )
+%PREDICTSHIMMEDFIELD
 %
-% [predictedField, Stats] = PREDICTSHIM( Shim ) ;
+% [PredictedField] = PREDICTSHIMMEDFIELD( Shim ) ;
+% 
+% Returns FieldEval-type object PredictedField where
 %
-% where
-% predictedField = mask .* ( Shim.Field.img + Shim.Model.field ) ;
+% PredictedField.img = ( Shim.Field.img + Shim.Model.field ) ;
 
+voi = logical( Shim.Field.Hdr.MaskingImage ) ;
 
-mask = logical( Shim.Field.Hdr.MaskingImage ) ;
-
-predictedField = mask .* ( Shim.Field.img + Shim.Model.field ) ;
-
-Stats.Mean = [] ; 
-Stats.Mean.predicted          = mean( predictedField( mask ) ) ;
-Stats.Mean.original           = mean( Shim.Field.img( mask ) ) ;
-Stats.Mean.percentImprovement = ...
-    100*(1-Stats.Mean.predicted/Stats.Mean.original) ;
-
-Stats.Deviation = [] ;
-Stats.Deviation.predicted          = std( predictedField( mask ) ) ;
-Stats.Deviation.original           = std( Shim.Field.img( mask ) ) ;
-Stats.Deviation.percentImprovement = ...
-    100*(1-Stats.Deviation.predicted/Stats.Deviation.original) ;
-
+PredictedField     = Shim.Field.copy() ;
+PredictedField.img = voi .* ( PredictedField.img + Shim.Model.field ) ;
 
 end
 % =========================================================================
@@ -610,258 +681,6 @@ end
 methods(Static=true)
 
 % =========================================================================
-function [Field, Extras] = mapfield( ImgArray, Params, ObjectiveImg )
-% MAPFIELD
-%
-% Field = MAPFIELD( ImgArray ) 
-% Field = MAPFIELD( ImgArray, Params ) 
-% Field = MAPFIELD( ImgArray, Params, ObjectiveImg ) 
-% 
-% ImgArray --- a cell array where the 1st dimension (i.e. row) corresponds to
-% echo number and the index along the second dimension (i=1,2) corresponds to
-% Magnitude & Wrapped Phase respectively (each a MaRdI-type object) 
-%
-% if nEchoes == 1 
-%   (i.e. ImgArray = { Mag, Phase } )
-%   It is assumed that Phase is in fact a phase-difference image.
-%
-% if nEchoes == 2
-%   (i.e. ImgArray = { MagEcho1, PhaseEcho1 ; MagEcho2, PhaseEcho2 } )
-%
-% ObjectiveImg --- a MaRdI-type object *example* image (e.g. EPI volume!) 
-% that, most importantly, has its voxels positioned precisely where the field
-% information/shim is desired. That is, if a spherical harmonic fitting of
-% the field is performed (see below) then the fitted-field will be interpolated
-% at the voxel positions from ObjectiveImg. 
-%
-% What is the immediate purpose of this? To enabled gapped/partial gre_field_map
-% acquisitions in order to reduce the acquisition time for real-time shim training
-% i.e. these generally involve the subject holding their breath, so, for
-% feasibility + patient comfort, the acquisitions should be as brief as
-% possible.
-%
-% Params --- *must* contain the following fields
-%
-% if nEchoes == 1
-%   .echoTimeDifference [units: ms]
-%       
-%
-% Params --- may contain the following fields
-%
-%   .mask
-%       binary array indicating phase region to be unwrapped 
-%       [default: formed by thresholding magnitude images > Params.threshold)
-%
-%   .threshold  
-%   (as a fraction (<1) of max measured magnitude intensity)
-%   Determines the phase region to be unwrapped (i.e. areas of low signal are
-%   ignored) 
-%       [default: 0.01] 
-%
-%   .isFilteringField 
-%       Applies harmonic ('RESHARP', i.e. low-pass) filtering & returns filtered field map.
-%       [default: false]
-%   
-%   .isFittingSphericalHarmonics 
-%       Fits field map to spherical harmonic basis set & returns the fitted field map.
-%       See doc MaRdI.extractharmonicfield() for relevant Params.
-%       [default: false]
-%
-%   .ordersToGenerate
-%       Orders of SH incorporated into fitting 
-%       [default: [0:1:8]]
-
-DEFAULT_ISCORRECTINGPHASEOFFSET        = true ; % deprecated
-DEFAULT_ISUNWRAPPINGECHOESINDIVIDUALLY = false ; % deprecated
-DEFAULT_ISFILTERINGFIELD               = false ;
-DEFAULT_THRESHOLD                      = 0.01 ;
-
-DEFAULT_ISFITTINGSPHERICALHARMONICS    = false ;
-DEFAULT_ORDERSTOGENERATE               = [0:8] ;
-
-assert( (nargin >= 1) && ~isempty( ImgArray ) ) ;
-
-if ~myisfield( Params, 'isCorrectingPhaseOffset' ) || isempty( Params.isCorrectingPhaseOffset ) 
-    Params.isCorrectingPhaseOffset = DEFAULT_ISCORRECTINGPHASEOFFSET ;
-end
-
-if ~myisfield( Params, 'isUnwrappingEchoesIndividually' ) || isempty( Params.isUnwrappingEchoesIndividually ) 
-    Params.isUnwrappingEchoesIndividually = DEFAULT_ISUNWRAPPINGECHOESINDIVIDUALLY ;
-end
-
-if ~myisfield( Params, 'isFilteringField' ) || isempty( Params.isFilteringField ) 
-    Params.isFilteringField = DEFAULT_ISFILTERINGFIELD ;
-end
-
-if ~myisfield( Params, 'threshold' ) || isempty( Params.threshold ) 
-    Params.threshold = DEFAULT_THRESHOLD ;
-end
-
-if ~myisfield( Params, 'isFittingSphericalHarmonics' ) || isempty( Params.isFittingSphericalHarmonics ) 
-    Params.isFittingSphericalHarmonics = DEFAULT_ISFITTINGSPHERICALHARMONICS ;
-end
-
-if ~myisfield( Params, 'ordersToGenerate' ) || isempty( Params.ordersToGenerate ) 
-    Params.ordersToGenerate = DEFAULT_ORDERSTOGENERATE ;
-end
-
-Extras = [] ;
-
-% .......
-nEchoes = size( ImgArray, 1 ) ;
-
-% -------
-% define spatial support for unwrapping
-if ~myisfield( Params, 'mask' ) || isempty( Params.mask )
-
-    Params.mask = ones( ImgArray{1,1}.getgridsize ) ;
-
-    for iEcho = 1 : nEchoes 
-
-        Params.mask = Params.mask .* ( ImgArray{ iEcho, 1 }.img > Params.threshold ) ;
-
-    end
-
-end
-
-
-if nEchoes == 1
-    
-    PhaseDiff = ImgArray{ 1, 2 } ;
-    PhaseDiff.Hdr.EchoTime = Params.echoTimeDifference ;
-
-else
-    
-    % -------
-    % phase difference image via complex division
-    PhaseDiff      = ImgArray{ 1, 2}.copy() ;
-
-    img            = ImgArray{ 1, 1 }.img .* exp(-i*ImgArray{ 1, 2 }.img) ;
-    img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(-i*ImgArray{ 2, 2 }.img) ;
-
-    PhaseDiff.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
-
-    PhaseDiff.Hdr.EchoTime = ( ImgArray{ 1, 2 }.Hdr.EchoTime - ImgArray{ 2, 2 }.Hdr.EchoTime );
-end
-
-% -------
-% 3d path-based unwrapping
-PhaseDiff.Hdr.MaskingImage = Params.mask ;
-
-PhaseDiff = PhaseDiff.unwrapphase(  ) ;
-
-Field     = PhaseDiff.scalephasetofrequency( ) ;
-
-
-if Params.isFilteringField
-[~,Field] = Field.extractharmonicfield( Params ) ;
-
-end
-
-    if Params.isFittingSphericalHarmonics % UNTESTED
-    % -------
-    % fit spherical harmonic basis set to input Field 
-
-    % generates basis set, with field positions same as those of input Field 
-    Shims = ShimOptSHarmonics( Params, Field ) ;
-
-    % calculate fitting coefficients ('currents')
-    Shims = Shims.optimizeshimcurrents( Params ) ;
-    
-    Extras.FieldResidual = Field.img + Shims.Model.field ;
-
-    Field.img = -Shims.Model.field ;
-    
-    if (nargin == 3) & ~isempty( ObjectiveImg )
-        % Interpolate the field @ VoxelPositions
-        %
-        % Main purpose: to enable gapped slices in the field map acquisitions
-        % for real-time shim training --- by reducing nSlices, acq. time is
-        % reduced, & therefore, the necessary duration of the breath hold.
-
-        [X0, Y0, Z0] = Field.getvoxelpositions( ) ; % original
-        [X, Y, Z]    = ObjectiveImg.getvoxelpositions( ) ; % final
-
-        % recalculate the set of harmonics at the given voxel positions      
-        basisFields = ShimOptSHarmonics.generatebasisfields( Params.ordersToGenerate, X, Y, Z ) ;
-        
-        % scale each harmonic by the fitted 'currents' (coefficients)
-        for iHarmonic = 1 : size( basisFields, 4 ) 
-            basisFields(:,:,:, iHarmonic) = Shims.Model.currents(iHarmonic) * basisFields(:,:,:, iHarmonic) ;
-        end
-        
-        Field.img = sum( -basisFields, 4 ) ;
-        
-
-        disp( ['Interpolating phase/field mask...' ]) ;
-            
-        Field.Hdr.MaskingImage = griddata( X0, Y0, Z0, Field.Hdr.MaskingImage, X, Y, Z, 'nearest' ) ;
-
-        % if new positions are outside the range of the original, 
-        % interp3/griddata replaces array entries with NaN
-        Field.Hdr.MaskingImage( isnan( Field.Hdr.MaskingImage ) ) = 0 ; 
-
-        % -------
-        % Update Hdr 
-        %
-        % Note: the Hdr could probably simply be copied from ObjectiveImg but recalculating the entries 
-        % is more general ('extensible') should the future user not have a
-        % fully-formed 'ObjectiveImg' set of dicoms, but merely the target
-        % voxel positions [X,Y,Z]
-        % 
-        % That said, the way SliceLocation is updated below may not always be correct.
-        % (borrowed from MaRdI.resliceimg() )
-        
-        Field.Hdr.ImagePositionPatient( 1 ) = X(1) ; 
-        Field.Hdr.ImagePositionPatient( 2 ) = Y(1) ;
-        Field.Hdr.ImagePositionPatient( 3 ) = Z(1) ;
-
-        %-------
-        % Rows 
-        Field.Hdr.Rows = size(Field.img, 1) ;
-
-        dx = X(2,1,1) - X(1,1,1) ;
-        dy = Y(2,1,1) - Y(1,1,1) ;
-        dz = Z(2,1,1) - Z(1,1,1) ;  
-
-        % vertical (row) spacing
-        Field.Hdr.PixelSpacing(1) = ( dx^2 + dy^2 + dz^2 )^0.5 ; 
-
-        % column direction cosine (expressing angle btw column direction and X,Y,Z axes)
-        Field.Hdr.ImageOrientationPatient(4) = dx/Field.Hdr.PixelSpacing(1) ;
-        Field.Hdr.ImageOrientationPatient(5) = dy/Field.Hdr.PixelSpacing(1) ;
-        Field.Hdr.ImageOrientationPatient(6) = dz/Field.Hdr.PixelSpacing(1) ;
-
-        %-------
-        % Columns 
-        Field.Hdr.Columns = size(Field.img, 2) ;       
-
-        dx = X(1,2,1) - X(1,1,1) ;
-        dy = Y(1,2,1) - Y(1,1,1) ;
-        dz = Z(1,2,1) - Z(1,1,1) ;  
-
-        % horizontal (column) spacing
-        Field.Hdr.PixelSpacing(2) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
-
-        % row direction cosine (expressing angle btw column direction and X,Y,Z axes)
-        Field.Hdr.ImageOrientationPatient(1) = dx/Field.Hdr.PixelSpacing(2) ;
-        Field.Hdr.ImageOrientationPatient(2) = dy/Field.Hdr.PixelSpacing(2) ;
-        Field.Hdr.ImageOrientationPatient(3) = dz/Field.Hdr.PixelSpacing(2) ;
-
-        %-------
-        % Slices
-        Field.Hdr.NumberOfSlices       = size(Field.img, 3) ;
-        Field.Hdr.SpacingBetweenSlices = ( (X(1,1,2) - X(1,1,1))^2 + ...
-                                           (Y(1,1,2) - Y(1,1,1))^2 + ...
-                                           (Z(1,1,2) - Z(1,1,1))^2 ) ^(0.5) ;
-
-        [~, ~, sHat] = Field.getdirectioncosines( ) ;  
-        Field.Hdr.SliceLocation = dot( Field.Hdr.ImagePositionPatient, sHat ) ;
-    end
-
-end
-
-end
 % =========================================================================
 
 end
