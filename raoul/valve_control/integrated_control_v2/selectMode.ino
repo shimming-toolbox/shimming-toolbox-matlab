@@ -28,11 +28,12 @@ void selectMode() {
       }
       lcd.clear();
       lcd.setCursor(0, 0);
-      lcd.print("Set Volume:");
+      lcd.print("Set Mode:");
       lcd.setCursor(0, 1);
-      lcd.print(SelVolume[selectNumber]);
-      lcd.setCursor(6, 1);
-      lcd.print(" mL");
+      //lcd.print(SelVolume[selectNumber]);
+      //lcd.setCursor(6, 1);
+      //lcd.print(" mL");
+      lcd.print(SelModes[selectNumber]);
       delay(50);
     }
     delay(50);

@@ -41,8 +41,9 @@ int valP = 0;
 float pinVoltage;
 int cutime;
 
-int SelVolume[5] = {0, 0, 1000, 1500, 2500};
-int pressureLimit [6] = {0, 6, 30, 30, 6, 30}; // changed initial pressure for dynamic to 6 good eliminate
+int SelVolume[4] = {0, 0, 1000, 2500};
+int SelModes[4] = {0, 0, 1, 2};
+int pressureLimit [6] = {0, 6, 30, 6, 30}; // changed initial pressure for dynamic to 6 good eliminate
 
 void setup() {
   Serial.begin(9600);
@@ -51,7 +52,10 @@ void setup() {
   digitalWrite(statePin, HIGH);
 
   startMessage();
-
+  
+  digitalWrite(solenoidPinOutput, HIGH);
+  delay(3000);
+  digitalWrite(solenoidPinOutput, LOW);
 }
 
 void loop() {
