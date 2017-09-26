@@ -129,27 +129,26 @@ if Params.isGeneratingBasis || Params.isInterpolatingReferenceMaps
 
     assert( (nargin > 1) && ~isempty(Field), 'Must input Field [MaRdi-type object]. See HELP')
     
-    Shim = Shim.setoriginalfield( Field ) ;
+    Shim.setoriginalfield( Field ) ;
 
     if Params.isGeneratingBasis 
-
             [X,Y,Z]  = Field.getvoxelpositions();
             Shim.img = ShimOptSHarmonics.generatebasisfields( Params.ordersToGenerate, X, Y, Z );
             Shim.Hdr = Field.Hdr;
 
     elseif Params.isInterpolatingReferenceMaps
              
-            Shim = interpolatetoimggrid( Shim, Field )
+            interpolatetoimggrid( Shim, Field )
             Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
 
     end
 
 end
 
-
+Params
 end
 % =========================================================================
-function Shim = optimizeshimcurrents( Shim, CgParams )
+function currents = optimizeshimcurrents( Shim, CgParams )
 %OPTIMIZESHIMCURRENTS 
 %
 % Shim = OPTIMIZESHIMCURRENTS( Shim )
@@ -182,7 +181,7 @@ Shim.Model.currents = cgls( A'*M'*M*A, ... % least squares operator
                             zeros( [Shim.getnactivechannels() 1] ), ... % initial model (currents) guess
                             CgParams ) ;
     
-Shim = Shim.setforwardmodelfield ;
+currents = Shim.Model.currents ;
 
 end
 % =========================================================================
@@ -429,6 +428,8 @@ end
 % =========================================================================
 
 end
+% =========================================================================
+% =========================================================================
 
 end
 

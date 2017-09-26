@@ -409,7 +409,7 @@ if ( dR(3) ~= 0 )
     Shim.Hdr.ImagePositionPatient(3) = Shim.Hdr.ImagePositionPatient(3) - dR(3) ;   
 end
 
-% check if voxel positions already happen to coincide
+% TODO check if voxel positions already happen to coincide
 % if all( size(X) == size(X0) )
 %     if ~all( X(:)==X0(:)) || ~
 Shim.resliceimg( X, Y, Z ) ;
@@ -634,7 +634,7 @@ currents = Shim.Model.dcCurrentOffsets + ...
 
 end
 % =========================================================================
-function [PredictedField, Stats] = predictshimmedfield( Shim )
+function [PredictedField] = predictshimmedfield( Shim )
 %PREDICTSHIMMEDFIELD
 %
 % [PredictedField] = PREDICTSHIMMEDFIELD( Shim ) ;
@@ -642,11 +642,17 @@ function [PredictedField, Stats] = predictshimmedfield( Shim )
 % Returns FieldEval-type object PredictedField where
 %
 % PredictedField.img = ( Shim.Field.img + Shim.Model.field ) ;
+%
+% NOTE
+%   The regions of spatial support for Shim.Model.field and Shim.Field.img 
+%   are likely somewhat different (tho hopefully overlapping!).
+%   PredictedField.img does not account for the finite spatial support of 
+%   either field term!
 
-voi = logical( Shim.Field.Hdr.MaskingImage ) ;
+% voi = logical( Shim.Field.Hdr.MaskingImage ) ;
 
 PredictedField     = Shim.Field.copy() ;
-PredictedField.img = voi .* ( PredictedField.img + Shim.Model.field ) ;
+PredictedField.img = ( PredictedField.img + Shim.Model.field ) ;
 
 end
 % =========================================================================
@@ -658,12 +664,12 @@ function [f0, f0Voi, f0VoiShimmed] = optimizelarmor( Shim, voi )
 
 voi = logical( voi ) ;
 
-predictedField = Shim.predictshim() ;
+PredictedField = Shim.predictshimmedfield() ;
 
 f0           = Shim.Field.Hdr.ImagingFrequency *(1E6) ; % [units: Hz]
 
 f0Voi        = f0 + mean( Shim.Field.img( voi ) ) ;
-f0VoiShimmed = f0 + mean( predictedField( voi ) ) ;
+f0VoiShimmed = f0 + mean( PredictedField.img( voi ) ) ;
 
 end
 % =========================================================================
