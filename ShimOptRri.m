@@ -153,6 +153,7 @@ function [currents, currentsExpired] = optimizeshimcurrents( Shim, Params, Field
 Specs = ShimSpecsRri();
 
 DEFAULT_REGULARIZATIONPARAMETER     = 0;
+DEFAULT_ISRETURNINGPSEUDOINVERSE    = 0;
 
 if nargin < 1
     error('Function requires at least 1 argument of type ShimOpt')
@@ -166,6 +167,10 @@ elseif nargin == 2
 elseif nargin == 3
     DEFAULT_ISSOLVINGAUGMENTEDSYSTEM    = true;
     DEFAULT_ISPENALIZINGFIELDDIFFERENCE = true;
+end
+
+if ~myisfield(Params, 'isReturningPseudoInverse') || isempty( Params.isReturningPseudoInverse ) 
+    Params.isReturningPseudoInverse = DEFAULT_ISRETURNINGPSEUDOINVERSE ; 
 end
 
 if ~myisfield(Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerChannel ) 
@@ -284,7 +289,8 @@ end
 %     fclose(fid);
 % end
 
-% dbstop in ShimOptRri at 255    
+% dbstop in ShimOptRri at 296
+
 % ------- 
 % Least-squares solution via conjugate gradients
 Shim.Model.currents = cgls( A'*A, ... % least squares operator
@@ -299,12 +305,14 @@ if Params.isSolvingAugmentedSystem
     [currents, currentsExpired] = splitcurrentvector( currents ) ;
 
 end
+
+
 % ------- 
 % TODO: CHECK SOL. VECTOR FOR CONDITIONS 
 % + allow more optional params for optimization 
 isCurrentSolutionOk = false ;
 
-if ~isCurrentSolutionOk
+if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
     
     [X0,X1,X2,X3] = ShimComRri.getchanneltobankmatrices( ) ;
 

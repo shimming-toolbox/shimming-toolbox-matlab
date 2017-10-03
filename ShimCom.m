@@ -287,10 +287,10 @@ methods(Abstract)
 [isAckReceived] = getsystemheartbeat( Shim ) ;
 %GETSYSTEMHEARTBEAT
 %
-% Queries shim controller and returns true if responsive
+% Queries shim controller and returns TRUE if responsive
 % =========================================================================
 [] = setandloadshim( Shim, varargin )  ;
-%SETANDLOADSHIM     (MXD cmd 0x44 || 0x54)
+%SETANDLOADSHIM    
 %
 % Set shim current (in amps) for single channel 
 % 
@@ -298,9 +298,9 @@ methods(Abstract)
 % [] = SETANDLOADSHIM( Shim, bankIndex, channelIndexByBank, current ) 
 % =========================================================================
 [] = setandloadallshims( Shim, currents )
-%SETANDLOADALLSHIMS     (custom cmd)
+%SETANDLOADALLSHIMS     
 % 
-% Sets all shim buffers (MXD cmd 0x22) and loads the settings (MXD cmd 0x23).
+% Sets all shim buffers and loads the settings.
 % =========================================================================
 [] = resetallshims( Shim ) 
 %RESETALLSHIMS  
@@ -310,7 +310,7 @@ methods(Abstract)
 % [] = RESETALLSHIMS( Shim )
 % =========================================================================
 [ChannelOutput] = getchanneloutput( Shim, iBank, iChannel ) 
-%GETCHANNELOUTPUT   (MXD cmd 0x47)
+%GETCHANNELOUTPUT   
 % 
 % ChannelOutput = getchanneloutput( Shim, bankIndex, channelIndex ) 
 %
@@ -321,7 +321,7 @@ methods(Abstract)
 %   .disspitatedPower [in Watts]
 % =========================================================================
 [ChannelOutputs] = getallchanneloutputs( Shim )
-%GETALLCHANNELSOUTPUTS      (custom cmd)
+%GETALLCHANNELSOUTPUTS      
 %
 % ChannelOutputs = GETALLCHANNELOUTPUTS( Shim ) 
 % 

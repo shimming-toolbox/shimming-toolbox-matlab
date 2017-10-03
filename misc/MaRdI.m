@@ -158,6 +158,40 @@ ImgCopy.Hdr = Img.Hdr ;
 % end
 end
 % =========================================================================
+function Img3 = minus(Img1, Img2)
+%MINUS 
+% 
+% Img3 = MINUS( Img1, Img2 ) 
+%
+% Returns MaRdI-type object Img3
+% where 
+% .Hdr is a copy of Img1.Hdr 
+% and 
+% Img3.img = Img1.img - Img2.img 
+
+Img3 = Img1.copy( ) ;
+
+Img3.img = Img1.img - Img2.img ;
+
+end
+% =========================================================================
+function Img3 = plus(Img1, Img2)
+%PLUS 
+% 
+% Img3 = PLUS( Img1, Img2 ) 
+%
+% Returns MaRdI-type object Img3
+% where 
+% .Hdr is a copy of Img1.Hdr 
+% and 
+% Img3.img = Img1.img + Img2.img 
+
+Img3 = Img1.copy( ) ;
+
+Img3.img = Img1.img - Img2.img ;
+
+end
+% =========================================================================
 function Img = scaleimgtophysical( Img, Params )
 %SCALEIMGTOPHYSICAL
 %

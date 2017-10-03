@@ -138,7 +138,7 @@ if Params.isGeneratingBasis || Params.isInterpolatingReferenceMaps
 
     elseif Params.isInterpolatingReferenceMaps
              
-            interpolatetoimggrid( Shim, Field )
+            interpolatetoimggrid( Shim, Field );
             Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
 
     end
