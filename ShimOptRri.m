@@ -193,6 +193,7 @@ if ~myisfield(Params, 'regularizationParameter') || isempty( Params.regularizati
     Params.regularizationParameter = DEFAULT_REGULARIZATIONPARAMETER ;
 end
 
+
 % Params for conjugate-gradient optimization
 CgParams.tolerance     = 1E-6 ;
 CgParams.maxIterations = 10000 ;    
@@ -220,6 +221,8 @@ else
 end
 
 M  = Shim.gettruncationoperator*W ;
+
+
 A  = M*Shim.getshimoperator ; % masked current-to-field operator
 MA = A;
 
@@ -228,6 +231,7 @@ b = M*(-Shim.Field.img(:)) ;
 solutionVectorLength = Specs.Amp.nActiveChannels ;
 
 if Params.isSolvingAugmentedSystem
+   
    
     % stacked/augmented solution vector length 
     solutionVectorLength = 2*Specs.Amp.nActiveChannels ;
@@ -244,9 +248,18 @@ if Params.isSolvingAugmentedSystem
         P  = sqrt(Params.regularizationParameter) * [MA -MA] ;
         
         % augmented again :     
-        % the added stack of zeros is the target inspired-expired difference-field
-        % P*i = 0
-        b = [b ; zeros(size(M*FieldExpired.img(:))) ];   
+        % the added vector is the target inspired-expired difference-field
+        % ------
+        % changed 20171005 by RT :
+        if ~myisfield(Params, 'targetFieldDifference') || isempty( Params.targetFieldDifference ) 
+            % Previously was targetFieldDifference was a vector of zeros :
+            Params.targetFieldDifference = zeros(size(M*FieldExpired.img(:))) ; 
+            % riro = Shim.Field.img - FieldExpired.img ;
+            % Params.targetFieldDifference = M*riro(:) ;
+        end
+        % -----
+        % dbstop in ShimOptRri at 262
+        b = [b ; Params.targetFieldDifference ];   
         
         A = [ AA; P ] ;
     else

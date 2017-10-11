@@ -452,6 +452,8 @@ function [] = setshimvolumeofinterest( Shim, mask )
 % mask is a binary image (with the same dimensions as Shim.Field.img) of 
 % the desired shim region.
 
+assert( all( size(mask) == size( Shim.Field.img ) ), ...
+    'mask (shim VOI) and target field (Shim.Field.img) must be the same size' ) ; 
 Shim.Field.Hdr.MaskingImage = mask ;
 
 end
@@ -634,7 +636,7 @@ currents = Shim.Model.dcCurrentOffsets + ...
 
 end
 % =========================================================================
-function [PredictedField] = predictshimmedfield( Shim )
+function [PredictedField] = predictshimmedfield( Shim, currents )
 %PREDICTSHIMMEDFIELD
 %
 % [PredictedField] = PREDICTSHIMMEDFIELD( Shim ) ;
@@ -651,8 +653,24 @@ function [PredictedField] = predictshimmedfield( Shim )
 
 % voi = logical( Shim.Field.Hdr.MaskingImage ) ;
 
+if nargin == 2
+    currentsOriginal = Shim.Model.currents ; 
+    Shim.Model.currents = currents ;
+else
+    assert( ~isempty( Shim.Model.currents ), ...
+    'Requires valid set of shim currents in Shim.Model.currents to predict shim field.' ) ;
+end
+    
+% set Shim.Model.field according to Shim.Model.currents
+Shim.setforwardmodelfield() ; 
+
 PredictedField     = Shim.Field.copy() ;
-PredictedField.img = ( PredictedField.img + Shim.Model.field ) ;
+PredictedField.img = ( Shim.Field.img + Shim.Model.field ) ;
+
+if nargin == 2
+% revert entry
+Shim.Model.currents = currentsOriginal ;
+end
 
 end
 % =========================================================================
