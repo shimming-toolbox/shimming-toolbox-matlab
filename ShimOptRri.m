@@ -195,8 +195,8 @@ end
 
 
 % Params for conjugate-gradient optimization
-CgParams.tolerance     = 1E-6 ;
-CgParams.maxIterations = 10000 ;    
+CgParams.tolerance     = 1E-10 ;
+CgParams.maxIterations = 100000 ;    
 
 
 
@@ -246,20 +246,23 @@ if Params.isSolvingAugmentedSystem
         
         % field-difference penalizer
         P  = sqrt(Params.regularizationParameter) * [MA -MA] ;
-        
+        % % current-difference penalizer
+        % P =  sqrt(Params.regularizationParameter) *[eye(24) -eye(24)] ;
+
         % augmented again :     
         % the added vector is the target inspired-expired difference-field
         % ------
         % changed 20171005 by RT :
         if ~myisfield(Params, 'targetFieldDifference') || isempty( Params.targetFieldDifference ) 
-            % Previously was targetFieldDifference was a vector of zeros :
-            Params.targetFieldDifference = zeros(size(M*FieldExpired.img(:))) ; 
+            % Previously was targetDifference was a vector of zeros :
+            Params.targetDifference = zeros(size(M*FieldExpired.img(:))) ; 
             % riro = Shim.Field.img - FieldExpired.img ;
-            % Params.targetFieldDifference = M*riro(:) ;
+            % Params.targetDifference = M*riro(:) ;
+            % Params.targetDifference = zeros(size(P*ones(2*24,1))) ;
         end
         % -----
         % dbstop in ShimOptRri at 262
-        b = [b ; Params.targetFieldDifference ];   
+        b = [b ; Params.targetDifference ];   
         
         A = [ AA; P ] ;
     else
