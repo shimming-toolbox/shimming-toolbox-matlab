@@ -458,7 +458,6 @@ Params.filenameSave = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/Shi
 
 end
 % =========================================================================
-% =========================================================================
 function [img, Hdr] = mapdbdi20170410( Params ) 
 %MAPDBDI
 % 

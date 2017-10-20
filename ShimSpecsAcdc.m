@@ -18,6 +18,9 @@ classdef ShimSpecsAcdc < ShimSpecs
 %       .Com
 %           relating to communication (e.g. RS-232)
 %
+%       .Adc 
+%           relating to analog-to-digital conversion
+%
 %       .Dac 
 %           relating to digital-to-analog conversion
 %   
@@ -46,8 +49,8 @@ methods
 function Shims = ShimSpecsAcdc(  )
 %SHIMSPECS - Shim System Specifications 
     
-Shims.Com.baudRate    = 57600 ;  
-Shims.Com.readTimeout = 500 ; %[units: ms] 
+Shims.Com.baudRate    = 9600 ;  
+% Shims.Com.readTimeout = 500 ; %[units: ms] 
 
 Shims.Com.dataBits    = 8 ;
 Shims.Com.stopBits    = 1 ;
@@ -55,17 +58,18 @@ Shims.Com.flowControl = 'NONE' ;
 Shims.Com.parity      = 'NONE' ;
 Shims.Com.byteOrder   = 'bigEndian' ;
 
-% min delay (in seconds) between transmission and reception of data is 0.001 s
-Shims.Com.txRxDelay       = 0.001 ; % [units: s]
+% min delay (in seconds) between transmission and reception of data is 1 s
+Shims.Com.txRxDelay       = 1 ; % [units: s]
 
-Shims.Amp.maxCurrentPerChannel = [] ; % (absolute) [units: amps]
-Shims.Amp.maxCurrentPerBank    = [] ; % (absolute) [units: amps]
+Shims.Amp.maxVoltagePerChannel = 300 ; % (absolute) [units: mV]
 
-Shims.Amp.nChannels       = [] ;  
-Shims.Amp.nActiveChannels = [] ;
+Shims.Amp.nChannels       = 8 ;  
+Shims.Amp.nActiveChannels = 8 ;
 
-Shims.Dac.resolution = 16 ; % [bits]
-Shims.Dac.maxCurrent = 5 ; % (absolute) [units: amps]
+Shims.Adc.mVPerAdcCount = 2 ;
+
+Shims.Dac.resolution = 12 ; % [bits]
+Shims.Dac.maxVoltage = 4096 ; % (absolute) [units: mV]
 
 end
 % =========================================================================

@@ -231,8 +231,8 @@ Params.isDisplayingProgress = true;
 
 dBdI  = [] ; % change in field per change in shim current
 
-nCurrents       = length( currents ) ;
-nInputFieldMaps = size( fieldMaps, 4 );
+nCurrents       = length( currents ) ; 
+nInputFieldMaps = size( fieldMaps, 4 ) ;
 
 assert( nCurrents == nInputFieldMaps )
 

@@ -1264,21 +1264,23 @@ isMsgRead = false ;
 
 if strcmp( Shims.ComPort.Status, 'closed' ) ;
     fopen( Shims.ComPort ) ;
-else 
-    
-    fwrite( Shims.ComPort, Shims.Data.output, 'uint8' ) ;
-    pause( Shims.Specs.Com.txRxDelay ) ;
-    
-    [Shims.Data.input, bytesRead, msg] = fread( Shims.ComPort, ...
-                              Shims.Params.nBytesToRead,  'uint8' ) ;
-    Shims.Data.input = uint8( Shims.Data.input ) ;
-    
-    if bytesRead > 0
-        isMsgRead = true;
-    else
-        disp('No bytes read')
-    end
+end 
 
+
+
+fwrite( Shims.ComPort, Shims.Data.output, 'uint8' ) ;
+pause( Shims.Specs.Com.txRxDelay ) ;
+
+[Shims.Data.input, bytesRead, msg] = fread( Shims.ComPort, ...
+                          Shims.Params.nBytesToRead,  'uint8' ) ;
+Shims.Data.input = uint8( Shims.Data.input ) ;
+
+
+
+if bytesRead > 0
+    isMsgRead = true;
+else
+    disp('No bytes read')
 end
 
 end
