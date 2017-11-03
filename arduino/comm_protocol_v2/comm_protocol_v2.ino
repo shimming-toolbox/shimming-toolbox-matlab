@@ -79,6 +79,17 @@ float p2 [] = {25.44, -2.726, -32.73, 22.44, 56.36, 19.09, -28.18, 49.09};
   }
   switch (incomingByte) {
           
+    case 'u':
+      sch = Serial.parseInt();
+      Serial.print("CH "); Serial.println(sch);
+      val = Serial.parseFloat();
+      Serial.println(val, 4);
+      //float vOut;
+      vOut = ((1.25 - val * 0.001 * 0.22) * 26214);
+      Serial.println(vOut);
+      DAC.writeUpdateCh(sch - 1, vOut);
+      break;
+          
     case 'q':
       query();
       break;
