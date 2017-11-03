@@ -78,49 +78,9 @@ float p2 [] = {25.44, -2.726, -32.73, 22.44, 56.36, 19.09, -28.18, 49.09};
     Serial.println(incomingByte);
   }
   switch (incomingByte) {
-    case 's':
-      sch = Serial.parseInt();
-      Serial.print("CH "); Serial.println(sch);
-      val = Serial.parseFloat();
-      Serial.println(val, 4);
-      float vOut;
-      vOut = (val * 26214);
-      DAC.writeUpdateCh(sch - 1, vOut);
-      break;
-
-    case 'u':
-      sch = Serial.parseInt();
-      Serial.print("CH "); Serial.println(sch);
-      val = Serial.parseFloat();
-      Serial.println(val, 4);
-      //float vOut;
-      vOut = ((1.25 - val * 0.001 * 0.22) * 26214);
-      Serial.println(vOut);
-      DAC.writeUpdateCh(sch - 1, vOut);
-      break;
-
-    case 'w':
-
-      DAC.writeUpdateCh(0, 1.2540 * 26214.0);
-      DAC.writeUpdateCh(1, 1.2451 * 26214.0);
-      DAC.writeUpdateCh(2, 1.2343 * 26214.0);
-      DAC.writeUpdateCh(3, 1.254 * 26214.0);
-
-      DAC.writeUpdateCh(4, 1.264 * 26214.0);
-      DAC.writeUpdateCh(5, 1.251 * 26214.0);
-      DAC.writeUpdateCh(6, 1.2355 * 26214.0);
-      DAC.writeUpdateCh(7, 1.264 * 26214.0);
-
-      Serial.println("Set all channels at 0A");
-      break;
-
-
+          
     case 'q':
       query();
-      break;
-
-    case 'y':
-      queryVoltage();
       break;
 
     case 'r':
@@ -235,24 +195,6 @@ void query() {
     Serial.print("CH "); Serial.print(chAdr + 5); Serial.print(" set to : ");
     //Serial.print(adc0, 4); Serial.println(" V");
     Serial.print(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 6); Serial.println(" mA");
-  }
-}
-
-void queryVoltage() {
-  Serial.println("Current state");
-  for (int chAdr = 0; chAdr <= 3; chAdr++)
-  {
-    int adc0 = adc1.readADC_SingleEnded(chAdr);
-    Serial.print("CH "); Serial.print(chAdr + 1); Serial.print(" set to : ");
-    Serial.print(adc0, 4); Serial.println(" V");
-    //Serial.print((adc0 * 0.001) , 6); Serial.println(" V");
-  }
-  for (int chAdr = 0; chAdr <= 3; chAdr++)
-  {
-    int adc0 = adc2.readADC_SingleEnded(chAdr);
-    Serial.print("CH "); Serial.print(chAdr + 5); Serial.print(" set to : ");
-    Serial.print(adc0, 4); Serial.println(" V");
-    //Serial.print((adc0 * 0.001), 6); Serial.println(" V");
   }
 }
 
