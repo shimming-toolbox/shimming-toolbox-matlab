@@ -90,6 +90,40 @@ float p2 [] = {25.44, -2.726, -32.73, 22.44, 56.36, 19.09, -28.18, 49.09};
       DAC.writeUpdateCh(sch - 1, vOut);
       break;
           
+    case 'x':
+
+      for (sch = 1; sch <= 8; sch++)
+      {
+        Serial.print("Calibrate CH "); Serial.println(sch);
+
+        for (n_cal = 0; n_cal <= 5; n_cal++)
+        {
+          vOut = ((1.25 - cal_val[n_cal] * 0.001 * 0.22) * 26214);
+          //Serial.println(cal_val[n_cal]);
+          DAC.writeUpdateCh(sch - 1, vOut);
+          delay(1000);
+          if (sch < 5)
+          {
+            int adc0 = adc1.readADC_SingleEnded(sch - 1);
+            Serial.print(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2);
+            Serial.print(", ");
+            //res_val[n_cal] = ((adc0 * 0.001) - 1.25) / 0.22 * 1000;
+          }
+          else
+          {
+            int adc0 = adc2.readADC_SingleEnded(sch - 5);
+            //res_val[n_cal] = ((adc0 * 0.001) - 1.25) / 0.22 * 1000;
+            Serial.print(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2);
+            Serial.print(", ");
+          }
+        }
+        Serial.println('\n');
+      }
+
+      Serial.print('\n');
+      //Serial.print(res_val[n_cal],2);
+      break;
+          
     case 'q':
       query();
       break;
