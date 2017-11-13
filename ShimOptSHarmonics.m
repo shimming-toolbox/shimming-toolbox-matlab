@@ -166,8 +166,8 @@ elseif nargin == 1
 end
 
 % Params for conjugate-gradient optimization
-CgParams.tolerance     = 1E-6 ;
-CgParams.maxIterations = 10000 ;    
+CgParams.tolerance     = 1E-10 ;
+CgParams.maxIterations = 100000 ;    
 
 A = Shim.getshimoperator ;
 M = Shim.gettruncationoperator ;

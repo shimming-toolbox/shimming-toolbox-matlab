@@ -39,7 +39,7 @@ classdef ShimSpecsAcdc < ShimSpecs
 %    ShimSpecsAcdc is a ShimSpecs subclass
 %
 % =========================================================================
-% Updated::20171025::ryan.topfer@polymtl.ca
+% Updated::20171107::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
@@ -65,6 +65,7 @@ Shims.Com.byteOrder   = 'bigEndian' ;
 % min delay (in seconds) between transmission and reception of data is 1 s
 Shims.Com.txRxDelay       = 1 ; % [units: s]
 
+Shims.Amp.maxCurrentPerChannel = 0.400 ; % (absolute) [units: A]
 Shims.Amp.maxVoltagePerChannel = 200 ; % (absolute) [units: mV]
 
 Shims.Amp.nChannels       = 8 ;  

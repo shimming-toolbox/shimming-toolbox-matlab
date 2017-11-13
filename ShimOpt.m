@@ -425,7 +425,7 @@ function [] = setoriginalfield( Shim, Field )
 %
 % Field is a FieldEval type object with .img in Hz
 
-Shim.Field = Field ;
+Shim.Field = Field.copy() ;
 
 end
 % =========================================================================
@@ -438,7 +438,7 @@ function [] = setshimmedfield( Shim, Field )
 %
 % Field is a FieldEval type object with .img in Hz
 
-Shim.ShimmedField = Field ;
+Shim.ShimmedField = Field.copy() ;
 
 end
 % =========================================================================
