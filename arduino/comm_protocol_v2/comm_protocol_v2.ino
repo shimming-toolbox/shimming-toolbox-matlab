@@ -64,24 +64,31 @@ void loop() {
   float vOut;
   char rc;
   float req_val;
+  int n_cal;
+  float res_val[6];
+  float cal_val [] = { -200, -100, 0, 100, 200, 0};
 
-  //float p1[] = {0.6498, 0.65, 0.65, 0.6394, 0.6545, 0.6591, 0.6607, 0.659};
-//float p1[] = {0.6498, 0.65, 0.6454, 0.6394, 0.6409, 0.6591, 0.6607, 0.659};
-float p1[] = {0.6498, 0.65, 0.6454, 0.6394, 0.65, 0.6591, 0.6454, 0.659};
-
-  //float p2 [] = {25.44, -4.546, -24.54, 22.44, 41.82, 19.09, -20.75, 49.09};
-  //float p2 [] = {25.44, -2.726, -23.64, 22.44, 46.36, 19.09, -20.75, 49.09};
-float p2 [] = {25.44, -2.726, -32.73, 22.44, 56.36, 19.09, -28.18, 49.09};
+  float p1[] = {0.65908, 0.65, 0.64545, 0.65, 0.65, 0.64545, 0.64545, 0.65};
+  float p2[] = {26.364, 1.818, -35.456, 25.456, 57.272, 14.544, -32.728, 52.728};
 
   if (Serial.available() > 0) {
     incomingByte = Serial.read();
     Serial.println(incomingByte);
   }
   switch (incomingByte) {
-          
-    case 'u':
+    case 's':
       sch = Serial.parseInt();
       Serial.print("CH "); Serial.println(sch);
+      val = Serial.parseFloat();
+      Serial.println(val, 4);
+      float vOut;
+      vOut = (val * 26214);
+      DAC.writeUpdateCh(sch - 1, vOut);
+      break;
+
+    case 'u':
+      sch = Serial.parseInt();
+      Serial.print("Calibrate CH "); Serial.println(sch);
       val = Serial.parseFloat();
       Serial.println(val, 4);
       //float vOut;
@@ -89,7 +96,7 @@ float p2 [] = {25.44, -2.726, -32.73, 22.44, 56.36, 19.09, -28.18, 49.09};
       Serial.println(vOut);
       DAC.writeUpdateCh(sch - 1, vOut);
       break;
-          
+
     case 'x':
 
       for (sch = 1; sch <= 8; sch++)
@@ -123,9 +130,29 @@ float p2 [] = {25.44, -2.726, -32.73, 22.44, 56.36, 19.09, -28.18, 49.09};
       Serial.print('\n');
       //Serial.print(res_val[n_cal],2);
       break;
-          
+
+    case 'w':
+
+      DAC.writeUpdateCh(0, 1.2540 * 26214.0);
+      DAC.writeUpdateCh(1, 1.2451 * 26214.0);
+      DAC.writeUpdateCh(2, 1.2343 * 26214.0);
+      DAC.writeUpdateCh(3, 1.254 * 26214.0);
+
+      DAC.writeUpdateCh(4, 1.264 * 26214.0);
+      DAC.writeUpdateCh(5, 1.251 * 26214.0);
+      DAC.writeUpdateCh(6, 1.2355 * 26214.0);
+      DAC.writeUpdateCh(7, 1.264 * 26214.0);
+
+      Serial.println("Set all channels at 0A");
+      break;
+
+
     case 'q':
       query();
+      break;
+
+    case 'y':
+      queryVoltage();
       break;
 
     case 'r':
@@ -243,6 +270,24 @@ void query() {
   }
 }
 
+void queryVoltage() {
+  Serial.println("Current state");
+  for (int chAdr = 0; chAdr <= 3; chAdr++)
+  {
+    int adc0 = adc1.readADC_SingleEnded(chAdr);
+    Serial.print("CH "); Serial.print(chAdr + 1); Serial.print(" set to : ");
+    Serial.print(adc0, 4); Serial.println(" V");
+    //Serial.print((adc0 * 0.001) , 6); Serial.println(" V");
+  }
+  for (int chAdr = 0; chAdr <= 3; chAdr++)
+  {
+    int adc0 = adc2.readADC_SingleEnded(chAdr);
+    Serial.print("CH "); Serial.print(chAdr + 5); Serial.print(" set to : ");
+    Serial.print(adc0, 4); Serial.println(" V");
+    //Serial.print((adc0 * 0.001), 6); Serial.println(" V");
+  }
+}
+
 void setCh(int element, float val) {
   //float val = Serial.parseFloat();
   float vOut;
@@ -250,5 +295,4 @@ void setCh(int element, float val) {
   //Serial.println(vOut);
   DAC.writeUpdateCh(element, vOut);
 }
-
 
