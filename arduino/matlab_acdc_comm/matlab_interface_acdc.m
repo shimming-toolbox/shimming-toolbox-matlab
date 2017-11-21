@@ -13,7 +13,7 @@ current_val =[120,100,100,100,100,100,100,100];
 
 %function [ComPort] = initializecomport()
 if ismac
-    portName = '/dev/tty.usbmodem14241'; % Alex's 2015 MacBook Pro -- left USB port
+    portName = '/dev/tty.usbmodem1411'; % Alex's 2015 MacBook Pro -- left USB port
     ComPort = serial( portName,'BaudRate', 115200) ;
 end
 %end
@@ -29,5 +29,7 @@ cmd =strcat(acdc_cmds{ii},{' '},num2str(current_val(ii)));
 pause(0.1);
 disp(cmd);
 fprintf(ComPort,'%s',cmd{1},'sync');
+a = fscanf(ComPort,'%s');
+disp(strcat('Feeedback from serial: ',a));
 %end
 %end
