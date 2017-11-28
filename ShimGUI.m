@@ -16,7 +16,7 @@ function varargout = ShimGUI(varargin)
 %       shimparameters(). Example: see: shimparameters.m
 
 %
-% Last Modified by GUIDE v2.5 27-Nov-2017 16:09:50
+% Last Modified by GUIDE v2.5 28-Nov-2017 13:56:55
 
 
 % Begin initialization code - DO NOT EDIT
@@ -71,6 +71,8 @@ handles.PredictedFieldInspired= [];
 handles.PredictedFieldExpired= [];
 handles.sliceDeleted=[];
 handles.colormap='parula';
+handles.bound=cell(1,1);
+display ('Load your training maps');
 
 guidata(hObject, handles);
 
@@ -147,6 +149,7 @@ ImageField(handles.FieldInspired,handles.Fieldmaps,handles);
 handles.magInspired.img=handles.magInspired.img-0.5;
 handles.magExpired.img=handles.magExpired.img-0.5;
 
+
 guidata(hObject, handles) ;
 
 
@@ -182,15 +185,17 @@ function customROI_Callback(hObject,~, handles)
 
 % Adjust shim VOI based on the rectangular selection on the image.
 
-            for j=1:handles.dim(3);
-                handles.Params.shimVoi(:,:,j)=handles.Params.shimVoi(:,:,j).*handles.Voi;
-            end
-    
             if ~isempty(handles.Voi_exclude);
                 handles.Voi = handles.Voi.*handles.Voi_exclude;
             end
 
-    
+            for j=1:handles.dim(3);
+                handles.Params.shimVoi(:,:,j)=handles.Params.shimVoi(:,:,j).*handles.Voi;
+            end
+   
+
+             handles.bound=bwboundaries(handles.Voi,'noholes');
+             
        switch handles.item_selected
             
           case 'Phase/Inspired'
@@ -267,12 +272,14 @@ handles.PredictedFieldInspired.img = handles.PredictedFieldInspired.img .* mask;
 mask2 = handles.FieldExpired.img;
 mask2(mask2 ~= 0) = 1;
 handles.PredictedFieldExpired.img = handles.PredictedFieldExpired.img .* mask2;
+
             
                 
 switch handles.item_selected
                   
-   case 'Phase/Inspired'
-         ImageField(handles.PredictedFieldInspired,handles.Predicted,handles);   
+   case 'Phase/Inspired'         
+         ImageField(handles.PredictedFieldInspired,handles.Predicted,handles); 
+            
               
    case 'Phase/Expired'
          ImageField(handles.PredictedFieldExpired,handles.Predicted,handles);                                
@@ -285,6 +292,15 @@ switch handles.item_selected
          ImageField(handles.PredictedFieldExpired,handles.Predicted,handles);  
                                               
 end
+
+     if any(handles.sliceSelected == handles.sliceDeleted)==0
+         axes(handles.Predicted);
+            hold on
+         for k = 1:length(handles.bound)
+            boundary = handles.bound{k};     
+            plot(handles.Predicted,boundary(:,2),boundary(:,1), 'Color','black', 'LineWidth', 2);           
+         end
+     end
 guidata(hObject, handles);
 
 
@@ -330,7 +346,7 @@ guidata(hObject,handles);
 
 
 % --- Executes on button press in Clear_Roi.
-function Clear_Roi_Callback(hObject, eventdata, handles)
+function Clear_Roi_Callback(hObject, ~, handles)
 
     
     switch handles.item_selected
@@ -375,11 +391,12 @@ handles.Params.shimVoi(:,:,:)=0;
 handles.PredictedFieldInspired=[];
 handles.PredictedFieldExpired=[];
 handles.sliceDeleted=[];
+handles.bound=[];
 
  guidata(hObject, handles);
  
  % --- Executes on button press in Exclude_From_ROI.
-function Exclude_From_ROI_Callback(hObject, eventdata, handles)
+function Exclude_From_ROI_Callback(hObject, ~, handles)
 % hObject    handle to Exclude_From_ROI (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -397,7 +414,6 @@ function Exclude_From_ROI_Callback(hObject, eventdata, handles)
         
             handles.rectn = imrect(handles.Fieldmaps);
             setColor(handles.rectn,'b');
-            disp(handles.rectn); 
             
             handles.mask = ~handles.rectn.createMask;
             handles.Voi_exclude=handles.Voi_exclude.*handles.mask;
@@ -410,6 +426,7 @@ function Exclude_From_ROI_Callback(hObject, eventdata, handles)
 
     handles.Voi = handles.Voi.*handles.Voi_exclude;
     handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;
+    handles.bound=bwboundaries(handles.Voi);
 
 % Adjust shim VOI based on the rectangular selection on the image.
 
@@ -437,7 +454,7 @@ function Exclude_From_ROI_Callback(hObject, eventdata, handles)
 
 
 
-function Phase_contrast_selector_Callback(hObject, eventdata, handles)
+function Phase_contrast_selector_Callback(hObject, ~, handles)
 
 handles.min_contrast=max(handles.FieldInspired.img(:));
 handles.lim = round(get(hObject,'Value')*(handles.min_contrast - 1) + 1);
@@ -450,7 +467,7 @@ guidata (hObject,handles);
 
 function Mag_contrast_selector_Callback(hObject, ~, handles)
 
-handles.lim_mag = get(hObject,'Value')+0.001;
+handles.lim_mag = get(hObject,'Value');
 if handles.lim_mag <=0.01
     handles.lim_mag=0.011;
 end
@@ -593,74 +610,37 @@ function Imageclear(lim,ax,colormaps,handles)
              
      end
      
-             if ~isempty(handles.Voi)
-                  if nnz(handles.FieldInspired.img(:,:,handles.sliceSelected))~= 0
-                       if any(handles.sliceSelected == handles.sliceDeleted)==0
-                               for i=1:handles.n_region
-                                    rectangle(handles.Fieldmaps,'Position',handles.position{i},'EdgeColor','r','LineWidth',1);
-                               end
-                               for i=1:handles.n_region_exclude
-                                   rectangle(handles.Fieldmaps,'Position',handles.position_exclude{i},'EdgeColor','b','LineWidth',1);
-                               end
-                       end
-                   end
-                   
-             end
+      if ~isempty(handles.Voi)
+            if nnz(handles.FieldInspired.img(:,:,handles.sliceSelected))~= 0
+                  if any(handles.sliceSelected == handles.sliceDeleted)==0
+                        for i=1:handles.n_region
+                              rectangle(handles.Fieldmaps,'Position',handles.position{i},'EdgeColor','r','LineWidth',1);
+                        end
+                        for i=1:handles.n_region_exclude
+                              rectangle(handles.Fieldmaps,'Position',handles.position_exclude{i},'EdgeColor','b','LineWidth',1);
+                        end
+                  end
+            end             
+      end
+         
+      if ~isempty(handles.PredictedFieldInspired)
+           if any(handles.sliceSelected == handles.sliceDeleted)==0
+               if nnz(handles.FieldInspired.img(:,:,handles.sliceSelected))~= 0
+                    axes(handles.Predicted);
+                    hold on
+                    for k = 1:length(handles.bound)
+                       boundary = handles.bound{k};     
+                       plot(handles.Predicted,boundary(:,2),boundary(:,1), 'Color','black', 'LineWidth', 2);           
+                    end
+              end
+           end
+       end
 
 %Functions CreateFcn--------------------------------------------------------
-
-
-function Mag_contrast_selector_CreateFcn(hObject, ~, handles)
-
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-function Phase_contrast_selector_CreateFcn(hObject, ~, handles)
-
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-
-
-function sliceSelector_CreateFcn(hObject, ~, handles)
-    
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-            
-
-function Fieldmaps_CreateFcn(hObject, ~, handles)
-
-if isequal(get(hObject,'Color'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-
-function View_selected_CreateFcn(hObject, ~, handles)
+function View_selected_CreateFcn(hObject, ~, ~)
     
 if ispc && isequal(get(hObject,'BackgroundColor'),...
     get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 set(hObject,'String',{'Phase/Inspired';'Phase/Expired';'Mag/Inspired';'Mag/Expired'});
-
-
-
-function Roi_CreateFcn(hObject, eventdata, handles)
-
-if isequal(get(hObject,'Color'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-
-
-function Predicted_CreateFcn(hObject, eventdata, handles)
-
-if isequal(get(hObject,'Color'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-function sliceSelector_KeyPressFcn(hObject, eventdata, handles)
