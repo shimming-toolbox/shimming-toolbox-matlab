@@ -1,30 +1,26 @@
 function varargout = ShimGUI(varargin)
 % SHIMGUI MATLAB code for ShimGUI.fig
-%      SHIMGUI, by itself, creates a new SHIMGUI or raises the existing
-%      singleton*.
-%
-%      H = SHIMGUI returns the handle to a new SHIMGUI or the handle to
-%      the existing singleton*.
-%
-%      SHIMGUI('CALLBACK',hObject,eventData,handles,...) calls the local
-%      function named CALLBACK in SHIMGUI.M with the given input arguments.
-%
-%      SHIMGUI('Property','Value',...) creates a new SHIMGUI or raises the
-%      existing singleton*.  Starting from the left, property value pairs are
-%      applied to the GUI before ShimGUI_OpeningFcn gets called.  An
-%      unrecognized property name or invalid value makes property application
-%      stop.  All inputs are passed to ShimGUI_OpeningFcn via varargin.
-%
-%      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
-%      instance to run (singleton)".
-%
-% See also: GUIDE, GUIDATA, GUIHANDLES
 
-% Edit the above text to modify the response to help ShimGUI
+%      This function allows to check insp/exp mag and phase data and define
+%      ROIs for optimizing shimming.
+%
+%      Usage:
 
-% Last Modified by GUIDE v2.5 30-May-2017 13:41:43
+%      You need four training maps, in DICOM format, located in:
+%        'ins/mag/'    Magnitudes Inspired
+%        'ins/phase/'  Phases Inspired
+%        'exp/mag/'    Magnitudes Expired
+%        'exp/phase/'  Phases Expired
+%      
+%       You also need a configuration file which defines the function: 
+%       shimparameters(). Example: see: shimparameters.m
+
+%
+% Last Modified by GUIDE v2.5 28-Nov-2017 13:56:55
+
 
 % Begin initialization code - DO NOT EDIT
+
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
                    'gui_Singleton',  gui_Singleton, ...
@@ -41,917 +37,610 @@ if nargout
 else
     gui_mainfcn(gui_State, varargin{:});
 end
+
 % End initialization code - DO NOT EDIT
 
+%==========================================================================
+%   CONFIGURATION PARAMETERS
+%==========================================================================
 
 % --- Executes just before ShimGUI is made visible.
 function ShimGUI_OpeningFcn(hObject, ~, handles, varargin)
-% This function has no output args, see OutputFcn.
-% hObject    handle to figure
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-% varargin   command line arguments to ShimGUI (see VARARGIN)
 
-% add misc to path
+%Call the Configuration file shimparameters.m to specify 
+%every parameters needed for shimming simulations.
+handles.Params = shimparameters();
 
-addpath misc;
-savepath;
-
-addpath misc/stoploop;
-savepath;
-
-addpath misc/NIFTI;
-savepath;
-
-addpath misc/dicm2nii;
-savepath;
 
 % Choose default command line output for ShimGUI
 handles.output = hObject;
 
-handles.Params = [];
+%Default value for display parameters
+handles.item_selected = 'Phase/Inspired';
+handles.lim=200;
+handles.limits=[-handles.lim handles.lim];
+handles.lim_mag=0.5;
+handles.limits_mag=[-handles.lim_mag handles.lim_mag];
+handles.n_region=0;
+handles.n_region_exclude=0;
+handles.Voi=[];
+handles.Voi_exclude=[];
+handles.position=cell(1,1);
+handles.position_exclude=cell(1,1);
+handles.PredictedFieldInspired= [];
+handles.PredictedFieldExpired= [];
+handles.sliceDeleted=[];
+handles.colormap='parula';
+handles.bound=cell(1,1);
+display ('Load your training maps');
 
-% =========================================================================
-% SETTING DEFAULT VALUES
-% =========================================================================
-
-% Field Filter default values
-
-set(handles.fieldFiltering,'Value',1);
-handles.Params.isFilteringField = true;
-
-set(handles.maxfield,'String','600');
-handles.Params.maxAbsField = 600;
-
-set(handles.maxfielddiff,'String','150');
-handles.Params.maxFieldDifference = 150;
-
-set(handles.threshold,'String','0.01');
-handles.Params.threshold = 0.01;
-
-% Pressure Probe default values
-
-set(handles.savingProbeData,'Value',1);
-handles.RecParams.isSavingData = true;
-
-set(handles.forcingOverwrite,'Value',1);
-handles.RecParams.isForcingOverwrite = true;
-
-set(handles.arduinoperiod,'String',10);
-handles.Params.ProbeSpecs.arduinoPeriod = 10;
-
-set(handles.nCalScan,'String',2);
-handles.Params.nCalibrationScans = 2;
-
-set(handles.runtime,'String','10');
-handles.RecParams.runTime = 10;
-
-set(handles.sliceSelector, 'Value', 1);
-handles.sliceSelected = 1;
-
-handles.viewSelected = 'Sagittal';
-% Update handles structure
 guidata(hObject, handles);
-
-
-% UIWAIT makes ShimGUI wait for user response (see UIRESUME)
-% uiwait(handles.figure1);
 
 
 % --- Outputs from this function are returned to the command line.
 function varargout = ShimGUI_OutputFcn(~, ~, handles) 
-% varargout  cell array for returning output args (see VARARGOUT);
-% hObject    handle to figure
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Get default command line output from handles structure
 varargout{1} = handles.output;
 
 
-% --- Executes on button press in pathtoshimref.
-function pathtoshimref_Callback(hObject, ~, handles)
-% hObject    handle to pathtoshimref (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-[FileName,FilePath ]= uigetfile();
-ShimRefPath = fullfile(FilePath, FileName);
-handles.Params.pathToShimReferenceMaps = ShimRefPath;
-
-guidata(hObject,handles);
+%==========================================================================
+%Options and Commands on the GUI Interface
+%==========================================================================
 
 
+% --- Executes on button press in Load Training Maps :
+function Load_training_maps_Callback(hObject, ~, handles)
 
-% --- Executes on button press in folder.
-function folder_Callback(hObject, ~, handles)
-% hObject    handle to folder (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-FilePath= uigetdir();
-handles.Params.dataLoadDir = [FilePath, '/'];
-% 
-% % Inspired Path
-% handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_4.92' ] ;
-% handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_7.64' ] ;
-% 
-% handles.Params.Path.Phase.echo1       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_4.92' ] ;
-% handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_7.64' ] ;
-% 
-% % -------
-% % Expired Path
-% handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 7 ) 'echo_4.92' ] ;
-% handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 7 ) 'echo_7.64' ] ;
-% 
-% handles.Params.Path.Phase.echo1       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 8 ) 'echo_4.92' ] ;
-% handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 8 ) 'echo_7.64' ] ;
-
-guidata(hObject,handles);
-
-
-% --- Executes on selection change in shimsystem.
-function shimsystem_Callback(hObject, eventdata, handles)
-% hObject    handle to shimsystem (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns shimsystem contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from shimsystem
-contents = cellstr(get(hObject,'String'));
-
-handles.Params.shimSystem = contents{get(hObject,'Value')};
-
-set(handles.commandLine,'string',['Shim system changed to ',handles.shimSystem]);
-
-guidata(hObject,handles);
-
-
-
-% --- Executes during object creation, after setting all properties.
-function shimsystem_CreateFcn(hObject, ~, ~)
-% hObject    handle to shimsystem (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-set(hObject,'String',{'Shim system selection', 'Rri', 'Acdc'});
-
-
-% --- Executes on button press in fieldFiltering.
-function fieldFiltering_Callback(hObject, ~, handles)
-% hObject    handle to fieldFiltering (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of fieldFiltering
-isFilteringField = get(hObject, 'Value');
-
-handles.Params.isFilteringField = isFilteringField;
-
-set(handles.commandLine,'string',['isFilteringField changed to ',isFilteringField]);
-
-guidata(hObject,handles);
-
-
-
-function maxfield_Callback(hObject, ~, handles)
-% hObject    handle to maxfield (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of maxfield as text
-%        str2double(get(hObject,'String')) returns contents of maxfield as a double
-maxAbsField = str2double(get(hObject,'String'));
-if isnan(maxAbsField)
-    set(handles.commandLine,'string','Max absolute field entered is not a number, please enter a number to continue');
-else
-    handles.Params.maxAbsField = maxAbsField;
-
-    set(handles.commandLine,'string',['Max absolute field changed to ',num2str(maxAbsField)]);
-end
-guidata(hObject,handles);
-
-
-% --- Executes during object creation, after setting all properties.
-function maxfield_CreateFcn(hObject, ~, ~)
-% hObject    handle to maxfield (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+if ~myisfield(handles, 'Shims')
+    handles.Shims = ShimOptAcdc(handles.Params) ;
 end
 
+%Reverse polarization for the shims =======================================
 
-
-function maxfielddiff_Callback(hObject, ~, handles)
-% hObject    handle to maxfielddiff (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of maxfielddiff as text
-%        str2double(get(hObject,'String')) returns contents of maxfielddiff as a double
-maxFieldDifference = str2double(get(hObject,'String'));
-if isnan(maxFieldDifference)
-    set(handles.commandLine,'string','Max field difference entered is not a number, please enter a number to continue');
-else
-    handles.Params.maxFieldDifference = maxFieldDifference;
-
-
-    set(handles.commandLine,'string',['Max field difference changed to ',num2str(maxFieldDifference)]);
-end
-
-guidata(hObject,handles);
-
-
-% --- Executes during object creation, after setting all properties.
-function maxfielddiff_CreateFcn(hObject, ~, ~)
-% hObject    handle to maxfielddiff (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function threshold_Callback(hObject, ~, handles)
-% hObject    handle to threshold (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of threshold as text
-%        str2double(get(hObject,'String')) returns contents of threshold as a double
-threshold = str2double(get(hObject,'String'));
-if isnan(threshold)
-    set(handles.commandLine,'string','Threshold entered is not a number, please enter a number to continue');
-else
-    handles.Params.threshold = threshold;
-    set(handles.commandLine,'string',['Unwrapping threshold changed to ',num2str(threshold)]);
-end
-
-guidata(hObject,handles);
-
-
-% --- Executes during object creation, after setting all properties.
-function threshold_CreateFcn(hObject, ~, handles)
-% hObject    handle to threshold (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-% =========================================================================
-% FieldFilterButton has to be changed or put somewhere else (w ohter name)
-% =========================================================================
-
-% --- Executes on button press in FieldFilterButton.
-function FieldFilterButton_Callback(hObject, eventdata, handles)
-% hObject    handle to FieldFilterButton (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Prepare the Shimming object
-
-Shims = ShimUse(handles.Params);
-
+handles.Shims.img = -handles.Shims.img ;
 
 % =========================================================================
 % Prepare the calibration maps
 % =========================================================================
 
-handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_4.92' ] ;
-handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_7.64' ] ;
+ImgArray_Inspired = cell(1 , 2);
+ImgArray_Inspired{1,1} = MaRdI( [ handles.Params.dataLoadDir 'ins/mag/' ] ) ;
+ImgArray_Inspired{1,2} = MaRdI( [ handles.Params.dataLoadDir 'ins/phase/' ] ) ;
 
-handles.Params.Path.Phase.echo1       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_4.92' ] ;
-handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_7.64' ] ;
+handles.FieldInspired = ShimOpt.mapfield( ImgArray_Inspired, handles.Params ) ;
+display('Loading Inspired Fieldmap--------------> Done');
 
-[FieldInspired,Extras] = ShimOpt.mapfield( handles.Params ) ;
+handles.magInspired = ImgArray_Inspired{1,1};
+display('Loading Inspired Magnitudes --------------> Done');
 
-handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 7 ) 'echo_4.92' ] ;
-handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 7 ) 'echo_7.64' ] ;
 
-handles.Params.Path.Phase.echo1       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 8 ) 'echo_4.92' ] ;
-handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 8 ) 'echo_7.64' ] ;
+ImgArray_Expired = cell( 1, 2 ) ;
+ImgArray_Expired{1,1} = MaRdI( [ handles.Params.dataLoadDir 'exp/mag/' ] ) ;
+ImgArray_Expired{1,2} = MaRdI( [ handles.Params.dataLoadDir 'exp/phase/' ] ) ;
 
-[FieldExpired,Extras] = ShimOpt.mapfield( handles.Params ) ;
+handles.FieldExpired = ShimOpt.mapfield( ImgArray_Expired, handles.Params ) ;
+display('Loading Expired Fieldmap  --------------> Done');
 
-% Interpolate the reference maps to the calibration maps grid
+handles.magExpired = ImgArray_Expired{1,1};
+display('Loading Expired Magnitudes --------------> Done');
 
-Shims.Opt.interpolatetoimggrid( FieldInspired ) ;
 
-% Save the calibration maps
+%Definition of new variables from the fieldmaps----------------------------
 
-handles.FieldInspired = FieldInspired;
-handles.FieldExpired = FieldExpired;
+handles.Params.scaling = [min(handles.FieldInspired.img(:)) max(handles.FieldInspired.img(:))] ;
+handles.dim = size(handles.FieldInspired.img);
+handles.sliceSelected = round(handles.dim(3)*0.5);
+handles.clear= zeros(size(handles.FieldInspired.img));
 
-% Save the shimming object
+%Set the slice selected and the contrasts on the images--------------------
 
-handles.Shims = Shims;
+set(handles.sliceSelector,'value',0.5);
+set(handles.Mag_contrast_selector,'value',0.5);
+set(handles.Phase_contrast_selector,'value',0.3);
+set(handles.commandLine,'string',num2str(handles.sliceSelected));
 
-guidata(hObject,handles);
+%Interpolation to the image grid-------------------------------------------
 
+handles.FieldInspired.Hdr.Private_0019_1014 = [0 0 0] ;
+handles.Shims.interpolatetoimggrid( handles.FieldInspired );
 
-% --- Executes on button press in savingProbeData.
-function savingProbeData_Callback(hObject, eventdata, handles)
-% hObject    handle to savingProbeData (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+%Display Inspired Fieldmap ------------------------------------------------
 
-% Hint: get(hObject,'Value') returns toggle state of savingProbeData
-isSavingData = get(hObject, 'Value');
+ImageField(handles.FieldInspired,handles.Fieldmaps,handles);
+handles.magInspired.img=handles.magInspired.img-0.5;
+handles.magExpired.img=handles.magExpired.img-0.5;
 
-handles.RecParams.isSavingData = isSavingData;
-
-set(handles.commandLine,'string',['isSavingData changed to ',string(isSavingData)]);
-
-guidata(hObject,handles);
-
-
-
-% --- Executes on button press in forcingOverwrite.
-function forcingOverwrite_Callback(hObject, eventdata, handles)
-% hObject    handle to forcingOverwrite (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of forcingOverwrite
-isForcingOverwrite = get(hObject, 'Value');
-
-handles.RecParams.isForcingOverwrite = isForcingOverwrite;
-
-set(handles.commandLine,'string',['isForcingOverwrite changed to ',string(isForcingOverwrite)]);
-
-guidata(hObject,handles);
-
-
-function arduinoperiod_Callback(hObject, eventdata, handles)
-% hObject    handle to arduinoperiod (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of arduinoperiod as text
-%        str2double(get(hObject,'String')) returns contents of arduinoperiod as a double
-arduinoPeriod = str2double(get(hObject,'String'));
-if isnan(arduinoPeriod)
-    set(handles.commandLine,'string','Probe period entered is not a number, please enter a number to continue');
-else
-    handles.Params.ProbeSpecs.arduinoPeriod = arduinoPeriod;
-    set(handles.commandLine,'string',['Probe period changed to ',num2str(arduinoPeriod)]);
-end
-
-guidata(hObject,handles);
-
-% --- Executes during object creation, after setting all properties.
-function arduinoperiod_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to arduinoperiod (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function nCalScan_Callback(hObject, eventdata, handles)
-% hObject    handle to nCalScan (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of nCalScan as text
-%        str2double(get(hObject,'String')) returns contents of nCalScan as a double
-nCalibrationScans = str2double(get(hObject,'String'));
-if isnan(nCalibrationScans)
-    set(handles.commandLine,'string','Number of calibration scans entered is not a number, please enter a number to continue');
-else
-    handles.Params.nCalibrationScans = nCalibrationScans;
-    set(handles.commandLine,'string',['Number of calibration scans changed to ',num2str(nCalibrationScans)]);
-end
-
-guidata(hObject,handles);
-
-% --- Executes during object creation, after setting all properties.
-function nCalScan_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to nCalScan (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-% --- Executes on button press in filterPressure.
-function filterPressure_Callback(hObject, eventdata, handles)
-% hObject    handle to filterPressure (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of filterPressure
-isFilterPressure = get(hObject, 'Value');
-
-handles.Params.isFilteringPressure = isFilterPressure;
-
-set(handles.commandLine,'string',['isFilteringPressure changed to ',string(isFilterPressure)]);
-
-guidata(hObject,handles);
-
-
-function runtime_Callback(hObject, eventdata, handles)
-% hObject    handle to runtime (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of runtime as text
-%        str2double(get(hObject,'String')) returns contents of runtime as a double
-runTime = str2double(get(hObject,'String'));
-if isnan(runTime)
-    set(handles.commandLine,'string','Run time entered is not a number, please enter a number to continue');
-else
-    handles.RecParams.runTime = runTime;
-    set(handles.commandLine,'string',['Run time changed to ',num2str(runTime)]);
-end
-
-guidata(hObject,handles);
-
-% --- Executes during object creation, after setting all properties.
-function runtime_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to runtime (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-% --- Executes on button press in staticshim.
-function staticshim_Callback(hObject, eventdata, handles)
-% hObject    handle to staticshim (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-if myisfield(handles, 'Shims')
-    Shims = handles.Shims;
-    
-    if ~myisfield(handles.Params, 'Inspired')
-        set(handles.commandLine,'string','Please perform the calibration before running shimming');
-    else
-        % =========================================================================
-        % STATIC SHIMMING
-        % =========================================================================
-        
-        % -------
-        % Inspired
-        Shims.Com.setandloadallshims( handles.Params.Inspired.currents ) ;
-        % Params.pressureLogFilename = [Params.dataLoadDir datestr(now,30) '-pressureLog-INS-ShimOn.bin'] ;
-        % Params.sampleTimesFilename = [Params.dataLoadDir datestr(now,30) '-sampleTimes-INS-ShimOn.bin'] ;
-        % [pressureLog, sampleTimes] =Shims.Opt.Probe.recordandplotpressurelog( Params ) ;
-        
-%         Shims.Com.resetallshims() ;
-%         
-%         -------
-%         Expired
-%         Shims.Com.setandloadallshims( handles.Params.Expired.currents ) ;
-%         Params.pressureLogFilename = [Params.dataLoadDir datestr(now,30) '-pressureLog-EXP-ShimOn.bin'] ;
-%         Params.sampleTimesFilename = [Params.dataLoadDir datestr(now,30) '-sampleTimes-EXP-ShimOn.bin'] ;
-%         [pressureLog, sampleTimes] =Shims.Opt.Probe.recordandplotpressurelog( Params ) ;
-%         
-%         Shims.Com.resetallshims() ;
-
-    end
-else
-    set(handles.commandLine,'string','Please perform the calibration before running shimming');
-end
-
-
-
-% --- Executes on button press in normalBreathingRecord.
-function normalBreathingRecord_Callback(hObject, eventdata, handles)
-% hObject    handle to normalBreathingRecord (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-Probe = ProbeTracking(handles.Params.ProbeSpecs);
-
-handles.RecParams.axes = handles.pressureAxes;
-
-handles.RecParams.pressureLogFilename = [handles.Params.dataLoadDir datestr(now,30) '-pressureLog-Breathing-ShimOff.bin'] ;
-handles.RecParams.sampleTimesFilename = [handles.Params.dataLoadDir datestr(now,30) '-sampleTimes-Breathing-ShimOff.bin'] ;
-
-[pressureLog, sampleTimes] = Probe.recordandplotpressurelog( handles.RecParams ) ;
-
-% --- Executes on button press in inspiredStateRecord.
-function inspiredStateRecord_Callback(hObject, eventdata, handles)
-% hObject    handle to inspiredStateRecord (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-if ~myisfield(handles, 'Shims')
-    handles.Shims = ShimUse(handles.Params) ;
-end
-
-handles.RecParams.axes = handles.pressureAxes;
-
-handles.RecParams.pressureLogFilename = [handles.Params.dataLoadDir datestr(now,30) '-pressureLog-INS.bin'] ;
-handles.RecParams.sampleTimesFilename = [handles.Params.dataLoadDir datestr(now,30) '-sampleTimes-INS.bin'] ;
-
-handles.Params.pressureLogFilenames(1,1) = { handles.RecParams.pressureLogFilename } ;
-handles.Params.Inspired.pressureLog = handles.Shims.Opt.Probe.recordandplotpressurelog( handles.RecParams ) ;
-
-% --- Executes on button press in expiredStateRecord.
-function expiredStateRecord_Callback(hObject, eventdata, handles)
-% hObject    handle to expiredStateRecord (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-if ~myisfield(handles, 'Shims')
-    handles.Shims = ShimUse(handles.Params) ;
-end
-
-handles.RecParams.axes = handles.pressureAxes;
-
-handles.RecParams.pressureLogFilename = [handles.Params.dataLoadDir datestr(now,30) '-pressureLog-EXP.bin']
-handles.RecParams.sampleTimesFilename = [handles.Params.dataLoadDir datestr(now,30) '-sampleTimes-EXP.bin']
-
-handles.Params.pressureLogFilenames(2,1) = { handles.RecParams.pressureLogFilename } ;
-handles.Params.Expired.pressureLog = handles.Shims.Opt.Probe.recordandplotpressurelog( handles.RecParams ) ;
-
-% --- Executes on slider movement.
-function sliceSelector_Callback(hObject, eventdata, handles)
-% hObject    handle to sliceSelector (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
-if myisfield(handles,'imageToPlot')
-    switch handles.viewSelected
-        case 'Sagittal'
-            maxval = size(handles.imageToPlot,3);
-            handles.sliceSelected = round(get(hObject,'Value')*(maxval - 1) + 1);
-            imshow(handles.imageToPlot(:,:,handles.sliceSelected),'parent',handles.imageFromScan);
-            
-        case 'Coronal'
-            maxval = size(handles.imageToPlot,2);
-            handles.sliceSelected = round(get(hObject,'Value')*(maxval - 1) + 1);
-            imshow(handles.imageToPlot(:,handles.sliceSelected,:),'parent',handles.imageFromScan);
-            
-        case 'Axial'
-            maxval = size(handles.imageToPlot,1);
-            handles.sliceSelected = round(get(hObject,'Value')*(maxval - 1) + 1);
-            imshow(handles.imageToPlot(handles.sliceSelected,:,:),'parent',handles.imageFromScan);
-            
-    end
-    
-    set(handles.commandLine,'string',['Slice changed to ', num2str(round(get(hObject,'Value')*(maxval - 1) + 1))]);
-end
-            
-
-
-
-
-
-% --- Executes during object creation, after setting all properties.
-function sliceSelector_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to sliceSelector (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: slider controls usually have a light gray background.
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-% --- Executes on selection change in viewSelector.
-function viewSelector_Callback(hObject, eventdata, handles)
-% hObject    handle to viewSelector (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns viewSelector contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from viewSelector
-contents = cellstr(get(hObject,'String'));
-
-viewSelected = contents{get(hObject,'Value')};
-handles.viewSelected = viewSelected;
-
-if ~myisfield(handles, 'sliceSelected')
-    handles.sliceSelected = 1;
-end
-
-sliceSelected = handles.sliceSelected;
-
-if myisfield(handles, 'imageToPlot');
-    image = handles.imageToPlot;
-    switch viewSelected
-        case 'Sagittal'
-            if sliceSelected > size(handles.imageToPlot,3)
-                sliceSelected = 1;
-            end
-            
-            imshow(image(:,:,sliceSelected),'parent',handles.imageFromScan);
-            
-        case 'Coronal'
-            if sliceSelected > size(handles.imageToPlot,2)
-                sliceSelected = 1;
-            end
-            
-            imshow(image(:,sliceSelected,:),'parent',handles.imageFromScan);
-            
-        case 'Axial'
-            if sliceSelected > size(handles.imageToPlot,1)
-                sliceSelected = 1;
-            end
-            
-            imshow(image(sliceSelected,:,:),'parent',handles.imageFromScan);
-    end
-    
-    
-end
-
-set(handles.commandLine,'string',['View changed to ',viewSelected]);
-
-guidata(hObject,handles);
-
-% --- Executes during object creation, after setting all properties.
-function viewSelector_CreateFcn(hObject, ~, ~)
-% hObject    handle to viewSelector (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-set(hObject,'String',{'Sagittal', 'Coronal', 'Axial'});
-
-
-% --- Executes on button press in realTimeShimming.
-function realTimeShimming_Callback(hObject, eventdata, handles)
-% hObject    handle to realTimeShimming (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% =========================================================================
-% Calibrate real-time updates
-% =========================================================================
-if myisfield(handles, 'Shims')
-    
-    Shims = handles.Shims;
-    
-    Shims.Opt.calibraterealtimeupdates( handles.Params ) ;
-    
-    % =========================================================================
-    % Run real time shimming
-    % =========================================================================
-    
-    if ~myisfield(handles.Params, 'Inspired')||~myisfield(handles.Params, 'Expired')
-        set(handles.commandLine,'string','Please perform the calibration before running shimming');
-    else
-        handles.Params.maxCurrents = max( [handles.Params.Inspired.currents handles.Params.Expired.currents], [],2) ;
-        handles.Params.minCurrents = min( [handles.Params.Inspired.currents handles.Params.Expired.currents], [],2) ;
-        handles.Params.isFilteringPressure = false ;
-        handles.Params.isClippingPressure  = true ;
-        handles.Params.minClippingPressure = 210 ;
-        handles.Params.maxClippingPressure = 260 ;
-        handles.Params.pressureLogFilename = [handles.Params.dataLoadDir datestr(now,30) '-pressureLog-Breathing-ShimOn-RT.bin'] ;
-        handles.Params.sampleTimesFilename = [handles.Params.dataLoadDir datestr(now,30) '-sampleTimes-Breathing-ShimOn-RT.bin'] ;
-        Shims.runrealtimeshim( handles.Params ) ;
-    end
-else
-    set(handles.commandLine,'string','Please perform the calibration before running shimming');
-end
-
-
-% --- Executes on button press in loadinspiredmaps.
-function loadinspiredmaps_Callback(hObject, ~, handles)
-% hObject    handle to loadinspiredmaps (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-if ~myisfield(handles, 'Shims')
-    handles.Shims = ShimUse(handles.Params) ;
-end
-
-% =========================================================================
-% Prepare the calibration maps
-% =========================================================================
-
-ImgArray = cell(1 , 2);
-
-ImgArray{1,1} = MaRdI( uigetdir('','Path for the magnitude') );
-ImgArray{1,2} = MaRdI( uigetdir('','Path for the phase') );
-
-handles.Params.echoTimeDifference = 2.5;
-
-% handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_4.92' ] ;
-% handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_7.64' ] ;
-% 
-% handles.Params.Path.Phase.echo1       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_4.92' ] ;
-% handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_7.64' ] ;
-
-FieldInspired = ShimOpt.mapfield(ImgArray, handles.Params ) ;
-
-% Plot image on imageFromScan axes
-
-handles.imageToPlot = FieldInspired.img;
-
-switch handles.viewSelected
-        case 'Sagittal'
-            if handles.sliceSelected > size(handles.imageToPlot,3)
-                handles.sliceSelected = 1;
-            end
-            imshow(handles.imageToPlot(:,:,handles.sliceSelected),'parent',handles.imageFromScan);
-        case 'Coronal'
-            if handles.sliceSelected > size(handles.imageToPlot,2)
-                handles.sliceSelected = 1;
-            end
-            imshow(handles.imageToPlot(:,handles.sliceSelected,:),'parent',handles.imageFromScan);
-        case 'Axial'
-            if handles.sliceSelected > size(handles.imageToPlot,1)
-                handles.sliceSelected = 1;
-            end
-            imshow(handles.imageToPlot(handles.sliceSelected,:,:),'parent',handles.imageFromScan);
-end
-
-
-
-handles.FieldInspired = FieldInspired;
 
 guidata(hObject, handles) ;
 
 
-% --- Executes on button press in loadexpiredmap.
-function loadexpiredmap_Callback(hObject, ~, handles)
-% hObject    handle to loadexpiredmap (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
-if ~myisfield(handles, 'Shims')
-    handles.Shims = ShimUse(handles.Params) ;
-end
-% =========================================================================
-% Prepare the calibration maps
-% =========================================================================
+% --- Executes on button press in customROI.
+function customROI_Callback(hObject,~, handles)
 
-ImgArray = cell(1 , 2);
-
-ImgArray{1,1} = MaRdI( uigetdir('','Path for the magnitude') );
-ImgArray{1,2} = MaRdI( uigetdir('','Path for the phase') );
-
-% handles.Params.Path.Mag.echo1         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_4.92' ] ;
-% handles.Params.Path.Mag.echo2         = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 5 ) 'echo_7.64' ] ;
-% 
-% handles.Params.Path.Phase.echo1       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_4.92' ] ;
-% handles.Params.Path.Phase.echo2       = [ MaRdI.getfulldir( handles.Params.dataLoadDir, 6 ) 'echo_7.64' ] ;
-
-FieldExpired = ShimOpt.mapfield(ImgArray, handles.Params ) ;
-
-% Plot the image on imageFromScan axes
-
-handles.imageToPlot = FieldExpired.img;
-
-switch handles.viewSelected
-        case 'Sagittal'
-            if handles.sliceSelected > size(handles.imageToPlot,3)
-                handles.sliceSelected = 1;
-            end
-            imshow(handles.imageToPlot(:,:,handles.sliceSelected),'parent',handles.imageFromScan);
-        case 'Coronal'
-            if handles.sliceSelected > size(handles.imageToPlot,2)
-                handles.sliceSelected = 1;
-            end
-            imshow(handles.imageToPlot(:,handles.sliceSelected,:),'parent',handles.imageFromScan);
-        case 'Axial'
-            if handles.sliceSelected > size(handles.imageToPlot,1)
-                handles.sliceSelected = 1;
-            end
-            imshow(handles.imageToPlot(handles.sliceSelected,:,:),'parent',handles.imageFromScan);
-end
-
-
-handles.FieldExpired = FieldExpired;
-
-guidata(hObject, handles) ;
-
-
-% --- Executes on button press in calibrateshims.
-function calibrateshims_Callback(hObject, ~, handles)
-% hObject    handle to calibrateshims (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% =========================================================================
-% INTERP everything to grid of field 
-% =========================================================================
-handles.Shims.Opt.interpolatetoimggrid( handles.FieldInspired ) ;
+     if any(handles.sliceSelected == handles.sliceDeleted)>=1
+                display('Change the slice selected, this one was removed from the Voi')
+     else
+            handles.n_region = handles.n_region+1;
+                
+            
+         if  isempty(handles.Voi)
+                handles.rect = imrect(handles.Fieldmaps);
+                setColor(handles.rect,'r');  
+                handles.Voi =handles.rect.createMask;
+                handles.position{1}=handles.rect.getPosition;        
+         else        
+                handles.rectn = imrect(handles.Fieldmaps);
+                setColor(handles.rectn,'r');   
+                handles.mask = handles.rectn.createMask;
+                handles.Voi=or(handles.Voi,handles.mask);
+                handles.position{end+1}=handles.rectn.getPosition;
+         end
+         
 
 % =========================================================================
 % DEFINE SHIM VOI 
 % =========================================================================
-if myisfield(handles, 'FieldExpired')
-    if ~myisfield(handles,'mask')
-        handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired );
-    end
-    
-    handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ).*handles.mask ;
-else
-    if ~myisfield(handles,'mask')
-        handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired );
-    end
-    
-    handles.mask = Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired ).*handles.mask ;
-end
-% =========================================================================
-% STATIC OPTIMIZATION
-% =========================================================================
 
-% -------
-% Inspired 
-handles.Shims.Opt.setoriginalfield( handles.FieldInspired ) ;
-handles.Shims.Opt.setshimvolumeofinterest( handles.mask ) ;
+            handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;
 
-handles.Shims.Opt.optimizeshimcurrents( handles.Params ) ;
+% Adjust shim VOI based on the rectangular selection on the image.
 
-handles.Params.Inspired.currents = handles.Shims.Opt.Model.currents ;
+            if ~isempty(handles.Voi_exclude);
+                handles.Voi = handles.Voi.*handles.Voi_exclude;
+            end
 
-% -------
-% Expired 
+            for j=1:handles.dim(3);
+                handles.Params.shimVoi(:,:,j)=handles.Params.shimVoi(:,:,j).*handles.Voi;
+            end
+   
 
-if myisfield(handles, 'FieldExpired')
-    handles.Shims.Opt.setoriginalfield( handles.FieldExpired ) ;
-    handles.Shims.Opt.setshimvolumeofinterest( handles.mask ) ;
-    
-    handles.Shims.Opt.optimizeshimcurrents( handles.Params ) ;
-    
-    handles.Params.Expired.currents = handles.Shims.Opt.Model.currents ;
-end
-
+             handles.bound=bwboundaries(handles.Voi,'noholes');
+             
+       switch handles.item_selected
+            
+          case 'Phase/Inspired'
+              ImageFieldRoi(handles.FieldInspired,handles.Roi,handles.Voi,handles);  
+          case 'Phase/Expired'
+              ImageFieldRoi(handles.FieldExpired,handles.Roi,handles.Voi,handles);              
+          case 'Mag/Inspired'             
+              ImageMagRoi(handles.magInspired,handles.Roi,handles.Voi,handles);
+          case 'Mag/Expired'
+              ImageMagRoi(handles.magExpired,handles.Roi,handles.Voi,handles);
+       end
+     end
 guidata(hObject, handles) ;
 
 
-% --- Executes on button press in resetShims.
-function resetShims_Callback(hObject, eventdata, handles)
-% hObject    handle to resetShims (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
-if myisfield(handles,'Shims')
-    handles.Shims.Com.resetallshims();
+% --- Executes on slider movement.
+function sliceSelector_Callback(hObject,~, handles)
+
+dim = size(handles.FieldInspired.img);
+maxslice = dim(3);     %Nombre de slice dans le plan sagittal
+handles.sliceSelected = round(get(hObject,'Value')*(maxslice - 1) + 1);
+
+Switch_plot(handles);
+
+set(handles.commandLine,'string',num2str(round(get(hObject,'Value')*(maxslice - 1) + 1)));
+            
+guidata(hObject, handles) ;
+
+
+
+%View Selected Callback
+function View_selected_Callback(hObject, ~, handles)
+    
+items = get(hObject,'String');
+index_selected = get(hObject,'Value');
+handles.item_selected = items{index_selected};
+
+Switch_plot(handles);
+            
+guidata(hObject, handles);
+
+
+
+% --- Executes on button press in Prediction.
+function Prediction_Callback(hObject, ~, handles)
+
+handles.Params.isSolvingAugmentedSystem    = true ;
+handles.Params.isPenalizingFieldDifference = true;
+handles.Params.regularizationParameter     = 0 ;
+    
+handles.Shims.setoriginalfield( handles.FieldInspired ) ;
+handles.Shims.setshimvolumeofinterest( handles.Params.shimVoi) ;
+
+[handles.Params.Inspired.currents, handles.Params.Expired.currents] = handles.Shims.optimizeshimcurrents( handles.Params, handles.FieldExpired ) ;
+    
+%Shimming predictions------------------------------------------------------
+
+handles.Shims.Model.currents   =  handles.Params.Inspired.currents ;
+handles.PredictedFieldInspired =  handles.Shims.predictshimmedfield( ) ;
+                
+handles.Shims.setoriginalfield( handles.FieldExpired ) ;
+handles.Shims.Model.currents = handles.Params.Expired.currents ;
+handles.PredictedFieldExpired =  handles.Shims.predictshimmedfield( ) ;
+    
+    
+%Mask for regions without any signal in the Fieldmaps----------------------
+
+mask = handles.FieldInspired.img;
+mask(mask ~= 0) = 1;
+    
+handles.PredictedFieldInspired.img = handles.PredictedFieldInspired.img .* mask;
+    
+mask2 = handles.FieldExpired.img;
+mask2(mask2 ~= 0) = 1;
+handles.PredictedFieldExpired.img = handles.PredictedFieldExpired.img .* mask2;
+
+            
+                
+switch handles.item_selected
+                  
+   case 'Phase/Inspired'         
+         ImageField(handles.PredictedFieldInspired,handles.Predicted,handles); 
+            
+              
+   case 'Phase/Expired'
+         ImageField(handles.PredictedFieldExpired,handles.Predicted,handles);                                
+                
+   case 'Mag/Inspired' 
+
+         ImageField(handles.PredictedFieldInspired,handles.Predicted,handles);
+                               
+   case 'Mag/Expired'             
+         ImageField(handles.PredictedFieldExpired,handles.Predicted,handles);  
+                                              
 end
 
+     if any(handles.sliceSelected == handles.sliceDeleted)==0
+         axes(handles.Predicted);
+            hold on
+         for k = 1:length(handles.bound)
+            boundary = handles.bound{k};     
+            plot(handles.Predicted,boundary(:,2),boundary(:,1), 'Color','black', 'LineWidth', 2);           
+         end
+     end
+guidata(hObject, handles);
 
-% --- Executes on button press in customROI.
-function customROI_Callback(hObject, eventdata, handles)
-% hObject    handle to customROI (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
-if myisfield(handles, 'imageToPlot')
-    axes = handles.imageFromScan;
-    rect = getrect();
-    rect = round(rect);
+% --- Executes on button press in delete_region.
+function delete_region_Callback(hObject, ~, handles)
+
     
-    nslices = input('How many slices ?')
+handles.Params.shimVoi(:,:,handles.sliceSelected)=0;
+handles.sliceDeleted(end+1)=handles.sliceSelected;
+
+
+switch handles.item_selected
     
-    switch handles.viewSelected
-        case 'Sagittal'
-            mask = zeros(size(imageToPlot));
-            mask(rect(1):(rect(1)+rect(3)),rect(2):(rect(2)+rect(4)),(selectedSlice+ round(-nSlices/2)):(selectedSlice+ round(nSlices/2))) =...
-                ones(rect(3),rect(4),nSlices);
-        case 'Coronal'
-            mask = zeros(size(imageToPlot));
-            mask(rect(1):(rect(1)+rect(3)),(selectedSlice+ round(-nSlices/2)):(selectedSlice+ round(nSlices/2)),rect(2):(rect(2)+rect(4))) =...
-                ones(rect(3),nSlices,rect(4));
-        case 'Axial'
-            mask = zeros(size(imageToPlot));
-            mask((selectedSlice+ round(-nSlices/2)):(selectedSlice+ round(nSlices/2)),rect(2):(rect(2)+rect(4)),rect(1):(rect(1)+rect(3))) =...
-                ones(nSlices,rect(3),rect(4));
+    case 'Phase/Inspired'
+        ImageField(handles.FieldInspired,handles.Fieldmaps,handles);
+        if handles.n_region >=1
+            Imageclear(handles.limits,handles.Roi,handles.colormap,handles);
+        end           
+           
+    case 'Phase/Expired'
+         ImageField(handles.FieldExpired,handles.Fieldmaps,handles);
+         if handles.n_region >=1
+             Imageclear(handles.limits,handles.Roi,handles.colormap,handles);
+         end           
+    case 'Mag/Inspired'
+         ImageMag(handles.magInspired,handles.Fieldmaps,handles);  
+         if handles.n_region >=1
+            Imageclear(handles.limits_mag,handles.Roi,gray,handles);
+         end 
+                 
+    case 'Mag/Expired'
+         ImageMag(handles.magExpired,handles.Fieldmaps,handles);
+         if handles.n_region >=1
+            Imageclear(handles.limits_mag,handles.Roi,gray,handles);
+         end
+end
+
+if handles.PredictedFieldExpired ~=0
+   Imageclear(handles.limits,handles.Predicted,handles.colormap,handles);
+end
+guidata(hObject,handles);
+
+
+
+% --- Executes on button press in Clear_Roi.
+function Clear_Roi_Callback(hObject, ~, handles)
+
+    
+    switch handles.item_selected
+            
+         case 'Phase/Inspired'
+             ImageField(handles.FieldInspired,handles.Fieldmaps,handles); 
+             if handles.n_region >= 1
+             Imageclear(handles.limits,handles.Roi,handles.colormap,handles);
+             end
+            
+         case 'Phase/Expired'
+             ImageField(handles.FieldExpired,handles.Fieldmaps,handles);
+             if handles.n_region >= 1
+             Imageclear(handles.limits,handles.Roi,handles.colormap,handles);
+             end
+                         
+         case 'Mag/Inspired'
+             ImageMag(handles.magInspired,handles.Fieldmaps,handles) ;
+             if handles.n_region >= 1
+             Imageclear(handles.limits_mag,handles.Roi,gray,handles);
+             end
+                 
+         case 'Mag/Expired'
+             ImageMag(handles.magExpired,handles.Fieldmaps,handles);
+             if handles.n_region >= 1
+             Imageclear(handles.limits_mag,handles.Roi,gray,handles);
+             end
+             
     end
-    handles.mask = mask;
+     
+     if handles.PredictedFieldExpired ~=0
+        Imageclear(handles.limits,handles.Predicted,handles.colormap,handles);
+     end
+     
+handles.Voi = [];
+handles.Voi_exclude=[];
+handles.position=cell(1,1);
+handles.position_exclude=cell(1,1);
+handles.n_region=0;
+handles.n_region_exclude=0;
+handles.Params.shimVoi(:,:,:)=0;
+handles.PredictedFieldInspired=[];
+handles.PredictedFieldExpired=[];
+handles.sliceDeleted=[];
+handles.bound=[];
+
+ guidata(hObject, handles);
+ 
+ % --- Executes on button press in Exclude_From_ROI.
+function Exclude_From_ROI_Callback(hObject, ~, handles)
+% hObject    handle to Exclude_From_ROI (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+     if ~isempty(handles.Voi)
+            handles.n_region_exclude = handles.n_region_exclude+1;
+            
+         if  isempty(handles.Voi_exclude)
+            handles.rect = imrect(handles.Fieldmaps);
+            setColor(handles.rect,'b');  
+            handles.Voi_exclude =~handles.rect.createMask;
+            handles.position_exclude{1}=handles.rect.getPosition;
+            
+        
+         else
+        
+            handles.rectn = imrect(handles.Fieldmaps);
+            setColor(handles.rectn,'b');
+            
+            handles.mask = ~handles.rectn.createMask;
+            handles.Voi_exclude=handles.Voi_exclude.*handles.mask;
+            handles.position_exclude{end+1}=handles.rectn.getPosition;
+         end
+    
+% =========================================================================
+% DEFINE SHIM VOI 
+% =========================================================================
+
+    handles.Voi = handles.Voi.*handles.Voi_exclude;
+    handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;
+    handles.bound=bwboundaries(handles.Voi);
+
+% Adjust shim VOI based on the rectangular selection on the image.
+
+            for j=1:handles.dim(3);
+                handles.Params.shimVoi(:,:,j)=handles.Params.shimVoi(:,:,j).*handles.Voi;
+            end
+    
+        switch handles.item_selected
+            
+                case 'Phase/Inspired'
+                    ImageFieldRoi(handles.FieldInspired,handles.Roi,handles.Voi,handles);  
+                case 'Phase/Expired'
+                    ImageFieldRoi(handles.FieldExpired,handles.Roi,handles.Voi,handles);              
+                case 'Mag/Inspired'             
+                 ImageMagRoi(handles.magInspired,handles.Roi,handles.Voi,handles);
+                case 'Mag/Expired'
+                    ImageMagRoi(handles.magExpired,handles.Roi,handles.Voi,handles);
+         end
+     else
+         display ('Warning : Create a Voi before using the button "Exclude"')
+     end   
+    
+    guidata (hObject,handles);
+
+
+
+
+function Phase_contrast_selector_Callback(hObject, ~, handles)
+
+handles.min_contrast=max(handles.FieldInspired.img(:));
+handles.lim = round(get(hObject,'Value')*(handles.min_contrast - 1) + 1);
+handles.limits=[-handles.lim handles.lim];
+
+Switch_plot(handles);
+
+guidata (hObject,handles);
+
+
+function Mag_contrast_selector_Callback(hObject, ~, handles)
+
+handles.lim_mag = get(hObject,'Value');
+if handles.lim_mag <=0.01
+    handles.lim_mag=0.011;
 end
 
-axes = handles.imageFromScan;
-rect = getrect(axes);
+handles.limits_mag=[-handles.lim_mag handles.lim_mag];
+
+Switch_plot(handles);
+
+guidata (hObject,handles);
+
+%Functions Images ---------------------------------------------------------
+
+function ImageField(Field,ax,handles)
+        
+             imageToPlot = Field.img(:,:,handles.sliceSelected);
+             imagesc(imageToPlot,'parent',ax);
+             colormap(ax,handles.colormap);
+             caxis(ax,handles.limits);
+             colorbar(ax);
+             
+function ImageFieldRoi(Field,ax,mask,handles)
+        
+             imageToPlot = Field.img(:,:,handles.sliceSelected).*mask;
+             imagesc(imageToPlot,'parent',ax);
+             colormap(ax,handles.colormap);
+             caxis(ax,handles.limits);
+             colorbar(ax);
+             
+function ImageMag(Field,ax,handles)
+        
+             imageToPlot = Field.img(:,:,handles.sliceSelected);
+             imagesc(imageToPlot,'parent',ax);
+             colormap(ax,gray);
+             caxis(ax,handles.limits_mag);
+             colorbar(ax);
+             
+function ImageMagRoi(Field,ax,mask,handles)
+        
+             imageToPlot = Field.img(:,:,handles.sliceSelected).*mask;
+             imagesc(imageToPlot,'parent',ax);
+             colormap(ax,gray);
+             caxis(ax,handles.limits_mag);
+             colorbar(ax);
+   
+function Imageclear(lim,ax,colormaps,handles)
+             imagesc(handles.clear(:,:,handles.sliceSelected),'parent',ax);
+             colormap(ax,colormaps);
+             caxis(ax,lim);
+             colorbar(ax);
+             
+    
+   function Switch_plot(handles)
+           
+     switch handles.item_selected
+            
+        case 'Phase/Inspired'
+              ImageField(handles.FieldInspired,handles.Fieldmaps,handles);
+            
+              if ~isempty(handles.Voi)
+                  ImageFieldRoi(handles.FieldInspired,handles.Roi,handles.Voi,handles); 
+              end
+              
+              if ~isempty(handles.PredictedFieldInspired)
+                  ImageField(handles.PredictedFieldInspired,handles.Predicted,handles);      
+              end
+           
+              if any(handles.sliceSelected == handles.sliceDeleted)==1  
+                   Imageclear(handles.limits,handles.Roi,handles.colormap,handles)
+              end
+             
+              if handles.FieldInspired.img(:,:,handles.sliceSelected)==0
+                  if handles.n_region >=1
+                    Imageclear(handles.limits,handles.Roi,handles.colormap,handles)
+                  end
+              end 
+            
+         case 'Phase/Expired'
+               ImageField(handles.FieldExpired,handles.Fieldmaps,handles);
+                         
+            if ~isempty(handles.Voi)
+                  ImageFieldRoi(handles.FieldExpired,handles.Roi,handles.Voi,handles); 
+            end  
+          
+          
+            if ~isempty(handles.PredictedFieldExpired)
+                  ImageField(handles.PredictedFieldExpired,handles.Predicted,handles);  
+            end     
+          
+             if any(handles.sliceSelected == handles.sliceDeleted)==1  
+                   Imageclear(handles.limits,handles.Roi,handles.colormap,handles)
+             end
+           
+             if handles.FieldExpired.img(:,:,handles.sliceSelected)==0
+                 if handles.n_region >=1
+                   Imageclear(handles.limits,handles.Roi,handles.colormap,handles)
+                 end
+             end 
+             
+        case 'Mag/Inspired'
+             ImageMag(handles.magInspired,handles.Fieldmaps,handles);
+             
+            if ~isempty(handles.Voi)
+                ImageMagRoi(handles.magInspired,handles.Roi,handles.Voi,handles);
+            end
+            
+            if ~isempty(handles.PredictedFieldInspired)            
+                ImageField(handles.PredictedFieldInspired,handles.Predicted,handles);                         
+            end
+            
+            if any(handles.sliceSelected == handles.sliceDeleted)==1  
+                 Imageclear(handles.limits_mag,handles.Roi,gray,handles)
+            end
+             
+            if handles.FieldInspired.img(:,:,handles.sliceSelected)==0
+                if handles.n_region >=1
+                  Imageclear(handles.limits_mag,handles.Roi,gray,handles)
+                end
+            end 
+                 
+        case 'Mag/Expired'
+             ImageMag(handles.magExpired,handles.Fieldmaps,handles);
+             
+           if ~isempty(handles.Voi)  
+               ImageMagRoi(handles.magExpired,handles.Roi,handles.Voi,handles);
+           end
+            
+           if ~isempty(handles.PredictedFieldExpired)
+               ImageField(handles.PredictedFieldExpired,handles.Predicted,handles);             
+           end
+           
+           if any(handles.sliceSelected == handles.sliceDeleted)==1  
+                Imageclear(handles.limits_mag,handles.Roi,gray,handles)
+           end
+             
+           if handles.FieldInspired.img(:,:,handles.sliceSelected)==0
+               if handles.n_region >=1
+                 Imageclear(handles.limits_mag,handles.Roi,gray,handles)
+               end
+           end 
+             
+     end
+     
+      if ~isempty(handles.Voi)
+            if nnz(handles.FieldInspired.img(:,:,handles.sliceSelected))~= 0
+                  if any(handles.sliceSelected == handles.sliceDeleted)==0
+                        for i=1:handles.n_region
+                              rectangle(handles.Fieldmaps,'Position',handles.position{i},'EdgeColor','r','LineWidth',1);
+                        end
+                        for i=1:handles.n_region_exclude
+                              rectangle(handles.Fieldmaps,'Position',handles.position_exclude{i},'EdgeColor','b','LineWidth',1);
+                        end
+                  end
+            end             
+      end
+         
+      if ~isempty(handles.PredictedFieldInspired)
+           if any(handles.sliceSelected == handles.sliceDeleted)==0
+               if nnz(handles.FieldInspired.img(:,:,handles.sliceSelected))~= 0
+                    axes(handles.Predicted);
+                    hold on
+                    for k = 1:length(handles.bound)
+                       boundary = handles.bound{k};     
+                       plot(handles.Predicted,boundary(:,2),boundary(:,1), 'Color','black', 'LineWidth', 2);           
+                    end
+              end
+           end
+       end
+
+%Functions CreateFcn--------------------------------------------------------
+function View_selected_CreateFcn(hObject, ~, ~)
+    
+if ispc && isequal(get(hObject,'BackgroundColor'),...
+    get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+set(hObject,'String',{'Phase/Inspired';'Phase/Expired';'Mag/Inspired';'Mag/Expired'});
