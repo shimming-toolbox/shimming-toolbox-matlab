@@ -217,6 +217,9 @@ Results.median = median( Field.img( voi ) ) ;
 Results.std    = std( Field.img( voi ) ) ;
 Results.norm   = norm( Field.img( voi ), 2 ) ;
 
+Results.meanAbs   = mean( abs( Field.img( voi ) ) ) ;
+Results.medianAbs = median( abs( Field.img( voi ) ) ) ;
+
 end
 % =========================================================================
 function [] = plotfieldhistogram( Field, Params )

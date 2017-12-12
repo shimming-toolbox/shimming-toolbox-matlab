@@ -55,7 +55,8 @@ Shim.Hdr = [] ;
 if nargin < 1
     % Params = ShimCalAcdc.declarecalibrationparameters20171018( ) ;
     % Params = ShimCalAcdc.declarecalibrationparameters20171024( ) ;
-    Params = ShimCalAcdc.declarecalibrationparameters20171107( ) ;
+    % Params = ShimCalAcdc.declarecalibrationparameters20171107( ) ;
+    Params = ShimCalAcdc.declarecalibrationparameters20171209( ) ;
 end
 
 % -------
@@ -196,8 +197,11 @@ dBdIRaw = zeros( [Mag.getgridsize Params.nChannels] ) ;
 
 Params.isFilteringField = false ;
 Params.mask = Params.reliabilityMask ;
-dbstop in ShimCalAcdc at 200
+
+dbstop in ShimCalAcdc at 202
 for iChannel = 1 : Params.nChannels 
+    
+    fieldMaps = zeros( [Mag.getgridsize Params.nCurrents] ) ;
 
     for iCurrent = 1 : (Params.nCurrents)
 
@@ -209,7 +213,7 @@ for iChannel = 1 : Params.nChannels
         % -------
         % PROCESS GRE FIELD MAPS
         % -------
-        ImgArray = cell( 1, 1 ) ;
+        ImgArray = cell( 1, 2 ) ;
 
         ImgArray{1,1}  = MaRdI( Params.DataDir.mag{ iCurrent }  ) ;
         ImgArray{1,2}  = MaRdI( Params.DataDir.phase{ iCurrent }  ) ;
@@ -225,6 +229,49 @@ for iChannel = 1 : Params.nChannels
     dBdIRaw(:,:,:, iChannel) = ShimCal.mapdbdi( fieldMaps, Params.currents(iChannel,:), Params.reliabilityMask, Params ) ;  
 
 end 
+
+
+for iChannel = 1 : Params.nChannels 
+    
+    ImgArray = cell(2,2) ;
+
+    for iCurrent = 1 : (Params.nCurrents)
+
+        iImg  = 4*iChannel + 2*(iCurrent-1) ;
+
+        Params.DataDir.mag( iCurrent )   = Params.dataLoadDirectories(iImg-1) ;
+        Params.DataDir.phase( iCurrent ) = Params.dataLoadDirectories(iImg) ;
+
+        ImgArray{iCurrent, 1}  = MaRdI( Params.DataDir.mag{ iCurrent }  ) ;
+        ImgArray{iCurrent, 2}  = MaRdI( Params.DataDir.phase{ iCurrent }  ) ;
+
+    end
+
+    % -------
+    % complex difference
+    PhaseDiff = ImgArray{1,2}.copy() ;
+    PhaseDiff.Hdr.EchoTime = Params.echoTimeDifference
+
+    PhaseDiff.img = angle( ( ImgArray{2,1}.img .* exp(-i * ImgArray{2,2}.img) ) ./ ...
+                       ( ImgArray{1,1}.img .* exp(-i * ImgArray{1,2}.img) ) ) ;
+
+    % -------
+    % 3d path-based unwrapping
+    PhaseDiff.Hdr.MaskingImage = Params.mask ;
+
+    PhaseDiff = PhaseDiff.unwrapphase(  ) ;
+
+    FieldDiff = FieldEval( PhaseDiff.scalephasetofrequency( ) ) ;
+
+    disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
+    
+    dI = Params.currents( iChannel, 2 ) - Params.currents( iChannel, 1 ) ;
+
+    dBdIRaw(:,:,:, iChannel) = FieldDiff.img / dI ;  
+
+end 
+
+
 
 % -------
 % filter the dB/dI maps
@@ -431,6 +478,58 @@ Params.Filtering.filterRadius = 2*voxelSize(1) ;
 
 Params.reliabilityMask = Mag.img > 0.01 ; % region of reliable SNR for unwrapping
 Params.reliabilityMask(:,47:end,:) = 0; % artifacts observed around the 'posterior' edge of the phantom (partial volume?)
+
+Params.Extension.isExtending = true ; % harmonic field extrapolation 
+Params.Extension.voxelSize   = voxelSize ;
+Params.Extension.expansionOrder = 2 ;
+Params.Extension.radius     = 6 ;
+
+end
+% =========================================================================
+function Params = declarecalibrationparameters20171209( )
+%DECLARECALIBRATIONPARAMETERS20171209
+% 
+% Initializes parameters for shim reference map construction (i.e. shim calibration)
+%  
+%  NOTE
+% Difference from declarecalibrationparameters20171107 :
+%
+% -resolving issue of missing negative sign in ref. maps?
+% -using complex difference between +/- current field maps
+
+
+fprintf('##### \n WARNING: Ignoring EchoTime DICOM header when normalizing phase to field. \n\n')
+Params.isHardCodingEchoTime = true ;
+Params.EchoTimes  = [4.92 2.46] ;
+Params.echoTimeDifference = ( Params.EchoTimes(2) - Params.EchoTimes(1) ) ; 
+Params.nChannels  = 8 ;
+Params.nCurrents  = 2 ;
+
+Params.currents = [-0.4 0.4; %ch1, [units: A]
+                   -0.4 0.4; %
+                   -0.4 0.4; %
+                   -0.4 0.4; %...
+                   -0.4 0.4; %
+                   -0.4 0.4; %
+                   -0.4 0.4; % 
+                   -0.4 0.4;] ; %ch8
+
+% data from
+fileIn = fopen('/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_11p/20171106AcdcShimCalibrationDataDirList.txt') ;
+Params.dataLoadDirectories = textscan( fileIn, '%s' ) ;
+Params.dataLoadDirectories = Params.dataLoadDirectories{1}; % not sure why this is necessary?
+fclose(fileIn);
+% NB: zero-current acquisition = the first 2 directories (mag, phase)
+
+Params.filenameSave = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/AcdcReferenceMaps20171209' ;
+
+Params.Filtering.isFiltering  = true ;
+Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
+voxelSize                     = Mag.getvoxelsize() ;
+Params.Filtering.filterRadius = 2*voxelSize(1) ;
+
+Params.reliabilityMask = Mag.img > 0.01 ; % region of reliable SNR for unwrapping
+% Params.reliabilityMask(:,47:end,:) = 0; % artifacts observed around the 'posterior' edge of the phantom (partial volume?)
 
 Params.Extension.isExtending = true ; % harmonic field extrapolation 
 Params.Extension.voxelSize   = voxelSize ;

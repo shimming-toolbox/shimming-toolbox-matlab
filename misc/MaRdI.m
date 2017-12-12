@@ -767,10 +767,14 @@ Img.Hdr.ImageOrientationPatient(3) = dz/Img.Hdr.PixelSpacing(2) ;
 %-------
 % Slices
 Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
-Img.Hdr.SpacingBetweenSlices = ( (X_1(1,1,2) - X_1(1,1,1))^2 + ...
-                                 (Y_1(1,1,2) - Y_1(1,1,1))^2 + ...
-                                 (Z_1(1,1,2) - Z_1(1,1,1))^2 ) ^(0.5) ;
 
+if Img.Hdr.NumberOfSlices > 1
+    Img.Hdr.SpacingBetweenSlices = ( (X_1(1,1,2) - X_1(1,1,1))^2 + ...
+                                     (Y_1(1,1,2) - Y_1(1,1,1))^2 + ...
+                                     (Z_1(1,1,2) - Z_1(1,1,1))^2 ) ^(0.5) ;
+else
+    Img.Hdr.SpacingBetweenSlices = 0 ;
+end
 
 [rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 
