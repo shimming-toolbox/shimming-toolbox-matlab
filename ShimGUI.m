@@ -1,25 +1,28 @@
 function varargout = ShimGUI(varargin)
 % SHIMGUI MATLAB code for ShimGUI.fig
 
-%      This function allows to check insp/exp mag and phase data and define
-%      ROIs for optimizing shimming.
+%      This function allows to check insp/exp mag and phase data, define
+%      some Shim VOIs, optimizing shim currents and send these currents 
+%      to the coil through
+%      serial communication with an arduino uno board.
 %
 %      Usage:
 
-%      You need four training maps, in DICOM format, located in:
-%        'ins/mag/'    Magnitudes Inspired
-%        'ins/phase/'  Phases Inspired
-%        'exp/mag/'    Magnitudes Expired
-%        'exp/phase/'  Phases Expired
+%       You choose the directory with the dicomfiles from the scan with the
+%       button browse your folder.
 %      
+%       The function SortData define by the script Sortdata.m is called in background and start to sort the
+%       files in a new folder called sorted_data.
+%
 %       You also need a configuration file which defines the function: 
 %       shimparameters(). Example: see: shimparameters.m
 
 %
-% Last Modified by GUIDE v2.5 28-Nov-2017 13:56:55
+% Last Modified by GUIDE v2.5 22-Jan-2018 14:42:29
 
 
 % Begin initialization code - DO NOT EDIT
+
 
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
@@ -47,6 +50,7 @@ end
 % --- Executes just before ShimGUI is made visible.
 function ShimGUI_OpeningFcn(hObject, ~, handles, varargin)
 
+
 %Call the Configuration file shimparameters.m to specify 
 %every parameters needed for shimming simulations.
 handles.Params = shimparameters();
@@ -56,23 +60,30 @@ handles.Params = shimparameters();
 handles.output = hObject;
 
 %Default value for display parameters
-handles.item_selected = 'Phase/Inspired';
-handles.lim=200;
+handles.item_selected = 'Phase/Inspired';           %View selected
+handles.lim=200;                                    %Constrast in Images
 handles.limits=[-handles.lim handles.lim];
 handles.lim_mag=0.5;
-handles.limits_mag=[-handles.lim_mag handles.lim_mag];
-handles.n_region=0;
-handles.n_region_exclude=0;
-handles.Voi=[];
-handles.Voi_exclude=[];
-handles.position=cell(1,1);
+handles.limits_mag=[-handles.lim_mag handles.lim_mag]; 
+handles.colormap='parula'; 
+handles.n_region=0;                                 %Voi number of regions 
+handles.n_region_exclude=0;                           
+handles.Voi=[];                                     %Voi mask     
+handles.Voi_exclude=[];                                
+handles.position=cell(1,1);                         %Voi regions positions
 handles.position_exclude=cell(1,1);
-handles.PredictedFieldInspired= [];
-handles.PredictedFieldExpired= [];
-handles.sliceDeleted=[];
-handles.colormap='parula';
 handles.bound=cell(1,1);
-display ('Load your training maps');
+handles.Sct_Voi=[];
+handles.PredictedFieldInspired= [];                 %Predicted fields
+handles.PredictedFieldExpired= [];
+handles.FieldExpired=0;
+handles.sliceDeleted=[];                            %Slice excluded from Voi                         
+handles.sorted_data=' ';                            %Directory with sorted data
+handles.cal_val=[];
+handles.send_val=[];
+display ('Load your directory with data from the scan');
+  
+
 
 guidata(hObject, handles);
 
@@ -99,30 +110,39 @@ end
 handles.Shims.img = -handles.Shims.img ;
 
 % =========================================================================
-% Prepare the calibration maps
+% Loading of the Inspired maps
 % =========================================================================
 
 ImgArray_Inspired = cell(1 , 2);
-ImgArray_Inspired{1,1} = MaRdI( [ handles.Params.dataLoadDir 'ins/mag/' ] ) ;
-ImgArray_Inspired{1,2} = MaRdI( [ handles.Params.dataLoadDir 'ins/phase/' ] ) ;
+
+%Loading of Magnitude Maps ================================================
+
+display('Select folder with magnitude maps in inspired state')
+if handles.sorted_data==' '
+    %pathtomaginspired=uigetdir();
+    ImgArray_Inspired{1,1} = MaRdI( [ '/Users/ancha_admin/data/sorted_data/08_gre_field_mapping_shim0_ins/ORIGINAL\PRIMARY\M\ND/1' ] ) ;  % ATTENTION HARDCODE FOR TEST
+else
+handles.pathtomaginspired=uigetdir(handles.sorted_data);
+ImgArray_Inspired{1,1} = MaRdI( handles.pathtomaginspired ) ;
+end
+
+%Loading of Phase Maps ====================================================
+
+display('Select folder with phase maps in inspired state')
+if handles.sorted_data==' '
+    %pathtophaseinspired=uigetdir();
+    ImgArray_Inspired{1,2} = MaRdI( [ '/Users/ancha_admin/data/sorted_data/10_gre_field_mapping_shim0_ins/ORIGINAL\PRIMARY\P\ND/2' ] ) ;   % ATTENTION HARDCODE FOR TEST
+else
+handles.pathtophaseinspired = uigetdir(handles.sorted_data);
+ImgArray_Inspired{1,2} = MaRdI( handles.pathtophaseinspired ) ;
+end
+
 
 handles.FieldInspired = ShimOpt.mapfield( ImgArray_Inspired, handles.Params ) ;
 display('Loading Inspired Fieldmap--------------> Done');
 
 handles.magInspired = ImgArray_Inspired{1,1};
 display('Loading Inspired Magnitudes --------------> Done');
-
-
-ImgArray_Expired = cell( 1, 2 ) ;
-ImgArray_Expired{1,1} = MaRdI( [ handles.Params.dataLoadDir 'exp/mag/' ] ) ;
-ImgArray_Expired{1,2} = MaRdI( [ handles.Params.dataLoadDir 'exp/phase/' ] ) ;
-
-handles.FieldExpired = ShimOpt.mapfield( ImgArray_Expired, handles.Params ) ;
-display('Loading Expired Fieldmap  --------------> Done');
-
-handles.magExpired = ImgArray_Expired{1,1};
-display('Loading Expired Magnitudes --------------> Done');
-
 
 %Definition of new variables from the fieldmaps----------------------------
 
@@ -147,22 +167,73 @@ handles.Shims.interpolatetoimggrid( handles.FieldInspired );
 
 ImageField(handles.FieldInspired,handles.Fieldmaps,handles);
 handles.magInspired.img=handles.magInspired.img-0.5;
+
+Field_parametersins=assessfielddistribution( handles.FieldInspired );
+handles.meanins=strcat('Mean Abs=',num2str(Field_parametersins.meanAbs));
+handles.medianins=strcat('Median =',num2str(Field_parametersins.median));
+handles.stdins=strcat('Std dev =',num2str(Field_parametersins.std));
+Setparameters(handles.Field_mean,handles.Field_median,handles.Field_std,handles.meanins,handles.medianins,handles.stdins);
+
+%Display the Feedback from the background script---------------------------
+
+File=fopen('background');
+A=fscanf(File,'%c');
+disp(A);
+fclose(File);
+
+guidata(hObject, handles) ;
+
+% =========================================================================
+% Loading of the Expired maps
+% =========================================================================
+
+function Load_expired_Callback(hObject, ~, handles)
+ImgArray_Expired = cell( 1, 2 ) ;
+
+%Loading of Magnitude Maps ================================================
+display('Select folder with magnitude maps in expired state')
+handles.pathtomagexpired=uigetdir(handles.sorted_data);
+ImgArray_Expired{1,1} = MaRdI( handles.pathtomagexpired ) ;
+
+%Loading of Phase Maps ====================================================
+display('Select folder with phase maps in expired state')
+handles.pathtophaseexpired=uigetdir(handles.sorted_data);
+ImgArray_Expired{1,2} = MaRdI( handles.pathtophaseexpired ) ;
+
+handles.FieldExpired = ShimOpt.mapfield( ImgArray_Expired, handles.Params ) ;
+display('Loading Expired Fieldmap  --------------> Done');
+
+handles.magExpired = ImgArray_Expired{1,1};
+display('Loading Expired Magnitudes --------------> Done');
+
+%Declaration of the field distribution parameters==========================
+Field_parametersexp=assessfielddistribution( handles.FieldExpired );
+handles.meanexp=strcat('Mean Abs=',num2str(Field_parametersexp.meanAbs));
+handles.medianexp=strcat('Median =',num2str(Field_parametersexp.median));
+handles.stdexp=strcat('Std dev =',num2str(Field_parametersexp.std));
+
 handles.magExpired.img=handles.magExpired.img-0.5;
 
+%Feedback from the background script=======================================
 
+File=fopen('background');
+A=fscanf(File,'%c');
+disp(A);
+fclose(File);
 guidata(hObject, handles) ;
 
 
 
-% --- Executes on button press in customROI.
-function customROI_Callback(hObject,~, handles)
+% --- Executes on button press in customVOI.
+function customVOI_Callback(hObject,~, handles)
 
      if any(handles.sliceSelected == handles.sliceDeleted)>=1
-                display('Change the slice selected, this one was removed from the Voi')
+      display('Change the slice selected, this one was removed from the Voi')
      else
             handles.n_region = handles.n_region+1;
-                
-            
+% =========================================================================
+% Selection of the Regions inside the VOI 
+% =========================================================================                         
          if  isempty(handles.Voi)
                 handles.rect = imrect(handles.Fieldmaps);
                 setColor(handles.rect,'r');  
@@ -176,50 +247,155 @@ function customROI_Callback(hObject,~, handles)
                 handles.position{end+1}=handles.rectn.getPosition;
          end
          
-
 % =========================================================================
-% DEFINE SHIM VOI 
+% DEFINE Validity mask for shim VOI 
 % =========================================================================
 
+            if (handles.FieldExpired ~=0)
             handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;
-
-% Adjust shim VOI based on the rectangular selection on the image.
-
+            else
+            handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired) ;
+            end
+% =========================================================================
+% Adjust shim VOI based on the rectangular selection on the image
+% =========================================================================
             if ~isempty(handles.Voi_exclude);
                 handles.Voi = handles.Voi.*handles.Voi_exclude;
-            end
-
+            end          
+            
             for j=1:handles.dim(3);
                 handles.Params.shimVoi(:,:,j)=handles.Params.shimVoi(:,:,j).*handles.Voi;
             end
+            
+% =========================================================================
+% Field distribution parameters inside the VOI
+% =========================================================================           
+            handles.VOI_parametersins=assessfielddistribution( handles.FieldInspired,handles.Params.shimVoi);
+            handles.mean_roi=strcat('Mean Abs=',num2str(handles.VOI_parametersins.meanAbs));
+            handles.median_roi=strcat('Median = ',num2str(handles.VOI_parametersins.median));
+            handles.std_roi=strcat('Std dev = ',num2str(handles.VOI_parametersins.std));
+            
+            if (handles.FieldExpired ~=0)
+            handles.VOI_parametersexp=assessfielddistribution( handles.FieldExpired,handles.Params.shimVoi);
+            handles.mean_roiexp=strcat('Mean Abs=',num2str(handles.VOI_parametersexp.meanAbs));
+            handles.median_roiexp=strcat('Median =',num2str(handles.VOI_parametersexp.median));
+            handles.std_roiexp=strcat('Std dev =',num2str(handles.VOI_parametersexp.std));
+            end
    
-
-             handles.bound=bwboundaries(handles.Voi,'noholes');
+             handles.bound=bwboundaries(handles.Voi);
              
+% =========================================================================
+% Plot Images and field parameters inside the VOI 
+% =========================================================================             
        switch handles.item_selected
             
           case 'Phase/Inspired'
-              ImageFieldRoi(handles.FieldInspired,handles.Roi,handles.Voi,handles);  
+              ImageFieldRoi(handles.FieldInspired,handles.Roi,handles.Voi,handles); 
+              Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roi,handles.median_roi,handles.std_roi)
           case 'Phase/Expired'
-              ImageFieldRoi(handles.FieldExpired,handles.Roi,handles.Voi,handles);              
+              ImageFieldRoi(handles.FieldExpired,handles.Roi,handles.Voi,handles);  
+              Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp)
           case 'Mag/Inspired'             
               ImageMagRoi(handles.magInspired,handles.Roi,handles.Voi,handles);
+              Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean : -','Median : -','Std dev :-')
           case 'Mag/Expired'
               ImageMagRoi(handles.magExpired,handles.Roi,handles.Voi,handles);
+              Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean : -','Median : -','Std dev :-')
        end
      end
+     
+% =========================================================================
+% Feedback from the backgroud script
+% =========================================================================     
+File=fopen('background');
+A=fscanf(File,'%c');
+disp(A);
+fclose(File);
 guidata(hObject, handles) ;
 
 
 
-% --- Executes on slider movement.
+function Use_sct_Callback(hObject, eventdata, handles)
+    
+    
+    
+    
+    handles.matlabpath=uigetdir();
+    
+    command =sprintf('%s', 'sct_propseg -i ',handles.matlabpath,'/gre_field_mapping_shim0_ins.nii',' -c t1 ','-ofolder ',handles.matlabpath,' -CSF');
+    command2 =sprintf('%s', 'sct_propseg -i ',handles.matlabpath,'/gre_field_mapping_shim0_exp.nii',' -c t1 ','-ofolder ',handles.matlabpath,' -CSF');
+    
+    
+
+            dicm2nii(handles.pathtomaginspired,handles.matlabpath,0);        
+            
+            [~,~] = unix(command);
+            handles.sct_mask_ins=load_untouch_nii('/gre_field_mapping_shim0_ins_seg.nii');
+            handles.sct_CSFmask_ins=load_untouch_nii('/gre_field_mapping_shim0_ins_CSF_seg.nii');
+            
+            handles.sctmask_ins = double(handles.sct_mask_ins.img);
+            handles.sctCSFmask_ins=double(handles.sct_CSFmask_ins.img);
+            
+            
+            for i=1:handles.dim(3)
+            handles.Sct_Voi_ins(:,:,i)=rot90(handles.sctmask_ins(:,:,i));
+            handles.Sct_CSF_Voi_ins(:,:,i)=rot90(handles.sctCSFmask_ins(:,:,i));
+            end
+                  
+           
+            
+            if (handles.FieldExpired ~=0)
+            handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;   
+            dicm2nii(handles.pathtomagexpired,handles.matlabpath,0); 
+            [~,~] = unix(command2);
+            
+            handles.sct_mask_exp=load_untouch_nii('/gre_field_mapping_shim0_exp_seg.nii');
+            handles.sct_CSFmask_exp=load_untouch_nii('/gre_field_mapping_shim0_exp_CSF_seg.nii');
+            
+            handles.sctmask_exp = double(handles.sct_mask_exp.img);
+            handles.sctCSFmask_exp=double(handles.sct_CSFmask_exp.img);
+            
+            
+            for i=1:handles.dim(3)
+            handles.Sct_Voi_exp(:,:,i)=rot90(handles.sctmask_exp(:,:,i));
+            handles.Sct_CSF_Voi_exp(:,:,i)=rot90(handles.sctCSFmask_exp(:,:,i));
+            end
+            
+            handles.Total_Voi=handles.Sct_Voi_ins+handles.Sct_CSF_Voi_ins+handles.Sct_Voi_exp+handles.Sct_CSF_Voi_exp;
+            
+            else
+            handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired) ;
+            handles.Total_Voi=handles.Sct_Voi_ins+handles.Sct_CSF_Voi_ins;
+            end     
+            
+            for j=1:handles.dim(3);
+                handles.Params.shimVoi(:,:,j)=handles.Params.shimVoi(:,:,j).*handles.Total_Voi(:,:,j);    
+                handles.bound{j}=bwboundaries(handles.Total_Voi(:,:,j));        
+            end
+            
+                               
+           [handles.mean_roi,handles.median_roi,handles.std_roi,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp]=calculparameters(handles);
+
+            Switch_plot(handles);         
+            
+            
+guidata(hObject, handles) ;
+
+%Executes on slice selector movement=======================================
+
 function sliceSelector_Callback(hObject,~, handles)
 
 dim = size(handles.FieldInspired.img);
-maxslice = dim(3);     %Nombre de slice dans le plan sagittal
+
+%Slice number in the sagittal plan ========================================
+maxslice = dim(3);                   
+
+%Define the slice selected from the slider position
 handles.sliceSelected = round(get(hObject,'Value')*(maxslice - 1) + 1);
 
 Switch_plot(handles);
+
+%Display the slice selected on the Shim GUI interface======================
 
 set(handles.commandLine,'string',num2str(round(get(hObject,'Value')*(maxslice - 1) + 1)));
             
@@ -227,7 +403,8 @@ guidata(hObject, handles) ;
 
 
 
-%View Selected Callback
+%View Selected Callback====================================================
+
 function View_selected_Callback(hObject, ~, handles)
     
 items = get(hObject,'String');
@@ -240,99 +417,149 @@ guidata(hObject, handles);
 
 
 
-% --- Executes on button press in Prediction.
-function Prediction_Callback(hObject, ~, handles)
+%Generate Predicted maps callback  ========================================
 
-handles.Params.isSolvingAugmentedSystem    = true ;
-handles.Params.isPenalizingFieldDifference = true;
-handles.Params.regularizationParameter     = 0 ;
+function Prediction_Callback(hObject, ~, handles)
     
 handles.Shims.setoriginalfield( handles.FieldInspired ) ;
 handles.Shims.setshimvolumeofinterest( handles.Params.shimVoi) ;
 
-[handles.Params.Inspired.currents, handles.Params.Expired.currents] = handles.Shims.optimizeshimcurrents( handles.Params, handles.FieldExpired ) ;
-    
-%Shimming predictions------------------------------------------------------
+%Shim currents optimization ===============================================
 
+if (handles.FieldExpired ~=0)
+handles.Params.isSolvingAugmentedSystem    = true ;
+handles.Params.isPenalizingFieldDifference = true;
+handles.Params.regularizationParameter     = 0 ;
+[handles.Params.Inspired.currents, handles.Params.Expired.currents] = handles.Shims.optimizeshimcurrents( handles.Params, handles.FieldExpired ) ;
+else
+[handles.Params.Inspired.currents] = handles.Shims.optimizeshimcurrents(handles.Params) ;
+end
+    
 handles.Shims.Model.currents   =  handles.Params.Inspired.currents ;
-handles.PredictedFieldInspired =  handles.Shims.predictshimmedfield( ) ;
-                
-handles.Shims.setoriginalfield( handles.FieldExpired ) ;
-handles.Shims.Model.currents = handles.Params.Expired.currents ;
-handles.PredictedFieldExpired =  handles.Shims.predictshimmedfield( ) ;
-    
-    
-%Mask for regions without any signal in the Fieldmaps----------------------
+
+%==========================================================================
+%Predicted Inspired field calculation
+%==========================================================================
+
+handles.PredictedFieldInspired =  handles.Shims.predictshimmedfield( ) ;   
+
+%Mask for regions without any signal in the inspired Fieldmaps=============
 
 mask = handles.FieldInspired.img;
 mask(mask ~= 0) = 1;
-    
+
+
 handles.PredictedFieldInspired.img = handles.PredictedFieldInspired.img .* mask;
-    
+
+[handles.mean_pre,handles.median_pre,handles.std_pre,handles.mean_preexp,handles.median_preexp,handles.std_preexp]=calculparameters(handles);
+
+
+%==========================================================================
+%Predicted Expired field calculation
+%==========================================================================
+if (handles.FieldExpired ~=0)
+handles.Shims.setoriginalfield( handles.FieldExpired ) ;
+handles.Shims.Model.currents = handles.Params.Expired.currents ;
+handles.PredictedFieldExpired =  handles.Shims.predictshimmedfield( ) ;
+
+%Mask for regions without any signal in the expired Fieldmaps==============
 mask2 = handles.FieldExpired.img;
 mask2(mask2 ~= 0) = 1;
 handles.PredictedFieldExpired.img = handles.PredictedFieldExpired.img .* mask2;
 
-            
-                
+end  
+
+%==========================================================================
+%Plot Predicted field distribution parameters and Images
+%==========================================================================                
 switch handles.item_selected
                   
    case 'Phase/Inspired'         
          ImageField(handles.PredictedFieldInspired,handles.Predicted,handles); 
-            
+         Setparameters(handles.predictedmean,handles.predictedmedian,handles.predictedstd,handles.mean_pre,handles.median_pre,handles.std_pre)
+         Setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Inspired.currents);
+
               
    case 'Phase/Expired'
-         ImageField(handles.PredictedFieldExpired,handles.Predicted,handles);                                
+         ImageField(handles.PredictedFieldExpired,handles.Predicted,handles);     
+         Setparameters(handles.predictedmean,handles.predictedmedian,handles.predictedstd,handles.mean_preexp,handles.median_preexp,handles.std_preexp)
+         Setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Expired.currents);
+
                 
    case 'Mag/Inspired' 
-
          ImageField(handles.PredictedFieldInspired,handles.Predicted,handles);
+         Setparameters(handles.predictedmean,handles.predictedmedian,handles.predictedstd,handles.mean_pre,handles.median_pre,handles.std_pre)
+         Setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Inspired.currents);
+
                                
    case 'Mag/Expired'             
          ImageField(handles.PredictedFieldExpired,handles.Predicted,handles);  
-                                              
+         Setparameters(handles.predictedmean,handles.predictedmedian,handles.predictedstd,handles.mean_preexp,handles.median_preexp,handles.std_preexp)
+         Setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Inspired.currents);
+                                     
 end
+
 
      if any(handles.sliceSelected == handles.sliceDeleted)==0
          axes(handles.Predicted);
             hold on
-         for k = 1:length(handles.bound)
-            boundary = handles.bound{k};     
-            plot(handles.Predicted,boundary(:,2),boundary(:,1), 'Color','black', 'LineWidth', 2);           
-         end
+            if handles.n_region >= 1
+             for k = 1:length(handles.bound)
+               boundary = handles.bound{k};     
+               plot(handles.Predicted,boundary(:,2),boundary(:,1), 'Color','black', 'LineWidth', 1); 
+             end
+            else
+                handles.sct_seg = handles.bound{handles.sliceSelected};
+              for k = 1:length(handles.sct_seg)                                   
+               boundary = handles.sct_seg{k};     
+               plot(handles.Predicted,boundary(:,2),boundary(:,1), 'Color','black', 'LineWidth', 0.8);
+              end
+            end
      end
 guidata(hObject, handles);
 
 
-% --- Executes on button press in delete_region.
+% Clear ROI on the selected slice callback=================================
+
 function delete_region_Callback(hObject, ~, handles)
 
-    
+%Modification du shim VOI--------------------------------------------------
+
 handles.Params.shimVoi(:,:,handles.sliceSelected)=0;
 handles.sliceDeleted(end+1)=handles.sliceSelected;
 
+%Calculation of the field distribution parameters in the modified VOI------
+
+      [handles.mean_roi,handles.median_roi,handles.std_roi,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp]=calculparameters(handles);
+
+
+%Plot field distribution parameters and images-----------------------------
 
 switch handles.item_selected
     
     case 'Phase/Inspired'
         ImageField(handles.FieldInspired,handles.Fieldmaps,handles);
+        Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roi,handles.median_roi,handles.std_roi);
         if handles.n_region >=1
             Imageclear(handles.limits,handles.Roi,handles.colormap,handles);
         end           
            
     case 'Phase/Expired'
          ImageField(handles.FieldExpired,handles.Fieldmaps,handles);
+         Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp);
          if handles.n_region >=1
              Imageclear(handles.limits,handles.Roi,handles.colormap,handles);
          end           
     case 'Mag/Inspired'
-         ImageMag(handles.magInspired,handles.Fieldmaps,handles);  
+         ImageMag(handles.magInspired,handles.Fieldmaps,handles);
+         Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-');
          if handles.n_region >=1
             Imageclear(handles.limits_mag,handles.Roi,gray,handles);
          end 
                  
     case 'Mag/Expired'
          ImageMag(handles.magExpired,handles.Fieldmaps,handles);
+         Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-');
          if handles.n_region >=1
             Imageclear(handles.limits_mag,handles.Roi,gray,handles);
          end
@@ -345,44 +572,49 @@ guidata(hObject,handles);
 
 
 
-% --- Executes on button press in Clear_Roi.
+% Clear VOI callback=======================================================
+
 function Clear_Roi_Callback(hObject, ~, handles)
 
-    
     switch handles.item_selected
             
          case 'Phase/Inspired'
              ImageField(handles.FieldInspired,handles.Fieldmaps,handles); 
-             if handles.n_region >= 1
              Imageclear(handles.limits,handles.Roi,handles.colormap,handles);
-             end
+
             
          case 'Phase/Expired'
              ImageField(handles.FieldExpired,handles.Fieldmaps,handles);
-             if handles.n_region >= 1
              Imageclear(handles.limits,handles.Roi,handles.colormap,handles);
-             end
+             
                          
          case 'Mag/Inspired'
              ImageMag(handles.magInspired,handles.Fieldmaps,handles) ;
-             if handles.n_region >= 1
              Imageclear(handles.limits_mag,handles.Roi,gray,handles);
-             end
+             
                  
          case 'Mag/Expired'
              ImageMag(handles.magExpired,handles.Fieldmaps,handles);
-             if handles.n_region >= 1
              Imageclear(handles.limits_mag,handles.Roi,gray,handles);
-             end
+             
              
     end
      
-     if handles.PredictedFieldExpired ~=0
+     if handles.PredictedFieldInspired ~=0
         Imageclear(handles.limits,handles.Predicted,handles.colormap,handles);
      end
      
+     
+%==========================================================================
+% reset_current VOI parameters
+%==========================================================================
+
 handles.Voi = [];
+handles.Total_Voi=[];
+handles.Sct_Voi=[];
 handles.Voi_exclude=[];
+handles.VOI_parametersins=0;
+handles.VOI_parametersexp=0;
 handles.position=cell(1,1);
 handles.position_exclude=cell(1,1);
 handles.n_region=0;
@@ -392,26 +624,29 @@ handles.PredictedFieldInspired=[];
 handles.PredictedFieldExpired=[];
 handles.sliceDeleted=[];
 handles.bound=[];
+Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-');
+Setparameters(handles.predictedmean,handles.predictedmedian,handles.predictedstd,'Mean Abs: -','Median : -','Std dev :-');
 
  guidata(hObject, handles);
  
- % --- Executes on button press in Exclude_From_ROI.
+ % Exclude_From_VOI callback===============================================
+ 
 function Exclude_From_ROI_Callback(hObject, ~, handles)
-% hObject    handle to Exclude_From_ROI (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+    
+    
      if ~isempty(handles.Voi)
             handles.n_region_exclude = handles.n_region_exclude+1;
-            
+
+% =========================================================================
+% Selection of Regions to exclude from the VOI 
+% =========================================================================
+
          if  isempty(handles.Voi_exclude)
             handles.rect = imrect(handles.Fieldmaps);
             setColor(handles.rect,'b');  
             handles.Voi_exclude =~handles.rect.createMask;
-            handles.position_exclude{1}=handles.rect.getPosition;
-            
-        
-         else
-        
+            handles.position_exclude{1}=handles.rect.getPosition;       
+         else  
             handles.rectn = imrect(handles.Fieldmaps);
             setColor(handles.rectn,'b');
             
@@ -421,38 +656,145 @@ function Exclude_From_ROI_Callback(hObject, ~, handles)
          end
     
 % =========================================================================
-% DEFINE SHIM VOI 
+% DEFINE SHIM VOI validity mask
 % =========================================================================
 
     handles.Voi = handles.Voi.*handles.Voi_exclude;
+    
+    if (handles.FieldExpired ~=0)
     handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;
+    else
+    handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired) ;
+    end
     handles.bound=bwboundaries(handles.Voi);
 
-% Adjust shim VOI based on the rectangular selection on the image.
+% Adjust shim VOI based on the rectangular selection on the image==========
 
             for j=1:handles.dim(3);
                 handles.Params.shimVoi(:,:,j)=handles.Params.shimVoi(:,:,j).*handles.Voi;
             end
-    
+            
+% =========================================================================
+% Field distribution parameters inside the VOI
+% =========================================================================
+      [handles.mean_roi,handles.median_roi,handles.std_roi,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp]=calculparameters(handles);
+
+      
+% =========================================================================    
+%Plot Images and field parameters inside the VOI
+% =========================================================================
         switch handles.item_selected
             
                 case 'Phase/Inspired'
                     ImageFieldRoi(handles.FieldInspired,handles.Roi,handles.Voi,handles);  
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roi,handles.median_roi,handles.std_roi)
                 case 'Phase/Expired'
-                    ImageFieldRoi(handles.FieldExpired,handles.Roi,handles.Voi,handles);              
+                    ImageFieldRoi(handles.FieldExpired,handles.Roi,handles.Voi,handles);   
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp)
+
                 case 'Mag/Inspired'             
-                 ImageMagRoi(handles.magInspired,handles.Roi,handles.Voi,handles);
+                    ImageMagRoi(handles.magInspired,handles.Roi,handles.Voi,handles);
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-')
                 case 'Mag/Expired'
                     ImageMagRoi(handles.magExpired,handles.Roi,handles.Voi,handles);
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-')
          end
      else
-         display ('Warning : Create a Voi before using the button "Exclude"')
+         display ('Warning : Create a VOI before using the button "Exclude"')
      end   
+    
+guidata (hObject,handles);
+
+% --- Executes on button press in Extend_SCT.
+function Extend_SCT_Callback(hObject, ~, handles)
+    
+    if ~isempty(handles.Total_Voi)
+        handles.extension = imrect(handles.Fieldmaps);
+        handles.Sct_extension =handles.extension.createMask;
+        handles.Total_Voi(:,:,handles.sliceSelected)=or(handles.Total_Voi(:,:,handles.sliceSelected),handles.Sct_extension);
+        
+        for j=1:handles.dim(3);
+         handles.Params.shimVoi(:,:,j)=handles.Params.shimVoi(:,:,j)+handles.Sct_extension;    
+         handles.bound{j}=bwboundaries(handles.Total_Voi(:,:,j));        
+        end
+        
+      [handles.mean_roi,handles.median_roi,handles.std_roi,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp]=calculparameters(handles);
+
+      
+% =========================================================================    
+%Plot Images and field parameters inside the VOI
+% =========================================================================
+        switch handles.item_selected
+            
+                case 'Phase/Inspired'
+                    ImageFieldRoi(handles.FieldInspired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles);  
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roi,handles.median_roi,handles.std_roi)
+                case 'Phase/Expired'
+                    ImageFieldRoi(handles.FieldExpired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles);   
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp)
+
+                case 'Mag/Inspired'             
+                    ImageMagRoi(handles.magInspired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles);
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-')
+                case 'Mag/Expired'
+                    ImageMagRoi(handles.magExpired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles);
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-')
+         end
+    
+    else
+        display('Use Sct button to calculate a VOI before trying to extend it')
+    end
+
+guidata (hObject,handles);
+
+
+
+% --- Executes on button press in Reduce_SCT.
+function Reduce_SCT_Callback(hObject, ~, handles)
+    
+    if ~isempty(handles.Total_Voi)
+        handles.reduction = imrect(handles.Fieldmaps);
+        handles.Sct_reduction =~handles.reduction.createMask;
+        handles.Total_Voi(:,:,handles.sliceSelected)=handles.Total_Voi(:,:,handles.sliceSelected).*handles.Sct_reduction;
+        
+        for j=1:handles.dim(3);
+         handles.Params.shimVoi(:,:,j)=handles.Params.shimVoi(:,:,j).*handles.Sct_reduction;    
+         handles.bound{j}=bwboundaries(handles.Total_Voi(:,:,j));        
+        end
+        
+
+      [handles.mean_roi,handles.median_roi,handles.std_roi,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp]=calculparameters(handles);
+
+      
+% =========================================================================    
+%Plot Images and field parameters inside the VOI
+% =========================================================================
+        switch handles.item_selected
+            
+                case 'Phase/Inspired'
+                    ImageFieldRoi(handles.FieldInspired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles);  
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roi,handles.median_roi,handles.std_roi)
+                case 'Phase/Expired'
+                    ImageFieldRoi(handles.FieldExpired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles);   
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp)
+
+                case 'Mag/Inspired'             
+                    ImageMagRoi(handles.magInspired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles);
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-')
+                case 'Mag/Expired'
+                    ImageMagRoi(handles.magExpired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles);
+                    Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-')
+         end
+    
+    else
+        display('Use Sct button to calculate a VOI before trying to Reduce it')
+    end
     
     guidata (hObject,handles);
 
 
 
+%Fieldmaps contrast selector callback======================================
 
 function Phase_contrast_selector_Callback(hObject, ~, handles)
 
@@ -464,6 +806,8 @@ Switch_plot(handles);
 
 guidata (hObject,handles);
 
+
+%Magntitude contrast selector callback=====================================
 
 function Mag_contrast_selector_Callback(hObject, ~, handles)
 
@@ -478,7 +822,112 @@ Switch_plot(handles);
 
 guidata (hObject,handles);
 
-%Functions Images ---------------------------------------------------------
+% Browse your folder callback==============================================
+
+function Browsebutton_Callback(hObject, ~, handles)
+    
+%Select the folder with the raw data from the scan-------------------------
+    
+handles.Raw_data= uigetdir();
+[handles.pathtofolder,handles.foldername]=fileparts(handles.Raw_data);
+
+%Define a new folder to store the sorted data------------------------------
+
+handles.sorted_data=fullfile(handles.pathtofolder,'/sorted_data');
+
+%Call the function to sort the data in background--------------------------
+
+unix(sprintf('%s','/Applications/MATLAB_R2016a.app/bin/matlab -nodesktop -nojvm -r ", SortData(''',handles.Raw_data,''' ,''',handles.sorted_data,''');" &'));
+display('Load your training maps')
+guidata (hObject,handles);
+
+
+% Send_current Callback----------------------------------------------------
+
+function Send_current_Callback(hObject, ~, handles)
+
+switch handles.item_selected
+       case {'Phase/Inspired','Mag/Inspired'}
+            handles.currents=handles.Params.Inspired.currents.*1000;
+       case {'Phase/Expired','Mag/Expired'}
+            handles.currents=handles.Params.Expired.currents.*1000;      
+end
+
+%handles.Shims=ShimComAcdc();
+%display(handles.Shims.ComPort)
+%handles.Shims.setandloadallshims(handles.Shims.ComPort,handles.send_val);
+
+command =strcat('i',num2str(handles.send_val(1)),',',num2str(handles.send_val(2)),',',num2str(handles.send_val(3)),',',num2str(handles.send_val(4)),...
+',',num2str(handles.send_val(5)),',',num2str(handles.send_val(6)),',',num2str(handles.send_val(7)),',',num2str(handles.send_val(8)),',');
+
+fprintf(handles.ComPort,'%s',command,'sync');    
+
+for i=1:9
+a = fscanf(handles.ComPort,'%s');
+disp(a);
+end
+
+guidata (hObject,handles);
+
+
+% Reset current Callback===================================================
+
+function reset_current_Callback(hObject, ~, handles)
+    
+% Send Command set all channels to 0V--------------------------------------
+fprintf(handles.ComPort,'%s','w','sync');
+
+% Send Command to querry the channels input--------------------------------
+fprintf(handles.ComPort,'%s','q','sync');
+
+%Read the Feedback from the arduino----------------------------------------
+for i=1:9
+a = fscanf(handles.ComPort,'%s');
+disp(a);
+end
+
+guidata (hObject,handles);
+
+% Start Communication Callback=============================================
+
+function start_comunication_Callback(hObject, ~, handles)
+
+%Openning serial communication with the Arduino----------------------------
+
+delete(instrfindall);
+handles.Specs = ShimSpecsAcdc(  );
+display(handles.Specs);
+
+handles.ComPort = ShimComAcdc.initializecomport( handles.Specs );
+
+
+switch handles.item_selected
+       case {'Phase/Inspired','Mag/Inspired'}
+            handles.currents=handles.Params.Inspired.currents.*1000;
+       case {'Phase/Expired','Mag/Expired'}
+            handles.currents=handles.Params.Expired.currents.*1000;      
+end
+   
+  for i=1:8 
+  handles.cal_val(i) = (handles.currents(i) - handles.Params.coeffP2(i)) / handles.Params.coeffP1(i);
+  end
+   
+  handles.send_val = ((1.25 - handles.cal_val * 0.001 * 0.22) * 26214);
+  
+guidata (hObject,handles);
+
+
+%End Communication Callback================================================
+    
+function end_comunication_Callback(hObject, ~, handles)
+fclose (handles.ComPort);
+display('Serial communication with the coil is close now')
+guidata (hObject,handles);
+
+
+% =========================================================================    
+%Functions Image
+% =========================================================================
 
 function ImageField(Field,ax,handles)
         
@@ -505,7 +954,6 @@ function ImageMag(Field,ax,handles)
              colorbar(ax);
              
 function ImageMagRoi(Field,ax,mask,handles)
-        
              imageToPlot = Field.img(:,:,handles.sliceSelected).*mask;
              imagesc(imageToPlot,'parent',ax);
              colormap(ax,gray);
@@ -517,47 +965,93 @@ function Imageclear(lim,ax,colormaps,handles)
              colormap(ax,colormaps);
              caxis(ax,lim);
              colorbar(ax);
-             
+                           
+function[a,b,c,d,e,f] = calculparameters(handles) 
     
+      handles.VOI_parametersins=assessfielddistribution( handles.FieldInspired,handles.Params.shimVoi);
+      handles.mean_roi=strcat('Mean Abs=',num2str(handles.VOI_parametersins.meanAbs));
+      a=handles.mean_roi;
+      handles.median_roi=strcat('Median =',num2str(handles.VOI_parametersins.median));
+      b=handles.median_roi;
+      handles.std_roi=strcat('Std dev = ',num2str(handles.VOI_parametersins.std));
+      c=handles.std_roi;
+      d=0;
+      e=0;
+      f=0;
+            
+      if (handles.FieldExpired ~=0)
+      handles.VOI_parametersexp=assessfielddistribution( handles.FieldExpired,handles.Params.shimVoi);
+      a=0;
+      b=0;
+      c=0;
+      handles.mean_roiexp=strcat('Mean Abs =',num2str(handles.VOI_parametersexp.meanAbs));
+      d=handles.mean_roi;
+      handles.median_roiexp=strcat('Median =',num2str(handles.VOI_parametersexp.median));
+      e=handles.median_roi;
+      handles.std_roiexp=strcat('Std dev =',num2str(handles.VOI_parametersexp.std));
+      f=handles.std_roi;
+      end
+      
+             
    function Switch_plot(handles)
            
      switch handles.item_selected
             
         case 'Phase/Inspired'
               ImageField(handles.FieldInspired,handles.Fieldmaps,handles);
+              Setparameters(handles.Field_mean,handles.Field_median,handles.Field_std,handles.meanins,handles.medianins,handles.stdins);
             
               if ~isempty(handles.Voi)
-                  ImageFieldRoi(handles.FieldInspired,handles.Roi,handles.Voi,handles); 
+                  ImageFieldRoi(handles.FieldInspired,handles.Roi,handles.Voi,handles);
+                  Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roi,handles.median_roi,handles.std_roi);
               end
               
+              if ~isempty(handles.Total_Voi)
+                  ImageFieldRoi(handles.FieldInspired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles);
+                  Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roi,handles.median_roi,handles.std_roi);
+              end
+               
               if ~isempty(handles.PredictedFieldInspired)
-                  ImageField(handles.PredictedFieldInspired,handles.Predicted,handles);      
+                  ImageField(handles.PredictedFieldInspired,handles.Predicted,handles);  
+                  Setparameters(handles.predictedmean,handles.predictedmedian,handles.predictedstd,handles.mean_pre,handles.median_pre,handles.std_pre);
+                  Setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Inspired.currents);
+
               end
            
               if any(handles.sliceSelected == handles.sliceDeleted)==1  
-                   Imageclear(handles.limits,handles.Roi,handles.colormap,handles)
+                   Imageclear(handles.limits,handles.Roi,handles.colormap,handles);
               end
              
               if handles.FieldInspired.img(:,:,handles.sliceSelected)==0
                   if handles.n_region >=1
-                    Imageclear(handles.limits,handles.Roi,handles.colormap,handles)
+                    Imageclear(handles.limits,handles.Roi,handles.colormap,handles);
                   end
               end 
             
          case 'Phase/Expired'
+            if (handles.FieldExpired ~=0)
                ImageField(handles.FieldExpired,handles.Fieldmaps,handles);
+               Setparameters(handles.Field_mean,handles.Field_median,handles.Field_std,handles.meanexp,handles.medianexp,handles.stdexp);
                          
             if ~isempty(handles.Voi)
                   ImageFieldRoi(handles.FieldExpired,handles.Roi,handles.Voi,handles); 
+                  Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp);
             end  
-          
-          
+            
+             if ~isempty(handles.Total_Voi)
+                  ImageFieldRoi(handles.FieldExpired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles); 
+                  Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,handles.mean_roiexp,handles.median_roiexp,handles.std_roiexp);
+            end  
+            
             if ~isempty(handles.PredictedFieldExpired)
-                  ImageField(handles.PredictedFieldExpired,handles.Predicted,handles);  
+                  ImageField(handles.PredictedFieldExpired,handles.Predicted,handles); 
+                  Setparameters(handles.predictedmean,handles.predictedmedian,handles.predictedstd,handles.mean_preexp,handles.median_preexp,handles.std_preexp);
+                  Setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Expired.currents);
+
             end     
           
              if any(handles.sliceSelected == handles.sliceDeleted)==1  
-                   Imageclear(handles.limits,handles.Roi,handles.colormap,handles)
+                   Imageclear(handles.limits,handles.Roi,handles.colormap,handles);
              end
            
              if handles.FieldExpired.img(:,:,handles.sliceSelected)==0
@@ -565,16 +1059,29 @@ function Imageclear(lim,ax,colormaps,handles)
                    Imageclear(handles.limits,handles.Roi,handles.colormap,handles)
                  end
              end 
+             else
+                 display ('There is no Expired field maps');
+             end    
              
         case 'Mag/Inspired'
              ImageMag(handles.magInspired,handles.Fieldmaps,handles);
+             Setparameters(handles.Field_mean,handles.Field_median,handles.Field_std,'Mean Abs: -','Median : -','Std dev :-');
              
             if ~isempty(handles.Voi)
                 ImageMagRoi(handles.magInspired,handles.Roi,handles.Voi,handles);
+                Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-')
             end
+                
+             if ~isempty(handles.Total_Voi)
+                ImageMagRoi(handles.magInspired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles);
+                Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-')
+             end
             
             if ~isempty(handles.PredictedFieldInspired)            
-                ImageField(handles.PredictedFieldInspired,handles.Predicted,handles);                         
+                ImageField(handles.PredictedFieldInspired,handles.Predicted,handles);
+                Setparameters(handles.predictedmean,handles.predictedmedian,handles.predictedstd,handles.mean_pre,handles.median_pre,handles.std_pre);
+                Setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Inspired.currents);
+
             end
             
             if any(handles.sliceSelected == handles.sliceDeleted)==1  
@@ -588,14 +1095,25 @@ function Imageclear(lim,ax,colormaps,handles)
             end 
                  
         case 'Mag/Expired'
+            if (handles.FieldExpired ~=0)
              ImageMag(handles.magExpired,handles.Fieldmaps,handles);
+             Setparameters(handles.Field_mean,handles.Field_median,handles.Field_std,'Mean Abs: -','Median : -','Std dev :-');
              
            if ~isempty(handles.Voi)  
                ImageMagRoi(handles.magExpired,handles.Roi,handles.Voi,handles);
+               Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-');
+           end
+           
+           if ~isempty(handles.Total_Voi)  
+               ImageMagRoi(handles.magExpired,handles.Roi,handles.Total_Voi(:,:,handles.sliceSelected),handles);
+               Setparameters(handles.VOI_mean,handles.VOI_median,handles.VOI_std,'Mean Abs: -','Median : -','Std dev :-');
            end
             
            if ~isempty(handles.PredictedFieldExpired)
-               ImageField(handles.PredictedFieldExpired,handles.Predicted,handles);             
+               ImageField(handles.PredictedFieldExpired,handles.Predicted,handles); 
+               Setparameters(handles.predictedmean,handles.predictedmedian,handles.predictedstd,handles.mean_preexp,handles.median_preexp,handles.std_preexp);
+               Setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Expired.currents);
+
            end
            
            if any(handles.sliceSelected == handles.sliceDeleted)==1  
@@ -606,7 +1124,11 @@ function Imageclear(lim,ax,colormaps,handles)
                if handles.n_region >=1
                  Imageclear(handles.limits_mag,handles.Roi,gray,handles)
                end
-           end 
+           end
+           else
+                 display ('There is no Expired field maps');
+           end    
+             
              
      end
      
@@ -623,20 +1145,55 @@ function Imageclear(lim,ax,colormaps,handles)
             end             
       end
          
-      if ~isempty(handles.PredictedFieldInspired)
-           if any(handles.sliceSelected == handles.sliceDeleted)==0
-               if nnz(handles.FieldInspired.img(:,:,handles.sliceSelected))~= 0
-                    axes(handles.Predicted);
-                    hold on
+      
+    if ~isempty(handles.PredictedFieldInspired) 
+         if any(handles.sliceSelected == handles.sliceDeleted)==0
+             if nnz(handles.FieldInspired.img(:,:,handles.sliceSelected))~= 0
+                axes(handles.Predicted);
+                if handles.n_region >= 1
                     for k = 1:length(handles.bound)
-                       boundary = handles.bound{k};     
-                       plot(handles.Predicted,boundary(:,2),boundary(:,1), 'Color','black', 'LineWidth', 2);           
+                    boundary = handles.bound{k};     
+                    plot(handles.Predicted,boundary(:,2),boundary(:,1), 'Color','black', 'LineWidth', 1); 
                     end
-              end
-           end
-       end
+                else
+                    handles.sct_seg = handles.bound{handles.sliceSelected};
+                    for k = 1:length(handles.sct_seg)                                   
+                    boundary = handles.sct_seg{k};
+                    plot(handles.Predicted,boundary(:,2),boundary(:,1), 'Color','black', 'LineWidth', 0.8);
+                    end
+                end
+             end
+         end
+    end
+       
 
-%Functions CreateFcn--------------------------------------------------------
+             
+% =========================================================================    
+%Functions Set parameters on the GUI interface
+% =========================================================================  
+
+function Setparameters(location1,location2,location3,parameter1,parameter2,parameter3)
+         set(location1,'string',parameter1);
+         set(location2,'string',parameter2);
+         set(location3,'string',parameter3);
+         
+function Setcurrents(loc1,loc2,loc3,loc4,loc5,loc6,loc7,loc8, current)
+         currents=current*1000;
+         set(loc1,'string',strcat('Ch1 :',num2str(currents(1),4),'mA'));
+         set(loc2,'string',strcat('Ch2 :',num2str(currents(2),4),'mA'));
+         set(loc3,'string',strcat('Ch3 :',num2str(currents(3),4),'mA'));
+         set(loc4,'string',strcat('Ch4 :',num2str(currents(4),4),'mA'));
+         set(loc5,'string',strcat('Ch5 :',num2str(currents(5),4),'mA'));
+         set(loc6,'string',strcat('Ch6 :',num2str(currents(6),4),'mA'));
+         set(loc7,'string',strcat('Ch7 :',num2str(currents(7),4),'mA'));
+         set(loc8,'string',strcat('Ch8 :',num2str(currents(8),4),'mA'));
+         
+             
+    
+% =========================================================================    
+%Function Create Fcn for the view selected button
+% ========================================================================= 
+
 function View_selected_CreateFcn(hObject, ~, ~)
     
 if ispc && isequal(get(hObject,'BackgroundColor'),...
@@ -644,3 +1201,4 @@ if ispc && isequal(get(hObject,'BackgroundColor'),...
     set(hObject,'BackgroundColor','white');
 end
 set(hObject,'String',{'Phase/Inspired';'Phase/Expired';'Mag/Inspired';'Mag/Expired'});
+
