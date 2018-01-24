@@ -62,7 +62,7 @@ end
 function [isAckReceived] = getsystemheartbeat( Shim ) ;
 %GETSYSTEMHEARTBEAT
 %
-% Queries shim controller and returns TRUE if responsive
+isAckReceived=true;
 end
 % =========================================================================
 function [] = setandloadshim( Shim, voltages )  ;
@@ -78,38 +78,52 @@ Shim.Data.output    = Shim.Cmd.setAndLoadShim ;
 end
 % =========================================================================
 function [] = setandloadallshims( Shim, voltages )
-%SETANDLOADALLSHIMS     
-% 
+    
+command =strcat('i',num2str(voltages(1)),',',num2str(voltages(2)),',',num2str(voltages(3)),',',num2str(voltages(4)),...
+',',num2str(voltages(5)),',',num2str(voltages(6)),',',num2str(voltages(7)),',',num2str(voltages(8)),',');
 
-for iCh = 1 : Shim.Specs.nActiveChannels 
-    Shim.setandloadshim( iCh, voltages(iCh) ) ;
+
+fprintf(Shim.ComPort,'%s',command,'sync');    
+
+for i=1:9
+a = fscanf(Shim.ComPort,'%s');
+disp(a);
 end
-
 end
 % =========================================================================
 function [] = resetallshims( Shim ) 
 %RESETALLSHIMS  
 %
 % Reset all shims to 0 A.
-%
-% [] = RESETALLSHIMS( Shim )
 
-Shim.Params.nBytesToRead = 5 ; % (ACK only)
+    
+% Send Command set all channels to 0V--------------------------------------
+fprintf(Shim.ComPort,'%s','w','sync');
 
-% output message 
-Shim.Data.output = Shim.Cmd.resetAllShims ; 
+% Send Command to querry the channels input--------------------------------
+fprintf(Shim.ComPort,'%s','q','sync');
 
-% Shim.Data.output(2) = 5 ; 
-% Shim.Data.output(3) = hex2dec( Shim.Cmd.Mxd.setLoadAllShim ) ;
+%Read the Feedback from the arduino----------------------------------------
+for i=1:9
+a = fscanf(Shim.ComPort,'%s');
+disp(a);
+end
 
-[Shim, isSendOk] = Shim.sendcmd() ;
+end
 
-% if isSendOk 
-%     [isAckReceived, systemResponse] = Shim.isackreceived( ) ;
-%     if ~isAckReceived
-%         disp(systemResponse)
-%     end
-% end
+% =========================================================================
+function [] = Open_ComPort( Shim ) 
+fopen(Shim.ComPort);
+
+for i=1:7
+a = fscanf(Shim.ComPort,'%s');
+disp(a);
+end
+end
+% =========================================================================
+
+function [] = close_ComPort( Shim ) 
+fclose(Shim.ComPort);
 
 end
 % =========================================================================
@@ -129,7 +143,7 @@ Shim.Params.nBytesToRead = 5 ; % (ACK only)
 % output message 
 Shim.Data.output = Shim.Cmd.getChannelOutput ; 
 
-ChannelOutput.voltage = 
+%ChannelOutput.voltage = 
 
 end
 % =========================================================================
@@ -223,7 +237,7 @@ function [ComPort] = initializecomport( Specs )
 
 if ismac
     % portName = '/dev/tty.usbserial' ; % USB to serial adapter
-    portName = '/dev/tty.usbmodem1421' % Ryan's 2012 MacBook Pro -- right USB port
+    portName = '/dev/cu.usbmodem1421' ;
 elseif isunix
     portName = '/dev/ttyS0' ;
 elseif ispc
@@ -232,15 +246,7 @@ else
     error('Wtf kind of computer is this?')
 end
 
-ExistingPorts = instrfind( ) ;
-
-for iPort = 1 : length( ExistingPorts )
-    if strcmp( ExistingPorts( iPort ).Port, 'portName' ) ...
-    && strcmp( ExistingPorts( iPort ).Status, 'open' )
-
-        fclose( ExistingPorts( iPort ).Port )
-    end
-end
+delete (instrfindall) ;
 
 ComPort = serial( portName,...
     'BaudRate', Specs.Com.baudRate,...
@@ -248,7 +254,7 @@ ComPort = serial( portName,...
     'StopBits', Specs.Com.stopBits,...
     'FlowControl', Specs.Com.flowControl,...
     'Parity', Specs.Com.parity,...
-    'ByteOrder', Specs.Com.byteOrder ) ;   
+    'ByteOrder', Specs.Com.byteOrder ) ; 
 
 end
 % =========================================================================
