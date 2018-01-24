@@ -68,7 +68,8 @@ handles.limits_mag=[-handles.lim_mag handles.lim_mag];
 handles.colormap='parula'; 
 handles.n_region=0;                                 %Voi number of regions 
 handles.n_region_exclude=0;                           
-handles.Voi=[];                                     %Voi mask     
+handles.Voi=[];
+handles.Total_Voi=[]; %Voi mask     
 handles.Voi_exclude=[];                                
 handles.position=cell(1,1);                         %Voi regions positions
 handles.position_exclude=cell(1,1);
@@ -102,12 +103,13 @@ varargout{1} = handles.output;
 function Load_training_maps_Callback(hObject, ~, handles)
 
 if ~myisfield(handles, 'Shims')
-    handles.Shims = ShimOptAcdc(handles.Params) ;
+    handles.Shims = ShimUse(handles.Params) ;
 end
+
 
 %Reverse polarization for the shims =======================================
 
-handles.Shims.img = -handles.Shims.img ;
+handles.Shims.Opt.img = -handles.Shims.Opt.img ;
 
 % =========================================================================
 % Loading of the Inspired maps
@@ -161,7 +163,7 @@ set(handles.commandLine,'string',num2str(handles.sliceSelected));
 %Interpolation to the image grid-------------------------------------------
 
 handles.FieldInspired.Hdr.Private_0019_1014 = [0 0 0] ;
-handles.Shims.interpolatetoimggrid( handles.FieldInspired );
+handles.Shims.Opt.interpolatetoimggrid( handles.FieldInspired );
 
 %Display Inspired Fieldmap ------------------------------------------------
 
@@ -252,9 +254,9 @@ function customVOI_Callback(hObject,~, handles)
 % =========================================================================
 
             if (handles.FieldExpired ~=0)
-            handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;
+            handles.Params.shimVoi = handles.Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;
             else
-            handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired) ;
+            handles.Params.shimVoi = handles.Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired) ;
             end
 % =========================================================================
 % Adjust shim VOI based on the rectangular selection on the image
@@ -345,7 +347,7 @@ function Use_sct_Callback(hObject, eventdata, handles)
            
             
             if (handles.FieldExpired ~=0)
-            handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;   
+            handles.Params.shimVoi = handles.Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;   
             dicm2nii(handles.pathtomagexpired,handles.matlabpath,0); 
             [~,~] = unix(command2);
             
@@ -364,7 +366,7 @@ function Use_sct_Callback(hObject, eventdata, handles)
             handles.Total_Voi=handles.Sct_Voi_ins+handles.Sct_CSF_Voi_ins+handles.Sct_Voi_exp+handles.Sct_CSF_Voi_exp;
             
             else
-            handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired) ;
+            handles.Params.shimVoi = handles.Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired) ;
             handles.Total_Voi=handles.Sct_Voi_ins+handles.Sct_CSF_Voi_ins;
             end     
             
@@ -421,8 +423,8 @@ guidata(hObject, handles);
 
 function Prediction_Callback(hObject, ~, handles)
     
-handles.Shims.setoriginalfield( handles.FieldInspired ) ;
-handles.Shims.setshimvolumeofinterest( handles.Params.shimVoi) ;
+handles.Shims.Opt.setoriginalfield( handles.FieldInspired ) ;
+handles.Shims.Opt.setshimvolumeofinterest( handles.Params.shimVoi) ;
 
 %Shim currents optimization ===============================================
 
@@ -430,18 +432,18 @@ if (handles.FieldExpired ~=0)
 handles.Params.isSolvingAugmentedSystem    = true ;
 handles.Params.isPenalizingFieldDifference = true;
 handles.Params.regularizationParameter     = 0 ;
-[handles.Params.Inspired.currents, handles.Params.Expired.currents] = handles.Shims.optimizeshimcurrents( handles.Params, handles.FieldExpired ) ;
+[handles.Params.Inspired.currents, handles.Params.Expired.currents] = handles.Shims.Opt.optimizeshimcurrents( handles.Params, handles.FieldExpired ) ;
 else
-[handles.Params.Inspired.currents] = handles.Shims.optimizeshimcurrents(handles.Params) ;
+[handles.Params.Inspired.currents] = handles.Shims.Opt.optimizeshimcurrents(handles.Params) ;
 end
     
-handles.Shims.Model.currents   =  handles.Params.Inspired.currents ;
+handles.Shims.Opt.Model.currents   =  handles.Params.Inspired.currents ;
 
 %==========================================================================
 %Predicted Inspired field calculation
 %==========================================================================
 
-handles.PredictedFieldInspired =  handles.Shims.predictshimmedfield( ) ;   
+handles.PredictedFieldInspired =  handles.Shims.Opt.predictshimmedfield( ) ;   
 
 %Mask for regions without any signal in the inspired Fieldmaps=============
 
@@ -458,9 +460,9 @@ handles.PredictedFieldInspired.img = handles.PredictedFieldInspired.img .* mask;
 %Predicted Expired field calculation
 %==========================================================================
 if (handles.FieldExpired ~=0)
-handles.Shims.setoriginalfield( handles.FieldExpired ) ;
-handles.Shims.Model.currents = handles.Params.Expired.currents ;
-handles.PredictedFieldExpired =  handles.Shims.predictshimmedfield( ) ;
+handles.Shims.Opt.setoriginalfield( handles.FieldExpired ) ;
+handles.Shims.Opt.Model.currents = handles.Params.Expired.currents ;
+handles.PredictedFieldExpired =  handles.Shims.Opt.predictshimmedfield( ) ;
 
 %Mask for regions without any signal in the expired Fieldmaps==============
 mask2 = handles.FieldExpired.img;
@@ -662,9 +664,9 @@ function Exclude_From_ROI_Callback(hObject, ~, handles)
     handles.Voi = handles.Voi.*handles.Voi_exclude;
     
     if (handles.FieldExpired ~=0)
-    handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;
+    handles.Params.shimVoi = handles.Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired, handles.FieldExpired ) ;
     else
-    handles.Params.shimVoi = handles.Shims.getvaliditymask( handles.Params, handles.FieldInspired) ;
+    handles.Params.shimVoi = handles.Shims.Opt.getvaliditymask( handles.Params, handles.FieldInspired) ;
     end
     handles.bound=bwboundaries(handles.Voi);
 
@@ -845,27 +847,9 @@ guidata (hObject,handles);
 % Send_current Callback----------------------------------------------------
 
 function Send_current_Callback(hObject, ~, handles)
+display(handles.Shims.Com.ComPort)
 
-switch handles.item_selected
-       case {'Phase/Inspired','Mag/Inspired'}
-            handles.currents=handles.Params.Inspired.currents.*1000;
-       case {'Phase/Expired','Mag/Expired'}
-            handles.currents=handles.Params.Expired.currents.*1000;      
-end
-
-%handles.Shims=ShimComAcdc();
-%display(handles.Shims.ComPort)
-%handles.Shims.setandloadallshims(handles.Shims.ComPort,handles.send_val);
-
-command =strcat('i',num2str(handles.send_val(1)),',',num2str(handles.send_val(2)),',',num2str(handles.send_val(3)),',',num2str(handles.send_val(4)),...
-',',num2str(handles.send_val(5)),',',num2str(handles.send_val(6)),',',num2str(handles.send_val(7)),',',num2str(handles.send_val(8)),',');
-
-fprintf(handles.ComPort,'%s',command,'sync');    
-
-for i=1:9
-a = fscanf(handles.ComPort,'%s');
-disp(a);
-end
+handles.Shims.Com.setandloadallshims(handles.send_val);
 
 guidata (hObject,handles);
 
@@ -874,32 +858,13 @@ guidata (hObject,handles);
 
 function reset_current_Callback(hObject, ~, handles)
     
-% Send Command set all channels to 0V--------------------------------------
-fprintf(handles.ComPort,'%s','w','sync');
-
-% Send Command to querry the channels input--------------------------------
-fprintf(handles.ComPort,'%s','q','sync');
-
-%Read the Feedback from the arduino----------------------------------------
-for i=1:9
-a = fscanf(handles.ComPort,'%s');
-disp(a);
-end
+    handles.Shims.Com.resetallshims();
 
 guidata (hObject,handles);
 
 % Start Communication Callback=============================================
 
 function start_comunication_Callback(hObject, ~, handles)
-
-%Openning serial communication with the Arduino----------------------------
-
-delete(instrfindall);
-handles.Specs = ShimSpecsAcdc(  );
-display(handles.Specs);
-
-handles.ComPort = ShimComAcdc.initializecomport( handles.Specs );
-
 
 switch handles.item_selected
        case {'Phase/Inspired','Mag/Inspired'}
@@ -914,13 +879,18 @@ end
    
   handles.send_val = ((1.25 - handles.cal_val * 0.001 * 0.22) * 26214);
   
+ handles.Shims.Com.Open_ComPort();
+  
+  display('Ready to send current')
+  display(handles.send_val)
+  
 guidata (hObject,handles);
 
 
 %End Communication Callback================================================
     
 function end_comunication_Callback(hObject, ~, handles)
-fclose (handles.ComPort);
+handles.Shims.Com.close_ComPort();
 display('Serial communication with the coil is close now')
 guidata (hObject,handles);
 
@@ -1201,4 +1171,3 @@ if ispc && isequal(get(hObject,'BackgroundColor'),...
     set(hObject,'BackgroundColor','white');
 end
 set(hObject,'String',{'Phase/Inspired';'Phase/Expired';'Mag/Inspired';'Mag/Expired'});
-
