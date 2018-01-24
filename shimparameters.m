@@ -6,12 +6,12 @@ function [ Params] = shimparameters()
 % =========================================================================
 % Updated::20171107::ryan.topfer@polymtl.ca
 % =========================================================================
-Params.projectDir = '/Users/ancha_admin/Documents/Acdc/Code' 
+Params.projectDir = '/Users/ancha_admin/data/20180616_Ismrm' 
 
 % =========================================================================
 %  
 % =========================================================================
-Params.dataLoadDir  = [Params.projectDir '/20180616_Ismrm/data/acdc_15/'] ;
+Params.dataLoadDir  = [Params.projectDir '/data/acdc_15/'] ;
 
 % -------
 % for phase unwrapping:
@@ -19,12 +19,12 @@ Params.threshold = 0.05 ; % as percent of max measured intensity.
 
 % -------
 % for shimming:
-Params.pathToShimReferenceMaps = [Params.projectDir '/Calibration/data/AcdcReferenceMaps20171107.mat'] ;
+Params.pathToShimReferenceMaps = '/Users/ancha_admin/Documents/Acdc/Calibration/data/AcdcReferenceMaps20171107.mat' ;
 
 Params.ProbeSpecs    = [] ;
 Params.ProbeSpecs.dt = 10 ; % sampling interval [units: ms]
 
-Params.maxCurrentPerChannel = 0.4 ; % [units: A] 
+Params.maxCurrentPerChannel = 2.2 ; % [units: A] 
 % Params.maxVoltagePerChannel = 200 ; % [units: mV] 
 
 Params.isSolvingAugmentedSystem    = false ;
@@ -60,8 +60,12 @@ Params.nSamplesFilter          = 5;
 Params.correctionOrder         = 1 ; % linear correction
 Params.txDelay                 = 1000 ; % [units: ms]: approx. 50 ms acoustic delay from tube + UNKNOWN from serial communication.
 
+Params.coeffP1=[0.65909, 0.65, 0.64547, 0.6499, 0.6591, 0.654, 0.65, 0.65];
+Params.coeffP2 = [19.09, -10.908, -23.636, 20.91, 32.728, 11.308, -42.728, 34.546];   %Calibration coefficient for the Adc feedback
+
+
 fprintf('')
-Params
+Params;
 
 
 fprintf('\n\n\n**** txDelay is UNKNOWN *****\n\n\n')

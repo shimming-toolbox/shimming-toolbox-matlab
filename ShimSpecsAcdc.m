@@ -53,7 +53,7 @@ methods
 function Shims = ShimSpecsAcdc(  )
 %SHIMSPECS - Shim System Specifications 
     
-Shims.Com.baudRate    = 9600 ;  
+Shims.Com.baudRate    = 115200 ;  
 % Shims.Com.readTimeout = 500 ; %[units: ms] 
 
 Shims.Com.dataBits    = 8 ;
@@ -65,7 +65,7 @@ Shims.Com.byteOrder   = 'bigEndian' ;
 % min delay (in seconds) between transmission and reception of data is 1 s
 Shims.Com.txRxDelay       = 1 ; % [units: s]
 
-Shims.Amp.maxCurrentPerChannel = 0.400 ; % (absolute) [units: A]
+Shims.Amp.maxCurrentPerChannel = 2 ; % (absolute) [units: A]
 Shims.Amp.maxVoltagePerChannel = 200 ; % (absolute) [units: mV]
 
 Shims.Amp.nChannels       = 8 ;  
