@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <Wire.h>
 #include "Adafruit_ADS1015.h"
+#include <stdlib.h>     /* atoi */
 
 Adafruit_ADS1015 adc1 (0x49);
 Adafruit_ADS1015 adc2 (0x48); /* Use thi for the 12-bit version */
@@ -78,10 +79,19 @@ void loop() {
   int16_t adc0;
   float vOut;
   int n_cal;
+  String inString = "";
   float cal_val [] = { -200, -100, 0, 100, 200, 0};
 
   float p1[] = {0.65909, 0.65, 0.64547, 0.6499, 0.6591, 0.654, 0.65, 0.65};
   float p2[] = {19.09, -10.908, -23.636, 20.91, 32.728, 11.308, -42.728, 34.546};
+  
+  int data;
+  int bytesread;
+  int64_t a [41];
+  int64_t b;
+  float D [41];
+  float currents [8];
+  unsigned int DACvaluetosend [8];
 
 
 
@@ -158,6 +168,69 @@ void loop() {
       Serial.println("\n");
       resetFunc();
       break;
+
+    case 't':                // Reset the arduino
+
+       for ( data= 0; data <= 5; data++){
+        
+       bytesread=Serial.read();
+       if (isDigit(bytesread)) {
+       inString += (char)bytesread;}
+       a[data]=inString.toInt();
+       D[data]=double(a[data]);
+       Serial.print(D[data]);
+       
+      // clear the string for new input:
+      inString = "";
+   }
+      Serial.println("test");
+      Serial.print(D[0]);
+
+      Serial.print(D[1]);
+
+      Serial.println("calcul");
+      currents[1]=D[1]*10000 + D[2]*1000 + D[3]*100 + D[4]*10 + D[5];
+      Serial.print(currents[1]);
+     
+      break;
+
+          case 'o':                // Reset the arduino
+
+       for ( data= 0; data <= 40; data++){
+        
+       bytesread=Serial.read();
+       if (isDigit(bytesread)) {
+       inString += (char)bytesread;}
+       a[data]=inString.toInt();
+       D[data]=double(a[data]);
+       Serial.print(D[data]);
+       
+      // clear the string for new input:
+      inString = "";
+   }
+
+
+      DACvaluetosend[1]=(unsigned int)(D[1]*10000 + D[2]*1000 + D[3]*100 + D[4]*10 + D[5]);
+      DACvaluetosend[2]=(unsigned int)(D[6]*10000 + D[7]*1000 + D[8]*100 + D[9]*10 + D[10]);
+      DACvaluetosend[3]=(unsigned int)(D[11]*10000 + D[12]*1000 + D[13]*100 + D[14]*10 + D[15]);
+      DACvaluetosend[4]=(unsigned int)(D[16]*10000 + D[17]*1000 + D[18]*100 + D[19]*10 + D[20]);
+      DACvaluetosend[5]=(unsigned int)(D[21]*10000 + D[22]*1000 + D[23]*100 + D[24]*10 + D[25]);
+      DACvaluetosend[6]=(unsigned int)(D[26]*10000 + D[27]*1000 + D[28]*100 + D[29]*10 + D[30]);
+      DACvaluetosend[7]=(unsigned int)(D[31]*10000 + D[32]*1000 + D[33]*100 + D[34]*10 + D[35]);
+      DACvaluetosend[8]=(unsigned int)(D[36]*10000 + D[37]*1000 + D[38]*100 + D[39]*10 + D[40]);
+
+
+      DAC.writeUpdateCh(0, DACvaluetosend[1]);
+      DAC.writeUpdateCh(1, DACvaluetosend[2]);
+      DAC.writeUpdateCh(2, DACvaluetosend[3]);
+      DAC.writeUpdateCh(3, DACvaluetosend[4]);
+      DAC.writeUpdateCh(4, DACvaluetosend[5]);
+      DAC.writeUpdateCh(5, DACvaluetosend[6]);
+      DAC.writeUpdateCh(6, DACvaluetosend[7]);
+      DAC.writeUpdateCh(7, DACvaluetosend[8]);
+      query();
+
+   break;
 
     case 'i':                // Update all the channels input current
           val0 = Serial.parseFloat();
@@ -304,3 +377,4 @@ void feedback(int element){
     Serial.print("CH "); Serial.print(element + 1); Serial.print(" set to : ");
     Serial.print(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 6); Serial.println(" mA");
 }
+
