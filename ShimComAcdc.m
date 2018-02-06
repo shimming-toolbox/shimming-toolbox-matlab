@@ -78,9 +78,9 @@ Shim.Data.output    = Shim.Cmd.setAndLoadShim ;
 end
 % =========================================================================
 function [] = setandloadallshims( Shim, voltages )
-    
-command =strcat('i',num2str(voltages(1)),',',num2str(voltages(2)),',',num2str(voltages(3)),',',num2str(voltages(4)),...
-',',num2str(voltages(5)),',',num2str(voltages(6)),',',num2str(voltages(7)),',',num2str(voltages(8)),',');
+
+command =strcat('o',num2str(voltages(1)),num2str(voltages(2)),num2str(voltages(3)),num2str(voltages(4)),...
+num2str(voltages(5)),num2str(voltages(6)),num2str(voltages(7)),num2str(voltages(8)));
 
 
 fprintf(Shim.ComPort,'%s',command,'sync');    
@@ -89,6 +89,20 @@ for i=1:9
 a = fscanf(Shim.ComPort,'%s');
 disp(a);
 end
+end
+
+%==========================================================================
+function [DACvaluetosend] = ampstodac(Shim,currents)
+     
+  cal_val=zeros(8,1);
+    
+  for i=1:8 
+  cal_val(i) = (currents(i) - Shim.Specs.Dac.feedbackcalibrationcoeff2(i)) / Shim.Specs.Dac.feedbackcalibrationcoeff1(i);
+  end
+   
+  DACvaluetosend = ((1.25 - cal_val * 0.001 * 0.22) * 26214);
+
+
 end
 % =========================================================================
 function [] = resetallshims( Shim ) 
@@ -110,6 +124,7 @@ disp(a);
 end
 
 end
+
 
 % =========================================================================
 function [] = Open_ComPort( Shim ) 
@@ -146,7 +161,7 @@ Shim.Data.output = Shim.Cmd.getChannelOutput ;
 %ChannelOutput.voltage = 
 
 end
-% =========================================================================
+
 function [ChannelOutputs] = getallchanneloutputs( Shim )
 %GETALLCHANNELSOUTPUTS      
 %
@@ -160,6 +175,7 @@ function [ChannelOutputs] = getallchanneloutputs( Shim )
 %   .dissipatedPower [watts]
 
 end
+
 % =========================================================================
 function [Shims, isSendOk]= sendcmd( Shim )
 %SENDCMD 
@@ -214,32 +230,21 @@ function [Cmd] = getcommands( )
 Cmd.setAndLoadShim   = 's' ;
 
 Cmd.getChannelOutput = 'p' ;
-Cmd.resetAllShims    = 'q' ;
+Cmd.resetAllShims    = 'w' ;
 
 end
 % =========================================================================
 function [ComPort] = initializecomport( Specs )
 % Initialize (RS-232) Communication Port 
-%
-% if ismac
-%     portName = '/dev/tty.usbserial' ;
-% elseif isunix
-%     portName = '/dev/ttyS0' ;
-% elseif ispc
-%     portName = 'COM4' ;
-% else
-%     error('Wtf kind of computer is u running?')
-% end
 
 
-% -------------------------------------------------------------------------
 % Serial Port 
 
 if ismac
     % portName = '/dev/tty.usbserial' ; % USB to serial adapter
     portName = '/dev/cu.usbmodem1421' ;
 elseif isunix
-    portName = '/dev/ttyS0' ;
+    portName = '/dev/ttyS0' ;  % Can be different depending on the computer 
 elseif ispc
     portName = 'COM4' ;
 else
@@ -258,26 +263,15 @@ ComPort = serial( portName,...
 
 end
 % =========================================================================
-function adcVoltage = adctovoltage( Shim, adcCount )
-%ADCTOVOLTAGE
-%
-% adcVoltage = ADCTOVOLTAGE( Shim, adcCount )
-%
-% Returns ADC voltage reading (in mV) based on adcCount (the raw ADC 
-% digitization)
 
-adcReadingVoltage = adcCount * Shim.Adc.mvPerAdcCount ;
-
-end
 % =========================================================================
-% =========================================================================
-function dacCount = voltstodac( Shims, voltage )
+function dacCount = voltstodac( Shims, current)
 %VOLTSTODAC
 %
 % Wraps a voltage (in V) to a count within the DAC's range. 
 %
 
-MAX_VOLTAGE = 2.5 ; % mV 
+%MAX_VOLTAGE = 2.5 ; % mV 
 
 MAX_DIGI = (2^(Shims.Specs.Dac.resolution-1)) - 1 ; % Digital to Analog Converter max value
 
@@ -286,6 +280,7 @@ dacCount = int16( current*( MAX_DIGI/Shims.Specs.Dac.maxCurrent  ) ) ;
 end
 % =========================================================================
 % =========================================================================
+
 
 end
 % =========================================================================

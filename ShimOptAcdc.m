@@ -196,14 +196,11 @@ end
 if ~myisfield(Params, 'regularizationParameter') || isempty( Params.regularizationParameter ) 
     Params.regularizationParameter = DEFAULT_REGULARIZATIONPARAMETER ;
 end
-
-Params.maxCurrentPerChannel = 0.4 
+ 
 
 % Params for conjugate-gradient optimization
 CgParams.tolerance     = 1E-10 ;
 CgParams.maxIterations = 100000 ;    
-
-
 
 nImg = numel( Shim.Field.img(:) ) ; % number of voxels
 
@@ -356,66 +353,6 @@ function [f, df] = shimcost( currents )
     
 end
 
-% function [C, Ceq] = first_order_norm( currents )
-% % C(x) <= 0
-% % (e.g. x = currents)
-%
-%     C   = 0; 
-%     Ceq = [];
-%     waterLevel = 1E-8; % small number (relative to |currents|) for stability
-%
-%     % split currents up into banks
-%     % -------
-%     % bank 0
-%     i0 = X0*currents;
-%
-%     % -------
-%     % bank 1
-%     i1 = X1*currents;
-%
-%     % -------
-%     % bank 2
-%     i2 = X2*currents;
-%
-%     % -------
-%     % bank 3
-%     i3 = X3*currents;
-%
-%     % Overall abs current cannot exceed Specs.Amp.maxCurrentPerBank (e.g. 20 A)
-%     % This condition is redundant given the following 2 on pos/neg currents
-%     C(1) = sum( abs(i0) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-%     C(2) = sum( abs(i1) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-%     C(3) = sum( abs(i2) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-%     C(4) = sum( abs(i3) + waterLevel ) - Specs.Amp.maxCurrentPerBank ; 
-%
-%     % pos. current cannot exceed Specs.Amp.maxCurrentPerRail (e.g. + 10 A) 
-%     C(5) = abs(sum( ((i0>0) .* i0) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-%     C(6) = abs(sum( ((i1>0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-%     C(7) = abs(sum( ((i2>0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-%     C(8) = abs(sum( ((i3>0) .* i3) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-%     
-%     % neg. current cannot be below Specs.Amp.maxCurrentPerRail (e.g. - 10 A) 
-%     C(9)  = abs(sum( ((i0<0) .* i0) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-%     C(10) = abs(sum( ((i1<0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-%     C(11) = abs(sum( ((i2<0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-%     C(12) = abs(sum( ((i3<0) .* i3) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-%
-% end
-%     
-% function [C, Ceq] = first_order_norm_augmented( currents )
-% % C(x) <= 0
-% % (e.g. x = currents)
-%
-% Ceq = [];
-%
-% [currentsInspired, currentsExpired] = splitcurrentvector( currents ) ;
-%
-% [Cinspired, ~] = first_order_norm( currentsInspired ) ;
-% [Cexpired,  ~] = first_order_norm( currentsExpired ) ;
-%
-% C = [Cinspired; Cexpired];
-%
-% end
 
 function [currentsInspired, currentsExpired] = splitcurrentvector( currents ) 
 %SPLITCURRENTVECTOR
@@ -455,7 +392,7 @@ function  [ Params ] = assigndefaultparameters( Params )
 %
 % DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
 
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsAcdc20171024.mat';
+DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ancha_admin/Documents/Acdc/Calibration/data/AcdcReferenceMaps20171107.mat';
 DEFAULT_PROBESPECS              = [] ;
 
 DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;

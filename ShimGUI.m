@@ -85,11 +85,11 @@ handles.valuestoSend=[];
 display ('Load your directory with data from the scan');
   
 
-
 guidata(hObject, handles);
 
 
 % --- Outputs from this function are returned to the command line.
+
 function varargout = ShimGUI_OutputFcn(~, ~, handles) 
 varargout{1} = handles.output;
 
@@ -121,8 +121,7 @@ imgArrayInspired = cell(1 , 2);
 
 display('Select folder with magnitude maps in inspired state')
 if handles.sortedData==' '
-    %pathtomagInspired=uigetdir();
-    imgArrayInspired{1,1} = MaRdI( [ '/Users/ancha_admin/data/sorted_data/08_gre_field_mapping_shim0_ins/ORIGINAL\PRIMARY\M\ND/1' ] ) ;  % ATTENTION HARDCODE FOR TEST
+    handles.pathtomagInspired=uigetdir();
 else
 handles.pathtomagInspired=uigetdir(handles.sortedData);
 imgArrayInspired{1,1} = MaRdI( handles.pathtomagInspired ) ;
@@ -132,8 +131,7 @@ end
 
 display('Select folder with phase maps in inspired state')
 if handles.sortedData==' '
-    %pathtophaseInspired=uigetdir();
-    imgArrayInspired{1,2} = MaRdI( [ '/Users/ancha_admin/data/sorted_data/10_gre_field_mapping_shim0_ins/ORIGINAL\PRIMARY\P\ND/2' ] ) ;   % ATTENTION HARDCODE FOR TEST
+    handles.pathtophaseInspired=uigetdir();
 else
 handles.pathtophaseInspired = uigetdir(handles.sortedData);
 imgArrayInspired{1,2} = MaRdI(handles.pathtophaseInspired) ;
@@ -319,30 +317,54 @@ guidata(hObject, handles) ;
 
 function Use_sct_Callback(hObject, eventdata, handles) 
     
-            dicm2nii(handles.pathtomagInspired,handles.Params.matlabPath,0);        
             
+            %Convert dicom files to .nii-----------------------------------
+            
+            dicm2nii(handles.pathtomagInspired,handles.Params.matlabPath,0); 
+            
+            %Call Sprinal cord toolbox for segmentation--------------------
             [~,~] = unix(handles.Params.command);
-            handles.sctMaskins=load_untouch_nii('/gre_field_mapping_shim0_ins_seg.nii');
-            handles.sctCSFMaskins=load_untouch_nii('/gre_field_mapping_shim0_ins_CSF_seg.nii');
             
+            %Find the name of the segmentation files-----------------------
+            dicomfilesIns=dir( [ handles.pathtomagInspired '/*.dcm'] );
+            filesheaderIns = dicominfo( [handles.pathtomagInspired '/' dicomfilesIns(1).name]);   
+            seriesnameIns=filesheaderIns.SeriesDescription;
+            
+            sctpropsegFileIns = sprintf('%s','/',seriesnameIns,'_seg.nii');
+            sctCSFsefFileIns = sprintf('%s','/',seriesnameIns,'_CSF_seg.nii');
+            
+            %Save the segmentation into a mask-----------------------------
+            handles.sctMaskins=load_untouch_nii(sctpropsegFileIns);
+            handles.sctCSFMaskins=load_untouch_nii(sctCSFsefFileIns);
+            
+            %Convert to double for next steps------------------------------
             handles.sctMaskIns = double(handles.sctMaskins.img);
             handles.sctCSFMaskIns=double(handles.sctCSFMaskins.img);
             
             
+            %Make rotation of the mask to adjust them on the images--------
             for i=1:handles.dim(3)
             handles.sctVoiIns(:,:,i)=rot90(handles.sctMaskIns(:,:,i));
             handles.sctCSFVoiIns(:,:,i)=rot90(handles.sctCSFMaskIns(:,:,i));
             end
                   
-           
+            %Use of Sct with expired Fieldmaps-----------------------------
             
             if (handles.fieldExpired ~=0)
             handles.Params.shimVoi = handles.Shims.Opt.getvaliditymask( handles.Params, handles.fieldInspired, handles.fieldExpired ) ;   
             dicm2nii(handles.pathtomagExpired,handles.Params.matlabPath,0); 
+            
             [~,~] = unix(handles.Params.command2);
             
-            handles.sctMaskexp=load_untouch_nii('/gre_field_mapping_shim0_exp_seg.nii');
-            handles.sctCSFMaskexp=load_untouch_nii('/gre_field_mapping_shim0_exp_CSF_seg.nii');
+            dicomfilesExp=dir( [ handles.pathtomagInspired '/*.dcm'] );
+            filesheaderExp = dicominfo( [handles.pathtomagInspired '/' dicomfilesExp(1).name]);   
+            seriesnameExp=filesheaderExp.SeriesDescription;
+            
+            sctpropsegFileExp = sprintf('%s','/',seriesnameExp,'_seg.nii');
+            sctCSFsefFileExp = sprintf('%s','/',seriesnameExp,'_CSF_seg.nii');
+            
+            handles.sctMaskexp=load_untouch_nii(sctpropsegFileExp);
+            handles.sctCSFMaskexp=load_untouch_nii(sctCSFsefFileExp);
             
             handles.sctMaskExp = double(handles.sctMaskexp.img);
             handles.sctCSFMaskExp=double(handles.sctCSFMaskexp.img);
@@ -352,6 +374,8 @@ function Use_sct_Callback(hObject, eventdata, handles)
             handles.sctVoiExp(:,:,i)=rot90(handles.sctMaskExp(:,:,i));
             handles.sctCSFVoiExp(:,:,i)=rot90(handles.sctCSFMaskExp(:,:,i));
             end
+            
+            %Gathering of Sct segmentations on inspired and expired maps---
             
             handles.totalVoi=handles.sctVoiIns+handles.sctCSFVoiIns+handles.sctVoiExp+handles.sctCSFVoiExp;
             
@@ -365,7 +389,7 @@ function Use_sct_Callback(hObject, eventdata, handles)
                 handles.bound{j}=bwboundaries(handles.totalVoi(:,:,j));        
             end
             
-                               
+            %Calcul of parameters  inside the Voi defined with Sct---------                  
            [handles.meanRoi,handles.medianRoi,handles.stdRoi,handles.meanRoiexp,handles.medianRoiexp,handles.stdRoiexp]=calculparameters(handles);
 
             switchplot(handles);         
@@ -837,7 +861,9 @@ handles.sortedData=fullfile(handles.pathtofolder,'/sorted_data');
 
 %Call the function to sort the data in background--------------------------
 
-unix(sprintf('%s','/Applications/MATLAB_R2016a.app/bin/matlab -nodesktop -nojvm -r ", SortData(''',handles.rawData,''' ,''',handles.sortedData,''');" &'));
+sortCommand = sprintf('%s',handles.Params.calltoSortdata,handles.rawData,''' ,''',handles.sortedData,''');" &');
+
+unix(sortCommand);
 display('Load your training maps')
 guidata (hObject,handles);
 
@@ -846,7 +872,7 @@ guidata (hObject,handles);
 
 function Send_current_Callback(hObject, ~, handles)
 
-handles.Shims.Com.setandloadallshims(handles.valuestoSend);
+handles.Shims.Com.setandloadallshims(handles.valuetoSend);
 
 guidata (hObject,handles);
 
@@ -870,13 +896,14 @@ switch handles.itemSelected
             handles.currents=handles.Params.Expired.currents.*1000;      
 end
    
- handles.valuestoSend = ShimComAcdc.convert_values(handles.currents,handles.Params.coeffP1,handles.Params.coeffP2);
+ handles.convertedCurrents = handles.Shims.Com.ampstodac(handles.currents);
+ 
+ handles.valuetoSend=round(handles.convertedCurrents);
   
  handles.Shims.Com.Open_ComPort();
   
-  display('Ready to send current')
-  display(handles.valuestoSend)
-  
+ display('Ready to send current');
+display(handles.valuetoSend);
 guidata (hObject,handles);
 
 
