@@ -516,6 +516,10 @@ function [Field, Extras] = mapfield( ImgArray, Params, ObjectiveImg )
 %   .filteringMask
 %       binary array indicating local ROI to retain + RESHARP filter 
 %       [default: uses the region retained after unwrapping, which may generally be = Params.mask)
+%
+%   .unwrapper
+%       'AbdulRahman_2007' [default], calls unwrap3d( ), which wraps to the Abdul-Rahman binary
+%       'FSL_Prelude', calls prelude( ), which wraps to FSL-prelude 
 
 % TODO 
 %
@@ -550,6 +554,8 @@ DEFAULT_THRESHOLD                      = 0.01 ;
 DEFAULT_ISFITTINGSPHERICALHARMONICS    = false ;
 DEFAULT_ORDERSTOGENERATE               = [0:8] ;
 
+DEFAULT_UNWRAPPER                      = 'AbdulRahman_2007' ;
+
 assert( (nargin >= 1) && ~isempty( ImgArray ) ) ;
 
 if ~myisfield( Params, 'isCorrectingPhaseOffset' ) || isempty( Params.isCorrectingPhaseOffset ) 
@@ -574,6 +580,10 @@ end
 
 if ~myisfield( Params, 'ordersToGenerate' ) || isempty( Params.ordersToGenerate ) 
     Params.ordersToGenerate = DEFAULT_ORDERSTOGENERATE ;
+end
+
+if ~myisfield( Params, 'unwrapper' ) || isempty( Params.unwrapper ) 
+    Params.unwrapper = DEFAULT_UNWRAPPER ;
 end
 
 Extras = [] ;
@@ -617,7 +627,16 @@ end
 % 3d path-based unwrapping
 PhaseDiff.Hdr.MaskingImage = Params.mask ;
 
-PhaseDiff = PhaseDiff.unwrapphase(  ) ;
+if strcmp( Params.unwrapper, 'AbdulRahman_2007' )
+
+    PhaseDiff = PhaseDiff.unwrapphase(  ) ;
+
+elseif strcmp( Params.unwrapper, 'FSL_Prelude' )
+    
+    Options.voxelSize = ImgArray{1,1}.getvoxelsize() ;
+    PhaseDiff = PhaseDiff.unwrapphase( ImgArray{1,1}, Options ) ;
+
+end
 
 Field     = FieldEval( PhaseDiff.scalephasetofrequency( ) ) ;
 

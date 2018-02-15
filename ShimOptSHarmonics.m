@@ -73,7 +73,7 @@ classdef ShimOptSHarmonics < ShimOpt
 % ShimOpt is a MaRdI subclass [ShimOpt < MaRdI]
 %     
 % =========================================================================
-% Updated::20170412::ryan.topfer@polymtl.ca
+% Updated::20180215::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -98,7 +98,7 @@ methods
 % =========================================================================
 function Shim = ShimOptSHarmonics( Params, Field )
 %SHIMOPTSHARMONICS - Shim Optimization with spherical harmonic basis set
-%
+% 
 % Params.isGeneratingBasis
 % Params.ordersToGenerate
 
@@ -111,18 +111,24 @@ Params = ShimOptSHarmonics.assigndefaultparameters( Params ) ;
 Shim.Model = [ ] ; 
 Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
-% % .......
-% % Load shim basis if provided 
-% if ~isempty(Params.pathToShimReferenceMaps)
-%     
-%     Params.isGeneratingBasisSet = false 
-%
-%     ShimUse.display(['\n Preparing for shim ...  \n\n'...
-%             'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
-%
-%     load( Params.pathToShimReferenceMaps ) ;
-%
-% end
+% .......
+% Load shim basis if provided 
+if ~isempty(Params.pathToShimReferenceMaps) & ( ~Params.isGeneratingBasis )
+
+    ShimUse.display(['\n Preparing for shim ...  \n\n'...
+            'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
+
+    RefMaps = load( Params.pathToShimReferenceMaps ) ; % load shim ref maps
+
+    %%-----
+    % dB/dI linear 'Current-to-Field' operator
+    Shim.img              = RefMaps.Shim.img ;
+    Shim.Hdr              = RefMaps.Shim.Hdr ;
+
+    Shim.Field = [ ] ;       
+    Shim.Model = [ ] ; 
+
+end
 
 
 if Params.isGeneratingBasis || Params.isInterpolatingReferenceMaps
@@ -265,9 +271,8 @@ for iOrder = 1 : nOrders
     n = orders(iOrder);
     m = -orders(iOrder):1:orders(iOrder);
 
-    nTermsithOrder = numel(m);
+    for mm = 1 : numel(m)
 
-    for mm = 1 : nTermsithOrder
         ii = ii+1;
 
         harm_all(:,ii) = leg_rec_harmonic_cz( n, m(mm), X(:), Y(:), Z(:));

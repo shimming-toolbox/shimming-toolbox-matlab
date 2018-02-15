@@ -77,6 +77,7 @@ if nargin == 1 && ~isempty(dataLoadDirectory)
 
     end
 
+    % Params.isNormalizingMagnitude = false ;
     Img = Img.scaleimgtophysical( Params ) ;   
 
     if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
@@ -400,7 +401,9 @@ function Img = scalephasetofrequency( Img, undoFlag )
 % Converts unwrapped phase [units:rad] to field [units: Hz]
 % 
 %   Field = scalephasetofrequency( UnwrappedPhase )
-%
+%   Phase = scalephasetofrequency( Field, 1 )
+%   
+%   The 'undo' mode with the 2nd argument scales from Hz back to rad
 % .....
 %
 % UnwrappedPhase.Hdr.EchoTime              [units: ms]
@@ -474,6 +477,8 @@ function Phase = unwrapphase( Phase, varargin )
         varargin{2} = Options ;
     end
 
+    isPhaseBalanced = all( Phase.img(:) >= -pi ) & all( Phase.img(:) <= pi ) ;
+
    if nargin < 3 
     
         assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
@@ -484,12 +489,18 @@ function Phase = unwrapphase( Phase, varargin )
         if nargin == 2
             Options = varargin{1} ;
         end
+
+        assert(isPhaseBalanced, 'Wrapped input phase must be between [-pi,pi]');
         Phase.img = unwrap3d( Phase.img, logical(Phase.Hdr.MaskingImage), Options ) ;
 
     elseif nargin == 3 
         isCallingPrelude = true ;
         seriesDescriptionUnwrapper = 'FSL_Prelude' ;
-        
+    
+        % if isPhaseBalanced
+        %    Phase.img = Phase.img + pi ; % FSL requires that wrapped phase sit between [0, 2pi]
+        % end
+
         Mag     = varargin{1} ;
         Options = varargin{2} ;
 
@@ -1066,7 +1077,7 @@ fullDir(end+1) = '/' ;
 
 end
 % =========================================================================
-function [] = writeimg( img, Params )
+function [Params] = writeimg( img, Params )
 %WRITEIMG
 %
 %   Description
@@ -1077,7 +1088,9 @@ function [] = writeimg( img, Params )
 %
 %   Syntax
 %
-%   WRITEIMG( img, Parameters )
+%   Parameters = WRITEIMG( img, Parameters )
+%   
+%   Returns employed Parameters struct.
 %
 %    .......................
 %   

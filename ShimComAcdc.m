@@ -34,7 +34,7 @@ classdef ShimComAcdc < ShimCom
 %    ShimComAcdc is a ShimCom subclass.
 %
 % =========================================================================
-% Updated::20171020::ryan.topfer@polymtl.ca
+% Updated::20180215::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -75,31 +75,36 @@ function [] = setandloadshim( Shim, voltages )  ;
 % output message 
 Shim.Data.output    = Shim.Cmd.setAndLoadShim ; 
 
+% RT: Please implement
 end
 % =========================================================================
 function [] = setandloadallshims( Shim, voltages )
 
+    % RT: are they voltages or currents?
+    % Add documentation / change variable names if necessary
 command =strcat('o',num2str(voltages(1)),num2str(voltages(2)),num2str(voltages(3)),num2str(voltages(4)),...
 num2str(voltages(5)),num2str(voltages(6)),num2str(voltages(7)),num2str(voltages(8)));
 
 
 fprintf(Shim.ComPort,'%s',command,'sync');    
 
+% why 1:9?
 for i=1:9
 a = fscanf(Shim.ComPort,'%s');
 disp(a);
 end
-end
 
+end
 %==========================================================================
 function [DACvaluetosend] = ampstodac(Shim,currents)
      
+  % RT: Avoid hardcoding. Use zeros(Shim.Specs.Amp.nChannels, 1)
   cal_val=zeros(8,1);
-    
+  % RT: Avoid hardcoding.  
   for i=1:8 
   cal_val(i) = (currents(i) - Shim.Specs.Dac.feedbackcalibrationcoeff2(i)) / Shim.Specs.Dac.feedbackcalibrationcoeff1(i);
   end
-   
+% RT: Avoid hardcoding. + what are these numbers?? Add comments
   DACvaluetosend = ((1.25 - cal_val * 0.001 * 0.22) * 26214);
 
 
@@ -110,14 +115,16 @@ function [] = resetallshims( Shim )
 %
 % Reset all shims to 0 A.
 
-    
+   % RT: All instances of 'w', 'q' etc. are instances of hard coding! Please use
+   % Shim.Cmd.resetAllShims etc. which are defined in ShimComAcdc.getcommands()
+
 % Send Command set all channels to 0V--------------------------------------
 fprintf(Shim.ComPort,'%s','w','sync');
 
 % Send Command to querry the channels input--------------------------------
 fprintf(Shim.ComPort,'%s','q','sync');
 
-%Read the Feedback from the arduino----------------------------------------
+% Read the Feedback from the arduino----------------------------------------
 for i=1:9
 a = fscanf(Shim.ComPort,'%s');
 disp(a);
@@ -128,8 +135,10 @@ end
 
 % =========================================================================
 function [] = Open_ComPort( Shim ) 
+  % RT: Bad style.
 fopen(Shim.ComPort);
 
+% RT: why 1:7? Avoid hard-coding + add comments to explain
 for i=1:7
 a = fscanf(Shim.ComPort,'%s');
 disp(a);
@@ -138,6 +147,7 @@ end
 % =========================================================================
 
 function [] = close_ComPort( Shim ) 
+  % RT: Bad style. Questionable purpose given method simply calls fclose. 
 fclose(Shim.ComPort);
 
 end
@@ -160,6 +170,8 @@ Shim.Data.output = Shim.Cmd.getChannelOutput ;
 
 %ChannelOutput.voltage = 
 
+% RT: ??? please implement
+
 end
 
 function [ChannelOutputs] = getallchanneloutputs( Shim )
@@ -174,6 +186,7 @@ function [ChannelOutputs] = getallchanneloutputs( Shim )
 %   .power [watts]
 %   .dissipatedPower [watts]
 
+% RT: ??? please implement
 end
 
 % =========================================================================
@@ -208,7 +221,7 @@ pause( Shim.Specs.Com.txRxDelay ) ;
     %     disp('No bytes read')
     % end
 
-
+% RT: Shim.sendcmd() is preferable to the individual calls to fprintf()
 
 end
 % =========================================================================
