@@ -19,6 +19,7 @@ Adafruit_ADS1015 adc2 (0x48); /* Use thi for the 12-bit version */
     mosiPin is connected to AD5668 Din pin (15) and sclkPin to AD5668 SCK
     pin (16). Remaining connections as explained above.
 */
+
 AD5668 DAC = AD5668(mosiPin, sclkPin , ssPin, clrPin, ldacPin);
 
 void setup() {
@@ -38,7 +39,7 @@ void setup() {
   DAC.powerDAC_Normal(B11111111); // Power up all channels normal
   Serial.println("Power up all DAC channels normal ...");
 
-  //adc.setGain(GAIN_TWOTHIRDS); //+/- 6.144V  1 bit = 3mV
+
   adc1.setGain(GAIN_TWO); //+/- 2.048V  1 bit = 1mV
   adc2.setGain(GAIN_TWO); //+/- 2.048V  1 bit = 1mV
   Serial.println("Setting ADC Range: +/- 2.048V  (1 bit = 1mV)");
@@ -52,46 +53,30 @@ void setup() {
 void(* resetFunc) (void) = 0;//declare reset function at address 0
 
 void loop() {
-  //declaration of 2 float for each channel val (current) and req_val (voltage) 
-  float val0;
-  float val;
-  float val1;
-  float val2;
-  float val3;
-  float val4;
-  float val5;
-  float val6;
-  float val7;
-  float val8;           
-   
-  float req_val;
-  float req_val0;
-  float req_val1;
-  float req_val2;
-  float req_val3;
-  float req_val4;
-  float req_val5;
-  float req_val6;
-  float req_val7;
+  //Declaration of global variables 
+
   int sch;
   int element;
-  char incomingByte;
-  int16_t adc0;
-  float vOut;
-  int n_cal;
-  String inString = "";
-  float cal_val [] = { -200, -100, 0, 100, 200, 0};
-
-  float p1[] = {0.65909, 0.65, 0.64547, 0.6499, 0.6591, 0.654, 0.65, 0.65};
-  float p2[] = {19.09, -10.908, -23.636, 20.91, 32.728, 11.308, -42.728, 34.546};
-  
   int data;
+  int i;
   int bytesread;
-  int64_t a [41];
-  int64_t b;
-  float D [41];
-  float currents [8];
-  unsigned int DACvaluetosend [8];
+  int n_cal;
+  unsigned int DACvaluetosend [8];                                                   //Array to store the 8 currents converted in DAC values
+  int16_t adc0;
+  int64_t a [41];                                                                    // Array to store 40 digits from serial communication
+
+  String inString = "";
+  char incomingByte;
+
+  float val0;
+  float val;
+  float req_val;
+  float cal_val [] = { -200, -100, 0, 100, 200, 0};                                    // Value for Feedback calibration
+  float p1[] = {0.65909, 0.65, 0.64547, 0.6499, 0.6591, 0.654, 0.65, 0.65};            // Coefficients from Feedback calibration
+  float p2[] = {19.09, -10.908, -23.636, 20.91, 32.728, 11.308, -42.728, 34.546};
+  float D [41];                                                                        // Array to store 40 digits from serial communication
+  float currents [8];                                                                  //Array to store the 8 currents
+  float vOut;
 
 
 
@@ -99,17 +84,6 @@ void loop() {
     incomingByte = Serial.read();
   }
   switch (incomingByte) {
-    
-    case 'u':                  // Set a current for one channel
-      sch = Serial.parseInt();
-      Serial.print("Calibrate CH "); Serial.println(sch);
-      val = Serial.parseFloat();
-      Serial.println(val, 4);
-      //float vOut;
-      vOut = ((1.25 - val * 0.001 * 0.22) * 26214);
-      Serial.println(vOut);
-      DAC.writeUpdateCh(sch - 1, vOut);
-      break;
 
     case 'x':                 // Calibration of Adc current feedback
 
@@ -154,9 +128,19 @@ void loop() {
       DAC.writeUpdateCh(7, 1.262 * 26214.0);
 
       break;
+      
+    case 'f':                 // Display current feedback from one channel
+      element=Serial.parseInt();
+      feedback(element);
+      break;
+
+    case 'e':                //Display raw current feedbacks from all channels
+      for (i=0 ; i <= 8; i++)
+      feedback(i);
+      break;
 
 
-    case 'q':                // Querry on currents feedback 
+    case 'q':                // Querry on currents feedback (Display current with channels info)
       query();
       break;
 
@@ -169,47 +153,24 @@ void loop() {
       resetFunc();
       break;
 
-    case 't':                // Reset the arduino
 
-       for ( data= 0; data <= 5; data++){
-        
-       bytesread=Serial.read();
-       if (isDigit(bytesread)) {
-       inString += (char)bytesread;}
-       a[data]=inString.toInt();
-       D[data]=double(a[data]);
-       Serial.print(D[data]);
-       
-      // clear the string for new input:
-      inString = "";
-   }
-      Serial.println("test");
-      Serial.print(D[0]);
-
-      Serial.print(D[1]);
-
-      Serial.println("calcul");
-      currents[1]=D[1]*10000 + D[2]*1000 + D[3]*100 + D[4]*10 + D[5];
-      Serial.print(currents[1]);
-     
-      break;
-
-          case 'o':                // Reset the arduino
+    case 'o':                // Update all channels with 8 currents
 
        for ( data= 0; data <= 40; data++){
         
-       bytesread=Serial.read();
+       bytesread=Serial.read();       // Read digits receive by serial communication one by one
        if (isDigit(bytesread)) {
-       inString += (char)bytesread;}
+       inString += (char)bytesread;}  //Save these values in a string
        a[data]=inString.toInt();
-       D[data]=double(a[data]);
+       D[data]=double(a[data]);       //Conversion from string to double
        Serial.print(D[data]);
        
-      // clear the string for new input:
+      // Clear the string for new input:
       inString = "";
    }
 
-
+      // Reconstruction of the DAC values to send
+      
       DACvaluetosend[1]=(unsigned int)(D[1]*10000 + D[2]*1000 + D[3]*100 + D[4]*10 + D[5]);
       DACvaluetosend[2]=(unsigned int)(D[6]*10000 + D[7]*1000 + D[8]*100 + D[9]*10 + D[10]);
       DACvaluetosend[3]=(unsigned int)(D[11]*10000 + D[12]*1000 + D[13]*100 + D[14]*10 + D[15]);
@@ -219,7 +180,8 @@ void loop() {
       DACvaluetosend[7]=(unsigned int)(D[31]*10000 + D[32]*1000 + D[33]*100 + D[34]*10 + D[35]);
       DACvaluetosend[8]=(unsigned int)(D[36]*10000 + D[37]*1000 + D[38]*100 + D[39]*10 + D[40]);
 
-
+      // Update all the channels with the reconstructed DAC values
+      
       DAC.writeUpdateCh(0, DACvaluetosend[1]);
       DAC.writeUpdateCh(1, DACvaluetosend[2]);
       DAC.writeUpdateCh(2, DACvaluetosend[3]);
@@ -228,91 +190,20 @@ void loop() {
       DAC.writeUpdateCh(5, DACvaluetosend[6]);
       DAC.writeUpdateCh(6, DACvaluetosend[7]);
       DAC.writeUpdateCh(7, DACvaluetosend[8]);
-      query();
+
+      // Feedback of all channels after updating the currents
+      
+      //query();
 
    break;
 
-    case 'i':                // Update all the channels input current
-          val0 = Serial.parseFloat();
-          DAC.writeUpdateCh(0, val0); 
-          val1=Serial.parseFloat();
-          DAC.writeUpdateCh(1, val1);
-          val2=Serial.parseFloat();
-          DAC.writeUpdateCh(2, val2);
-          val3=Serial.parseFloat();
-          DAC.writeUpdateCh(3, val3);
-          val4=Serial.parseFloat();
-          DAC.writeUpdateCh(4, val4);
-          val5=Serial.parseFloat();
-          DAC.writeUpdateCh(5, val5);
-          val6=Serial.parseFloat();
-          DAC.writeUpdateCh(6, val6);
-          val7=Serial.parseFloat();
-          DAC.writeUpdateCh(7, val7);
-          query();
-       break;
-
  
-    case 'a':              // Update channel 1 input current 
-      element = 0;
+    case 'a':              // Update one channel input current 
+      element = (Serial.parseInt()-1);
+      Serial.println(element);
       val = Serial.parseFloat();
-      //Serial.print("Channel 1 : "); Serial.print(val); Serial.println(" mA");
-      req_val = (val - p2[element]) / p1[element];
-      setCh(element, req_val);
-      break;
-
-    case 'b':              // Update channel 2 input current 
-      element = 1;
-      val = Serial.parseFloat();
-      //Serial.print("Channel 2 : "); Serial.print(val); Serial.println(" mA");
-      req_val = (val - p2[element]) / p1[element];
-      setCh(element, req_val);
-      break;
-    //req_val = (val - 2.72) / 0.65;
-
-    case 'c':             // Update channel 3 input current 
-      element = 2;
-      val = Serial.parseFloat();
-      //Serial.print("Channel 3 : "); Serial.print(val); Serial.println(" mA");
-      req_val = (val - p2[element]) / p1[element];
-      setCh(element, req_val);
-      break;
-    //req_val = (val + 32.72) / 0.6452;
-
-    case 'd':            // Update channel 4 input current 
-      element = 3;
-      val = Serial.parseFloat();
-      //Serial.print("Channel 4 : "); Serial.print(val); Serial.println(" mA");
-      req_val = (val - p2[element]) / p1[element];
-      setCh(element, req_val);
-      break;
-
-    case 'e':            // Update channel 5 input current 
-      element = 4;
-      val = Serial.parseFloat();
-      //Serial.print("Channel 5 : "); Serial.print(val); Serial.println(" mA");
-      req_val = (val - p2[element]) / p1[element];
-      setCh(element, req_val);
-      break;
-    case 'f':            // Update channel 6 input current 
-      element = 5;
-      val = Serial.parseFloat();
-      //Serial.print("Channel 6 : "); Serial.print(val); Serial.println(" mA");
-      req_val = (val - p2[element]) / p1[element];
-      setCh(element, req_val);
-      break;
-    case 'g':            // Update channel 7 input current 
-      element = 6;
-      val = Serial.parseFloat();
-      //Serial.print("Channel 7 : "); Serial.print(val); Serial.println(" mA");
-      req_val = (val - p2[element]) / p1[element];
-      setCh(element, req_val);
-      break;
-    case 'h':            // Update channel 8 input current 
-      element = 7;
-      val = Serial.parseFloat();
-      //Serial.print("Channel 8 : "); Serial.print(val); Serial.println(" mA");
-      req_val = (val - p2[element]) / p1[element];
+      Serial.println(val);
+      req_val = (val - p2[element]) / p1[element];   
       setCh(element, req_val);
       break;
 
@@ -323,14 +214,11 @@ void loop() {
         setCh(chAdr, req_val);
         delay(50);
       }
-      delay (100);
-      query();
       break;
   }
 }
 
 void query() {
-  Serial.println("Current state");
   for (int chAdr = 0; chAdr <= 3; chAdr++)
   {
     int adc0 = adc1.readADC_SingleEnded(chAdr);
@@ -347,7 +235,6 @@ void query() {
 }
 
 void queryVoltage() {
-  Serial.println("Current state");
   for (int chAdr = 0; chAdr <= 3; chAdr++)
   {
     int adc0 = adc1.readADC_SingleEnded(chAdr);
@@ -365,16 +252,14 @@ void queryVoltage() {
 }
 
 void setCh(int element, float val) {
-  //float val = Serial.parseFloat();
   float vOut;
-  vOut = ((1.25 - val * 0.001 * 0.22) * 26214);
-  //Serial.println(vOut);
-  DAC.writeUpdateCh(element, vOut);
+  vOut = ((1.25 - val * 0.001 * 0.22) * 26214); // Convert current to DAC value
+
+  DAC.writeUpdateCh(element, vOut);             // Update channel 
 }
 
 void feedback(int element){
-    int adc0 = adc1.readADC_SingleEnded(element);
-    Serial.print("CH "); Serial.print(element + 1); Serial.print(" set to : ");
-    Serial.print(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 6); Serial.println(" mA");
+    int adc0 = adc1.readADC_SingleEnded(element-1); // Read the feedback from the Adc
+    
+    Serial.print(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 6); //Display current feedback 
 }
-
