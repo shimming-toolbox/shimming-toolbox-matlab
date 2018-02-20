@@ -214,7 +214,8 @@ if ~Params.isUndoing
     
     if ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) ) % is raw SIEMENS mag
         
-        DEFAULT_ISNORMALIZINGMAGNITUDE = true ;
+        % DEFAULT_ISNORMALIZINGMAGNITUDE = true ;
+        DEFAULT_ISNORMALIZINGMAGNITUDE = false ;
         
         if  ~myisfield( Params, 'isNormalizingMagnitude' ) || isempty( Params.isNormalizingMagnitude )
             Params.isNormalizingMagnitude = DEFAULT_ISNORMALIZINGMAGNITUDE ;
@@ -695,6 +696,42 @@ voxelSize = [ Img.Hdr.PixelSpacing(1) Img.Hdr.PixelSpacing(2) ...
         Img.Hdr.SpacingBetweenSlices ] ;
 end
 % =========================================================================
+function mask = segmentspinalcanal( Img, Params )
+%SEGMENTSPINALCANAL
+% 
+% segment T2* multiecho data using the Spinal Cord Toolbox (must be installed + in path)
+%
+% [ mask ] = SEGMENTSPINALCANAL( Img, Params )
+%
+% Params
+%
+%   .dataLoadDir 
+%       DICOM folder
+%   
+%   .dataSaveDir 
+%
+%   .isUsingPropsegCsf
+%       [default = false]
+%
+% NOTE
+%   The protocol is basically that of Topfer R, et al. Magn Reson Med, 2018. 
+%   It hasn't been tested extensively for different acquisition prtocols/systems
+
+mask = false ;
+
+if nargin < 2 || isempty(Params)
+    disp('Default parameters will be used')
+    Params.dummy = [] ;
+end
+
+if  ~myisfield( Params, 'dataLoadDir' ) || isempty(Params.dataLoadDir)
+    [Params.dataLoadDir,~,~] = fileparts( Img.Hdr.Filename ) ;
+end
+
+mask = MaRdI.segmentspinalcanal_s( Params ) ;
+
+end
+% =========================================================================
 function Img = resliceimg( Img, X_1, Y_1, Z_1, interpolationMethod ) 
 %RESLICEIMG
 %
@@ -1076,6 +1113,127 @@ fldrName = Tmp.name ;
 fullDir(end+1) = '/' ;
 
 end
+% =========================================================================
+function mask = segmentspinalcanal_s( Params )
+%SEGMENTSPINALCANAL_S
+% 
+% segment T2* multiecho data using the Spinal Cord Toolbox (must be installed + in path)
+%
+% [ mask ] = SEGMENTSPINALCANAL_S( Params )
+%
+% Params
+%
+%   .dataLoadDir 
+%       DICOM folder
+%   
+%   .dataSaveDir 
+%
+%   .isUsingPropsegCsf
+%       [default = false]
+%
+% NOTE
+%   The protocol is basically that of Topfer R, et al. Magn Reson Med, 2018. 
+%   It hasn't been tested extensively for different acquisition prtocols/systems
+%
+% TODO
+% SEGMENTSPINALCANAL_S
+%   is the static form of MaRdI.segmentspinalcanal( Img, Params )
+%
+%   I (RT) was hoping Matlab would allow the 2 identically named methods (as in c)
+%   given that the static form takes only 1 arg, and the other form requires 2...
+%
+%   --> either rectify this if pos. or change the method names or another alt.
+
+%   .isForcingOverwrite
+%       if .nii or .gz files exist already in dataSaveDir they will be deleted
+%       [default = false]
+%
+
+mask = false ;
+
+DEFAULT_DATALOADDIR = [] ; % path to dicom folder
+DEFAULT_DATASAVEDIR = './gre_seg/'
+DEFAULT_ISFORCINGOVERWRITE = false ;
+DEFAULT_ISUSINGPROPSEGCSF  = true ; %use the propseg -CSF option
+
+if nargin < 1 || isempty(Params) || ~myisfield( Params, 'dataLoadDir' ) || isempty(Params.dataLoadDir)
+    error('Function requires struct Params. with Params.dataLoadDir defined. See documentation.')
+end
+
+if  ~myisfield( Params, 'dataSaveDir' ) || isempty(Params.dataSaveDir)
+    Params.dataSaveDir = DEFAULT_DATASAVEDIR ;
+elseif ( Params.dataSaveDir(end) ~= '/' )
+    Params.dataSaveDir(end+1) = '/';
+end
+
+if  ~myisfield( Params, 'isForcingOverwrite' ) || isempty(Params.isForcingOverwrite)
+    Params.isForcingOverwrite = DEFAULT_ISFORCINGOVERWRITE ;
+end
+
+Params.tmpSaveDir = [ Params.dataSaveDir '/tmp/' ] ;
+
+% if ~Params.isForcingOverwrite & exist( Params.dataSaveDir )
+%     error('Params.dataSaveDir should not exist, or use input option Params.isForcingOverwrite == true')
+% end
+
+if  ~myisfield( Params, 'isUsingPropsegCsf' ) || isempty(Params.isUsingPropsegCsf)
+    Params.isUsingPropsegCsf = DEFAULT_ISUSINGPROPSEGCSF ;
+end
+
+if ~exist( Params.dataSaveDir )
+    mkdir( Params.dataSaveDir ) ;
+end
+
+dicm2nii( Params.dataLoadDir, Params.tmpSaveDir )
+
+% rename
+system( ['mv ' Params.tmpSaveDir '*.nii.gz ' Params.tmpSaveDir 't2s_allEchoes.nii.gz'] ) ;
+% average across echoes
+system( ['sct_maths -i ' Params.tmpSaveDir 't2s_allEchoes.nii.gz -mean t -o ' Params.tmpSaveDir 't2s.nii.gz'] ) ;
+% remove first axial slice because it's empty
+system( ['sct_crop_image -i ' Params.tmpSaveDir 't2s.nii.gz -m ' Params.tmpSaveDir 't2s.nii.gz -o ' Params.tmpSaveDir 't2sm.nii.gz'] ) ;
+% resample to 1mm iso
+system( ['sct_resample -i ' Params.tmpSaveDir 't2sm.nii.gz -mm 1x1x1 -o ' Params.tmpSaveDir 't2smr.nii.gz'] ) ;
+% get centerline 
+system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -v 1 -ofolder ' Params.tmpSaveDir] ) ;
+% segment
+propsegCmd = ['sct_propseg -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -init-centerline ' ...
+        Params.tmpSaveDir 't2smr_centerline_optic.nii.gz -min-contrast 5 -ofolder ' Params.tmpSaveDir] ;
+
+if Params.isUsingPropsegCsf
+    propsegCmd = [propsegCmd ' -CSF'] ;
+    
+    system( propsegCmd ) ;
+    % add in CSF segmentation 
+    system( ['sct_maths -i ' Params.tmpSaveDir 't2smr_seg.nii.gz -o ' ...
+        Params.tmpSaveDir 't2smr_seg.nii.gz -add ' Params.tmpSaveDir 't2smr_CSF_seg.nii.gz'] ) ;
+else
+    
+    system( propsegCmd ) ;
+end
+
+% unzip the one image volume we wish to keep
+system( ['gunzip ' Params.tmpSaveDir 't2smr_seg.nii.gz -df'] ) ;
+
+% regrid to original 
+system( ['sct_register_multimodal -i ' Params.tmpSaveDir 't2smr_seg.nii -d ' ... 
+    Params.tmpSaveDir 't2s_allEchoes.nii.gz -identity 1 -o ' Params.tmpSaveDir 't2smr_seg.nii'] ) ;
+
+% delete the other images
+system( ['rm ' Params.tmpSaveDir '*.nii.gz'] ) ;
+
+% move segmentation 
+system( ['mv ' Params.tmpSaveDir 't2smr_seg.nii ' Params.dataSaveDir 'gre_seg.nii'] ) ;  
+system( ['rm -r ' Params.tmpSaveDir] ) ;
+
+Mask = load_untouch_nii( [ Params.dataSaveDir 'gre_seg.nii' ] );
+mask = Mask.img ;
+mask = logical(permute( mask, [2 1 3] )) ;
+mask = flipdim( mask, 1 ) ;
+mask = dilater( mask, 1 ) ;
+
+end
+% =========================================================================
 % =========================================================================
 function [Params] = writeimg( img, Params )
 %WRITEIMG
