@@ -1,4 +1,4 @@
-classdef AuxTracking < matlab.mixin.SetGet
+classdef AuxTracking < Aux 
 % AUXTRACKING - Respiration/Field tracking for real-time shimming 
 %
 % Aux = TRACKING(  )
@@ -33,7 +33,7 @@ classdef AuxTracking < matlab.mixin.SetGet
 %    ShimUse
 %
 % =========================================================================
-% Updated::20170407::ryan.topfer@polymtl.ca
+% Updated::20180222::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % *** TODO 
@@ -43,8 +43,8 @@ classdef AuxTracking < matlab.mixin.SetGet
 % =========================================================================
 
 properties   
-    Data ;
-    Specs ;
+    % Data ;
+    % Specs ;
 end
 
 % =========================================================================

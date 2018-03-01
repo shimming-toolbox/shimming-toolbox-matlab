@@ -1,9 +1,9 @@
-classdef ProbeTracking < Tracking
+classdef ProbeTracking < AuxTracking
 % PROBETRACKING - Respiratory probe for real-time shimming 
 %
-% Tracker = PROBETRACKING(  )
+% Aux = PROBETRACKING(  )
 %
-%   Tracker contains fields
+%   Aux contains fields
 %           
 %       .ComPort    
 %
@@ -19,7 +19,7 @@ classdef ProbeTracking < Tracking
 % =========================================================================
 % Part of series of classes pertaining to shimming:
 %
-%    Tracking
+%    AuxTracking
 %    ShimCal
 %    ShimCom
 %    ShimEval
@@ -29,7 +29,7 @@ classdef ProbeTracking < Tracking
 %    ShimUse
 %
 % =========================================================================
-% Updated::20170521::ryan.topfer@polymtl.ca
+% Updated::20180221::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % *** TODO 
@@ -42,8 +42,6 @@ classdef ProbeTracking < Tracking
 % =========================================================================
 
 properties   
-    % Data ;
-    % Specs ;
     ComPort ;
 end
 
@@ -51,60 +49,57 @@ end
 % =========================================================================
 methods
 % =========================================================================
-function Tracker = ProbeTracking( Specs )
+function Aux = ProbeTracking( Specs )
 %PROBE - ProbeTracking  
-
-
-
 
 if nargin < 1
     Specs = [] ;
 end
 
 
-[Tracker.ComPort, Tracker.Specs] = ProbeTracking.declareprobe( Specs ) ;
+[Aux.ComPort, Aux.Specs] = ProbeTracking.declareprobe( Specs ) ;
 
-Tracker.Data.p = [];
+Aux.Data.p = [];
 
 end    
 % =========================================================================
-function [] = delete( Tracker )
+function [] = delete( Aux )
 %DELETE  
-% DELETE( Tracker )
+% DELETE( Aux )
 % 
-% Destructor. Calls Tracker.deletecomport( ) 
+% Destructor. Calls Aux.deletecomport( ) 
 
-if myisfield( Tracker, 'ComPort' ) && ~isempty( Tracker.ComPort ) 
-    Tracker.deletecomport();
+if myisfield( Aux, 'ComPort' ) && ~isempty( Aux.ComPort ) 
+    Aux.deletecomport();
 end
 
-clear Tracker ;
+clear Aux ;
 
 end
 % =========================================================================
-function [Tracker] = deletecomport( Tracker )
+function [Aux] = deletecomport( Aux )
 %DELETECOMPORT  
 % 
-% DELETECOMPORT( Tracker )
+% DELETECOMPORT( Aux )
 % 
 % Proper way to close + delete the serial port object
 
-if myisfield( Tracker, 'ComPort' ) && ~isempty( Tracker.ComPort ) 
-    fclose( Tracker.ComPort ) ;
-    delete( Tracker.ComPort ) ;
-    clear Tracker.ComPort  ;
+if myisfield( Aux, 'ComPort' ) && ~isempty( Aux.ComPort ) 
+    fclose( Aux.ComPort ) ;
+    delete( Aux.ComPort ) ;
+    clear Aux.ComPort  ;
 else
     disp('Failed to delete .ComPort - it does not exist.');
 end
 
 end
 % =========================================================================
-function [isTracking] = begintracking( Tracker )
+function [isTracking] = begintracking( Aux )
 %BEGINTRACKING - Initialize (RS-232) Communication Port 
 %
-% [isTracking] = BEGINTRACKING( Tracker )
+% [isTracking] = BEGINTRACKING( Aux )
 %
-% Opens Tracker.ComPort, assigns sampling frequency (whereby probe begins sampling
+% Opens Aux.ComPort, assigns sampling frequency (whereby probe begins sampling
 % (filling internal buffer))
 %
 % Returns TRUE if successful
@@ -113,7 +108,7 @@ isTracking = false;
 
 maxCommunicationAttempts = 3; 
 
-fopen(Tracker.ComPort);
+fopen(Aux.ComPort);
 
 iAttempt = 1 ;
 disp('Connecting to respiratory probe...')
@@ -122,7 +117,7 @@ while(~isTracking && iAttempt <= maxCommunicationAttempts )
 
     disp(['Attempt #' num2str(iAttempt)]);    
     
-    firstWord = fscanf( Tracker.ComPort, '%f') 
+    firstWord = fscanf( Aux.ComPort, '%f') 
     
     if( ~isempty(firstWord) && isnumeric(firstWord) )  
         isTracking = true;
@@ -135,50 +130,50 @@ end
 if isTracking
     disp('Communication successful. Reading in from serial port...')
 else
-    Tracker.stoptracking() ;
-    error('Communication to respiratory probe failed. Closing Tracker.ComPort.')
+    Aux.stoptracking() ;
+    error('Communication to respiratory probe failed. Closing Aux.ComPort.')
 end
 
 end
 % =========================================================================
-function [] = stoptracking( Tracker )
+function [] = stoptracking( Aux )
 %STOPTRACKING - close (RS-232) Communication Port 
 %
-% [] = STOPTRACKING( Tracker )
+% [] = STOPTRACKING( Aux )
 %
-% fclose( Tracker.ComPort )
+% fclose( Aux.ComPort )
 
-fclose(Tracker.ComPort);
+fclose(Aux.ComPort);
 
 end
 % =========================================================================
-function [weightedAvg] = calculateweightedaverage( Tracker, normalizedWeights )
+function [weightedAvg] = calculateweightedaverage( Aux, normalizedWeights )
 %CALCULATEWEIGHTEDAVERAGE
 %
-% weightedAvg = CALCULATEWEIGHTEDAVERAGE( Tracker, normalizedWeights )
+% weightedAvg = CALCULATEWEIGHTEDAVERAGE( Aux, normalizedWeights )
 % 
 % weightedAvg = normalizedWeights .* ... 
-%    Tracker.Data.p( (end-(numel(normalizedWeights)-1)) : end) ;
+%    Aux.Data.p( (end-(numel(normalizedWeights)-1)) : end) ;
 
 weightedAvg = normalizedWeights .* ...
-    Tracker.Data.p( (end-(numel(normalizedWeights)-1)) : end) ;
+    Aux.Data.p( (end-(numel(normalizedWeights)-1)) : end) ;
 
 end
 % =========================================================================
-function [p] = getupdate( Tracker )
+function [p] = getupdate( Aux )
 %GETUPDATE 
 %
 % Reads a single (32bit) pressure measurement (p) in from open com port.
 %
-% p = GETUPDATE( Tracker )
+% p = GETUPDATE( Aux )
 
-assert( strcmp( Tracker.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
+assert( strcmp( Aux.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
 
-p = fscanf( Tracker.ComPort,'%f',[1 1]);
+p = fscanf( Aux.ComPort,'%f',[1 1]);
 
 end  
 % =========================================================================
-function [pressureLog, sampleTimes] = recordandplotpressurelog( Tracker, Params ) 
+function [pressureLog, sampleTimes] = recordandplotpressurelog( Aux, Params ) 
 %RECORDANDPLOTPRESSURELOG    
 %
 %   Description
@@ -187,7 +182,7 @@ function [pressureLog, sampleTimes] = recordandplotpressurelog( Tracker, Params 
 %
 %   Syntax
 %
-%   [pressureLog, sampleTimes] = RECORDANDPLOTPRESSURELOG( Tracker, Parameters )
+%   [pressureLog, sampleTimes] = RECORDANDPLOTPRESSURELOG( Aux, Parameters )
 %
 %    .......................
 %   
@@ -218,7 +213,7 @@ function [pressureLog, sampleTimes] = recordandplotpressurelog( Tracker, Params 
 %       Problems may arise if this is too fast!
 %       [default : 4 Hz ]
 
-assert( strcmp( Tracker.ComPort.Status, 'closed' ), 'Error: Serial port is open/in use.' );
+assert( strcmp( Aux.ComPort.Status, 'closed' ), 'Error: Serial port is open/in use.' );
 
 DEFAULT_ISSAVINGDATA          = true ;
 DEFAULT_ISFORCINGOVERWRITE    = false ;
@@ -254,16 +249,16 @@ isUserSatisfied = false ;
 while ~isUserSatisfied
     
     % ------- 
-    Tracker.Data.p = 0 ;
-    Tracker = Tracker.recordpressurelog( Params ) ;
+    Aux.Data.p = 0 ;
+    Aux = Aux.recordpressurelog( Params ) ;
     
-    pressureLog = Tracker.Data.p ;    
-    sampleTimes = (Tracker.Specs.dt/1000)*[0:(numel(Tracker.Data.p)-1)] ;
+    pressureLog = Aux.Data.p ;    
+    sampleTimes = (Aux.Specs.dt/1000)*[0:(numel(Aux.Data.p)-1)] ;
    
     % ------- 
     fprintf(['\n ----- \n Plotting pressure for user verification... \n']) ;
     figure ;
-    plot( sampleTimes, Tracker.Data.p, '+' ) ;
+    plot( sampleTimes, Aux.Data.p, '+' ) ;
 
     if Params.isSavingData
         title( Params.pressureLogFilename ) ;
@@ -283,7 +278,7 @@ end
 % ------- 
 if Params.isSavingData
     pressureLogFid = fopen( Params.pressureLogFilename, 'w+' ) ;
-    fwrite( pressureLogFid, Tracker.Data.p, 'double' ) ;
+    fwrite( pressureLogFid, Aux.Data.p, 'double' ) ;
     fclose( pressureLogFid );
 
     sampleTimesFid = fopen( Params.sampleTimesFilename, 'w+' ) ;
@@ -293,12 +288,12 @@ end
 
 end
 % =========================================================================
-function [Tracker] = recordpressurelog( Tracker, Params )
+function [Aux] = recordpressurelog( Aux, Params )
 %RECORDPRESSURELOG  
 %
 % Continuously tracks respiratory probe.
 %
-% Tracker = TRACKPROBE( Tracker, Params )
+% Aux = TRACKPROBE( Aux, Params )
 %
 % Params
 %   .runTime
@@ -334,13 +329,13 @@ end
     
 % ------- 
 StopButton     = stoploop({'Stop recording'}) ;
-Tracker.Data.p = [] ;
+Aux.Data.p = [] ;
 sampleIndices  = [] ;
 
-nSamples = Params.runTime / (Tracker.Specs.dt/1000) ;
+nSamples = Params.runTime / (Aux.Specs.dt/1000) ;
 iSample  = 0 ; 
 
-isTracking = Tracker.begintracking() ;
+isTracking = Aux.begintracking() ;
 
 assert(isTracking, 'Could not begin tracking. Check device connection.')
 
@@ -366,7 +361,7 @@ if Params.isPlottingInRealTime
         
     xlim(axesHandle,[0 nSamples]);
         
-    title('Respiration Tracker','FontSize',15,'Color',[1 1 0]);
+    title('Respiration Aux','FontSize',15,'Color',[1 1 0]);
     xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
     ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
 
@@ -378,7 +373,7 @@ end
 % for real-time plotting, updating @the same rate as the pressure samples
 % (100 Hz) poses a problem (computer can't seem to keep up with the incoming samples).
 % solution is to update the display ~every so often~ (4x per second seems OK)
-nSamplesBetweenRefresh = (1/Params.refreshRate)/(Tracker.Specs.dt/1000) ;
+nSamplesBetweenRefresh = (1/Params.refreshRate)/(Aux.Specs.dt/1000) ;
 
 while ( iSample < nSamples ) && ~StopButton.Stop()
 
@@ -387,18 +382,18 @@ while ( iSample < nSamples ) && ~StopButton.Stop()
     for iSamplesBetweenRefresh = 1 : nSamplesBetweenRefresh 
         
         iSample = iSample + 1 ;
-        Tracker.Data.p(end+1) = Tracker.getupdate() ;
+        Aux.Data.p(end+1) = Aux.getupdate() ;
         sampleIndices(end+1)  = iSample ;
 
     end
 
     if Params.isPlottingInRealTime
-        set(plotHandle,'YData',Tracker.Data.p,'XData',sampleIndices);
+        set(plotHandle,'YData',Aux.Data.p,'XData',sampleIndices);
     end
 
 end
 
-Tracker.stoptracking();
+Aux.stoptracking();
 
 StopButton.Clear() ;
 
@@ -413,12 +408,12 @@ end
 % =========================================================================
 methods(Static)
 % =========================================================================
-function [ComPort, TrackerSpecs] = declareprobe( TrackerSpecs )
+function [ComPort, AuxSpecs] = declareprobe( AuxSpecs )
 %DECLAREPROBE Declares serial object for probe 
 % 
-% [ComPort,TrackerSpecs] = declareprobe( TrackerSpecs )
+% [ComPort,AuxSpecs] = declareprobe( AuxSpecs )
 %
-% TrackerSpecs can have the following fields
+% AuxSpecs can have the following fields
 % 
 % .dt
 %   Interval between pressure samples [units: ms]
@@ -442,23 +437,23 @@ MIN_ARDUINOPERIOD     = 10 ; % [units: ms]
 DEFAULT_ARDUINOPERIOD = 10 ; % [units: ms] 
 DEFAULT_BAUDRATE      = 115200 ;
 
-if nargin < 1 || isempty(TrackerSpecs)
+if nargin < 1 || isempty(AuxSpecs)
     ShimUse.display('Default parameters will be used:')
-    TrackerSpecs.dummy = [] ;
+    AuxSpecs.dummy = [] ;
 end
 
-if ~myisfield( TrackerSpecs, 'baudRate' ) || isempty(TrackerSpecs.baudRate) ...
-    TrackerSpecs.baudRate = DEFAULT_BAUDRATE ;
+if ~myisfield( AuxSpecs, 'baudRate' ) || isempty(AuxSpecs.baudRate) ...
+    AuxSpecs.baudRate = DEFAULT_BAUDRATE ;
 end
 
-if  ~myisfield( TrackerSpecs, 'dt' ) || isempty(TrackerSpecs.dt) ...
-    || (TrackerSpecs.dt < MIN_ARDUINOPERIOD) 
+if  ~myisfield( AuxSpecs, 'dt' ) || isempty(AuxSpecs.dt) ...
+    || (AuxSpecs.dt < MIN_ARDUINOPERIOD) 
 
-        TrackerSpecs.dt = DEFAULT_ARDUINOPERIOD ;
+        AuxSpecs.dt = DEFAULT_ARDUINOPERIOD ;
 else
     
-    skipSampleFactor = round( TrackerSpecs.dt / MIN_ARDUINOPERIOD ) ;
-    TrackerSpecs.dt = skipSampleFactor * MIN_ARDUINOPERIOD ;
+    skipSampleFactor = round( AuxSpecs.dt / MIN_ARDUINOPERIOD ) ;
+    AuxSpecs.dt = skipSampleFactor * MIN_ARDUINOPERIOD ;
 
 end
 
@@ -468,9 +463,9 @@ end
 ComPort = [] ; 
 isAssigningSerialPort = false ;
 
-if  myisfield( TrackerSpecs, 'portName' ) && ~isempty(TrackerSpecs.portName)
+if  myisfield( AuxSpecs, 'portName' ) && ~isempty(AuxSpecs.portName)
     
-    [fileDir,portname,fileExtension] = fileparts( TrackerSpecs.portName ) ;
+    [fileDir,portname,fileExtension] = fileparts( AuxSpecs.portName ) ;
     
     listOfDevices = dir( fileDir ) ;
 
@@ -484,21 +479,21 @@ if  myisfield( TrackerSpecs, 'portName' ) && ~isempty(TrackerSpecs.portName)
     end
 
     if ~isPortDetected    
-        disp(['Warning: Given port name (' TrackerSpecs.portName ' ) not found. ' ...
+        disp(['Warning: Given port name (' AuxSpecs.portName ' ) not found. ' ...
             'Checking default port names.']) ;
-        TrackerSpecs.portName = [] ;
+        AuxSpecs.portName = [] ;
     end
 end
 
-if  ~myisfield( TrackerSpecs, 'portName' ) || isempty(TrackerSpecs.portName)
+if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
 
     if ismac
         % For some reason this doesn't work...
         % -------
         % if exist( '/dev/tty.usbmodem1411', 'file' ) ; % my macbook's left USB port
-        %   TrackerSpecs.portName = '/dev/tty.usbmodem1411';
+        %   AuxSpecs.portName = '/dev/tty.usbmodem1411';
         % elseif exist( '/dev/tty.usbmodem1421', 'file' ) ;
-        %     TrackerSpecs.portName = '/dev/tty.usbmodem1421' ; % my macbook's right USB port
+        %     AuxSpecs.portName = '/dev/tty.usbmodem1421' ; % my macbook's right USB port
         % else
         %     error(['Device file not found. ' ...
         %         'Is the microcontroller connected?']) ; 
@@ -509,16 +504,16 @@ if  ~myisfield( TrackerSpecs, 'portName' ) || isempty(TrackerSpecs.portName)
             ShimUse.display( 'Error: Device file not found. Check USB device is connected.' ) ;
         elseif length(listOfDevices) ~= 1, ...
             ShimUse.display( ['Error: Ambiguous device identifier.' ...
-                'Enter device file name as function argument. See HELP TrackerTracking.declareprobe.'] ) ;
+                'Enter device file name as function argument. See HELP AuxAuxTracking.declareprobe.'] ) ;
         else
             isAssigningSerialPort = true ;
-            TrackerSpecs.portName = ['/dev/' listOfDevices.name] ;
+            AuxSpecs.portName = ['/dev/' listOfDevices.name] ;
         end
 
     elseif isunix
         % if exist('/dev/ttyS100', 'file')  
             warning('ProbeTracking.declareprobe() assumes a serial port address/name that may be invalid!')
-            TrackerSpecs.portName = '/dev/ttyS100' ;
+            AuxSpecs.portName = '/dev/ttyS100' ;
         % % else
         %     errorMsg = ['Device file ( ' portName ' ) not found.'  ...
         %     'Is the microcontroller connected?' ...
@@ -536,11 +531,11 @@ end
 
 
 if isAssigningSerialPort
-    ComPort = serial( TrackerSpecs.portName, 'BaudRate',  TrackerSpecs.baudRate ) ;
+    ComPort = serial( AuxSpecs.portName, 'BaudRate',  AuxSpecs.baudRate ) ;
 
     ShimUse.display( [ 'Arduino sampling frequency = ' ...
-        num2str(1000/TrackerSpecs.dt) ' Hz'] )
-    % ComPort = serial( TrackerSpecs.portName, ...
+        num2str(1000/AuxSpecs.dt) ' Hz'] )
+    % ComPort = serial( AuxSpecs.portName, ...
     %   'InputBufferSize', 8 ) ; % 2x 32-bit floats
 else
     ComPort = [] ;
@@ -551,7 +546,7 @@ end
 function [pressureLog, sampleTimes] = loadpressurelog( pressureLogFilename, sampleTimesFilename )
 %LOADPRESSURELOG
 % 
-% Wraps to Tracking.loadmeasurementlog()
+% Wraps to AuxTracking.loadmeasurementlog()
 %
 % pressureLog                = LOADPRESSURELOG( pressureLogFilename ) ;
 % [pressureLog, sampleTimes] = LOADPRESSURELOG( pressureLogFilename, sampleTimesFilename )
@@ -560,10 +555,10 @@ if nargin < 1
     error( 'Insufficient arguments. Must provide full path to pressure log .bin file.' ) ;
 else
     if nargin == 1
-        [pressureLog] = Tracking.loadmeasurementlog( pressureLogFilename ) ;
+        [pressureLog] = AuxTracking.loadmeasurementlog( pressureLogFilename ) ;
     elseif nargin == 2
         [pressureLog, sampleTimes] = ...
-            Tracking.loadmeasurementlog( pressureLogFilename, sampleTimesFilename ) ;
+            AuxTracking.loadmeasurementlog( pressureLogFilename, sampleTimesFilename ) ;
     end
 end
 
@@ -572,7 +567,7 @@ end
 function [] = plotpressurelog( pressureLog, Params )
 %PLOTPRESSURELOG
 % 
-% Wraps to Tracking.plotmeasurementlog()
+% Wraps to AuxTracking.plotmeasurementlog()
 %
 % PLOTPRESSURELOG( pressureLog ) ;
 % PLOTPRESSURELOG( pressureLog, Params )
@@ -604,14 +599,14 @@ if ~myisfield( Params, 'yLabel' ) || isempty( Params.yLabel )
     Params.yLabel = DEFAULT_YLABEL ;
 end
 
-Tracking.plotmeasurementlog( pressureLog, Params ) ;
+AuxTracking.plotmeasurementlog( pressureLog, Params ) ;
 
 end
 % =========================================================================
 function [medianPressure] = userselectmedianpressure( pressureLog )
 % USERSELECTMEDIANPRESSURE 
 %
-% Wraps to Tracking.userselectmedianmeasurement()
+% Wraps to AuxTracking.userselectmedianmeasurement()
 %
 % medianPressure = USERSELECTMEDIANPRESSURE( pressureLog ) 
 %
@@ -620,7 +615,7 @@ function [medianPressure] = userselectmedianpressure( pressureLog )
 % pressureLog graph and the user is asked if the result is satisfactory (or
 % redo).
 
-medianPressure = Tracking.userselectmedianmeasurement( pressureLog )
+medianPressure = AuxTracking.userselectmedianmeasurement( pressureLog )
 
 end
 % =========================================================================

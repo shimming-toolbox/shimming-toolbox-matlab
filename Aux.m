@@ -1,7 +1,7 @@
-classdef AuxTracking < matlab.mixin.SetGet
-% AUXTRACKING - Respiration/Field tracking for real-time shimming 
+classdef Aux 
+% AUX - Auxiliary data/measurement(s) associated with a MaRdI instance
 %
-% Aux = TRACKING(  )
+% AuxObj = Aux(  )
 %
 %   Aux contains fields
 %
@@ -45,6 +45,7 @@ classdef AuxTracking < matlab.mixin.SetGet
 properties   
     Data ;
     Specs ;
+    Params ;
 end
 
 % =========================================================================
@@ -59,6 +60,7 @@ if nargin < 1
 end
 
 Aux.Specs  = Specs ;
+Aux.Params = [] ;
 Aux.Data   = [] ; 
 Aux.Data.p = [] ; 
 
@@ -108,31 +110,9 @@ end
 % =========================================================================
 methods(Abstract)
 % =========================================================================
-[isAuxTracking] = begintracking( Aux )
-%BEGINTRACKING 
-% 
-% (e.g. open com port)
-%
-% Returns true if successful. 
-
-% =========================================================================
-[] = stoptracking( Aux )
-%STOPTRACKING 
-%
-% (e.g. close com port)
-
-% =========================================================================
-[p] = getupdate( Aux )
-%GETUPDATE 
-%
-% Read in a single new tracking measurement (p) (e.g. from open com port)
-%
-% p = GETUPDATE( Aux )
-
 
 % =========================================================================
 end
-
 
 methods(Static)
 % =========================================================================
@@ -286,3 +266,4 @@ end
 % =========================================================================
 
 end
+

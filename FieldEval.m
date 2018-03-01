@@ -24,10 +24,11 @@ classdef FieldEval < MaRdI
 % FieldEval is a MaRdI subclass [FieldEval < MaRdI]
 %     
 % =========================================================================
-% Updated::20170709::ryan.topfer@polymtl.ca
+% Updated::20180221::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
+    % Aux; % Auxiliary field tracking measurements (e.g. respiratory probe tracking)
 end
 
 % =========================================================================
@@ -37,12 +38,14 @@ methods
 function Field = FieldEval( Img )
 %FIELDEVAL - [B0] Field Evaluation 
 
-Field.Hdr = [] ;
 Field.img = [] ; 
+Field.Hdr = [] ;
+Field.Aux = [] ;
 
 if nargin ~= 0
-    Field.Hdr = Img.Hdr;
     Field.img = Img.img;
+    Field.Hdr = Img.Hdr;
+    Field.Aux = Img.Aux;
 end
 
 end
@@ -57,6 +60,7 @@ function ImgCopy = copy(Img)
 ImgCopy     = FieldEval() ;
 ImgCopy.img = Img.img;
 ImgCopy.Hdr = Img.Hdr ;
+ImgCopy.Aux = Img.Aux ;
 
 end
 % =========================================================================
@@ -518,8 +522,9 @@ function [Field, Extras] = mapfield( ImgArray, Params, ObjectiveImg )
 %       [default: uses the region retained after unwrapping, which may generally be = Params.mask)
 %
 %   .unwrapper
-%       'AbdulRahman_2007' [default], calls unwrap3d( ), which wraps to the Abdul-Rahman binary
-%       'FSL_Prelude', calls prelude( ), which wraps to FSL-prelude 
+%       'Sunwrap' [default], calls SUNWRAP( ) (Maier, et al. MRM 2015)
+%       'AbdulRahman_2007' , calls unwrap3d( ), which wraps to the Abdul-Rahman binary
+%       'FslPrelude', calls prelude( ), which wraps to FSL-prelude 
 
 % TODO 
 %
@@ -554,7 +559,7 @@ DEFAULT_THRESHOLD                      = 0.01 ;
 DEFAULT_ISFITTINGSPHERICALHARMONICS    = false ;
 DEFAULT_ORDERSTOGENERATE               = [0:8] ;
 
-DEFAULT_UNWRAPPER                      = 'AbdulRahman_2007' ;
+DEFAULT_UNWRAPPER                      = 'Sunwrap' ; % 'AbdulRahman_2007' ;
 
 assert( (nargin >= 1) && ~isempty( ImgArray ) ) ;
 
@@ -606,7 +611,7 @@ end
 
 if nEchoes == 1
     
-    PhaseDiff = ImgArray{ 1, 2 } ;
+    PhaseDiff = ImgArray{ 1, 2 }.copy() ;
     PhaseDiff.Hdr.EchoTime = Params.echoTimeDifference ;
 
 else
@@ -623,20 +628,11 @@ else
     PhaseDiff.Hdr.EchoTime = ( ImgArray{ 1, 2 }.Hdr.EchoTime - ImgArray{ 2, 2 }.Hdr.EchoTime );
 end
 
-% -------
-% 3d path-based unwrapping
 PhaseDiff.Hdr.MaskingImage = Params.mask ;
 
-if strcmp( Params.unwrapper, 'AbdulRahman_2007' )
-
-    PhaseDiff = PhaseDiff.unwrapphase(  ) ;
-
-elseif strcmp( Params.unwrapper, 'FSL_Prelude' )
-    
-    Options.voxelSize = ImgArray{1,1}.getvoxelsize() ;
-    PhaseDiff = PhaseDiff.unwrapphase( ImgArray{1,1}, Options ) ;
-
-end
+% -------
+% 3d path-based unwrapping
+PhaseDiff = PhaseDiff.unwrapphase( ImgArray{1,1}, Params ) ;
 
 Field     = FieldEval( PhaseDiff.scalephasetofrequency( ) ) ;
 

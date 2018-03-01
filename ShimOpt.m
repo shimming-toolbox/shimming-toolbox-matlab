@@ -119,6 +119,7 @@ classdef (Abstract) ShimOpt < FieldEval
 properties
     Field ; % object of type FieldEval
     Model ; % Modeled quantities for shimming
+    Params ; % Parameters struct 
     Tracker ; % object of type Tracking (e.g. ProbeTracking)
     ShimmedField; % object of type FieldEval 
 end
@@ -135,10 +136,11 @@ if nargin < 1 || isempty( Params )
     Params.dummy = [] ;
 end
 
-Params = ShimOpt.assigndefaultparameters( Params ) ;
+Shim.Params = ShimOpt.assigndefaultparameters( Params ) ;
 
 Shim.img = [];
 Shim.Hdr = [];
+Shim.Aux = []; % ShimOpt inherits this from FieldEval... not sure yet what it will be used for
 
 % .......
 % Load shim basis if provided 
@@ -691,8 +693,300 @@ f0VoiShimmed = f0 + mean( PredictedField.img( voi ) ) ;
 
 end
 % =========================================================================
+function [currents] = optimizeshimcurrents( Shim, Specs, Params, FieldShift, checknonlinearconstraints )
+%OPTIMIZESHIMCURRENTS 
+%
+% currents = OPTIMIZESHIMCURRENTS( Shim, Specs, Params )
+%
+% currents = OPTIMIZESHIMCURRENTS( Shim, Specs, Params, FieldShift )
+%   
+% Params can have the following fields 
+%   
+%   .maxCurrentPerChannel
+%       [default: 4 A,  determined by class ShimSpecs.Amp.maxCurrentPerChannel]
+%
+%   .dataWeights
+%       Array (size of Shim.Field.img) of data reliability weights [0:1].
+%       Field entries corresponding to lower weighting coefficients receive
+%       less consideration in the shim optimization. 
+%       [default: ones(size(Shim.Field.img))]
+%   
+%   .Inspired.medianP
+%   .Expired.medianP
+%       Scalar values
+%
+
+% TODO add Scanner shim feature
+%
+% if ~myisfield(Params, 'controlOffsetAndLinear')
+%     Params.controlOffsetAndLinear = false;
+% end
+%
+% if Params.controlOffsetAndLinear
+%     
+%     % compute the shimming offset (Hz)
+%     
+%     offset = sum(b)/sum(M*ones(size(b)));
+%     
+%     %compute the desired linear shimming (Hz/mm)
+%     
+%     [X,Y,Z] = Shim.Field.getvoxelpositions();
+%     
+%     xx = M*X(:);
+%     yy = M*Y(:);
+%     zz = M*Z(:);
+%     
+%     dBdx = xx'*b./(xx'*xx);
+%     dBdy = yy'*b./(yy'*yy);
+%     dBdz = zz'*b./(zz'*zz);
+%     
+%     % Create and write on test file
+%     
+%     fid = fopen([Params.dataLoadDir datestr(now, 30) '-values_for_offline_shimming.txt'], 'w+');
+%     fprintf(fid, '%f\n', offset);
+%     fprintf(fid, '%f\n', dBdx);
+%     fprintf(fid, '%f\n', dBdy);
+%     fprintf(fid, '%f\n', dBdz);
+%     fclose(fid);
+% end
+
+% DEFAULT_REGULARIZATIONPARAMETER     = 0;
+DEFAULT_ISRETURNINGPSEUDOINVERSE    = 0;
+
+if nargin < 2
+    error('Function requires at least 2 arguments: a ShimOpt instance, and a ShimSpecs instance')
+elseif nargin == 3
+    Params.dummy = [];
+    DEFAULT_ISSOLVINGAUGMENTEDSYSTEM    = false;
+    nInputFields = 1;
+elseif nargin == 4
+    DEFAULT_ISSOLVINGAUGMENTEDSYSTEM    = true;
+    nInptFields = 2;
+end
+
+if ~myisfield(Params, 'isReturningPseudoInverse') || isempty( Params.isReturningPseudoInverse ) 
+    Params.isReturningPseudoInverse = DEFAULT_ISRETURNINGPSEUDOINVERSE ; 
+end
+
+if ~myisfield(Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerChannel ) 
+    Params.maxCurrentPerChannel = Specs.Amp.maxCurrentPerChannel ; 
+end
+
+if ~myisfield(Params, 'isSolvingAugmentedSystem') || isempty( Params.isSolvingAugmentedSystem )
+    Params.isSolvingAugmentedSystem = DEFAULT_ISSOLVINGAUGMENTEDSYSTEM ;
+    
+end
+
+if Params.isSolvingAugmentedSystem
+    % b0 = ( pIn* FieldShift.img(:) - pEx * Shims.Field.img(:) )/dp ;
+    assert( myisfield( Params, 'Inspired') ) 
+    pIn = Params.Inspired.medianP ;
+    pEx = Params.Expired.medianP ;
+    dp  = pIn - pEx ;
+end
+
+% if ~myisfield(Params, 'regularizationParameter') || isempty( Params.regularizationParameter ) 
+%     Params.regularizationParameter = DEFAULT_REGULARIZATIONPARAMETER ;
+% end
+
+
+% Params for conjugate-gradient optimization
+CgParams.tolerance     = 1E-10 ;
+CgParams.maxIterations = 100000 ;    
+
+
+nImg = numel( Shim.Field.img(:) ) ; % number of voxels
+
+
+
+% -------
+% define matrix of data-weighting coefficients : W
+if ~myisfield( Params, 'dataWeights' ) || isempty( Params.dataWeights ) 
+
+    W = speye( nImg, nImg ) ;
+
+else
+
+    assert( numel( Params.dataWeights ) == nImg ) 
+
+    if ( size( Params.dataWeights, 1 ) ~= nImg ) || ( size( Params.dataWeights, 2) ~= nImg )
+        
+        W = spdiags( Params.dataWeights(:), 0, nImg, nImg ) ;
+
+    end
 
 end
+
+M  = Shim.gettruncationoperator*W ;
+
+
+A  = M*Shim.getshimoperator ; % masked current-to-field operator
+MA = A;
+
+if ~Params.isSolvingAugmentedSystem
+    
+    solutionVectorLength = Specs.Amp.nActiveChannels ;
+
+    b = M*(-Shim.Field.img(:)) ;
+
+else 
+   
+    % stacked/augmented solution vector length (top half: dc currents, bottom: insp-exp current shifts)
+    solutionVectorLength = 2*Specs.Amp.nActiveChannels ;
+
+    % the 'dc' field, assuming a linear model of the field shift from respiration:
+    b0 = Shim.Field.img(:) ;
+
+    % field shift from RIRO  
+    db = FieldShift.img(:) ;
+
+    % augmented data vector : dc field, field shift -- vertically concatenated
+    b = [ M*-b0 ; M*-db ] ;
+    
+    % augmented matrix operator
+    AA = [A ;  A ] ;
+
+end
+
+
+% ------- 
+% Least-squares solution via conjugate gradients
+x = cgls( A'*A, ... % least squares operator
+          A'*b, ... % effective solution vector
+          zeros( [solutionVectorLength 1] ), ... % initial model (currents) guess
+          CgParams ) ;
+
+if ~Params.isSolvingAugmentedSystem
+    
+    currents = x ;
+    Shim.Model.currents = x ;
+    
+else
+
+    [i0, di] = splitsolutionvector( x ) ;
+    
+    currents = i0 ;
+    Shim.Model.currents = i0 ;
+    Shim.Model.couplingCoefficients = di/dp ;
+
+end
+
+
+% ------- 
+% TODO: CHECK SOL. VECTOR FOR CONDITIONS 
+% + allow more optional params for optimization 
+isCurrentSolutionOk = false ;
+
+if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
+
+    Options = optimset(...
+        'DerivativeCheck','off',...
+        'GradObj','on',...
+        'Display', 'off',... %'iter-detailed',...
+        'MaxFunEvals',36000,...
+        'TolX',1e-11,...
+        'TolCon',1E-8);
+
+    tic
+    if ~Params.isSolvingAugmentedSystem
+   
+        [currents] = fmincon( ...
+            @shimcost,...
+            zeros( solutionVectorLength, 1),...
+            [],...
+            [],...
+            [],...
+            [],...
+            -Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
+            Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
+            @checknonlinearconstraints,...
+            Options);
+
+        Shim.Model.currents = currents ;
+
+    else
+
+        [currents] = fmincon( ...
+            @shimcost,...
+            zeros( solutionVectorLength, 1),...
+            [],...
+            [],...
+            [],...
+            [],...
+            -Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
+            Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
+            @checknonlinearconstraints_augmented,...
+            Options);
+        
+        [currents, currentsExpired] = splitsolutionvector( currents ) ;
+
+
+    end
+
+    toc
+    
+end
+
+function [f, df] = shimcost( currents )
+    
+     y = A*currents - b;
+     f = y'*y;
+     df = 2*A'*y;
+    
+end
+
+function [C, Ceq] = checknonlinearconstraints_riro( solutionVector )
+%CHECKNONLINEARCONSTRAINTS_RIRO
+%
+% Checks solution satisfies nonlinear system constraints for augmented (real-time) problem
+% 
+% C(x) <= 0
+% (e.g. x = currents)
+
+Ceq = [];
+
+[i0, di] = splitsolutionvector( solutionVector ) ;
+
+didp = di/(Params.Inspired.medianP - Params.Expired.medianP) ;
+
+% dcCurrents ok?
+[dcCurrentsC, ~] = checknonlinearconstraints( i0 ) ;
+% inspired Currents ok?
+[inCurrentsC, ~] = checknonlinearconstraints( i0 + ( didp * pIn ) ) ;
+% expired Currents ok?
+[exCurrentsC, ~] = checknonlinearconstraints( i0 + ( didp * pEx ) ) ;
+
+C = [dcCurrentsC; inCurrentsC; exCurrentsC];
+
+end
+
+function [i0, di] = splitsolutionvector( solutionVector ) 
+%SPLITSOLUTIONVECTOR
+%
+% De-concatenates vertically stacked/agumented solution vector into 
+%
+% [i0, di]   
+% 
+% i0 
+%   vector of DC static shim currents
+% 
+% di
+%   vector of current differences (inspired - expired), such that the
+%   time-varying shim current i(t) 
+%       = i0 (di/dp)*p(t)
+%
+%   where di/dp are the relational constants that scale the respiratory
+%   tracking data p(t) into real-time shim current corrections
+
+    assert( length(solutionVector) == 2*Specs.Amp.nActiveChannels ) ;
+    i0 = solutionVector(1:Specs.Amp.nActiveChannels) ;
+    di = solutionVector((Specs.Amp.nActiveChannels+1):end) ;
+
+end
+
+
+end
+%end
 % =========================================================================
 % =========================================================================
 methods(Access=protected)
@@ -729,6 +1023,8 @@ DEFAULT_TRACKERSPECS            = [] ;
 
 DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
 
+DEFAULT_SHIMMODE            = 'static' ;
+
 if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
    Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
 end
@@ -741,6 +1037,10 @@ if ~myisfield( Params, 'isInterpolatingReferenceMaps' ) || isempty(Params.isInte
    Params.isInterpolatingReferenceMaps = DEFAULT_ISINTERPOLATINGREFERENCEMAPS ;
 end
 
+if ~myisfield( Params, 'shimMode' ) || isempty(Params.shimMode)
+   Params.shimMode = DEFAULT_SHIMMODE ;
+end
+
 end
 % =========================================================================
 
@@ -749,13 +1049,6 @@ end
 % =========================================================================
 methods(Abstract)
 % =========================================================================
-[Shim] = optimizeshimcurrents( Shim, Params )
-%OPTIMIZESHIMCURRENTS 
-%
-% Shim = OPTIMIZESHIMCURRENTS( Shim, Params )
-%   
-% OPTIMIZESHIMCURRENTS should return the optimal shim currents in the field
-% Shim.Model.currents
 
 % =========================================================================
 % =========================================================================

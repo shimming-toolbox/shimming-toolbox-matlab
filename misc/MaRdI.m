@@ -20,9 +20,11 @@ classdef MaRdI < matlab.mixin.SetGet
 %           4D for time series data (WIP))
 %
 %       .Hdr    (header of the first DICOM file read by dir( dataLoadDirectory ) ) 
+%       
+%       .Aux    (Aux-object: auxiliary measurements (e.g. PMU/respiratory probe tracking))
 %
 % =========================================================================
-% Updated::20160921::ryan.topfer@polymtl.ca
+% Updated::20180228::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -30,6 +32,7 @@ classdef MaRdI < matlab.mixin.SetGet
 properties
     img ;
     Hdr ;
+    Aux ;
 end
 
 % =========================================================================
@@ -40,6 +43,7 @@ function Img = MaRdI( dataLoadDirectory )
 
 Img.img = [] ;
 Img.Hdr = [] ;
+Img.Aux = [] ;
     
 if nargin == 1 && ~isempty(dataLoadDirectory)
 
@@ -146,8 +150,10 @@ function ImgCopy = copy(Img)
 % ImgCopy = Copy( Img ) ;
 
 ImgCopy     = MaRdI() ;
+
 ImgCopy.img = Img.img;
 ImgCopy.Hdr = Img.Hdr ;
+ImgCopy.Aux = Img.Aux ;
 
 % from https://www.mathworks.com/matlabcentral/newsreader/view_thread/257925
 % % Instantiate new object of the same class.
@@ -445,65 +451,88 @@ end
 
 end
 % =========================================================================
-function Phase = unwrapphase( Phase, varargin )
+function Phase = unwrapphase( Phase, Mag, Options )
 %UNWRAPPHASE
-% Interface to FSL prelude or to Abdul-Rahman's path-based phase unwrapper
+%
+% Interface to SUNWRAP, to FSL prelude, or to Abdul-Rahman's path-based phase unwrapper
+%
+%   Phase = UNWRAPPHASE( Phase )
+%   Phase = UNWRAPPHASE( Phase, Mag )
+%   Phase = UNWRAPPHASE( Phase, Mag, Options )
+%   
+%   Phase and Mag are objects of type MaRdI.
+%
+%    .......................
+%    To call SUNWRAP [default if nargin ==2 ]
+%    
+%    Options.unwrapper = 'Sunwrap'
+%
+%       See HELP SUNWRAP for more details.
+% 
+%       Maier F, et al. Robust Phase Unwrapping for MR Temperature Imaging
+%       Using a Magnitude-Sorted List, Multi-Clustering Algorithm. Magn Reson
+%       Med, 73:1662-1668,2015.
 %
 %    .......................
 %    To call FSL Prelude   
 % 
-%       Phase = UNWRAPPHASE( Phase, Mag, PreludeOptions )
-%       
-%       Phase and Mag are objects of type MaRdI
-%       See HELP PRELUDE for description of PreludeOptions 
+%    Options.unwrapper = 'FslPrelude'
+%
+%       See HELP PRELUDE for description of Options 
 %   
 %    .......................
-%    To call the Abdul-Rahman unwrapper  
+%    To call the Abdul-Rahman unwrapper [default if nargin == 1] 
 % 
-%	    Phase = UNWRAPPHASE( Phase, Options )
-%       Phase is an object of type MaRdI and has defined Phase.Hdr.MaskingImage
+%    Options.unwrapper = 'AbdulRahman_2007'
+%
+%       Phase is an object of type MaRdI and must have defined Phase.Hdr.MaskingImage
 %       See HELP UNWRAP3D for description of Options 
 %
+%       Abdul-Rahman H, et al. Fast and robust three-dimensional best path
+%       phase unwrapping algorithm. Applied Optics, Vol. 46, No. 26, pp.
+%       6623-6635, 2007.
+%
 %    .......................
-% 
-% Abdul-Rahman H, et al. Fast and robust three-dimensional best path phase
-% unwrapping algorithm. Applied Optics, Vol. 46, No. 26, pp. 6623-6635, 2007.
+%
+% NOTE
+%
+%   Both FSL and the Abdul-Rahman method require installed binaries...
+assert( strcmp( Phase.Hdr.PixelComponentPhysicalUnits, '0000H' ), 'SCALEPHASE2RAD() before unwrapping.' ) ;
+Options.unwrapper
+DEFAULT_UNWRAPPER = 'Sunwrap' ;
+DEFAULT_THRESHOLD = 0.0 ;
 
-    assert( strcmp( Phase.Hdr.PixelComponentPhysicalUnits, '0000H' ), 'SCALEPHASE2RAD() beforehand.' ) ;
+Options.dummy     = [];
+
+if nargin < 2
     
-    isCallingPrelude = false ;
-    Options.dummy    = [];
-     
-    if nargin == 1
-        varargin{2} = Options ;
-    end
+    Options.unwrapper = 'AbdulRahman_2007' ;    
 
-    isPhaseBalanced = all( Phase.img(:) >= -pi ) & all( Phase.img(:) <= pi ) ;
+    assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
+        'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
 
-   if nargin < 3 
-    
-        assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
-            'Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
+end
+
+if nargin == 2 || ~myisfield( Options, 'unwrapper') || isempty(Options.unwrapper)
+    Options.unwrapper = DEFAULT_UNWRAPPER ;
+end
+
+if ~myisfield( Options, 'threshold') || isempty(Options.threshold)
+    Options.threshold = DEFAULT_THRESHOLD ;
+end
+
+
+isPhaseBalanced = all( Phase.img(:) >= -pi ) & all( Phase.img(:) <= pi ) ;
+
+switch Options.unwrapper
+
+    case 'AbdulRahman_2007'
         
-        seriesDescriptionUnwrapper = 'AbdulRahman_2007' ;
+        assert( isPhaseBalanced, 'Wrapped input phase must be between [-pi,pi]');
         
-        if nargin == 2
-            Options = varargin{1} ;
-        end
-
-        assert(isPhaseBalanced, 'Wrapped input phase must be between [-pi,pi]');
         Phase.img = unwrap3d( Phase.img, logical(Phase.Hdr.MaskingImage), Options ) ;
 
-    elseif nargin == 3 
-        isCallingPrelude = true ;
-        seriesDescriptionUnwrapper = 'FSL_Prelude' ;
-    
-        % if isPhaseBalanced
-        %    Phase.img = Phase.img + pi ; % FSL requires that wrapped phase sit between [0, 2pi]
-        % end
-
-        Mag     = varargin{1} ;
-        Options = varargin{2} ;
+    case 'FslPrelude'
 
         if myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage)
             Options.mask = single( Phase.Hdr.MaskingImage ) ;
@@ -513,53 +542,19 @@ function Phase = unwrapphase( Phase, varargin )
 
         Phase.img = prelude( Phase.img, Mag.img, Options ) ;
 
-    end
+    case 'Sunwrap'
 
-    Phase.img = double( Phase.img ) ;
+        Phase.img = sunwrap( ( Mag.img/max(Mag.img(:)) ) .* exp( 1i* Phase.img ), Options.threshold ) ;
 
-    % update header
-    Img.Hdr.ImageType         = 'DERIVED\SECONDARY' ; 
-    Img.Hdr.SeriesDescription = ['phase_unwrapped_' seriesDescriptionUnwrapper ] ; 
-end
-% =========================================================================
-function Field = mapfrequencydifference( Phase1, Phase2 )
-%MAPFREQUENCYDIFFERENCE
-% 
-% Field = MAPFREQUENCYDIFFERENCE( UnwrappedEcho1, UnwrappedEcho2 ) 
-
-Field = MaRdI() ;
-
-assert( strcmp(Phase1.Hdr.PixelComponentPhysicalUnits, '0000H') && ...
-        strcmp(Phase2.Hdr.PixelComponentPhysicalUnits, '0000H'), ...
-'Inputs should be 2 MaRdI objects where .img is the unwrapped phase.' ) ;
-
-%-------
-% mask
-if myisfield( Phase1.Hdr, 'MaskingImage' ) || ~isempty( Phase1.Hdr.MaskingImage ) ; 
-    mask = Phase1.Hdr.MaskingImage ;
+    otherwise
+        error('Unrecognized "Options.unwrapper" input') ;
 end
 
-if myisfield( Phase2.Hdr, 'MaskingImage' ) || ~isempty( Phase2.Hdr.MaskingImage ) ; 
-    mask = mask .* Phase2.Hdr.MaskingImage ;
-end
+Phase.img = double( Phase.img ) ;
 
-%-------
-% field map
-Field.img = (Phase2.img - Phase1.img)/(Phase2.Hdr.EchoTime - Phase1.Hdr.EchoTime) ;
-Field.img = mask .* Field.img ;
-Field.img = (1000/(2*pi)) * Field.img ;
-
-
-Field.Hdr = Phase1.Hdr ;
-
-%-------    
 % update header
-Field.Hdr.MaskingImage = mask ;
-Field.Hdr.EchoTime = abs( Phase2.Hdr.EchoTime - Phase1.Hdr.EchoTime ) ;
-
-Field.Hdr.PixelComponentPhysicalUnits = '0005H' ; % Hz
-Field.Hdr.ImageType         = 'DERIVED\SECONDARY\FREQUENCY' ; 
-Field.Hdr.SeriesDescription = ['frequency_' Field.Hdr.SeriesDescription] ; 
+Img.Hdr.ImageType         = 'DERIVED\SECONDARY' ; 
+Img.Hdr.SeriesDescription = ['phase_unwrapped_' Options.unwrapper ] ; 
 
 end
 % =========================================================================
@@ -577,23 +572,23 @@ function [r,c,s] = getdirectioncosines( Img )
 %   c: column index " "
 %   s: slice index " "
       
-    r = Img.Hdr.ImageOrientationPatient(4:6) ; 
-    c = Img.Hdr.ImageOrientationPatient(1:3) ; 
-    s = cross( c, r ) ;  
-    
-    % " To make a full rotation matrix, we can generate the last column from
-    % the cross product of the first two. However, Siemens defines, in its
-    % private CSA header, a SliceNormalVector which gives the third column, but
-    % possibly with a z flip, so that R is orthogonal, but not a rotation
-    % matrix (it has a determinant of < 0)."
-    %   -From http://nipy.org/nibabel/dicom/dicom_mosaic.html 
-    %
-    % In general, (I think) the coordinate is increasing along slice dimension
-    % with slice index:
-    [~,iS] = max( abs(s) ) ;
-    if s(iS) < 0
-        s = -s ;
-    end
+r = Img.Hdr.ImageOrientationPatient(4:6) ; 
+c = Img.Hdr.ImageOrientationPatient(1:3) ; 
+s = cross( c, r ) ;  
+
+% " To make a full rotation matrix, we can generate the last column from
+% the cross product of the first two. However, Siemens defines, in its
+% private CSA header, a SliceNormalVector which gives the third column, but
+% possibly with a z flip, so that R is orthogonal, but not a rotation
+% matrix (it has a determinant of < 0)."
+%   -From http://nipy.org/nibabel/dicom/dicom_mosaic.html 
+%
+% In general, (I think) the coordinate is increasing along slice dimension
+% with slice index:
+[~,iS] = max( abs(s) ) ;
+if s(iS) < 0
+    s = -s ;
+end
 
 end 
 % =========================================================================
@@ -627,51 +622,51 @@ function [X,Y,Z] = getvoxelpositions( Img )
 %   location [units: mm] of the corresponding voxel with respect to 
 %   DICOM's 'Reference Coordinate System'.
 
-    % form DICOM standard: https://www.dabsoft.ch/dicom/3/C.7.6.2.1.1/
-    %
-    % If Anatomical Orientation Type (0010,2210) is absent or has a value of
-    % BIPED, the x-axis is increasing to the left hand side of the patient. The
-    % y-axis is increasing to the posterior side of the patient. The z-axis is
-    % increasing toward the head of the patient.
-    %
-    % Arrays containing row, column, and slice indices of each voxel
-    assert( ~myisfield( Img.Hdr, 'AnatomicalOrientationType' ) || ...
-            strcmp( Img.Hdr.AnatomicalOrientationType, 'BIPED' ), ...
-            'Error: AnatomicalOrientationType not supported.' ) ;
-            
-    [iRows,iColumns,iSlices] = ndgrid( [0:1:Img.Hdr.Rows-1], ...
-                      [0:1:Img.Hdr.Columns-1], ...
-                      [0:1:(Img.Hdr.NumberOfSlices-1)] ) ; 
-    
-    iRows    = double(iRows);
-    iColumns = double(iColumns);
-    iSlices  = double(iSlices);
-    
-    %-------
-    % Rotation matrix: R
-    [r, c, s] = Img.getdirectioncosines ;
-    R = [r c s] ; 
-                      
-    %-------
-    % Scaling matrix: S  
-    voxelSize = Img.getvoxelsize() ;
-    S = diag(voxelSize); 
+% form DICOM standard: https://www.dabsoft.ch/dicom/3/C.7.6.2.1.1/
+%
+% If Anatomical Orientation Type (0010,2210) is absent or has a value of
+% BIPED, the x-axis is increasing to the left hand side of the patient. The
+% y-axis is increasing to the posterior side of the patient. The z-axis is
+% increasing toward the head of the patient.
+%
+% Arrays containing row, column, and slice indices of each voxel
+assert( ~myisfield( Img.Hdr, 'AnatomicalOrientationType' ) || ...
+        strcmp( Img.Hdr.AnatomicalOrientationType, 'BIPED' ), ...
+        'Error: AnatomicalOrientationType not supported.' ) ;
+        
+[iRows,iColumns,iSlices] = ndgrid( [0:1:Img.Hdr.Rows-1], ...
+                  [0:1:Img.Hdr.Columns-1], ...
+                  [0:1:(Img.Hdr.NumberOfSlices-1)] ) ; 
 
-    RS = R*S ;
+iRows    = double(iRows);
+iColumns = double(iColumns);
+iSlices  = double(iSlices);
 
-    %-------
-    % Scale and rotate to align row direction with x-axis, 
-    % column direction with y-axis, slice with z-axis
-    X1 = RS(1,1)*iRows + RS(1,2)*iColumns + RS(1,3)*iSlices;
-    Y1 = RS(2,1)*iRows + RS(2,2)*iColumns + RS(2,3)*iSlices;
-    Z1 = RS(3,1)*iRows + RS(3,2)*iColumns + RS(3,3)*iSlices;
+%-------
+% Rotation matrix: R
+[r, c, s] = Img.getdirectioncosines ;
+R = [r c s] ; 
+                  
+%-------
+% Scaling matrix: S  
+voxelSize = Img.getvoxelsize() ;
+S = diag(voxelSize); 
 
-    %-------
-    % TRANSLATE w.r.t. origin 
-    % (i.e. location of 1st element: .img(1,1,1))
-    X = Img.Hdr.ImagePositionPatient(1) + X1 ; 
-    Y = Img.Hdr.ImagePositionPatient(2) + Y1 ; 
-    Z = Img.Hdr.ImagePositionPatient(3) + Z1 ; 
+RS = R*S ;
+
+%-------
+% Scale and rotate to align row direction with x-axis, 
+% column direction with y-axis, slice with z-axis
+X1 = RS(1,1)*iRows + RS(1,2)*iColumns + RS(1,3)*iSlices;
+Y1 = RS(2,1)*iRows + RS(2,2)*iColumns + RS(2,3)*iSlices;
+Z1 = RS(3,1)*iRows + RS(3,2)*iColumns + RS(3,3)*iSlices;
+
+%-------
+% TRANSLATE w.r.t. origin 
+% (i.e. location of 1st element: .img(1,1,1))
+X = Img.Hdr.ImagePositionPatient(1) + X1 ; 
+Y = Img.Hdr.ImagePositionPatient(2) + Y1 ; 
+Z = Img.Hdr.ImagePositionPatient(3) + Z1 ; 
 
 end
 % =========================================================================
@@ -1324,7 +1319,6 @@ end
 % =========================================================================
 % Create figure
 % =========================================================================
-
 
 figure
 

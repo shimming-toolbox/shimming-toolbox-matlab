@@ -139,11 +139,11 @@ end
 
 end
 % =========================================================================
-function [currents, currentsExpired] = optimizeshimcurrents( Shim, Params, FieldExpired )
-%OPTIMIZESHIMCURRENTS 
+function [currents] = optimizeshimcurrents( Shim, Params, FieldExpired )
+%OPTIMIZESTATICSHIMCURRENTS 
 %
-% currents = OPTIMIZESHIMCURRENTS( Shim, Params )
-% [currentsInspired, currentsExpired] = OPTIMIZESHIMCURRENTS( Shim, Params, FieldExpired )
+% currents  = OPTIMIZESHIMCURRENTS( Shim, Params )
+% currents  = OPTIMIZESHIMCURRENTS( Shim, Params, FieldExpired )
 %   
 % Params can have the following fields 
 %   
@@ -155,243 +155,30 @@ Specs = ShimSpecsRri();
 DEFAULT_REGULARIZATIONPARAMETER     = 0;
 DEFAULT_ISRETURNINGPSEUDOINVERSE    = 0;
 
-if nargin < 1
-    error('Function requires at least 1 argument of type ShimOpt')
-elseif nargin == 1
+if nargin < 2 
     Params.dummy = [];
-    DEFAULT_ISSOLVINGAUGMENTEDSYSTEM    = false;
-    DEFAULT_ISPENALIZINGFIELDDIFFERENCE = false;
-elseif nargin == 2
-    DEFAULT_ISSOLVINGAUGMENTEDSYSTEM    = false;
-    DEFAULT_ISPENALIZINGFIELDDIFFERENCE = false;
-elseif nargin == 3
-    DEFAULT_ISSOLVINGAUGMENTEDSYSTEM    = true;
-    DEFAULT_ISPENALIZINGFIELDDIFFERENCE = true;
 end
 
-if ~myisfield(Params, 'isReturningPseudoInverse') || isempty( Params.isReturningPseudoInverse ) 
-    Params.isReturningPseudoInverse = DEFAULT_ISRETURNINGPSEUDOINVERSE ; 
+% TODO (if needed): define RRI system-specific Params
+
+if nargin < 3
+    currents = @optimizeshimcurrents.ShimOpt( Shim, Specs, Params, @checknonlinearconstraints ) ;
+if nargin == 3
+    currents = @optimizeshimcurrents.ShimOpt( Shim, Specs, Params, FieldExpired, @checknonlinearconstraints ) ;
 end
 
-if ~myisfield(Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerChannel ) 
-    Params.maxCurrentPerChannel = Specs.Amp.maxCurrentPerChannel ; 
-end
+function [C, Ceq] = checknonlinearconstraints( currents )
+%CHECKNONLINEARCONSTRAINTS 
 %
-% if ~myisfield(Params, 'controlOffsetAndLinear')
-%     Params.controlOffsetAndLinear = false;
-% end
-
-if ~myisfield(Params, 'isSolvingAugmentedSystem') || isempty( Params.isSolvingAugmentedSystem )
-    Params.isSolvingAugmentedSystem = DEFAULT_ISSOLVINGAUGMENTEDSYSTEM ;
-end
-
-if ~myisfield(Params, 'isPenalizingFieldDifference') || isempty( Params.isPenalizingFieldDifference ) 
-    Params.isPenalizingFieldDifference = DEFAULT_ISPENALIZINGFIELDDIFFERENCE ;
-end
-
-if ~myisfield(Params, 'regularizationParameter') || isempty( Params.regularizationParameter ) 
-    Params.regularizationParameter = DEFAULT_REGULARIZATIONPARAMETER ;
-end
-
-
-% Params for conjugate-gradient optimization
-CgParams.tolerance     = 1E-10 ;
-CgParams.maxIterations = 100000 ;    
-
-
-
-nImg = numel( Shim.Field.img(:) ) ; % number of voxels
-
-% -------
-% define matrix of data-weighting coefficients : W
-if ~myisfield( Params, 'dataWeights' ) || isempty( Params.dataWeights ) 
-
-    W = speye( nImg, nImg ) ;
-
-else
-
-    assert( numel( Params.dataWeights ) == nImg ) 
-
-    if ( size( Params.dataWeights, 1 ) ~= nImg ) || ( size( Params.dataWeights, 2) ~= nImg )
-        
-        W = spdiags( Params.dataWeights(:), 0, nImg, nImg ) ;
-
-    end
-
-end
-
-M  = Shim.gettruncationoperator*W ;
-
-
-A  = M*Shim.getshimoperator ; % masked current-to-field operator
-MA = A;
-
-b = M*(-Shim.Field.img(:)) ;
-
-solutionVectorLength = Specs.Amp.nActiveChannels ;
-
-if Params.isSolvingAugmentedSystem
-   
-   
-    % stacked/augmented solution vector length 
-    solutionVectorLength = 2*Specs.Amp.nActiveChannels ;
-
-    % augmented data vector : inspired field, expired field, vertically concatenated
-    b = [b ; M*(-FieldExpired.img(:)) ] ;
-    
-    % augmented matrix operator
-    AA = [A zeros( size(A) ) ;  zeros( size(A) ) A ] ;
-    
-    if Params.isPenalizingFieldDifference
-        
-        % field-difference penalizer
-        P  = sqrt(Params.regularizationParameter) * [MA -MA] ;
-        % % current-difference penalizer
-        % P =  sqrt(Params.regularizationParameter) *[eye(24) -eye(24)] ;
-
-        % augmented again :     
-        % the added vector is the target inspired-expired difference-field
-        % ------
-        % changed 20171005 by RT :
-        if ~myisfield(Params, 'targetFieldDifference') || isempty( Params.targetFieldDifference ) 
-            % Previously was targetDifference was a vector of zeros :
-            Params.targetDifference = zeros(size(M*FieldExpired.img(:))) ; 
-            % riro = Shim.Field.img - FieldExpired.img ;
-            % Params.targetDifference = M*riro(:) ;
-            % Params.targetDifference = zeros(size(P*ones(2*24,1))) ;
-        end
-        % -----
-        % dbstop in ShimOptRri at 262
-        b = [b ; Params.targetDifference ];   
-        
-        A = [ AA; P ] ;
-    else
-
-        A = AA;
-    
-    end
-
-    % M = repmat( M, [2 1] ) ;
-
-end
-
-
-
-% if Params.controlOffsetAndLinear
-%     
-%     % compute the shimming offset (Hz)
-%     
-%     offset = sum(b)/sum(M*ones(size(b)));
-%     
-%     %compute the desired linear shimming (Hz/mm)
-%     
-%     [X,Y,Z] = Shim.Field.getvoxelpositions();
-%     
-%     xx = M*X(:);
-%     yy = M*Y(:);
-%     zz = M*Z(:);
-%     
-%     dBdx = xx'*b./(xx'*xx);
-%     dBdy = yy'*b./(yy'*yy);
-%     dBdz = zz'*b./(zz'*zz);
-%     
-%     % Create and write on test file
-%     
-%     fid = fopen([Params.dataLoadDir datestr(now, 30) '-values_for_offline_shimming.txt'], 'w+');
-%     fprintf(fid, '%f\n', offset);
-%     fprintf(fid, '%f\n', dBdx);
-%     fprintf(fid, '%f\n', dBdy);
-%     fprintf(fid, '%f\n', dBdz);
-%     fclose(fid);
-% end
-
-% dbstop in ShimOptRri at 296
-
-% ------- 
-% Least-squares solution via conjugate gradients
-Shim.Model.currents = cgls( A'*A, ... % least squares operator
-                            A'*b, ... % effective solution vector
-                            zeros( [solutionVectorLength 1] ), ... % initial model (currents) guess
-                           CgParams ) ;
-
-currents = Shim.Model.currents ;
-
-if Params.isSolvingAugmentedSystem
-
-    [currents, currentsExpired] = splitcurrentvector( currents ) ;
-
-end
-
-
-% ------- 
-% TODO: CHECK SOL. VECTOR FOR CONDITIONS 
-% + allow more optional params for optimization 
-isCurrentSolutionOk = false ;
-
-if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
-    
-    [X0,X1,X2,X3] = ShimComRri.getchanneltobankmatrices( ) ;
-
-    Options = optimset(...
-        'DerivativeCheck','off',...
-        'GradObj','on',...
-        'Display', 'off',... %'iter-detailed',...
-        'MaxFunEvals',36000,...
-        'TolX',1e-11,...
-        'TolCon',1E-8);
-
-    tic
-    if ~Params.isSolvingAugmentedSystem
-   
-        [currents] = fmincon( ...
-            @shimcost,...
-            zeros( solutionVectorLength, 1),...
-            [],...
-            [],...
-            [],...
-            [],...
-            -Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
-            Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
-            @first_order_norm,...
-            Options);
-
-        Shim.Model.currents = currents ;
-
-    else
-
-        [currents] = fmincon( ...
-            @shimcost,...
-            zeros( solutionVectorLength, 1),...
-            [],...
-            [],...
-            [],...
-            [],...
-            -Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
-            Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
-            @first_order_norm_augmented,...
-            Options);
-        
-        [currents, currentsExpired] = splitcurrentvector( currents ) ;
-
-
-    end
-
-    toc
-    
-end
-
-
-function [f, df] = shimcost( currents )
-    
-     y = A*currents - b;
-     f = y'*y;
-     df = 2*A'*y;
-    
-end
-
-function [C, Ceq] = first_order_norm( currents )
+% Check current solution satisfies nonlinear system constraints
+% 
+% i.e. this is the C(x) function in FMINCON (see DOC)
+%
 % C(x) <= 0
+%
 % (e.g. x = currents)
+    
+    [X0, X1, X2, X3] = ShimComRri.getchanneltobankmatrices( ) ;
 
     C   = 0; 
     Ceq = [];
@@ -432,32 +219,6 @@ function [C, Ceq] = first_order_norm( currents )
     C(10) = abs(sum( ((i1<0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
     C(11) = abs(sum( ((i2<0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
     C(12) = abs(sum( ((i3<0) .* i3) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-
-end
-    
-function [C, Ceq] = first_order_norm_augmented( currents )
-% C(x) <= 0
-% (e.g. x = currents)
-
-Ceq = [];
-
-[currentsInspired, currentsExpired] = splitcurrentvector( currents ) ;
-
-[Cinspired, ~] = first_order_norm( currentsInspired ) ;
-[Cexpired,  ~] = first_order_norm( currentsExpired ) ;
-
-C = [Cinspired; Cexpired];
-
-end
-
-function [currentsInspired, currentsExpired] = splitcurrentvector( currents ) 
-%SPLITCURRENTVECTOR
-%
-% De-concatenates vertically stacked/agumented current vector
-    
-    assert( length(currents) == 2*Specs.Amp.nActiveChannels ) ;
-    currentsInspired = currents(1:Specs.Amp.nActiveChannels) ;
-    currentsExpired  = currents((Specs.Amp.nActiveChannels+1):end) ;
 
 end
 
