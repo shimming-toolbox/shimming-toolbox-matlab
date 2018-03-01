@@ -65,7 +65,7 @@ Shims.Com.byteOrder   = 'bigEndian' ;
 % min delay (in seconds) between transmission and reception of data is 1 s
 Shims.Com.txRxDelay       = 1 ; % [units: s]
 
-Shims.Amp.maxCurrentPerChannel = 2 ; % (absolute) [units: A]
+Shims.Amp.maxCurrentPerChannel = 2.2 ; % (absolute) [units: A]
 Shims.Amp.maxVoltagePerChannel = 2500 ; % (absolute) [units: mV]
 
 Shims.Amp.nChannels       = 8 ;  
