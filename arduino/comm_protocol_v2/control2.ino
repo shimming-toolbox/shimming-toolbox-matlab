@@ -4,8 +4,8 @@
 #include "Adafruit_ADS1015.h"
 #include <stdlib.h>     /* atoi */
 
-Adafruit_ADS1015 adc1 (0x49);
-Adafruit_ADS1015 adc2 (0x48); /* Use thi for the 12-bit version */
+Adafruit_ADS1015 adc1 (0x48);
+Adafruit_ADS1015 adc2 (0x49); /* Use thi for the 12-bit version */
 
 #define mosiPin 11
 #define sclkPin 13
@@ -71,7 +71,7 @@ void loop() {
   float val0;
   float val;
   float req_val;
-  float cal_val [] = { -200, -100, 0, 100, 200, 0};                                    // Value for Feedback calibration
+  float cal_val [] = { -200, -100, 0, 100, 200};                                    // Value for Feedback calibration
   float p1[] = {0.65909, 0.65, 0.64547, 0.6499, 0.6591, 0.654, 0.65, 0.65};            // Coefficients from Feedback calibration
   float p2[] = {19.09, -10.908, -23.636, 20.91, 32.728, 11.308, -42.728, 34.546};
   float D [41];                                                                        // Array to store 40 digits from serial communication
@@ -89,9 +89,7 @@ void loop() {
 
       for (sch = 1; sch <= 8; sch++)
       {
-        Serial.print("Calibrate CH "); Serial.println(sch);
-
-        for (n_cal = 0; n_cal <= 5; n_cal++)
+        for (n_cal = 0; n_cal < 5; n_cal++)
         {
           vOut = ((1.25 - cal_val[n_cal] * 0.001 * 0.22) * 26214);
           DAC.writeUpdateCh(sch - 1, vOut);
@@ -99,27 +97,27 @@ void loop() {
           if (sch < 5)
           {
             int adc0 = adc1.readADC_SingleEnded(sch - 1);
-            Serial.print(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2);
-            Serial.print(", ");
+            Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2);
+            //Serial.println('\n');
           }
           else
           {
             int adc0 = adc2.readADC_SingleEnded(sch - 5);
-            Serial.print(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2);
-            Serial.print(", ");
+            Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2);
+            //Serial.println('\n');
           }
         }
-        Serial.println('\n');
+
       }
 
-      Serial.print('\n');
+      //Serial.print('\n'); 
       break;
 
     case 'w':                // Set all channels to 0V
 
       DAC.writeUpdateCh(0, 1.256 * 26214.0);
       DAC.writeUpdateCh(1, 1.246 * 26214.0);
-      DAC.writeUpdateCh(2, 1.242 * 26214.0);
+      DAC.writeUpdateCh(2, 1.246 * 26214.0);
       DAC.writeUpdateCh(3, 1.257 * 26214.0);
 
       DAC.writeUpdateCh(4, 1.261 * 26214.0);
@@ -164,6 +162,7 @@ void loop() {
        a[data]=inString.toInt();
        D[data]=double(a[data]);       //Conversion from string to double
        Serial.print(D[data]);
+       //Serial.println("\n");
        
       // Clear the string for new input:
       inString = "";
@@ -200,7 +199,7 @@ void loop() {
  
     case 'a':              // Update one channel input current 
       element = (Serial.parseInt()-1);
-      Serial.println(element);
+      //Serial.println(element);
       val = Serial.parseFloat();
       Serial.println(val);
       req_val = (val - p2[element]) / p1[element];   
