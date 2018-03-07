@@ -67,13 +67,15 @@ void loop() {
 
   String inString = "";
   char incomingByte;
-  float p1[] = {0.65, 0.6591, 0.65, 0.65, 0.66818, 0.65, 0.65, 0.65};
-  float p2[] = {24.548, -9.998, 2.728, 25.456, 34.544, 7.272, -19.998, 34.546};
 
   float val0;
   float val;
   float req_val;
   float cal_val [] = { -200, -100, 0, 100, 200};                                    // Value for Feedback calibration
+  //float p1[] = {0.65, 0.6591, 0.65, 0.65, 0.66818, 0.65, 0.65, 0.65};
+  //float p2[] = {24.548, -9.998, 2.728, 25.456, 34.544, 7.272, -19.998, 34.546};
+  float p1[] = {0.65, 0.6591, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65908};
+  float p2[] = {25.456, -9.998, 2.728, 25.456, 34.546, 7.272, -19.998, 35.454};
   float D [41];                                                                        // Array to store 40 digits from serial communication
   float currents [8];                                                                  //Array to store the 8 currents
   float vOut;
@@ -104,23 +106,15 @@ void loop() {
       break;
 
     case 'z':                // Set all channels to 0V
-      for (i = 0 ; i <= 8; i++)
-      {
-        req_val = (0.00 - p2[element]) / p1[element];
-        setCh(i, req_val);
-      }
-      break;
-
-
-    case 't':            // Update all the channels with one value
+      val = 0;
       for (int chAdr = 0; chAdr <= 7; chAdr++)
       {
         req_val = (val - p2[chAdr]) / p1[chAdr];
         setCh(chAdr, req_val);
-        delay(50);
       }
+      
       break;
-    
+
     case 'x':                 // Calibration of DAC current
 
       for (sch = 1; sch <= 8; sch++)
@@ -145,7 +139,7 @@ void loop() {
       }
       break;
 
-    case 'c':                 // Calibration of DAC current
+    case 'c':                 // Calibration of DAC current using arduino serial monitor
 
       for (sch = 1; sch <= 8; sch++)
       {
@@ -235,7 +229,6 @@ void query() {
   }
   Serial.println("\n");
 }
-
 
 void setCh(int element, float val) {
   float vOut;
