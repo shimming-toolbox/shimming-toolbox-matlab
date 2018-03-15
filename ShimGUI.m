@@ -1,4 +1,3 @@
-function varargout = ShimGUI(varargin)
 % SHIMGUI MATLAB code for ShimGUI.fig
 
 %      This function allows to check insp/exp mag and phase data, define
@@ -21,7 +20,7 @@ function varargout = ShimGUI(varargin)
 %       options with Sct. 
 
 
-% Last Modified by GUIDE v2.5 27-Feb-2018 16:15:24
+% Last Modified by GUIDE v2.5 12-Mar-2018 16:23:57
 
 
 % Begin initialization code - DO NOT EDIT
@@ -733,12 +732,12 @@ switch handles.itemSelected
          imagefield(handles.predictedfieldInspired,handles.Predicted,handles); 
          setparameters(handles.predictedMean,handles.predictedMedian,handles.predictedStd,handles.meanPre,handles.medianPre,handles.stdPre)
          setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Inspired.currents);
-
-              
+         handles.currents=handles.Params.Inspired.currents.*1000;       
    case {'Phase/Expired','Mag/Expired'}
          imagefield(handles.predictedfieldExpired,handles.Predicted,handles);     
          setparameters(handles.predictedMean,handles.predictedMedian,handles.predictedStd,handles.meanPreexp,handles.medianPreexp,handles.stdPreexp)
          setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Expired.currents);
+         handles.currents=handles.Params.Expired.currents.*1000;    
 end
 
 %Plot VOI boundaries on the Predicted images ------------------------------
@@ -1022,27 +1021,15 @@ guidata (hObject,handles);
 function Start_comunication_Callback(hObject, ~, handles)
 % start_comunication_Callback : 
 %
-% - Convert Shim current into DAC value (Values to send to the board)
 % - Open serial communication port 
 % - Reset Arduino Board (Needed to send command after openning the port)
 %
 %--------------------------------------------------------------------------
-
-switch handles.itemSelected
-       case {'Phase/Inspired','Mag/Inspired'}
-            handles.currents=handles.Params.Inspired.currents.*1000;
-       case {'Phase/Expired','Mag/Expired'}
-            handles.currents=handles.Params.Expired.currents.*1000;      
-end
-
-%Conversion of the shim currents------------------------------------------
- handles.convertedCurrents = handles.Shims.Com.ampstodac(handles.currents); 
- handles.valuetoSend=round(handles.convertedCurrents);
  
 %Open serial comport------------------------------------------------------
  handles.Shims.Com.opencomport();
   
- display('Ready to send current');
+ display('Ready to do calibration');
 guidata (hObject,handles);
 
 %-------------Executes on button press in "Send Currents"------------------
@@ -1051,10 +1038,17 @@ function Send_current_Callback(hObject, ~, handles)
 % Send_current_Callback : 
 %
 % - Send the command to update shim currents in the coils
+% - Convert Shim current into DAC value (Values to send to the board)
 %
 %--------------------------------------------------------------------------
 
-handles.Shims.Com.setandloadallshims(handles.valuetoSend);   
+%Conversion of the shim currents------------------------------------------
+
+handles.convertedCurrents = handles.Shims.Com.ampstodac(handles.currents,handles.Params.feedbackcalibrationcoeffx,handles.Params.feedbackcalibrationcoeffy); 
+handles.valuetoSend=round(handles.convertedCurrents);
+
+handles.Shims.Com.setandloadallshims(handles.valuetoSend);
+
 
 guidata (hObject,handles);
 
@@ -1097,19 +1091,31 @@ function Calibration_Callback(hObject, ~, handles)
  % - Call getcalibrationcoefficient() from shimComAcdc
  % - Plot feedback values in function of reference values
  % - Linear fit of the plot and exctraction of the coefficients
+ % - Convert Shim current into DAC value (Values to send to the board)
  %
  %-------------------------------------------------------------------------
 
  calibrationvalues = handles.Shims.Com.getcalibrationcoefficient();
- display('Back in matlab');
- calibrationref = [-200,-100,0,100,200];
- b=calibrationref(:);
- 
+ calibrationref = [-200;-100;0;100;200];
+
  for i=1:8
-     f1=fit(calibrationvalues(:,i),b,'poly1');
-     display(f1);
-     plot(calibrationvalues(:,i),b);
+     f1=fit(calibrationref,calibrationvalues(:,i),'poly1');
+
+     feedbackcoeff= coeffvalues(f1);
+     handles.Params.feedbackcalibrationcoeffx(i)=feedbackcoeff(1);
+     handles.Params.feedbackcalibrationcoeffy(i)=feedbackcoeff(2);
  end
+ %Conversion of the shim currents with new coefficients -------------------
+ handles.convertedCurrents = handles.Shims.Com.ampstodac(handles.currents,handles.Params.feedbackcalibrationcoeffx,handles.Params.feedbackcalibrationcoeffy); 
+ handles.valuetoSend=round(handles.convertedCurrents);
+ diary('Coefficient');
+ display('Feedback coeff X :')
+ display(handles.Params.feedbackcalibrationcoeffx);
+ display('Feedback coeff Y :')
+ display(handles.Params.feedbackcalibrationcoeffy);
+ diary('Coefficient');
+ display('Ready to send currents');
+
  guidata (hObject,handles);
  
 
@@ -1119,9 +1125,11 @@ function Feedback_Callback(hObject, ~, handles)
 % Feedback_Callback : 
 %
 % - Get currents feedback from all channels of the antenna
-%
+% - Set feedback currents values on Gui interface
 %--------------------------------------------------------------------------
-handles.Shims.Com.getallchanneloutputs();
+handles.feedbackCurrents = handles.Shims.Com.getallchanneloutputs();
+display(handles.feedbackCurrents);
+setcurrents(handles.feedback1,handles.feedback2,handles.feedback3,handles.feedback4,handles.feedback5,handles.feedback6,handles.feedback7,handles.feedback8,(handles.feedbackCurrents/1000));
 guidata (hObject,handles);
  
 
@@ -1254,6 +1262,8 @@ function[a,b,c,d,e,f] = calculparameters(handles)
                   imagefield(handles.predictedfieldInspired,handles.Predicted,handles);  
                   setparameters(handles.predictedMean,handles.predictedMedian,handles.predictedStd,handles.meanPre,handles.medianPre,handles.stdPre);
                   setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Inspired.currents);
+                  handles.currents=handles.Params.Inspired.currents.*1000;
+
 
               end
            
@@ -1286,7 +1296,7 @@ function[a,b,c,d,e,f] = calculparameters(handles)
                   imagefield(handles.predictedfieldExpired,handles.Predicted,handles); 
                   setparameters(handles.predictedMean,handles.predictedMedian,handles.predictedStd,handles.meanPreexp,handles.medianPreexp,handles.stdPreexp);
                   setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Expired.currents);
-
+                  handles.currents=handles.Params.Expired.currents.*1000; 
             end     
           
              if any(handles.sliceSelected == handles.sliceDeleted)==1  
@@ -1320,7 +1330,7 @@ function[a,b,c,d,e,f] = calculparameters(handles)
                 imagefield(handles.predictedfieldInspired,handles.Predicted,handles);
                 setparameters(handles.predictedMean,handles.predictedMedian,handles.predictedStd,handles.meanPre,handles.medianPre,handles.stdPre);
                 setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Inspired.currents);
-
+                handles.currents=handles.Params.Inspired.currents.*1000;
             end
             
             if any(handles.sliceSelected == handles.sliceDeleted)==1  
@@ -1352,7 +1362,7 @@ function[a,b,c,d,e,f] = calculparameters(handles)
                imagefield(handles.predictedfieldExpired,handles.Predicted,handles); 
                setparameters(handles.predictedMean,handles.predictedMedian,handles.predictedStd,handles.meanPreexp,handles.medianPreexp,handles.stdPreexp);
                setcurrents(handles.predicted1,handles.predicted2,handles.predicted3,handles.predicted4,handles.predicted5,handles.predicted6,handles.predicted7,handles.predicted8,handles.Params.Expired.currents);
-
+               handles.currents=handles.Params.Expired.currents.*1000; 
            end
            
            if any(handles.sliceSelected == handles.sliceDeleted)==1  
@@ -1496,3 +1506,32 @@ end
 clear pid
 end
 delete(hObject);
+
+
+
+function setchannelNumber_Callback(hObject, eventdata, handles)
+% hObject    handle to setchannelNumber (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of setchannelNumber as text
+%        str2double(get(hObject,'String')) returns contents of setchannelNumber as a double
+handles.channelNumber = get(hObject,'string');
+display(handles.channelNumber);
+guidata(hObject, handles) ;
+
+
+
+function manualCurrent_Callback(hObject, eventdata, handles)
+handles.manualCurrent = get(hObject,'string');
+display(handles.manualCurrent);
+guidata(hObject, handles) ;
+
+
+
+% --- Executes on button press in Update.
+function sendmanualCurrent_Callback(hObject, eventdata, handles)
+handles.Shims.Com.resetallshims();
+pause(1);
+handles.Shims.Com.setandloadshim(handles.channelNumber,handles.manualCurrent); 
+display('Channel Updated');
