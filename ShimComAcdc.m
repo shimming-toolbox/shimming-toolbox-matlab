@@ -65,14 +65,14 @@ function [isAckReceived] = getsystemheartbeat( Shim ) ;
 isAckReceived=true;
 end
 % =========================================================================
-function [] = setandloadshim( Shim, channels,current)  ;
+function [] = setandloadshim( Shim, channel,current)  ;
 % setandloadshim :
 %
 % - Update one channel with a current (Both in arg)
 %
 %--------------------------------------------------------------------------
 
-command=strcat(Shim.Cmd.updateOneChannel,channels,',',current);
+command=strcat(Shim.Cmd.updateOneChannel,channel,'_',current);
 
 fprintf(Shim.ComPort,'%s',command,'sync');  
 
@@ -97,10 +97,11 @@ fprintf(Shim.ComPort,'%s',command,'sync');
 %end
 
 disp('Currents Updated');
+fscanf(Shim.ComPort,'%s');
 
 end
 %==========================================================================
-function [DACvaluetosend] = ampstodac(Shim,currents)
+function [DACvaluetosend] = ampstodac(Shim,currents,coeff1,coeff2)
 % ampstodac :
 %
 % - Convert currents from Amps to DAC value.
@@ -110,7 +111,7 @@ function [DACvaluetosend] = ampstodac(Shim,currents)
   calibrationVal=zeros(Shim.Specs.Amp.nChannels,1);
 
   for i=1:Shim.Specs.Amp.nChannels
-  calibrationVal(i) = (currents(i) - Shim.Specs.Dac.feedbackcalibrationcoeff2(i)) / Shim.Specs.Dac.feedbackcalibrationcoeff1(i);
+  calibrationVal(i) = (currents(i) - coeff2(i)) / coeff1(i);
   end
   
 % Variable used to convert currents into DAC value-------------------------
@@ -152,20 +153,15 @@ instrument = instrfind;
 display(instrument);
 
 if isempty(instrument)
-    display('init again');
     Shim.ComPort = ShimComAcdc.initializecomport( Shim.Specs ) ;
-    display('init done');
-    instrument2 = instrfind;
-    display(instrument2);
 end
 
 fopen(Shim.ComPort);
-display('opening done');
 
 fprintf(Shim.ComPort,'%s',Shim.Cmd.resetArduino,'sync');
 
 
-nlinesFeedback = 7 ; % Lines of feedback after opening serial communication
+nlinesFeedback = 8 ; % Lines of feedback after opening serial communication
 
 % Read the Feedback from the arduino---------------------------------------
 for i=1:nlinesFeedback
@@ -214,12 +210,14 @@ function [ChannelOutputs] = getallchanneloutputs( Shim )
 %--------------------------------------------------------------------------
 
 %Command to querry the channels -------------------------------------------
-fprintf(Shim.ComPort,'%s',Shim.Cmd.querry,'sync');
+fprintf(Shim.ComPort,'%s',Shim.Cmd.getallChannelFeedback,'sync');
+ChannelOutputs =zeros(1,Shim.Specs.Amp.nChannels);
 
 % Read Feedback from arduino-----------------------------------------------
 for i=1:(Shim.Specs.Amp.nChannels)
-ChannelOutputs = fscanf(Shim.ComPort,'%s');
-disp(ChannelOutputs);
+a= fscanf(Shim.ComPort,'%s');
+disp(a);
+ChannelOutputs(i)=str2double(a); 
 end
 end
 
@@ -264,8 +262,8 @@ pause(41);
 for j=1:(Shim.Specs.Amp.nChannels)
     for i=1:(ncalibrationpoint)  
         a = fscanf(Shim.ComPort,'%s');
+        display(a);
         calibrationvalues(i,j) = str2double(a);
-        display(calibrationvalues(i,j));
     end
 end
 display(calibrationvalues);
@@ -286,7 +284,6 @@ function [Cmd] = getcommands( )
 
 % System commands (as strings)---------------------------------------------
 
-Cmd.setAndLoadShim   = 's' ;
 Cmd.getChannelFeedback = 'f';
 Cmd.getallChannelFeedback = 'e';
 Cmd.calibrateDacCurrent='x';

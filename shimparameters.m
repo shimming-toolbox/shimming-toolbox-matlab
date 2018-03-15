@@ -86,6 +86,9 @@ Params.txDelay                 = 1000 ; % [units: ms]: approx. 50 ms acoustic de
 %Params.feedbackcalibrationcoeff1=[0.65909, 0.65, 0.64547, 0.6499, 0.6591, 0.654, 0.65, 0.65];
 %Params.feedbackcalibrationcoeff2 = [19.09, -10.908, -23.636, 20.91, 32.728, 11.308, -42.728, 34.546];   %Calibration coefficient for the Adc feedback
 
+Params.feedbackcalibrationcoeffx=[0.65909, 0.65, 0.6591, 0.6499, 0.6545, 0.6454, 0.6637, 0.6409];         %Calibration coefficient to transform Voltages to Amps
+Params.feedbackcalibrationcoeffy = [25.456, -9.088, 5.456, 25.456, 30.91, 7.272, -19.09, 34.546]; %Calibration coefficient to transform Voltages to Amps
+
 
 %fprintf('')
 %Params;
