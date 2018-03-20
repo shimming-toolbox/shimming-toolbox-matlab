@@ -1,3 +1,4 @@
+function varargout = ShimGUI(varargin)
 % SHIMGUI MATLAB code for ShimGUI.fig
 
 %      This function allows to check insp/exp mag and phase data, define
