@@ -309,7 +309,7 @@ if ismac
    portName = '/dev/cu.usbserial' ;          % USB to serial adapter
   %  portName = '/dev/cu.usbmodem1421' ;        % Classical USB port
 elseif isunix
-    portName = '/dev/ttyS0' ;  % Can be different depending on the computer 
+    portName = '/dev/ttyUSB0' ;  % Can be different depending on the computer 
 elseif ispc
     portName = 'COM4' ;
 else
