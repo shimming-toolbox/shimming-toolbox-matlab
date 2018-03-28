@@ -21,7 +21,7 @@ function varargout = ShimGUI(varargin)
 %       options with Sct. 
 
 
-% Last Modified by GUIDE v2.5 12-Mar-2018 16:23:57
+% Last Modified by GUIDE v2.5 28-Mar-2018 14:50:28
 
 
 % Begin initialization code - DO NOT EDIT
@@ -104,6 +104,11 @@ if exist('environmentPath.txt')
 end
 
 
+if ~myisfield(handles, 'Shims')
+    handles.Shims = ShimUse(handles.Params);  %Construct an instance handles.Shims of ShimUse
+end
+
+
 display ('Load your directory with data from the scan'); 
   
 guidata(hObject, handles);
@@ -148,10 +153,6 @@ function Load_inspired_maps_Callback(hObject, ~, handles)
 % - Display these images on the GUI interface
 %--------------------------------------------------------------------------
 
-
-if ~myisfield(handles, 'Shims')
-    handles.Shims = ShimUse(handles.Params); %Construct an instance handles.Shims of ShimUse
-end
 
 %Reverse polarization for the shims ---------------------------------------
 handles.Shims.Opt.img = -handles.Shims.Opt.img ;
@@ -220,7 +221,7 @@ handles.medianIns=strcat('Median =',num2str(fieldParametersins.median));
 handles.stdIns=strcat('Std dev =',num2str(fieldParametersins.std));
 setparameters(handles.fieldMean,handles.fieldMedian,handles.fieldStd,handles.meanIns,handles.medianIns,handles.stdIns);
 
-%Display the Feedback from the background script---------------------------
+%Display the from the background script---------------------------
 
 %File=fopen('background');
 %a=fscanf(File,'%c');
@@ -1107,14 +1108,20 @@ function Calibration_Callback(hObject, ~, handles)
      handles.Params.feedbackcalibrationcoeffy(i)=feedbackcoeff(2);
  end
  %Conversion of the shim currents with new coefficients -------------------
- handles.convertedCurrents = handles.Shims.Com.ampstodac(handles.currents,handles.Params.feedbackcalibrationcoeffx,handles.Params.feedbackcalibrationcoeffy); 
- handles.valuetoSend=round(handles.convertedCurrents);
- diary('Coefficient');
+ 
+ if ~isempty(handles.predictedfieldInspired)
+    handles.convertedCurrents = handles.Shims.Com.ampstodac(handles.currents,handles.Params.feedbackcalibrationcoeffx,handles.Params.feedbackcalibrationcoeffy); 
+    handles.valuetoSend=round(handles.convertedCurrents);
+ end
+ dateandtime=sprintf('%s',datetime);
+ 
+ diaryName=strcat(dateandtime,'_Correction_coefficient');
+ diary(diaryName);
  display('Feedback coeff X :')
  display(handles.Params.feedbackcalibrationcoeffx);
  display('Feedback coeff Y :')
  display(handles.Params.feedbackcalibrationcoeffy);
- diary('Coefficient');
+ diary(diaryName);
  display('Ready to send currents');
 
  guidata (hObject,handles);
@@ -1131,6 +1138,7 @@ function Feedback_Callback(hObject, ~, handles)
 handles.feedbackCurrents = handles.Shims.Com.getallchanneloutputs();
 display(handles.feedbackCurrents);
 setcurrents(handles.feedback1,handles.feedback2,handles.feedback3,handles.feedback4,handles.feedback5,handles.feedback6,handles.feedback7,handles.feedback8,(handles.feedbackCurrents/1000));
+
 guidata (hObject,handles);
  
 
@@ -1150,7 +1158,9 @@ function imagefield(Field,ax,handles)
              imagesc(imageToPlot,'parent',ax);
              colormap(ax,handles.colormap);
              caxis(ax,handles.limits);
-             colorbar(ax);
+             c=colorbar(ax);
+             c.Label.String = 'Hz';
+             c.Label.FontSize = 15;
              
 function imagefieldroi(Field,ax,mask,handles)
 % imagefieldroi :       
@@ -1163,7 +1173,9 @@ function imagefieldroi(Field,ax,mask,handles)
              imagesc(imageToPlot,'parent',ax);
              colormap(ax,handles.colormap);
              caxis(ax,handles.limits);
-             colorbar(ax);
+             c=colorbar(ax); 
+             c.Label.String = 'Hz';
+             c.Label.FontSize = 15;
              
 function imagemag(Field,ax,handles)
 % imagemag :       
@@ -1426,7 +1438,7 @@ function[a,b,c,d,e,f] = calculparameters(handles)
                     handles.sctSeg = handles.bound{handles.sliceSelected};                     
                     for k = 1:length(handles.sctSeg)                                   
                     boundary = handles.sctSeg{k};
-                    plot(handles.Fieldmaps,boundary(:,2),boundary(:,1), 'Color','black', 'LineWidth', 1);
+                    plot(handles.Fieldmaps,boundary(:,2),boundary(:,1), 'Color','b', 'LineWidth', 1);
                     end
                     hold off
              end
@@ -1448,6 +1460,7 @@ function setparameters(location1,location2,location3,parameter1,parameter2,param
          set(location1,'string',parameter1);
          set(location2,'string',parameter2);
          set(location3,'string',parameter3);
+
          
 function setcurrents(loc1,loc2,loc3,loc4,loc5,loc6,loc7,loc8, current)
 % setcurrents : 
@@ -1517,14 +1530,15 @@ function setchannelNumber_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of setchannelNumber as text
 %        str2double(get(hObject,'String')) returns contents of setchannelNumber as a double
-handles.channelNumber = get(hObject,'string');
+handles.channelNumber = str2double(get(hObject,'string'));
 display(handles.channelNumber);
+
 guidata(hObject, handles) ;
 
 
 
 function manualCurrent_Callback(hObject, eventdata, handles)
-handles.manualCurrent = get(hObject,'string');
+handles.manualCurrent = str2double(get(hObject,'string'));
 display(handles.manualCurrent);
 guidata(hObject, handles) ;
 
@@ -1532,7 +1546,9 @@ guidata(hObject, handles) ;
 
 % --- Executes on button press in Update.
 function sendmanualCurrent_Callback(hObject, eventdata, handles)
-handles.Shims.Com.resetallshims();
-pause(1);
-handles.Shims.Com.setandloadshim(handles.channelNumber,handles.manualCurrent); 
+    
+coeff1=handles.Params.feedbackcalibrationcoeffx(handles.channelNumber);
+coeff2=handles.Params.feedbackcalibrationcoeffy(handles.channelNumber);
+handles.Shims.Com.setandloadshim(handles.channelNumber,handles.manualCurrent,coeff1,coeff2); 
+
 display('Channel Updated');

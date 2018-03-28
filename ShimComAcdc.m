@@ -65,14 +65,28 @@ function [isAckReceived] = getsystemheartbeat( Shim ) ;
 isAckReceived=true;
 end
 % =========================================================================
-function [] = setandloadshim( Shim, channel,current)  ;
+function [] = setandloadshim( Shim, channel,current,coeff1,coeff2)  ;
 % setandloadshim :
 %
 % - Update one channel with a current (Both in arg)
 %
 %--------------------------------------------------------------------------
 
-command=strcat(Shim.Cmd.updateOneChannel,channel,'_',current);
+calibrationVal = (current - coeff2)/ coeff1;
+
+% Variable used to convert currents into DAC value-------------------------
+
+  DACvoltref = 1.25;
+  preampresistance = 0.22;
+  DACmaxvalue = 26214;
+  
+%Conversion----------------------------------------------------------------
+
+  DACcurrent = num2str(((DACvoltref - calibrationVal * 0.001 * preampresistance) * DACmaxvalue));
+  Channel=num2str(channel);
+  
+  
+  command=strcat(Shim.Cmd.updateOneChannel,Channel,'_',DACcurrent);d
 
 fprintf(Shim.ComPort,'%s',command,'sync');  
 
@@ -255,7 +269,7 @@ fprintf( Shim.ComPort,'%s', Shim.Cmd.calibrateDacCurrent,'sync' ) ;
 
 ncalibrationpoint = 5 ; %Number of calibration points to calculate coefficient
 calibrationvalues = zeros(ncalibrationpoint,8);
-display('Command sent')
+display('Calibration in process, please wait')
 pause(41);
 
 % Read Feedback from the arduino-------------------------------------------
@@ -315,8 +329,6 @@ elseif ispc
 else
     error('Wtf kind of computer is this?')
 end
-
-delete (instrfindall) ;
 
 ComPort = serial( portName,...
     'BaudRate', Specs.Com.baudRate,...

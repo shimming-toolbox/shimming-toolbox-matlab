@@ -30,10 +30,6 @@ Params.matlabPath='/Users/ancha_admin/Documents/Matlab';
 %Params.command =sprintf('%s', 'sct_propseg -i ',Params.matlabPath,'/gre_field_mapping_shim0_ins.nii',' -c t1 ','-ofolder ',Params.matlabPath,' -CSF');
 %Params.command2 =sprintf('%s', 'sct_propseg -i ',Params.matlabPath,'/gre_field_mapping_shim0_exp.nii',' -c t1 ','-ofolder ',Params.matlabPath,' -CSF');
 
-%Command for SCT segmentation (Sct_deepseg_sc) :
-
-Params.command =sprintf('%s', 'sct_deepseg_sc -i ',Params.matlabPath,'/gre_field_mapping_shim0_ins.nii',' -c t1 ','-ofolder ',Params.matlabPath);
-Params.command2 =sprintf('%s', 'sct_deepseg_sc -i ',Params.matlabPath,'/gre_field_mapping_shim0_exp.nii',' -c t1 ','-ofolder ',Params.matlabPath);
 
 %Command for SCT segmentation (Sct_get_centerline) :
 Params.commandbis =sprintf('%s', 'sct_get_centerline -i ',Params.matlabPath,'/gre_field_mapping_shim0_ins.nii',' -c t1 ','-ofolder ',Params.matlabPath);
