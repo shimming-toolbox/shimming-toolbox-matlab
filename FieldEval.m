@@ -24,11 +24,12 @@ classdef FieldEval < MaRdI
 % FieldEval is a MaRdI subclass [FieldEval < MaRdI]
 %     
 % =========================================================================
-% Updated::20180221::ryan.topfer@polymtl.ca
+% Updated::20180306::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
     % Aux; % Auxiliary field tracking measurements (e.g. respiratory probe tracking)
+    Model ;
 end
 
 % =========================================================================
@@ -38,14 +39,16 @@ methods
 function Field = FieldEval( Img )
 %FIELDEVAL - [B0] Field Evaluation 
 
-Field.img = [] ; 
-Field.Hdr = [] ;
-Field.Aux = [] ;
+Field.img   = [] ; 
+Field.Hdr   = [] ;
+Field.Aux   = [] ;
+Field.Model = [] ;
 
 if nargin ~= 0
     Field.img = Img.img;
     Field.Hdr = Img.Hdr;
     Field.Aux = Img.Aux;
+    % Field.Model = Img.Model;
 end
 
 end
@@ -57,10 +60,15 @@ function ImgCopy = copy(Img)
 % 
 % ImgCopy = Copy( Img ) ;
 
-ImgCopy     = FieldEval() ;
-ImgCopy.img = Img.img;
-ImgCopy.Hdr = Img.Hdr ;
-ImgCopy.Aux = Img.Aux ;
+ImgCopy       = FieldEval() ;
+ImgCopy.img   = Img.img;
+ImgCopy.Hdr   = Img.Hdr ;
+
+if ~isempty( Img.Aux ) && myisfield( Img.Aux, 'Tracker' ) 
+    ImgCopy.Aux.Tracker = Img.Aux.Tracker.copy() ;
+end
+
+ImgCopy.Model = Img.Model ;
 
 end
 % =========================================================================
@@ -135,7 +143,6 @@ rz = round(Params.filterRadius/voxelSize(3)) ;
 h = (X.^2/rx^2 + Y.^2/ry^2 + Z.^2/rz^2 <= 1);
 ker = h/sum(h(:));
 
-
 % erode the mask by convolving with the kernel
 reducedMask = shaver( Field.Hdr.MaskingImage, round(Params.filterRadius ./ voxelSize) ) ;  
 
@@ -159,15 +166,13 @@ b = b(:);
 localField = cgs(@Afun, b, Params.tolerance, Params.maxIterations );
 localField = real( reshape( localField, Field.getgridsize)).*reducedMask;
 
-LocalField                       = FieldEval();
-LocalField.Hdr                   = Field.Hdr ;
+LocalField                       = Field.copy();
 LocalField.Hdr.MaskingImage      = reducedMask ;
 LocalField.img                   = reducedMask .* localField;
 
-BackgroundField                  = FieldEval() ;
-BackgroundField.Hdr              = Field.Hdr ;
-BackgroundField.img              = reducedMask .* (Field.img  - localField);
+BackgroundField                  = Field.copy() ;
 BackgroundField.Hdr.MaskingImage = reducedMask ;
+BackgroundField.img              = reducedMask .* (Field.img  - localField);
 
 function y = Afun(x)
 
@@ -223,6 +228,41 @@ Results.norm   = norm( Field.img( voi ), 2 ) ;
 
 Results.meanAbs   = mean( abs( Field.img( voi ) ) ) ;
 Results.medianAbs = median( abs( Field.img( voi ) ) ) ;
+
+end
+% =========================================================================
+function [mask] = getvaliditymask( Field, maxAbsField )
+%GETVALIDITYMASK 
+%
+% Returns binary mask - TRUE where field values are well defined and within 
+% the expected range
+%
+% mask = GETVALIDITYMASK( Field )
+% mask = GETVALIDITYMASK( Field, maxAbsField ) 
+%
+% .......................
+%   
+%
+% maxAbsField 
+%   maximum absolute voxel value assumed to represent an accurate field
+%   measurement. Voxels with abs-values greater than this might stem from
+%   errors in the unwrapping.  [default: 500 Hz]
+%
+% (Set to Inf to ignore the criterion)
+
+DEFAULT_MAXABSFIELD        = 500 ;
+
+if nargin < 2
+    maxAbsField = DEFAULT_MAXABSFIELD ;
+end
+
+% NOTE : assuming a valid measurement will never be exactly zero. Maybe avoid...
+% or possibly add extra conditions ?
+mask = ~( (Field.img==0) & (-Field.img==0) ) ; 
+
+mask = mask & logical(Field.Hdr.MaskingImage) ;
+
+mask = mask & ( abs(Field.img) <= maxAbsField ) ;
 
 end
 % =========================================================================
@@ -595,6 +635,7 @@ Extras = [] ;
 
 % .......
 nEchoes = size( ImgArray, 1 ) ;
+
 % -------
 % define spatial support for unwrapping
 if ~myisfield( Params, 'mask' ) || isempty( Params.mask )
@@ -749,6 +790,129 @@ if Params.isFittingSphericalHarmonics % UNTESTED
         [~, ~, sHat] = Field.getdirectioncosines( ) ;  
         Field.Hdr.SliceLocation = dot( Field.Hdr.ImagePositionPatient, sHat ) ;
     end
+
+end
+
+end
+% =========================================================================
+function [Field] = modelfield( Fields, Params )
+% MODELFIELD
+%
+% Map respiration-induced resonance offset (RIRO) assuming a linear model
+% of field variation w/breath-amplitude (i.e. Topfer et al. MRM 2018)
+%
+% [Field] = MODELFIELD( Fields ) 
+% [Field] = MODELFIELD( Fields, Params ) 
+%
+% Fields is a linear cell array, e.g.
+%
+%   Fields{1} = FieldInspired;
+%   Fields{2} = FieldExpired;
+%       where each Fields' entry is a FieldEval-type object
+
+
+% Optional input
+%   pDc : DC auxiliary pressure reading corresponding to the mean respiratory
+%       state 
+%       [default: (FieldInspired.Aux.Data.p + FieldExpired.Aux.Data.p ) /2 ]
+%
+% Returns FieldEval-type objects
+%   
+%   FieldShift : Field shift from respiration (FieldInspired - FieldExpired) 
+%   Field : The constant (DC) field
+%
+% If input both fields have Field.Aux.Data.p defined as single scalar
+% values (e.g. associated pressure measurements: pIn, pEx) then 
+%
+%    Field.img        = ( pIn*FieldExpired.img - pEx*FieldInspired.img )/(pIn - pEx) ;
+%
+% else
+%    pIn = 1 ; 
+%    pEx = -1 ;
+%    such that Field.img as defined ^ becomes the avg. of the 2 input Fields
+
+DEFAULT_MAXABSFIELD        = 500 ;
+DEFAULT_MAXFIELDDIFFERENCE = 150 ;
+
+if nargin < 1
+    error('Function requires at least 1 input (linear cell array of FieldEval-type objects)');
+elseif nargin == 1
+    Params.pDc = 0 ; % output Field.img will refer to the Zero field offset
+end
+
+if ~myisfield( Params, 'maxAbsField' ) || isempty( Params.maxAbsField ) 
+    Params.maxAbsField = DEFAULT_MAXABSFIELD ;
+end
+
+if ~myisfield( Params, 'maxFieldDifference' ) || isempty( Params.maxFieldDifference ) 
+    Params.maxFieldDifference = DEFAULT_MAXFIELDDIFFERENCE ;
+end
+
+FieldInspired = Fields{1} ;
+FieldExpired  = Fields{2} ;
+
+if ~isempty( FieldInspired.Aux.Tracker.Data.p ) 
+    assert( isscalar( FieldInspired.Aux.Tracker.Data.p), ...
+        'Expected single scalar value for FieldInspired.Aux.Data.p' ) ;
+
+    pIn = FieldInspired.Aux.Tracker.Data.p ;
+else 
+    pIn = 1 ;
+end
+
+if ~isempty( FieldExpired.Aux.Tracker.Data.p ) 
+    assert( isscalar( FieldExpired.Aux.Tracker.Data.p), ...
+        'Expected single scalar value for FieldExpired.Aux.Data.p' ) ;
+
+    pEx = FieldExpired.Aux.Tracker.Data.p ;
+else 
+    pEx = -1 ;
+end
+
+pShiftTraining = pIn - pEx ;
+
+Field      = FieldInspired.copy() ; 
+FieldShift = FieldInspired.copy() ; 
+FieldZero  = FieldInspired.copy() ; 
+
+FieldShift.img                = FieldInspired.img - FieldExpired.img ;
+FieldShift.Hdr.MaskingImage   = FieldShift.getvaliditymask( Params.maxFieldDifference ) ;
+FieldShift.Aux.Tracker.Data.p = pShiftTraining ;
+Field.Model.Shift             = FieldShift ;
+
+FieldZero.img                = ( pIn*FieldExpired.img - pEx*FieldInspired.img )/(pShiftTraining) ;
+FieldZero.Aux.Tracker.Data.p = 0 ;
+Field.Model.Zero             = FieldZero ;
+% no way of knowing what values might be reasonable for this 'Zero' field, so
+% there is no call to .getvaliditymask()
+
+Field.img                = Params.pDc*(Field.Model.Shift.img/pShiftTraining) + Field.Model.Zero.img ;
+Field.Aux.Tracker.Data.p = Params.pDc ;
+Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
+
+if myisfield( Params, 'pMin' ) && myisfield( Params, 'pMax' ) ...
+        && ~isempty( Params.pMin ) && ~isempty( Params.pMax )
+    
+    scalefieldshifttoregularbreathing( FieldShift ); 
+
+end
+
+function [] = scalefieldshifttoregularbreathing( FieldShift )
+%SCALEFIELDSHIFTTOREGULARBREATHING
+% 
+% the training fields themselves (e.g. inspired/expired breath-holds) might not
+% be entirely representative of the typical field shift if it's defined fot any given
+% phase of the respiratory cycle as the deviation from the expected (mean/DC) value.
+%
+% this function scales the shift by the max. absolute deviation from pDC observed over the course 
+% of a recording of regular breathing. 
+%
+    
+    pShiftBreathing = max( abs( [Params.pMin Params.pMax] - Params.pDc ) )
+    
+    FieldShift.img  = ( pShiftBreathing./abs(pShiftTraining) ) * FieldShift.img ;
+
+    FieldShift.Aux.Tracker.Data.p = pShiftBreathing ;
 
 end
 

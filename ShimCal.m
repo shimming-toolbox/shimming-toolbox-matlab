@@ -202,7 +202,122 @@ FitResults.rSquared = 1 - sumOfSquaresResiduals./sumOfSquaresMeasurements ;
 
 end
 % =========================================================================
-function dBdI = mapdbdi( fieldMaps, currents, mask, Params )
+function [ img, Hdr ] = mapdbdi_allchannels( Params )
+%MAPDBDI_ALLCHANNELS
+% 
+% [ img, Hdr ] = MAPDBDI_ALLCHANNELS( Params  ) 
+% map dB/dI --- change in field [Hz] per unit current (A)
+% 
+% Params
+%   .reliabilityMask 
+%       binary array indicating where phase unwrapping should take place 
+%
+% TODO
+%   Clean-up + Documentation
+
+img = [] ;
+Hdr = [] ;
+
+Params.DataDir = [] ;
+
+Mag     = MaRdI( Params.dataLoadDirectories{1} ) ;
+dBdIRaw = zeros( [Mag.getgridsize Params.nChannels] ) ;
+
+Params.mask = Params.reliabilityMask ;
+
+for iChannel = 1 : Params.nChannels 
+    
+    fieldMaps = zeros( [Mag.getgridsize Params.nCurrents] ) ;
+
+    for iCurrent = 1 : (Params.nCurrents)
+
+        iImg  = 4*iChannel + 2*(iCurrent-1) ;
+
+        Params.DataDir.mag( iCurrent )   = Params.dataLoadDirectories(iImg-1) ;
+        Params.DataDir.phase( iCurrent ) = Params.dataLoadDirectories(iImg) ;
+
+        % -------
+        % PROCESS GRE FIELD MAPS
+        % -------
+        ImgArray = cell( 1, 1 ) ;
+
+        ImgArray{1,1}  = MaRdI( Params.DataDir.mag{ iCurrent }  ) ;
+        ImgArray{1,2}  = MaRdI( Params.DataDir.phase{ iCurrent }  ) ;
+        
+        [Field,Extras] = FieldEval.mapfield( ImgArray, Params ) ;
+
+        fieldMaps( :,:,:, iCurrent ) = Field.img ;
+
+    end
+
+    disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
+    
+    dBdIRaw(:,:,:, iChannel) = ShimCal.mapdbdi_singlechannel( fieldMaps, Params.currents(iChannel,:), Params.reliabilityMask, Params ) ;  
+
+end 
+
+% -------
+% filter the dB/dI maps
+if Params.Filtering.isFiltering
+
+    disp(['Filtering dB/dI maps...'] )
+    Params.filterRadius = Params.Filtering.filterRadius ;
+
+    dBdIFiltered = zeros( size( dBdIRaw ) ) ;
+
+    Tmp = Field.copy();
+    Tmp.Hdr.MaskingImage = shaver( Tmp.Hdr.MaskingImage, 1 ) ;
+
+    for iChannel = 1 : Params.nChannels 
+
+        disp(['iChannel ' num2str(iChannel)] )
+
+        Tmp.img = dBdIRaw(:,:,:, iChannel) ;
+        
+        Tmp.img = Tmp.Hdr.MaskingImage .* Tmp.img ;
+
+        [~,TmpFiltered] = Tmp.extractharmonicfield( Params ) ;
+        dBdIFiltered(:,:,:,iChannel) = TmpFiltered.img ;
+        
+
+    end
+
+    Hdr = TmpFiltered.Hdr ;
+    img = dBdIFiltered ;
+
+    if Params.Extension.isExtending
+
+        tic
+        disp(['Performing harmonic extension...']) ;
+        disp(['Channel 1 of ' num2str(Params.nChannels) ] ) ;
+
+        gridSizeImg = size( Params.reliabilityMask ) ;
+        maskFov     = ones( gridSizeImg )  ; % extended spatial support
+
+        [ ~, A, M ] = extendharmonicfield( img(:,:,:, 1) , maskFov, Hdr.MaskingImage, Params.Extension ) ;
+
+        for iChannel = 1 : Params.nChannels 
+            disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] ) ;
+
+            reducedField         = Hdr.MaskingImage .* img(:,:,:, iChannel) ;
+            extendedField        = reshape( M'*A*reducedField(:), gridSizeImg ) ;
+            img(:,:,:, iChannel) = extendedField + reducedField ;
+        end
+
+        Hdr.MaskingImage = (sum(abs(img),4))~=0 ; % extended spatial support
+
+        toc
+
+    end
+
+else
+    Hdr = ImgArray{1,2}.Hdr ;
+    img = dBdIRaw ;
+end
+
+end
+% =========================================================================
+function dBdI = mapdbdi_singlechannel( fieldMaps, currents, mask, Params )
 %MAPDBDI
 % 
 % Maps single channel dB/dI (change in field per unit current [Hz/A])  
@@ -225,7 +340,7 @@ function dBdI = mapdbdi( fieldMaps, currents, mask, Params )
 %
 % Params has fields...
 
-ShimUse.display('Fitting dB/dI...' )
+ShimUse.customdisplay('Fitting dB/dI...' )
 
 Params.isDisplayingProgress = true;
 
@@ -291,7 +406,7 @@ Field = Phase.scalephasetofrequency( ) ;
 %-----
 % Harmonic filtering 
 if Params.Filtering.isFiltering
-    ShimUse.display('Filtering...' )
+    ShimUse.customdisplay('Filtering...' )
     [~, Field] = Field.extractharmonicfield( Params.Filtering ) ;
 end
 
@@ -301,5 +416,4 @@ end
 end
 % =========================================================================
 % =========================================================================
-
 end

@@ -33,7 +33,7 @@ function unwrappedPhaseImage = sunwrap( complexImage, relativeMagnitudeThreshold
 
     % Set default value of relative magnitude threshold if it's not defined.
     if (nargin == 1)
-        relativeMagnitudeThreshold = 0;
+        relativeMagnitudeThreshold = 0.01; %RT20180307: changed from 0. 
     end
     
     % Check relative magnitude variable.

@@ -43,6 +43,11 @@ classdef (Abstract) ShimOpt < FieldEval
 %       .Field
 %           Object of type MaRdI pertaining to field distribution to be shimmed
 %
+%       .Aux
+%           [default : isempty(Shim.Aux)]
+%           When Shim does not itself refer to the scanner shims, then .Aux 
+%           is a ShimOpt object corresponding to the MRI host system.
+%
 %       .Model
 %           .currents  
 %               Optimal shim current vector (i)
@@ -79,7 +84,7 @@ classdef (Abstract) ShimOpt < FieldEval
 % ShimOpt is a FieldEval subclass [ShimOpt < FieldEval < MaRdI]
 %     
 % =========================================================================
-% Updated::20170214::ryan.topfer@polymtl.ca
+% Updated::20170306::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -118,8 +123,7 @@ classdef (Abstract) ShimOpt < FieldEval
 
 properties
     Field ; % object of type FieldEval
-    Model ; % Modeled quantities for shimming
-    Params ; % Parameters struct 
+    % Model ; % Modeled quantities for shimming
     Tracker ; % object of type Tracking (e.g. ProbeTracking)
     ShimmedField; % object of type FieldEval 
 end
@@ -131,21 +135,21 @@ methods
 function Shim = ShimOpt( Params, Field )
 %SHIMOPT - Shim Optimization
 
+Shim.img = [];
+Shim.Hdr = [];
+Shim.Model = [ ] ; 
+Shim.Aux = []; 
 
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
 end
 
-Shim.Params = ShimOpt.assigndefaultparameters( Params ) ;
-
-Shim.img = [];
-Shim.Hdr = [];
-Shim.Aux = []; % ShimOpt inherits this from FieldEval... not sure yet what it will be used for
+Params = ShimOpt.assigndefaultparameters( Params ) ;
 
 % .......
 % Load shim basis if provided 
 if ~isempty(Params.pathToShimReferenceMaps)
-    ShimUse.display(['\n Preparing for shim ...  \n\n'...
+    ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
             'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
 
     load( Params.pathToShimReferenceMaps ) ;
@@ -156,7 +160,6 @@ if ~isempty(Params.pathToShimReferenceMaps)
     % Shim.Hdr.MaskingImage - defines spatial support of reference maps
 end
 
-Shim.Model = [ ] ; 
 Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
 if (nargin == 2) && (~isempty(Field))
@@ -294,35 +297,35 @@ if ~myisfield( Params.Inspired, 'medianP' ) || ~myisfield( Params.Expired, 'medi
 % User selects median p-measurement
 
     close all; 
-    ShimUse.display( ['\n ------- \n ' ...
+    ShimUse.customdisplay( ['\n ------- \n ' ...
         'Determine median measurement over inspired apnea : \n \n '] ) ;
 
     Params.Inspired.medianP = ...
         Shim.Tracker.userselectmedianmeasurement( Params.Inspired.measurementLog ) ; 
 
-    ShimUse.display( ...
+    ShimUse.customdisplay( ...
         ['Median measurement : ' num2str( Params.Inspired.medianP )] ) ;
 
-    ShimUse.display( ['\n ------- \n ' ...
+    ShimUse.customdisplay( ['\n ------- \n ' ...
         'Determine median measurement over expired apnea : \n \n '] ) ;
 
     Params.Expired.medianP = ...
         Shim.Tracker.userselectmedianmeasurement( Params.Expired.measurementLog ) ; 
 
-    ShimUse.display( ...
+    ShimUse.customdisplay( ...
         ['Median measurement : ' num2str( Params.Expired.medianP )] ) ;
 else
 
-    ShimUse.display( 'Using user-supplied median p-measurements...' ) ;
+    ShimUse.customdisplay( 'Using user-supplied median p-measurements...' ) ;
 
-    ShimUse.display( ...
+    ShimUse.customdisplay( ...
         ['Inspired : ' ] ) ;
-    ShimUse.display( ...
+    ShimUse.customdisplay( ...
         ['Median measurement : ' num2str( Params.Inspired.medianP )] ) ;
 
-    ShimUse.display( ...
+    ShimUse.customdisplay( ...
         ['Expired : ' ] ) ;
-    ShimUse.display( ...
+    ShimUse.customdisplay( ...
         ['Median measurement : ' num2str( Params.Expired.medianP )] ) ;
 end
 
@@ -335,7 +338,7 @@ Shim.setdccurrentoffsets( ...
     Params.Inspired.currents, Params.Expired.currents, ...
     Params.Inspired.medianP, Params.Expired.medianP ) ;
 
-ShimUse.display( ['\n ------- \n ' ...
+ShimUse.customdisplay( ['\n ------- \n ' ...
     'Optimal DC current offsets (in amperes): ' num2str(Shim.Model.dcCurrentOffsets') '\n \n '] ) ;
 
 Shim.setupdateoperator() ;
@@ -399,22 +402,41 @@ function [] = interpolatetoimggrid( Shim, Field )
 [X,Y,Z]      = Field.getvoxelpositions ;
 [X0, Y0, Z0] = Shim.getvoxelpositions ;
 
-% -------
-% translate original coordinates to shifted ref. frame
-dR = Field.Hdr.Private_0019_1014 ; % Private header field indicating shifted position of table w.r.t ISO
-assert( dR(1) == 0, 'Table shifted in L/R direction?' ) ;
-assert( dR(2) == 0, 'Table shifted in A/P direction?' ) ;
+% Private header field indicating absolute position of table [units: mm]
+%
+% --------------tablePos0-----
+tablePos0 = double( Shim.Hdr.Private_0019_1013 )
+% -----tablePos1--------------
+tablePos1 = double( Field.Hdr.Private_0019_1013 ) 
 
-if ( dR(3) ~= 0 ) 
-% field positions originally at Z0 have been shifted
-    display('Correcting for table shift with respect to shim reference images')
-    Shim.Hdr.ImagePositionPatient(3) = Shim.Hdr.ImagePositionPatient(3) - dR(3) ;   
+% tablePos0 empty if Shim refers to the scanner shims (spatially fixed)
+if ~isempty( tablePos0 )  
+    
+    % -------
+    % translate original coordinates to shifted ref. frame
+    warning('Adjusting for variable table position...  ')
+    
+    dR = tablePos1 - tablePos0 
+
+    assert( dR(1) == 0, 'Table shifted in L/R direction?' ) ;
+    assert( dR(2) == 0, 'Table shifted in A/P direction?' ) ;
+
+    if ( dR(3) ~= 0 ) 
+    % field positions originally at Z0 have been shifted
+        warning('Correcting for table shift with respect to shim reference images')
+        Shim.Hdr.ImagePositionPatient(3) = Shim.Hdr.ImagePositionPatient(3) - dR(3) ;   
+    end
+
 end
-
-% TODO check if voxel positions already happen to coincide
-% if all( size(X) == size(X0) )
-%     if ~all( X(:)==X0(:)) || ~
-Shim.resliceimg( X, Y, Z ) ;
+% -------
+% check if voxel positions already happen to coincide. if they do, don't interpolate (time consuming).
+if any( size(X) ~= size(X0) ) || any( X0(:) ~= X(:) ) || any( Y0(:) ~= Y(:) ) || any( Z0(:) ~= Z(:) )
+    Shim.resliceimg( X, Y, Z ) ;
+else
+    % voxel positions already coincide,
+    % i.e.
+    assert( all(X0(:) == X(:) ) && all( Y0(:) == Y(:) ) && all( Z0(:) == Z(:) ) ) ;
+end
 
 end
 % =========================================================================
@@ -428,6 +450,13 @@ function [] = setoriginalfield( Shim, Field )
 % Field is a FieldEval type object with .img in Hz
 
 Shim.Field = Field.copy() ;
+
+Shim.interpolatetoimggrid( Shim.Field ) ;
+
+if ~isempty( Shim.Aux )
+    Shim.Aux.Field = Shim.Field ;
+    Shim.Aux.interpolatetoimggrid( Shim.Field ) ;
+end
 
 end
 % =========================================================================
@@ -490,20 +519,18 @@ UO = X*c ;
 
 end
 % =========================================================================
-function mask = getvaliditymask( Shim, Params, Field1, Field2 )
+function mask = getvaliditymask( Shim, Fields, Params )
 %GETVALIDITYMASK 
 %
 % Returns binary mask - TRUE where field values are well defined and within 
 % the expected range and where (interpolated) shim reference maps are well 
 % defined.
 %
-% mask = GETVALIDITYMASK( Shim )
-% mask = GETVALIDITYMASK( Shim, Params )
-% mask = GETVALIDITYMASK( Shim, Params, Field1 )
-% mask = GETVALIDITYMASK( Shim, Params, Field1, Field2 )
+% mask = GETVALIDITYMASK( Shim, Fields )
+% mask = GETVALIDITYMASK( Shim, Fields, Params )
 % 
-% Field1/2 are MaRdI-type objects and may correspond to 'Inspired' and 
-% 'Expired' fields.
+% Fields : a cell array of FieldEval-type objects 
+% (e.g. may correspond to 'Inspired' and/or 'Expired' fields.)
 %
 % .......................
 %   
@@ -513,17 +540,29 @@ function mask = getvaliditymask( Shim, Params, Field1, Field2 )
 %   maximum absolute voxel value assumed to represent an accurate field
 %   measurement. Voxels with abs-values greater than this might stem from
 %   errors in the unwrapping.  [default: 500 Hz]
+%   (To ignore this criterion, set value to Inf)
+
+%TODO
 %
 % .maxFieldDifference
+%   in terms of st. dev?
+%
 %   maximum absolute voxel-wise difference assumed to be valid between Field1 &
 %   Field2 (e.g. 'inspired field' vs. 'expired field') [default: 150 Hz] (See
 %   Verma T, Magn Reson Med, 2014)
+%
+% (Set either to Inf to ignore the criterion)
 
 DEFAULT_MAXABSFIELD        = 500 ;
 DEFAULT_MAXFIELDDIFFERENCE = 150 ;
 
+mask = Shim.getshimsupport() ;
+
 if nargin < 2
-    Params.dummy = []
+    warning('No input Fields provided? Returned mask is simply the shim field support.')
+    return;
+elseif nargin == 2 || isempty(Params)
+    Params.dummy = [] ;
 end
 
 if ~myisfield( Params, 'maxAbsField' ) || isempty( Params.maxAbsField ) 
@@ -534,21 +573,52 @@ if ~myisfield( Params, 'maxFieldDifference' ) || isempty( Params.maxFieldDiffere
     Params.maxFieldDifference = DEFAULT_MAXFIELDDIFFERENCE ;
 end
 
-mask = Shim.getshimsupport() ;
-dbstop in ShimOpt at 532;
-if nargin >= 3
 
-    mask = mask & logical(Field1.Hdr.MaskingImage) ;
-    mask = mask & ( abs(Field1.img) <= Params.maxAbsField ) ;
+nFields = length( Fields ) ;
+
+for iField = 1 : nFields
+
+    mask = mask & logical(Fields{iField}.Hdr.MaskingImage) ;
+
+    mask = mask & ( abs(Fields{iField}.img) <= Params.maxAbsField ) ;
 
 end
 
-if nargin >= 4
+% if nargin == 3 
+% 
+%     nFields = length( Fields ) ;
+%
+%     if nFields > 1 % max field deviation?
+%         
+%         sumField = 0;
+%
+%         for iField = 1 : nFields
+%             
+%             sumField = sumField + Fields{iField}.img ;
+%
+%         end
+%
+%         meanField = sumField/nFields ;
+%
+%     end
+%
+%     for iField = 1 : nFields
+%
+%         mask = mask & logical(Field.Hdr.MaskingImage) ;
+%
+%         mask = mask & ( abs(Field{iField}.img) <= Params.maxAbsField ) ;
+%
+%         if iField > 1
+%             
+%             mask = mask & ( abs( Fields{iField}.img - meanField ) <= Params.maxFieldDifference ) ;
+%
+%         end
+%     end
+%
+% end
 
-    mask = mask & logical(Field2.Hdr.MaskingImage) ;
-    mask = mask & ( abs(Field2.img) <= Params.maxAbsField ) ;
-
-    mask = mask & ( abs( Field1.img - Field2.img ) <= Params.maxFieldDifference ) ;
+if nnz(mask(:)) == 0
+    warning( 'Calculated region of validity is nul. Returning mask array of zeros.' ) ;
 end
 
 end
@@ -693,12 +763,10 @@ f0VoiShimmed = f0 + mean( PredictedField.img( voi ) ) ;
 
 end
 % =========================================================================
-function [currents] = optimizeshimcurrents( Shim, Specs, Params, FieldShift, checknonlinearconstraints )
+function [currents] = optimizeshimcurrents( Shim, Specs, Params, checknonlinearconstraints )
 %OPTIMIZESHIMCURRENTS 
 %
-% currents = OPTIMIZESHIMCURRENTS( Shim, Specs, Params )
-%
-% currents = OPTIMIZESHIMCURRENTS( Shim, Specs, Params, FieldShift )
+% currents = OPTIMIZESHIMCURRENTS( Shim, Specs, Params, @checknonlinearconstraints )
 %   
 % Params can have the following fields 
 %   
@@ -715,40 +783,6 @@ function [currents] = optimizeshimcurrents( Shim, Specs, Params, FieldShift, che
 %   .Expired.medianP
 %       Scalar values
 %
-
-% TODO add Scanner shim feature
-%
-% if ~myisfield(Params, 'controlOffsetAndLinear')
-%     Params.controlOffsetAndLinear = false;
-% end
-%
-% if Params.controlOffsetAndLinear
-%     
-%     % compute the shimming offset (Hz)
-%     
-%     offset = sum(b)/sum(M*ones(size(b)));
-%     
-%     %compute the desired linear shimming (Hz/mm)
-%     
-%     [X,Y,Z] = Shim.Field.getvoxelpositions();
-%     
-%     xx = M*X(:);
-%     yy = M*Y(:);
-%     zz = M*Z(:);
-%     
-%     dBdx = xx'*b./(xx'*xx);
-%     dBdy = yy'*b./(yy'*yy);
-%     dBdz = zz'*b./(zz'*zz);
-%     
-%     % Create and write on test file
-%     
-%     fid = fopen([Params.dataLoadDir datestr(now, 30) '-values_for_offline_shimming.txt'], 'w+');
-%     fprintf(fid, '%f\n', offset);
-%     fprintf(fid, '%f\n', dBdx);
-%     fprintf(fid, '%f\n', dBdy);
-%     fprintf(fid, '%f\n', dBdz);
-%     fclose(fid);
-% end
 
 % DEFAULT_REGULARIZATIONPARAMETER     = 0;
 DEFAULT_ISRETURNINGPSEUDOINVERSE    = 0;
@@ -778,12 +812,14 @@ if ~myisfield(Params, 'isSolvingAugmentedSystem') || isempty( Params.isSolvingAu
 end
 
 if Params.isSolvingAugmentedSystem
-    % b0 = ( pIn* FieldShift.img(:) - pEx * Shims.Field.img(:) )/dp ;
-    assert( myisfield( Params, 'Inspired') ) 
-    pIn = Params.Inspired.medianP ;
-    pEx = Params.Expired.medianP ;
-    dp  = pIn - pEx ;
+    assert( myisfield( Shim.Field.Model, 'Shift') && ~isempty( Shim.Field.Model.Shift.img ) ) 
+
+    % change to Params.minP and Params.maxP
+    pIn = Params.pMax 
+    pEx = Params.pMin 
+    dp  = Shim.Field.Model.Shift.Aux.Tracker.Data.p
 end
+
 
 % if ~myisfield(Params, 'regularizationParameter') || isempty( Params.regularizationParameter ) 
 %     Params.regularizationParameter = DEFAULT_REGULARIZATIONPARAMETER ;
@@ -796,7 +832,6 @@ CgParams.maxIterations = 100000 ;
 
 
 nImg = numel( Shim.Field.img(:) ) ; % number of voxels
-
 
 
 % -------
@@ -817,11 +852,14 @@ else
 
 end
 
-M  = Shim.gettruncationoperator*W ;
+% dbstop in ShimOpt at 912
 
+M  = Shim.gettruncationoperator*W ;
 
 A  = M*Shim.getshimoperator ; % masked current-to-field operator
 MA = A;
+
+
 
 if ~Params.isSolvingAugmentedSystem
     
@@ -838,16 +876,15 @@ else
     b0 = Shim.Field.img(:) ;
 
     % field shift from RIRO  
-    db = FieldShift.img(:) ;
+    db = Shim.Field.Model.Shift.img(:) ;
 
     % augmented data vector : dc field, field shift -- vertically concatenated
     b = [ M*-b0 ; M*-db ] ;
     
     % augmented matrix operator
-    AA = [A ;  A ] ;
+    A = [MA zeros(size(A)); zeros(size(A)) MA] ;
 
 end
-
 
 % ------- 
 % Least-squares solution via conjugate gradients
@@ -871,11 +908,8 @@ else
 
 end
 
-
 % ------- 
-% TODO: CHECK SOL. VECTOR FOR CONDITIONS 
-% + allow more optional params for optimization 
-isCurrentSolutionOk = false ;
+isCurrentSolutionOk = all( checknonlinearconstraints( x ) < 0 ) ;
 
 if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
 
@@ -892,14 +926,14 @@ if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
    
         [currents] = fmincon( ...
             @shimcost,...
-            zeros( solutionVectorLength, 1),...
+            x,...
             [],...
             [],...
             [],...
             [],...
             -Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
             Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
-            @checknonlinearconstraints,...
+            checknonlinearconstraints,...
             Options);
 
         Shim.Model.currents = currents ;
@@ -908,14 +942,14 @@ if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
 
         [currents] = fmincon( ...
             @shimcost,...
-            zeros( solutionVectorLength, 1),...
+            x,...
             [],...
             [],...
             [],...
             [],...
             -Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
             Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
-            @checknonlinearconstraints_augmented,...
+            @checknonlinearconstraints_riro,...
             Options);
         
         [currents, currentsExpired] = splitsolutionvector( currents ) ;
@@ -947,7 +981,7 @@ Ceq = [];
 
 [i0, di] = splitsolutionvector( solutionVector ) ;
 
-didp = di/(Params.Inspired.medianP - Params.Expired.medianP) ;
+didp = di/dp ;
 
 % dcCurrents ok?
 [dcCurrentsC, ~] = checknonlinearconstraints( i0 ) ;
@@ -986,7 +1020,9 @@ end
 
 
 end
-%end
+% =========================================================================
+
+end
 % =========================================================================
 % =========================================================================
 methods(Access=protected)
@@ -997,7 +1033,71 @@ end
 % =========================================================================
 % =========================================================================
 methods(Static=true)
+% =========================================================================
+function  [ dataWeights ] = derivedataweights( Mag, targetEchoTime, targetMask )
+%DERIVEDATAWEIGHTS  
+% 
+% dataWeights = DERIVEDATAWEIGHTS( Mag, targetEchoTime )
+% dataWeights = DERIVEDATAWEIGHTS( Mag, targetEchoTime, targetMask )
+% 
+% Assumes basic model of T2* signal decay using the magnitude images of the
+% 2 echoes in the dual-echo GRE
+%
+% if: Mag(TE) = M0 * exp(-TE/T2star)
+% then:
+% t2star  = -deltaTe ./ log( Mag2.img ./ Mag1.img ) ; 
+% 
+% dataWeights is the predicted + normalized signal intensity at the targetEchoTime
+% (e.g. a long TE for a GRE-EPI sequence).
+%
+% targetMask, if provided, is a logical array specifying a priority region
+% (e.g. spinal canal) that will receive maximal (unity) weighting in dataWeights,
+% irrespective of the t2*-forecasted signal.
+% (i.e. dataWeights( targetMask ) = 1 ;)
 
+
+[t2star, reliabilityMask] = computet2star( Mag ) ;
+% if: Mag(TE) = M0 * exp(-TE/T2star)
+M0 = Mag{1}.img ./ exp(-Mag{1}.Hdr.EchoTime/t2star) ;
+M0( ~reliabilityMask ) = 0 ; 
+M0 = M0 ./ max( M0(:) ) ;
+
+if ( nargin < 2 ) || isempty( targetEchoTime ) 
+    targetEchoTime = Mag{2}.Hdr.EchoTime ;
+end
+
+magAtEcho = M0 .* exp( -targetEchoTime/t2star ) ; % forecasted undistorted magnitude at EchoTime 
+magAtEcho = magAtEcho./max( magAtEcho(:) ) ;
+
+dataWeights = magAtEcho ;
+
+if ( nargin == 3 ) & ~isempty( targetMask )
+    assert( all( size( targetMask ) == Mag{1}.getgridsize ) ) 
+    dataWeights( targetMask ) = 1 ;
+end
+
+function [ t2star, reliabilityMask ] = computet2star( Mag )
+%COMPUTET2STAR
+% Returns poor man's estimate of t2star [units: ms] using Mag images from 2 echoes
+% 
+% [ t2star, reliabilityMask ] = computet2star( Mag )
+% 
+% if: Mag(TE) = M0 * exp(-TE/T2star)
+% then: 
+% t2star  = -deltaTe ./ log( Mag{2}.img ./ Mag{1}.img ) ; 
+% 
+% reliabilityMask = t2star > 0 ;
+    deltaTe = (Mag{2}.Hdr.EchoTime - Mag{1}.Hdr.EchoTime) ; % [units: ms]
+    
+    t2star  = -deltaTe ./ log( Mag{2}.img ./ Mag{1}.img ) ; 
+
+    t2star(t2star == -Inf) = Inf ; % corresponding to saturated voxels ;
+    reliabilityMask = t2star > 0 ;
+    t2star( ~reliabilityMask ) = 0 ;% unreliable voxels (i.e. where Mag(TE2)>Mag(TE1) )
+
+end
+
+end
 % =========================================================================
 % =========================================================================
 
@@ -1025,6 +1125,9 @@ DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
 
 DEFAULT_SHIMMODE            = 'static' ;
 
+DEFAULT_INSTITUTIONNAME = 'IUGM' ;
+DEFAULT_STATIONNAME     = 'MRC35049' ;
+
 if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
    Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
 end
@@ -1039,6 +1142,14 @@ end
 
 if ~myisfield( Params, 'shimMode' ) || isempty(Params.shimMode)
    Params.shimMode = DEFAULT_SHIMMODE ;
+end
+
+if ~myisfield( Params, 'InstitutionName' ) || isempty(Params.InstitutionName)
+   Params.InstitutionName = DEFAULT_INSTITUTIONNAME ;
+end
+
+if ~myisfield( Params, 'StationName' ) || isempty(Params.StationName)
+   Params.StationName = DEFAULT_STATIONNAME ;
 end
 
 end

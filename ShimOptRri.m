@@ -1,78 +1,15 @@
 classdef ShimOptRri < ShimOpt
 %SHIMOPTRRI - Shim Optimization for RRI 24 channel array (aka spine shim)
 %
-% .......
-% 
-% Usage
-%
-% Shim = ShimOptRri( Params )
-% 
-% Defaults 
-% 
-% Params.pathToShimReferenceMaps =
-%   '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161007.mat'
-%
-% Params.TrackerSpecs = [] ;
-%   .TrackerSpecs is a parameters struct for ProbeTracking(). See HELP
-%   ProbeTracking() for more information.
-%
-%   Shim contains fields
-%
-%       .img
-%           Shim reference maps
-%
-%       .Hdr
-%           Info Re: calibration data
-%           (e.g. Hdr.MaskingImage defines the spatial support of the ref maps)
-%
-%       .Field
-%           Object of type MaRdI pertaining to field distribution to be shimmed
-%
-%       .Model
-%           .currents  
-%               Optimal shim current vector (i)
-%               [units A]
-%           .field     
-%               Optimal shim field from projection of i onto reference maps (Ai)
-%               [units Hz]
-%           .couplingCoefficients
-%               For realtime shimming, relates vector relating field to pressure
-%               [units Hz/Pa]
-%           .dcCurrentsOffsets
-%               For realtime shimming, vector of "y-intercept" currents 
-%               (i.e. currents for pressure = 0 Pa)
-%               [units A]
-%
-%       .Tracker
-%           Object of type TrackerTracking
-%
-% =========================================================================
-% Notes
-%
-% Part of series of classes pertaining to shimming:
-%
-%    Tracking
-%    ShimCal
-%    ShimCom
-%    ShimEval
-%    ShimOpt
-%    ShimSpecs
-%    ShimTest 
-%    ShimUse
-%
-% ShimOpt is a MaRdI subclass [ShimOpt < MaRdI]
+% ShimOptRri is a ShimOpt subclass 
 %     
 % =========================================================================
-% Updated::20170214::ryan.topfer@polymtl.ca
+% Updated::20180325::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
 % *** TODO 
 % .....
-% OPTIMIZESHIMCURRENTS()
-%   Run (unconstrained) Cg solver;
-%   If solution achievable given system constraints, return solution;
-%   Else, run fmincon given constraints & return that solution instead;
 %
 % =========================================================================
 
@@ -86,7 +23,7 @@ classdef ShimOptRri < ShimOpt
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOptRri( Params )
+function Shim = ShimOptRri( Params, Field )
 %SHIMOPTRRI - Shim Optimization
 
 if nargin < 1 || isempty( Params ) 
@@ -96,7 +33,7 @@ end
 Params = ShimOptRri.assigndefaultparameters( Params )
 
 
-ShimUse.display(['\n Preparing for shim ...  \n\n'...
+ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
         'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
 
 % Loads .mat containing Shim struct
@@ -137,9 +74,11 @@ else
 
 end
 
+Shim.Aux = ShimOpt_IUGM_Prisma_fit( ) ; % Params input??
+
 end
 % =========================================================================
-function [currents] = optimizeshimcurrents( Shim, Params, FieldExpired )
+function [currents] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESTATICSHIMCURRENTS 
 %
 % currents  = OPTIMIZESHIMCURRENTS( Shim, Params )
@@ -163,8 +102,6 @@ end
 
 if nargin < 3
     currents = @optimizeshimcurrents.ShimOpt( Shim, Specs, Params, @checknonlinearconstraints ) ;
-if nargin == 3
-    currents = @optimizeshimcurrents.ShimOpt( Shim, Specs, Params, FieldExpired, @checknonlinearconstraints ) ;
 end
 
 function [C, Ceq] = checknonlinearconstraints( currents )
@@ -219,7 +156,9 @@ function [C, Ceq] = checknonlinearconstraints( currents )
     C(10) = abs(sum( ((i1<0) .* i1) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
     C(11) = abs(sum( ((i2<0) .* i2) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
     C(12) = abs(sum( ((i3<0) .* i3) + waterLevel )) - Specs.Amp.maxCurrentPerRail ; 
-
+    
+    % check on abs current per channel
+    C((end+1):(end+length(currents))) = abs(currents) - Params.maxCurrentPerChannel ;
 end
 
 
@@ -257,6 +196,9 @@ DEFAULT_PROBESPECS              = [] ;
 
 DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
 
+DEFAULT_INSTITUTIONNAME = 'IUGM' ;
+DEFAULT_STATIONNAME     = 'MRC35049' ;
+
 if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
    Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
 end
@@ -267,6 +209,14 @@ end
 
 if ~myisfield( Params, 'isInterpolatingReferenceMaps' ) || isempty(Params.isInterpolatingReferenceMaps)
    Params.isInterpolatingReferenceMaps = DEFAULT_ISINTERPOLATINGREFERENCEMAPS ;
+end
+
+if ~myisfield( Params, 'InstitutionName' ) || isempty(Params.InstitutionName)
+   Params.InstitutionName = DEFAULT_INSTITUTIONNAME ;
+end
+
+if ~myisfield( Params, 'StationName' ) || isempty(Params.StationName)
+   Params.StationName = DEFAULT_STATIONNAME ;
 end
 
 end

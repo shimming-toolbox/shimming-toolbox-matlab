@@ -21,7 +21,7 @@ classdef MaRdI < matlab.mixin.SetGet
 %
 %       .Hdr    (header of the first DICOM file read by dir( dataLoadDirectory ) ) 
 %       
-%       .Aux    (Aux-object: auxiliary measurements (e.g. PMU/respiratory probe tracking))
+%       .Aux    (Aux-objects: auxiliary measurements (e.g. PMU/respiratory probe tracking))
 %
 % =========================================================================
 % Updated::20180228::ryan.topfer@polymtl.ca
@@ -139,7 +139,10 @@ end
 % ..... 
 % EXTRACTHARMONICFIELD()
 %  Clean up 
-%     
+% 
+% .....
+% ASSOCIATEAUX()
+%  link Image to corresponding Auxiliary data
 % =========================================================================
 
 function ImgCopy = copy(Img)
@@ -153,7 +156,10 @@ ImgCopy     = MaRdI() ;
 
 ImgCopy.img = Img.img;
 ImgCopy.Hdr = Img.Hdr ;
-ImgCopy.Aux = Img.Aux ;
+
+if ~isempty( Img.Aux ) && myisfield( Img.Aux, 'Tracker' ) 
+    ImgCopy.Aux.Tracker = Img.Aux.Tracker.copy() ;
+end
 
 % from https://www.mathworks.com/matlabcentral/newsreader/view_thread/257925
 % % Instantiate new object of the same class.
@@ -176,6 +182,7 @@ function Img3 = minus(Img1, Img2)
 % and 
 % Img3.img = Img1.img - Img2.img 
 
+error('Deprecated 20180308. Unclear what Img1.Aux +/- Img2.Aux should yield...')
 Img3 = Img1.copy( ) ;
 
 Img3.img = Img1.img - Img2.img ;
@@ -192,6 +199,7 @@ function Img3 = plus(Img1, Img2)
 % .Hdr is a copy of Img1.Hdr 
 % and 
 % Img3.img = Img1.img + Img2.img 
+error('Deprecated 20180308. Unclear what Img1.Aux +/- Img2.Aux should yield...')
 
 Img3 = Img1.copy( ) ;
 
@@ -496,9 +504,10 @@ function Phase = unwrapphase( Phase, Mag, Options )
 %
 % NOTE
 %
-%   Both FSL and the Abdul-Rahman method require installed binaries...
+%   Both FSL and the Abdul-Rahman method require installed binaries. For simplicity, consider
+%   removing these options.
 assert( strcmp( Phase.Hdr.PixelComponentPhysicalUnits, '0000H' ), 'SCALEPHASE2RAD() before unwrapping.' ) ;
-Options.unwrapper
+
 DEFAULT_UNWRAPPER = 'Sunwrap' ;
 DEFAULT_THRESHOLD = 0.0 ;
 
@@ -520,7 +529,6 @@ end
 if ~myisfield( Options, 'threshold') || isempty(Options.threshold)
     Options.threshold = DEFAULT_THRESHOLD ;
 end
-
 
 isPhaseBalanced = all( Phase.img(:) >= -pi ) & all( Phase.img(:) <= pi ) ;
 
@@ -1146,8 +1154,8 @@ function mask = segmentspinalcanal_s( Params )
 
 mask = false ;
 
-DEFAULT_DATALOADDIR = [] ; % path to dicom folder
-DEFAULT_DATASAVEDIR = './gre_seg/'
+DEFAULT_DATALOADDIR        = [] ; % path to dicom folder
+DEFAULT_DATASAVEDIR        = './gre_seg/'
 DEFAULT_ISFORCINGOVERWRITE = false ;
 DEFAULT_ISUSINGPROPSEGCSF  = true ; %use the propseg -CSF option
 
@@ -1190,7 +1198,7 @@ system( ['sct_crop_image -i ' Params.tmpSaveDir 't2s.nii.gz -m ' Params.tmpSaveD
 % resample to 1mm iso
 system( ['sct_resample -i ' Params.tmpSaveDir 't2sm.nii.gz -mm 1x1x1 -o ' Params.tmpSaveDir 't2smr.nii.gz'] ) ;
 % get centerline 
-system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -v 1 -ofolder ' Params.tmpSaveDir] ) ;
+system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -ofolder ' Params.tmpSaveDir] ) ;
 % segment
 propsegCmd = ['sct_propseg -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -init-centerline ' ...
         Params.tmpSaveDir 't2smr_centerline_optic.nii.gz -min-contrast 5 -ofolder ' Params.tmpSaveDir] ;

@@ -30,13 +30,6 @@ classdef (Abstract) ShimCom < matlab.mixin.SetGet
 %       .Specs
 %
 % =========================================================================
-% Notes
-%
-%   Based off RRI Hex Protocol Specification guide:
-%   9700052-0000 HexProtocolSpecification_REV-G
-%
-%   For a primer on RS-232 communication in Matlab see
-%   http://www.mathworks.com/help/matlab/matlab_external/overview-of-the-serial-port.html
 %
 %   Part of series of classes pertaining to shimming:
 %
@@ -58,7 +51,8 @@ classdef (Abstract) ShimCom < matlab.mixin.SetGet
 
 
 % *** TODO 
-% 
+%   Change 'ComPort' property to 'Bus'? (more general)
+%
 % ..... 
 % SPLITINT( ) 
 %  
