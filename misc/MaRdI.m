@@ -699,12 +699,12 @@ voxelSize = [ Img.Hdr.PixelSpacing(1) Img.Hdr.PixelSpacing(2) ...
         Img.Hdr.SpacingBetweenSlices ] ;
 end
 % =========================================================================
-function mask = segmentspinalcanal( Img, Params )
+function [mask, weights] = segmentspinalcanal( Img, Params )
 %SEGMENTSPINALCANAL
 % 
 % segment T2* multiecho data using the Spinal Cord Toolbox (must be installed + in path)
 %
-% [ mask ] = SEGMENTSPINALCANAL( Img, Params )
+% [ mask, weights ] = SEGMENTSPINALCANAL( Img, Params )
 %
 % Params
 %
@@ -731,7 +731,7 @@ if  ~myisfield( Params, 'dataLoadDir' ) || isempty(Params.dataLoadDir)
     [Params.dataLoadDir,~,~] = fileparts( Img.Hdr.Filename ) ;
 end
 
-mask = MaRdI.segmentspinalcanal_s( Params ) ;
+[mask, weights] = MaRdI.segmentspinalcanal_s( Params ) ;
 
 end
 % =========================================================================
@@ -1117,12 +1117,12 @@ fullDir(end+1) = '/' ;
 
 end
 % =========================================================================
-function mask = segmentspinalcanal_s( Params )
+function [mask, weights] = segmentspinalcanal_s( Params )
 %SEGMENTSPINALCANAL_S
 % 
 % segment T2* multiecho data using the Spinal Cord Toolbox (must be installed + in path)
 %
-% [ mask ] = SEGMENTSPINALCANAL_S( Params )
+% [ mask, weights ] = SEGMENTSPINALCANAL_S( Params )
 %
 % Params
 %
@@ -1199,6 +1199,11 @@ system( ['sct_crop_image -i ' Params.tmpSaveDir 't2s.nii.gz -m ' Params.tmpSaveD
 system( ['sct_resample -i ' Params.tmpSaveDir 't2sm.nii.gz -mm 1x1x1 -o ' Params.tmpSaveDir 't2smr.nii.gz'] ) ;
 % get centerline 
 system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -ofolder ' Params.tmpSaveDir] ) ;
+
+system( ['sct_create_mask -i ' Params.tmpSaveDir 't2smr.nii.gz -p centerline,' ...
+    Params.tmpSaveDir 't2smr_centerline_optic.nii.gz -size 41 -f gaussian -o ' ...
+    Params.tmpSaveDir 't2smr_weights.nii.gz' ] ) ;
+
 % segment
 propsegCmd = ['sct_propseg -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -init-centerline ' ...
         Params.tmpSaveDir 't2smr_centerline_optic.nii.gz -min-contrast 5 -ofolder ' Params.tmpSaveDir] ;
@@ -1215,18 +1220,22 @@ else
     system( propsegCmd ) ;
 end
 
-% unzip the one image volume we wish to keep
+% unzip the image volumes we wish to keep
 system( ['gunzip ' Params.tmpSaveDir 't2smr_seg.nii.gz -df'] ) ;
+system( ['gunzip ' Params.tmpSaveDir 't2smr_weights.nii.gz -df'] ) ;
 
 % regrid to original 
 system( ['sct_register_multimodal -i ' Params.tmpSaveDir 't2smr_seg.nii -d ' ... 
     Params.tmpSaveDir 't2s_allEchoes.nii.gz -identity 1 -o ' Params.tmpSaveDir 't2smr_seg.nii'] ) ;
+system( ['sct_register_multimodal -i ' Params.tmpSaveDir 't2smr_weights.nii -d ' ... 
+    Params.tmpSaveDir 't2s_allEchoes.nii.gz -identity 1 -o ' Params.tmpSaveDir 't2smr_weights.nii'] ) ;
 
 % delete the other images
 system( ['rm ' Params.tmpSaveDir '*.nii.gz'] ) ;
 
-% move segmentation 
+% move segmentation + weights
 system( ['mv ' Params.tmpSaveDir 't2smr_seg.nii ' Params.dataSaveDir 'gre_seg.nii'] ) ;  
+system( ['mv ' Params.tmpSaveDir 't2smr_weights.nii ' Params.dataSaveDir 'gre_weights.nii'] ) ;  
 system( ['rm -r ' Params.tmpSaveDir] ) ;
 
 Mask = load_untouch_nii( [ Params.dataSaveDir 'gre_seg.nii' ] );
@@ -1234,6 +1243,11 @@ mask = Mask.img ;
 mask = logical(permute( mask, [2 1 3] )) ;
 mask = flipdim( mask, 1 ) ;
 mask = dilater( mask, 1 ) ;
+
+Weights = load_untouch_nii( [ Params.dataSaveDir 'gre_weights.nii' ] );
+weights = Weights.img ;
+weights = double(permute( weights, [2 1 3] )) ;
+weights = flipdim( weights, 1 ) ;
 
 end
 % =========================================================================

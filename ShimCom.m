@@ -293,8 +293,10 @@ methods(Abstract)
 % =========================================================================
 [] = setandloadallshims( Shim, currents )
 %SETANDLOADALLSHIMS     
-% 
-% Sets all shim buffers and loads the settings.
+%
+% Sets all shim buffers (in amps) and loads the settings. 
+%
+% [] = SETANDLOADALLSHIMS( Shim, currents )
 % =========================================================================
 [] = resetallshims( Shim ) 
 %RESETALLSHIMS  

@@ -403,11 +403,15 @@ function [] = interpolatetoimggrid( Shim, Field )
 [X0, Y0, Z0] = Shim.getvoxelpositions ;
 
 % Private header field indicating absolute position of table [units: mm]
-%
+if ~myisfield( Field.Hdr, 'Private_0019_1013' ) 
+    Field.Hdr.Private_0019_1013 = input( 'Enter table position in units of mm (e.g. -1638): ' ) ;
+end
+
 % --------------tablePos0-----
 tablePos0 = double( Shim.Hdr.Private_0019_1013 )
 % -----tablePos1--------------
 tablePos1 = double( Field.Hdr.Private_0019_1013 ) 
+
 
 % tablePos0 empty if Shim refers to the scanner shims (spatially fixed)
 if ~isempty( tablePos0 )  
@@ -485,6 +489,7 @@ function [] = setshimvolumeofinterest( Shim, mask )
 
 assert( all( size(mask) == size( Shim.Field.img ) ), ...
     'mask (shim VOI) and target field (Shim.Field.img) must be the same size' ) ; 
+
 Shim.Field.Hdr.MaskingImage = mask ;
 
 end
@@ -703,8 +708,8 @@ function currents = computerealtimeupdate( Shim )
 %
 %   currents = Shim.Model.dcCurrentOffsets + Shim.Model.updateOperator * Shim.Tracker.Data.p(end) ; 
 
-currents = Shim.Model.dcCurrentOffsets + ...
-        Shim.Model.updateOperator * Shim.Tracker.Data.p(end) ; 
+currents = Shim.Model.currents + ...
+        Shim.Model.couplingCoefficients * Shim.Tracker.Data.p(end) ; 
 
 end
 % =========================================================================
@@ -818,6 +823,7 @@ if Params.isSolvingAugmentedSystem
     pIn = Params.pMax 
     pEx = Params.pMin 
     dp  = Shim.Field.Model.Shift.Aux.Tracker.Data.p
+
 end
 
 
@@ -852,13 +858,11 @@ else
 
 end
 
-% dbstop in ShimOpt at 912
 
 M  = Shim.gettruncationoperator*W ;
 
 A  = M*Shim.getshimoperator ; % masked current-to-field operator
 MA = A;
-
 
 
 if ~Params.isSolvingAugmentedSystem
@@ -922,6 +926,7 @@ if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
         'TolCon',1E-8);
 
     tic
+
     if ~Params.isSolvingAugmentedSystem
    
         [currents] = fmincon( ...
@@ -952,7 +957,10 @@ if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
             @checknonlinearconstraints_riro,...
             Options);
         
-        [currents, currentsExpired] = splitsolutionvector( currents ) ;
+        [currents, di] = splitsolutionvector( currents ) ;
+        
+        Shim.Model.currents = currents ;
+        Shim.Model.couplingCoefficients = di/dp ;
 
 
     end

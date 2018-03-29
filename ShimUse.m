@@ -151,6 +151,10 @@ function [] = delete( Shim )
 % calls Shim.Com.delete( ) and Shim.Opt.delete( ) 
 % (also suspends command log (i.e. 'diary') ).
 
+% SAVE PARAMS  
+Params = Shim.Params ;
+save( [Shim.Params.dataLoadDir datestr(now,30) '-Params' ], 'Params' ) ;
+
 if Shim.Params.isLoggingCommands
     diary off
 end
@@ -384,19 +388,29 @@ end
 
 if Shim.Params.isAutoSegmenting == true
     
-    Shim.Params.cordVoi = true( Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) ) ;
-    
+    Shim.Params.cordVoi     = true( Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) ) ;
+    Shim.Params.dataWeights = zeros( Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) ) ;
+
     % call spinal cord toolbox 
-    for iFrame = 1 : Shim.Params.nTrainingFrames
+    for iFrame = 1 : 1 % Shim.Params.nTrainingFrames TODO : make it faster ? takes too long with multiple training frames
         TmpParams.dataSaveDir = [ Shim.Params.dataLoadDir ] ;
         TmpParams.isUsingPropsegCsf = true ;
+        
+        [cordVoi, sctWeights] = Shim.Data.Img{ 1, 1, iFrame }.segmentspinalcanal( TmpParams ) ;
 
         % retain the intersection with previous VOI:
-        Shim.Params.cordVoi = Shim.Params.cordVoi & ImgArray{ 1, 1 }.segmentspinalcanal( TmpParams ) ;
+        Shim.Params.cordVoi = Shim.Params.cordVoi & cordVoi ;
+        
+        t2sWeights = Shim.Opt.derivedataweights( ...
+            { Shim.Data.Img{ 1, 1, iFrame }  ; Shim.Data.Img{ 2, 1, iFrame } }, 16, Shim.Params.cordVoi ) ;
+
+        Shim.Params.dataWeights = Shim.Params.dataWeights + sctWeights + t2sWeights ;
     end
+   
+    % averaging
+    Shim.Params.dataWeights = Shim.Params.dataWeights/Shim.Params.nTrainingFrames ;
 
 end
-
 
 % Field to be shimmed gets defined in Shim.Opt.Field
 Shim.Opt.setoriginalfield( FieldEval.modelfield( Shim.Data.Img(1,3,:), Shim.Params ) ) ;
@@ -423,7 +437,7 @@ DEFAULT_RUNTIME                 = 5*60 ; % [units: s]
 DEFAULT_EXTRAPOLATIONORDER      = 0 ;
 DEFAULT_EXTRAPOLATIONDELAY      = 0 ;
 
-DEFAULT_ISFILTERINGMEASUREMENTS = false ; % Tracker measurements
+DEFAULT_ISFILTERINGMEASUREMENTS = true ; % Tracker measurements
 DEFAULT_ISPLOTTINGINREALTIME    = true ;
 
 DEFAULT_ISCLIPPING              = true ;
@@ -491,13 +505,12 @@ if  ~myisfield( Params, 'isClipping' ) || isempty(Params.isClipping)
 end
 
 if  ~myisfield( Params, 'minClipThreshold' ) || isempty(Params.minClipThreshold)
-    Params.minClipThreshold  = DEFAULT_MINCLIPTHRESHOLD ; 
+    Params.minClipThreshold  = Shim.Params.pMin ; % DEFAULT_MINCLIPTHRESHOLD ; 
 end
 
 if  ~myisfield( Params, 'maxClipThreshold' ) || isempty(Params.maxClipThreshold)
-    Params.maxClipThreshold  = DEFAULT_MAXCLIPTHRESHOLD ; 
+    Params.maxClipThreshold  = Shim.Params.pMax ; % DEFAULT_MAXCLIPTHRESHOLD ; 
 end
-
 
 
 
@@ -513,7 +526,6 @@ Params.correctionOrder = 1;  % linear correction
 delay = ( Params.txDelay + Shim.Opt.Tracker.Specs.dt*(Params.nSamplesFilter-1)/2)/1000 ; % [units: s]
 
 
-
 % ------- 
 Shim.Opt.Tracker.Data.p = [] ;
 
@@ -521,22 +533,32 @@ nSamples = Params.runTime / (Shim.Opt.Tracker.Specs.dt/1000) ;
 iSample  = 0 ; 
 
 iSamplesBetweenUpdates = 0;
-nSamplesBetweenUpdates = ... % CHANGE THIS LINE FOR ACDC --REFERS TO RRI/MXD
-    Shim.Com.Specs.Com.mxdUpdatePeriod/(Shim.Opt.Tracker.Specs.dt/1000)
-updatePeriod = Shim.Com.Specs.Com.mxdUpdatePeriod ;
 
+if strcmp( class( Shim.Com ), 'ShimComRri' )
+    nSamplesBetweenUpdates = ... % CHANGE THIS LINE FOR ACDC --REFERS TO RRI/MXD
+        Shim.Com.Specs.Com.mxdUpdatePeriod/(Shim.Opt.Tracker.Specs.dt/1000)
 
-    rawMeasurementLog    = [] ;
-    Shims.Data.Tracker.p = [] ;
+    updatePeriod = Shim.Com.Specs.Com.mxdUpdatePeriod ;
 
-    sampleTimes          = [] ; %
-    updateTimes          = [] ; % when shim updates occur
+else
+   
+   updatePeriod  = Shim.Com.Specs.updatePeriod ;
+    
+   nSamplesBetweenUpdates = updatePeriod/( Shim.Opt.Tracker.Specs.dt/1000 ) ;
 
-    sampleIndices        = [] ;
-    updateIndices        = [] ; % corresponding to when shim updates occur
-    iUpdate              = 0 ;
+end
 
-    currentsNorm         = 0 ;
+rawMeasurementLog    = [] ;
+Shim.Data.Tracker.p = [] ;
+
+sampleTimes          = [] ; %
+updateTimes          = [] ; % when shim updates occur
+
+sampleIndices        = [] ;
+updateIndices        = [] ; % corresponding to when shim updates occur
+iUpdate              = 0 ;
+
+currentsNorm         = 0 ;
 
 
 
