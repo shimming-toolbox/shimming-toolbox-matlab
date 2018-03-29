@@ -1,3 +1,3 @@
 #!/bin/bash
 
-echo $PATH >>  environmentPath.txt 
+echo $PATH >>  environmentPath.txt

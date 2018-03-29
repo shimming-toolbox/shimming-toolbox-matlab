@@ -1,0 +1,1 @@
+/Users/ancha_admin/sct_3.1.1/bin:/Users/ancha_admin/sct_3.1.0/bin:/Library/Frameworks/Python.framework/Versions/2.7/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/X11/bin:/Applications/MATLAB_R2016a.app/bin/

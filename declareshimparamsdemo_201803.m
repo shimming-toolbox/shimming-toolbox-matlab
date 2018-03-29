@@ -6,13 +6,13 @@ function [ Params ] = declareshimparams2018ismrm()
 % =========================================================================
 % Updated::20180328::ryan.topfer@polymtl.ca
 % =========================================================================
-Params.projectDir = '/Users/ryan/Projects/Shimming/' 
+Params.projectDir = '/Users/ancha_admin/Documents/MATLAB/realtime_shimming-mars'
 
 Params.isDebugging = true ;
 % =========================================================================
 %  
 % =========================================================================
-Params.dataLoadDir  = [Params.projectDir '/Acdc/20180616_Ismrm/data/demo/'] ;
+Params.dataLoadDir  = [Params.projectDir '/demo/'] ;
 
 % -------
 % MRI 
@@ -26,7 +26,7 @@ Params.threshold = 0.05 ; % as percent of max measured intensity.
 % -------
 % for shimming:
 Params.shimSystem = 'Acdc' ;
-Params.pathToShimReferenceMaps = [Params.projectDir '/Acdc/20180616_Ismrm/data/demo/ShimReferenceMaps_Acdc_20180326.mat'] ;
+Params.pathToShimReferenceMaps = [Params.projectDir '/demo/ShimReferenceMaps_Acdc_20180326.mat'] ;
 
 Params.ProbeSpecs    = [] ;
 Params.ProbeSpecs.dt = 10 ; % sampling interval [units: ms]
@@ -37,6 +37,7 @@ Params.maxCurrentPerChannel = 1.5 ; % [units: A]
 Params.isSolvingAugmentedSystem    = true ;
 Params.isPenalizingFieldDifference = false;
 Params.regularizationParameter     = 0.01 ;
+Params.runMode='isGui';
 
 Params.isAutoSegmenting = true ;
 % -------

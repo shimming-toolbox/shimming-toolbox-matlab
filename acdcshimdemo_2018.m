@@ -5,7 +5,7 @@
 % Updated::20180328::ryan.topfer@polymtl.ca
 % =========================================================================
 
-cd('/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/scripts')
+cd('/Users/ancha_admin/Documents/MATLAB/realtime_shimming-mars')
 
 Shims = ShimUse( declareshimparamsdemo_201803() ) ;
 
@@ -17,7 +17,7 @@ Shims = ShimUse( declareshimparamsdemo_201803() ) ;
 % =========================================================================
 % ACQUIRE + LOAD + PROCESS TRAINING DATA (PRESSURE TRACE + GRE FIELD MAPS)
 % =========================================================================
-Shims.acquiretrainingdata(): 
+%Shims.acquiretrainingdata(): 
 
 % -------
 % TODO 
