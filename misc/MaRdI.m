@@ -23,8 +23,20 @@ classdef MaRdI < matlab.mixin.SetGet
 %       
 %       .Aux    (Aux-objects: auxiliary measurements (e.g. PMU/respiratory probe tracking))
 %
+% .......
+%
+% Dependencies
+%   
+%   Matlab's Image Processing Toolbox 
+%   
+%   myisfield.m
+%       http://www.mathworks.com/matlabcentral/fileexchange/36862-viewprofiles/content/viewProfiles/myIsField.m
+%   
+%   parse-dicom Matlab functions
+%       https://github.com/Human-Connectome-Project/parse-dicom
+% etc.
 % =========================================================================
-% Updated::20180228::ryan.topfer@polymtl.ca
+% Updated::20180403::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -47,29 +59,41 @@ Img.Aux = [] ;
     
 if nargin == 1 && ~isempty(dataLoadDirectory)
 
-    listOfDicoms = dir( [ dataLoadDirectory '/*.dcm'] );
+    listOfImages = dir( [ dataLoadDirectory '/*.dcm'] );
 
-    if length(listOfDicoms) == 0
+    if length(listOfImages) == 0
         % try .IMA
-        isImaDir = MaRdI.changefilesuffix( dataLoadDirectory ) ;
-        
-        if isImaDir == true
-            display('Converted .IMA to .dcm');
-        else
-            error('No .dcm or .IMA files found in given directory') ;
-        end
-
-        listOfDicoms = dir( [ dataLoadDirectory '/*.dcm'] );
+        listOfImages = dir( [imgDirectory '/*.IMA'] ) ;
     end
-
-    Img.Hdr      = dicominfo( [ dataLoadDirectory '/' listOfDicoms(1).name] ) ;
     
-    Img.img      = double( dicomread( [ dataLoadDirectory '/' listOfDicoms(1).name] ) )  ;
+    assert( length(listOfImages) ~= 0, 'No .dcm or .IMA files found in given directory' ) ;
 
-    Img.Hdr.NumberOfSlices = uint16( length(listOfDicoms) ) ;
+    Img.Hdr = dicominfo( [ dataLoadDirectory '/' listOfImages(1).name] ) ;
+   
+    % parses additional "MrProt" (protocol) info  
+    [~,~,Img.Hdr.MrProt] = parse_siemens_shadow( Img.Hdr ) ;
+    fprintf('\n') ;
+
+    % absolute table position (.Hdr field doesn't exist for the socket-delivered .IMA images)
+    Img.Hdr.Private_0019_1013 = Img.Hdr.MrProt.lPtabAbsStartPosZ ; % [units : mm?]
+
+    % Re: Larmor: The DICOM.Hdr field exists (as Img.Hdr.ImagingFrequency), but it is less
+    % precise (rounded to kHz) for socket-delivered .IMA images than the value retained in
+    % the private Siemens) part of the Hdr ("MrProtDataImpl@MrProtocolData")
+    %
+    % for some reason (?) Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency appears to have multiple elements,
+    % only the first is non-empty and it contains the Larmor freq., 
+    % but, explicitly/manually trying to access it produces an error.
+    % for some reason (?) the error is avoided by first copying the value to the temporary variable (f0)
+    f0 = Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency  ; 
+    Img.Hdr.ImagingFrequency = f0 * 1E-6 ; % [units : MHz]
+
+    Img.img      = double( dicomread( [ dataLoadDirectory '/' listOfImages(1).name] ) )  ;
+
+    Img.Hdr.NumberOfSlices = uint16( length(listOfImages) ) ;
     
     for sliceIndex = 2 : Img.Hdr.NumberOfSlices
-        Img.img(:,:,sliceIndex) = dicomread([ dataLoadDirectory '/' listOfDicoms(sliceIndex).name]) ;
+        Img.img(:,:,sliceIndex) = dicomread([ dataLoadDirectory '/' listOfImages(sliceIndex).name]) ;
     end
 
     Params = [] ;
@@ -621,6 +645,32 @@ function nVoxels = getnumberofvoxels( Img )
 nVoxels = prod( Img.getgridsize( ) ) ;
 end
 % =========================================================================
+function [f0, g0, s0] = adjvalidateshim( Img )
+%ADJVALIDATESHIM
+% 
+% [f0, g0, s0] = ADJVALIDATESHIM( Img )
+% 
+% ADJVALIDATESHIM is not a particularly revealing name for a function; however,
+% it is based on the Siemens AdjValidate commandline tool, with a "-shim" input argument.
+%
+% f0 = scalar Larmor (Tx) freq. [ units : Hz ]
+% g0 = 3-element vector of the linear gradient offsets (gX,gY,gZ) [units : DAC bits]
+% s0 = 5-element vector of 2nd order shim currents [units : mA] 
+
+% Larmor (Tx) freq.
+f0 = Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency ; 
+
+% linear gradients
+g0 = [ Img.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetX ; ...
+       Img.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetY ; ...
+       Img.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetZ ] ;
+
+% -------
+% 2nd order shims (5-element vector)
+s0 = Img.Hdr.MrProt.sGRADSPEC.alShimCurrent ;
+
+end
+% =========================================================================
 function [X,Y,Z] = getvoxelpositions( Img )
 % GETVOXELPOSITIONS
 % 
@@ -1052,35 +1102,6 @@ end
 % =========================================================================
 % =========================================================================
 methods(Static)
-% =========================================================================
-function [isImaDir] = changefilesuffix( imgDirectory )
-%CHANGEFILESUFFIX
-% 
-% Renames all .IMA files in imgDirectory to .dcm
-% Returns true if directory contains .IMA files, false otherwise.
-% 
-% isImaDir = CHANGEFILESUFFIX( imgDirectory )
-
-listOfImages = dir( [imgDirectory '/*.IMA'] ) ;
-
-listOfImages.name ;
-
-nImg = length(listOfImages) ;
-
-if nImg == 0
-    isImaDir = false ;
-    display('Given directory does not contain .IMA files') ;
-
-else 
-    isImaDir = true ;
-
-    for img = 1 : length(listOfImages)
-        [PATHSTR,NAME,EXT] = fileparts( listOfImages(img).name ) ;
-        [s,msg,~] = movefile( [ imgDirectory '/' NAME EXT ], [imgDirectory '/' NAME '.dcm'] ) ;
-    end
-end
-
-end
 % =========================================================================
 function fullDir = getfulldir( dataLoadDir, iDir )
 %GETFULLDIR

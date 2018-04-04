@@ -136,7 +136,7 @@ end
 
 Shim.Data.Aux.Tracker = cell( 1, 1, Shim.Params.nTrainingFrames + 1 ) ; % to record (in this order): (1) normal breathing; (2) breath-hold insp; (3) breath-hold exp
 
-if strcmp( Shim.Params.runMode, 'isGui' ) 
+if strcmp( Shim.Params.uiMode, 'isGui' ) 
     ShimGUI( Shim ) ;
 end
 
@@ -786,7 +786,7 @@ function [ Params ] = assigndefaultparameters( Params )
 
 DEFAULT_ISDEBUGGING = false ; 
 
-DEFAULT_RUNMODE     = 'isCmdLine' ;% vs. 'isGui'
+DEFAULT_UIMODE      = 'isCmdLine' ;% vs. 'isGui'
 
 DEFAULT_SHIMSYSTEM  = 'Rri' ; 
 
@@ -802,8 +802,8 @@ if ~myisfield( Params, 'isDebugging' ) || isempty( Params.isDebugging )
    Params.isDebugging = DEFAULT_ISDEBUGGING ;
 end
 
-if ~myisfield( Params, 'runMode' ) || isempty( Params.runMode ) 
-   Params.runMode = DEFAULT_RUNMODE ;
+if ~myisfield( Params, 'uiMode' ) || isempty( Params.uiMode ) 
+   Params.uiMode = DEFAULT_UIMODE ;
 end
 
 if ~myisfield( Params, 'isLoggingCommands' ) || isempty( Params.isLoggingCommands ) 

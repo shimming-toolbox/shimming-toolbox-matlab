@@ -24,7 +24,7 @@ classdef FieldEval < MaRdI
 % FieldEval is a MaRdI subclass [FieldEval < MaRdI]
 %     
 % =========================================================================
-% Updated::20180306::ryan.topfer@polymtl.ca
+% Updated::20180403::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
@@ -535,13 +535,8 @@ function [Field, Extras] = mapfield( ImgArray, Params, ObjectiveImg )
 % if nEchoes == 2
 %   (i.e. ImgArray = { MagEcho1, PhaseEcho1 ; MagEcho2, PhaseEcho2 } )
 %
-% Params --- *must* contain the following fields
 %
-% if nEchoes == 1
-%   .echoTimeDifference [units: ms]
-%       
-%
-% Params --- may contain the following fields
+% Params may contain the following fields
 %
 %   .mask
 %       binary array indicating phase region to be unwrapped 
@@ -653,7 +648,8 @@ end
 if nEchoes == 1
     
     PhaseDiff = ImgArray{ 1, 2 }.copy() ;
-    PhaseDiff.Hdr.EchoTime = Params.echoTimeDifference ;
+    PhaseDiff.Hdr.EchoTime = ...
+        ( ImgArray{ 1, 2}.Hdr.MrProt.alTE(2) - ImgArray{ 1, 2}.Hdr.MrProt.alTE(1) )/1000 ; % [units : ms]
 
 else
     

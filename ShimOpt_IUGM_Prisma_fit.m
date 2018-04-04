@@ -233,6 +233,57 @@ end
 % =========================================================================
 methods(Static)
 % =========================================================================
+function [ shimValues  ] = converttomultipole( shimValues )
+%CONVERTTOMULTIPOLE
+% 
+% shimValues = CONVERTTOMULTIPOLE( shimValues )
+%
+% Shim values stored in MrProt (private Siemens DICOM.Hdr) are in units of 
+% DAC counts for the gradient offsets and in units of mA for the 2nd order shims.
+% CONVERTTOMULTIPOLE uses the information given by the Siemens commandline tool
+%   AdjValidate -shim -info
+% to convert a vector of shim settings in those units into the "multipole" values
+% which are used in the Siemens GUI display (i.e. Shim3d)
+%
+%TODO
+%   Refactor and move the method to ShimCom_IUGM_Prisma_fit() 
+
+nChannels = numel( shimValues ) ;
+
+if nChannels == 3 
+    % input shimValues are gradient offsets [units : DAC counts]
+    % output shimValues units : micro-T/m]
+    
+    shimValues(1) = 2300*shimValues(1)/14436 ;
+    shimValues(2) = 2300*shimValues(2)/14265 ;
+    shimValues(3) = 2300*shimValues(3)/14045 ;
+
+elseif nChannels == 5
+    % input shimValues are for the 2nd order shims [units : mA]
+    % output shimValues units : micro-T/m^2]
+
+    shimValues(1) = 4959.01*shimValues(1)/9998 ;
+    shimValues(2) = 3551.29*shimValues(2)/9998 ;
+    shimValues(3) = 3503.299*shimValues(3)/9998 ;
+    shimValues(4) = 3551.29*shimValues(4)/9998 ;
+    shimValues(5) = 3487.302*shimValues(5)/9998 ;
+
+elseif nChannels == 8
+
+    shimValues(1) = 2300*shimValues(1)/14436 ;
+    shimValues(2) = 2300*shimValues(2)/14265 ;
+    shimValues(3) = 2300*shimValues(3)/14045 ;
+
+    shimValues(4) = 4959.01*shimValues(4)/9998 ;
+    shimValues(5) = 3551.29*shimValues(5)/9998 ;
+    shimValues(6) = 3503.299*shimValues(6)/9998 ;
+    shimValues(7) = 3551.29*shimValues(7)/9998 ;
+    shimValues(8) = 3487.302*shimValues(8)/9998 ;
+
+end
+
+end
+% =========================================================================
 
 end
 % =========================================================================
