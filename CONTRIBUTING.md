@@ -1,3 +1,5 @@
+# How to contribute
+
 * [Introduction](#introduction)
 * [Fixing a bug](#fixing-a-bug)
 * [Adding a new feature](#adding-a-new-feature)
