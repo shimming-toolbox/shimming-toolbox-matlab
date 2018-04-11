@@ -11,17 +11,21 @@ classdef MaRdI < matlab.mixin.SetGet
 %   
 % Usage
 %
-% Img = MaRdI( dataLoadDirectory )
-% Img = MaRdI( dataLoadDirectory, Params )
+% Img = MaRdI( imgDir )
+% Img = MaRdI( imgDir, Params )
+% 
+% where imgDir is the directory containing the .dcm or .IMA images.
 %
-%   Img contains fields
+% Img contains fields
 %
-%       .img    (array of images - 3D if there are multiple DICOMs in directory, 
-%           4D for time series data (WIP))
+%   .img
+%       Array of images (3D if there are multiple DICOMs in directory)
 %
-%       .Hdr    (header of the first DICOM file read by dir( dataLoadDirectory ) ) 
+%   .Hdr
+%       Header of the first DICOM file read by dir( imgDir )
 %       
-%       .Aux    (Aux-objects: auxiliary measurements (e.g. PMU/respiratory probe tracking))
+%   .Aux
+%       Aux-objects: auxiliary measurements (e.g. PMU/respiratory probe tracking)
 %
 % .......
 %
@@ -36,7 +40,7 @@ classdef MaRdI < matlab.mixin.SetGet
 %       https://github.com/Human-Connectome-Project/parse-dicom
 % etc.
 % =========================================================================
-% Updated::20180403::ryan.topfer@polymtl.ca
+% Updated::20180409::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -51,49 +55,29 @@ end
 % =========================================================================    
 methods
 % =========================================================================    
-function Img = MaRdI( dataLoadDirectory )
+function Img = MaRdI( imgDir )
 
 Img.img = [] ;
 Img.Hdr = [] ;
 Img.Aux = [] ;
     
-if nargin == 1 && ~isempty(dataLoadDirectory)
+if nargin == 1 && ~isempty(imgDir)
 
-    listOfImages = dir( [ dataLoadDirectory '/*.dcm'] );
+    listOfImages = dir( [ imgDir '/*.dcm'] );
 
     if length(listOfImages) == 0
         % try .IMA
-        listOfImages = dir( [imgDirectory '/*.IMA'] ) ;
+        listOfImages = dir( [imgDir '/*.IMA'] ) ;
     end
     
     assert( length(listOfImages) ~= 0, 'No .dcm or .IMA files found in given directory' ) ;
 
-    Img.Hdr = dicominfo( [ dataLoadDirectory '/' listOfImages(1).name] ) ;
-   
-    % parses additional "MrProt" (protocol) info  
-    [~,~,Img.Hdr.MrProt] = parse_siemens_shadow( Img.Hdr ) ;
-    fprintf('\n') ;
+    Img.Hdr = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(1).name] ) ;
 
-    % absolute table position (.Hdr field doesn't exist for the socket-delivered .IMA images)
-    Img.Hdr.Private_0019_1013 = Img.Hdr.MrProt.lPtabAbsStartPosZ ; % [units : mm?]
-
-    % Re: Larmor: The DICOM.Hdr field exists (as Img.Hdr.ImagingFrequency), but it is less
-    % precise (rounded to kHz) for socket-delivered .IMA images than the value retained in
-    % the private Siemens) part of the Hdr ("MrProtDataImpl@MrProtocolData")
-    %
-    % for some reason (?) Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency appears to have multiple elements,
-    % only the first is non-empty and it contains the Larmor freq., 
-    % but, explicitly/manually trying to access it produces an error.
-    % for some reason (?) the error is avoided by first copying the value to the temporary variable (f0)
-    f0 = Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency  ; 
-    Img.Hdr.ImagingFrequency = f0 * 1E-6 ; % [units : MHz]
-
-    Img.img      = double( dicomread( [ dataLoadDirectory '/' listOfImages(1).name] ) )  ;
-
-    Img.Hdr.NumberOfSlices = uint16( length(listOfImages) ) ;
+    Img.Hdr.NumberOfSlices = uint16( length(listOfImages) ) ; 
     
-    for sliceIndex = 2 : Img.Hdr.NumberOfSlices
-        Img.img(:,:,sliceIndex) = dicomread([ dataLoadDirectory '/' listOfImages(sliceIndex).name]) ;
+    for sliceIndex = 1 : Img.Hdr.NumberOfSlices
+        Img.img(:,:,sliceIndex) = double( dicomread( [ imgDir '/' listOfImages(sliceIndex).name] ) );
     end
 
     Params = [] ;
@@ -105,12 +89,12 @@ if nargin == 1 && ~isempty(dataLoadDirectory)
 
     end
 
-    % Params.isNormalizingMagnitude = false ;
     Img = Img.scaleimgtophysical( Params ) ;   
 
     if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
         Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
     end
+
 end
 
 end
@@ -123,6 +107,7 @@ end
 %   Option to call Img = MaRdI( img, Hdr ) 
 %   such that an object can be instantiated using an array of doubles and 
 %   an appropriate dicom Hdr.  
+%
 % ..... 
 % CROPIMG
 %   make compatible for odd-sized arrays
@@ -168,7 +153,6 @@ end
 % ASSOCIATEAUX()
 %  link Image to corresponding Auxiliary data
 % =========================================================================
-
 function ImgCopy = copy(Img)
 %COPY 
 % 
@@ -195,42 +179,6 @@ end
 % end
 end
 % =========================================================================
-function Img3 = minus(Img1, Img2)
-%MINUS 
-% 
-% Img3 = MINUS( Img1, Img2 ) 
-%
-% Returns MaRdI-type object Img3
-% where 
-% .Hdr is a copy of Img1.Hdr 
-% and 
-% Img3.img = Img1.img - Img2.img 
-
-error('Deprecated 20180308. Unclear what Img1.Aux +/- Img2.Aux should yield...')
-Img3 = Img1.copy( ) ;
-
-Img3.img = Img1.img - Img2.img ;
-
-end
-% =========================================================================
-function Img3 = plus(Img1, Img2)
-%PLUS 
-% 
-% Img3 = PLUS( Img1, Img2 ) 
-%
-% Returns MaRdI-type object Img3
-% where 
-% .Hdr is a copy of Img1.Hdr 
-% and 
-% Img3.img = Img1.img + Img2.img 
-error('Deprecated 20180308. Unclear what Img1.Aux +/- Img2.Aux should yield...')
-
-Img3 = Img1.copy( ) ;
-
-Img3.img = Img1.img - Img2.img ;
-
-end
-% =========================================================================
 function Img = scaleimgtophysical( Img, Params )
 %SCALEIMGTOPHYSICAL
 %
@@ -252,7 +200,6 @@ if ~Params.isUndoing
     
     if ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) ) % is raw SIEMENS mag
         
-        % DEFAULT_ISNORMALIZINGMAGNITUDE = true ;
         DEFAULT_ISNORMALIZINGMAGNITUDE = false ;
         
         if  ~myisfield( Params, 'isNormalizingMagnitude' ) || isempty( Params.isNormalizingMagnitude )
@@ -261,9 +208,9 @@ if ~Params.isUndoing
             
         if Params.isNormalizingMagnitude
             Img = Img.normalizeimg() ;
+            Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\M\' ; 
         end
 
-        Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\M\' ; 
         
 
     elseif ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) ) % is raw SIEMENS phase
@@ -1272,6 +1219,135 @@ weights = flipdim( weights, 1 ) ;
 
 end
 % =========================================================================
+function [ Hdr ] = dicominfosiemens( filename  )
+%DICOMINFOSIEMENS
+%
+% Hdr = DICOMINFOSIEMENS
+%
+% Wraps to Matlab's DICOMINFO to return the standard DICOM Hdr, but also
+% add fields returned by PARSE_SIEMENS_SHADOW.
+%
+% (Also replaces original Hdr. fields with more precise values should they
+% be available in Hdr.MrProt., e.g. In the case of Siemens socket-delivered
+% images, some fields are missing, & others are simply of reduced precision, 
+% e.g. Hdr.ImagingFrequency is rounded to kHz)
+%
+% See also DICOMINFO, PARSE_SIEMENS_SHADOW
+
+Hdr = dicominfo( filename ) ;
+
+% parses additional info (e.g. "MrProt" (re: protocol))
+[Hdr.Img, Hdr.Ser, Hdr.MrProt] = parse_siemens_shadow( Hdr ) ;
+fprintf('\n') ;
+
+% for some reason (?) Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency appears
+% to have multiple elements, only the first is non-empty and it contains the
+% Larmor freq., but, explicitly/manually trying to access it produces an error.
+% +for some reason (?) the error is avoided by first copying the value to the
+% temporary variable (f0), hence:
+f0 = Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency  ;
+Hdr.ImagingFrequency = f0 * 1E-6 ; % [units : MHz]
+
+% absolute table position (.Hdr field doesn't exist for the socket-delivered .dcm images)
+if ~myisfield( Img.Hdr, 'Private_0019_1013' ) && ~isempty( Hdr.Img.ImaAbsTablePosition )
+    Img.Hdr.Private_0019_1013 = Hdr.Img.ImaAbsTablePosition ; % [units : mm?]
+end
+
+end
+% =========================================================================
+function [] = sortimages( unsortedDicomDir, sortedDicomDir, isCopying )
+%SORTIMAGES 
+%
+% Arrange unsorted DICOMs (e.g. as delivered via Siemens socket) into organized 
+% subdirectories.
+% 
+% [] = SORTDATA( unsortedDicomDir ) 
+% [] = SORTDATA( unsortedDicomDir, sortedDicomDir ) 
+% [] = SORTDATA( unsortedDicomDir, sortedDicomDir, isCopying ) 
+% 
+% If sortedDicomDir is unspecified, a subdirectory ('sorted') is created
+% within unsortedDicomDir to contain the sorted images.
+%
+% isCopying (Boolean) is TRUE by default. Set to 0 to move the files instead
+% of copying. Note that the files will still be renamed.
+
+DEFAULT_SORTEDDICOMDIR = [ unsortedDicomDir '/sorted/' ] ;
+DEFAULT_ISCOPYING      = true ;
+
+%Dicom files inside the directory -----------------------------------------
+listOfImages = dir( [ unsortedDicomDir '/*.dcm'] );
+
+if length(listOfImages) == 0
+    % try .IMA
+    listOfImages = dir( [imgDirectory '/*.IMA'] ) ;
+end
+
+nImages = length( listOfImages ) ;
+
+assert( nImages~=0, 'No .dcm or .IMA files found in given directory' ) ;
+
+if nargin < 2 || isempty( sortedDicomDir )
+    sortedDicomDir = DEFAULT_SORTEDDICOMDIR ;
+end
+
+if ~exist( sortedDicomDir, 'dir') 
+    mkdir( sortedDicomDir ); 
+end
+
+if nargin < 3 || isempty( isCopying )
+    isCopying = DEFAULT_ISCOPYING ;
+end
+
+%Read Dicom files header and extract series names and numbers -------------
+for iImage = 1 : nImages
+
+    display( ['Sorting... ' num2str(100*iImage/nImages) ' %)' ])
+    
+    Hdr       = dicominfo( [unsortedDicomDir '/' listOfImages(iImage).name] );
+    Hdr.Img   = parse_siemens_shadow( Hdr ) ;
+    seriesDir = [ num2str(Hdr.SeriesNumber) '_' Hdr.SeriesDescription '/' ];
+
+    if ( Hdr.SeriesNumber < 10)
+        seriesDir = [ '0' seriesDir ] ;
+    end
+    
+    % Create directories for each series
+    if ~exist( [ sortedDicomDir seriesDir ], 'dir' )
+        
+        mkdir( [ sortedDicomDir seriesDir ] );
+    
+    end
+    
+    echoDir = [ sortedDicomDir seriesDir 'echo_' num2str( Hdr.EchoTime, 3 ) ] ;
+         
+    if ~exist( echoDir, 'dir' )
+        
+        mkdir( echoDir ) ;
+    
+    end
+    
+    iSlice   = Hdr.Img.ProtocolSliceNumber + 1 ;
+    sliceStr = num2str( iSlice ) ;
+
+    for ord = 3 : -1 : 1
+        if iSlice < 10^ord
+            sliceStr = [ '0' sliceStr ] ;
+        end
+    end
+
+    [~, ~, ext]    = fileparts( Hdr.Filename ) ;
+    sortedFilename = fullfile( echoDir, strcat( Hdr.PatientName.FamilyName, '-', ...
+                Hdr.Img.ImaCoilString, '-', sliceStr, ext ) ) ;
+    
+    if isCopying
+        copyfile( Hdr.Filename, sortedFilename{1} ) ;
+    else
+        movefile( Hdr.Filename, sortedFilename{1} ) ;
+    end
+
+end
+    
+end
 % =========================================================================
 function [Params] = writeimg( img, Params )
 %WRITEIMG
@@ -1393,27 +1469,6 @@ imwrite( img( 5:end-3, 5:end-3, : ), Params.filename, 'png' ) ;
 
 end
 % =========================================================================
-% function [] = separateechoesintosubdirectories( dataLoadDir ) 
-% %separateechoesintosubdirectories
-% %
-% %   [] = SEPARATEECHOESINTOSUBDIRECTORIES( dataLoadDir ) 
-% %
-% % Siemens img files on Martinos 7T do not separate echoes into different 
-% % directories. As it stands, this means that instantiation of a MaRdI-type
-% % object of these files will load them all in a single 3d array.
-% % This function reorganizes them into subdirectories 
-%
-% nImg = size( Img.img, 3 ) ;
-%
-% echoTimes = [] ;
-% img       = Img.img(:,:,1) ;
-%
-% % for iImg = 2 : nImg
-% %     
-% %     Img.Hdr.
-%
-%
-% end
 
    
 end

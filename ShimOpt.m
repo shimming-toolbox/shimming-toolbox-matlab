@@ -402,7 +402,7 @@ function [] = interpolatetoimggrid( Shim, Field )
 [X,Y,Z]      = Field.getvoxelpositions ;
 [X0, Y0, Z0] = Shim.getvoxelpositions ;
 
-% Private header field indicating absolute position of table [units: mm]
+% Private header field indicating absolute position of table [units: mm?]
 if ~myisfield( Field.Hdr, 'Private_0019_1013' ) 
     Field.Hdr.Private_0019_1013 = input( 'Enter table position in units of mm (e.g. -1638): ' ) ;
 end

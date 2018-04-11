@@ -1,130 +1,173 @@
-%==========================================================================
-%Function to sort the Raw data from the scan 
-%==========================================================================
+function [] = SortData( unsortedDicomDir, sortedDicomDir)
+% SortData : 
+%
+% Sort raw dicom files from a scanner in a folder called sorted_data
+% 
+% [] = SORTDATA( unsortedDicomDirectory ) 
+% [] = SORTDATA( unsortedDicomDirectory, sortedDicomDirectory ) 
+% 
+% If sortedDicomDirectory is unspecified, a subdirectory ('sorted') is created
+% within unsortedDicomDirectory to contain the sorted images.
+%  
+%--------------------------------------------------------------------------
+DEFAULT_SORTEDDICOMDIR = [ unsortedDicomDir '/sorted/' ] ;
 
-function SortData(rawdataDirectory,sortdataDirectory)
+%Dicom files inside the directory -----------------------------------------
+listOfImages = dir( [ unsortedDicomDir '/*.dcm'] );
+nImages      = length(listOfImages);
 
-%Dicom file inside the directory ------------------------------------------
-dicomfiles=dir( [ rawdataDirectory '/*.dcm'] );
-ndicomfiles =length(dicomfiles);
+if length(listOfImages) == 0
+    % try .IMA
+    listOfImages = dir( [imgDirectory '/*.IMA'] ) ;
+end
+
+assert( length(listOfImages) ~= 0, 'No .dcm or .IMA files found in given directory' ) ;
+
 %Declare initial parameters -----------------------------------------------
-SeriesDescription=[];
-ndicomfilesnew=0;
-%Writing a feedback in a textfile background------------------------------- 
-diary('background');
 
-if ~exist(sortdataDirectory,'dir'), mkdir(sortdataDirectory); end
+if nargin < 2 || isempty( sortedDicomDir )
+    sortedDicomDir = DEFAULTSORTEDDICOMDIR ;
+end
 
-%Read Dicom files header and extract series name and number ---------------
-    files_hdr_prec = dicominfo( [rawdataDirectory '/' dicomfiles(1).name]);
-    series_name=files_hdr_prec.SeriesDescription;
-    foldernumber=files_hdr_prec.SeriesNumber;
-    nseriesdescription=1;
-    if (foldernumber < 10)
-    foldername= strcat('0',num2str(foldernumber),'_',series_name);
-    else
-    foldername= strcat(num2str(foldernumber),'_',series_name);
-    end
-    SeriesDescription{nseriesdescription}=foldername;
-  
-    new_path = fullfile (sortdataDirectory, foldername);
+if ~exist( sortedDicomDir,'dir') 
+    mkdir( sortedDicomDir ); 
+end
 
-   if ~exist(new_path,'dir')
-      %Create new directories for each series name-------------------------
-      mkdir(sortdataDirectory,foldername);
-   end
-      %Copy the dicom files in the new directory---------------------------
-    copyfile(files_hdr_prec.Filename,new_path);
+seriesDescription = [];
+
+nImagesnew=0;
+
+%Read Dicom files header and extract series names and numbers -------------
+
+Hdr = dicominfo( [unsortedDicomDir '/' listOfImages(1).name]);
+    
+    
+folderName = [ num2str(Hdr.SeriesNumber) '_' Hdr.SeriesDescription ];
+
+if ( num2str(Hdr.SeriesNumber) < 10)
+    folderName = [ '0' folderName ] ;
+end
+
+iSeries=1;
+ 
+seriesDescription{iSeries}=folderName;
+
+sortedFilename = fullfile( sortedDicomDir, folderName );
+
+% Create directories for each series
+if ~exist( sortedFilename,'dir' )
+  mkdir(sortedDicomDir,folderName);
+end
+
+% Copy the images into the new directory
+copyfile(Hdr.Filename, sortedFilename);
     
 
 while(1)   
-if(ndicomfilesnew~=ndicomfiles)
-   display('Sorting in process');
-   diary('background');
-   %Check the presence for new files in the raw data directory-------------
-   newfiles=abs(ndicomfilesnew-ndicomfiles);
-   dicomfiles=dir( [ rawdataDirectory '/*.dcm'] );
-        if(ndicomfilesnew==0)
-            a=2;
-            b=ndicomfiles;
-        else
-            a=ndicomfiles+1;
-            b=ndicomfiles+newfiles;
-        end
-    ndicomfiles =length(dicomfiles);
-    for iscan=a:b
-        files_hdr = dicominfo( [rawdataDirectory '/' dicomfiles(iscan).name] ) ;
     
-        if strcmp(files_hdr.SeriesNumber,files_hdr_prec.SeriesNumber)==1
-              copyfile(files_hdr.Filename,new_path);
-        else
-            series_name2=files_hdr.SeriesDescription;
-            foldernumber2=files_hdr.SeriesNumber;
-                if (foldernumber2 < 10)
-                foldername= strcat('0',num2str(foldernumber2),'_',series_name2);
-                else
-                 foldername= strcat(num2str(foldernumber2),'_',series_name2);
-                end
-            
-              if ~any(strcmp(SeriesDescription,foldername));
-                    nseriesdescription=nseriesdescription+1;
-                    SeriesDescription{nseriesdescription}= foldername;
-                    new_path = fullfile (sortdataDirectory, foldername);
-                
-                        if ~exist(new_path,'dir')
-                        
-                        mkdir(sortdataDirectory,foldername);
-                        end
-               end
-               copyfile(files_hdr.Filename,new_path);
-               %Comparison with the precedent dicom files sorted-----------
-               files_hdr_prec = files_hdr;
-         end
- 
-    end
-
-    for i= 1:nseriesdescription
-        new_pathtoseries = fullfile (sortdataDirectory, SeriesDescription{i});
-        %Dicom files inside the new directories----------------------------
-        new_dicomfilesinseries=dir( [new_pathtoseries '/*.dcm'] );
-        nfilesinseries=length(new_dicomfilesinseries);
-    
-        if ~isempty(new_dicomfilesinseries) 
+    if( nImagesnew~=nImages)
+       display('Sorting... (in progress)');   %Feedback
+   
+   
+    %Check the presence for new files in the raw data directory----------------
+    newFiles=abs( nImagesnew - nImages);
+       
+    listOfImages=dir( [ unsortedDicomDir '/*.dcm'] );
+            if(nImagesnew==0)
+                a=2;              %1st file is already sorted
+                b=nImages;
+            else
+                a=nImages+1;
+                b=nImages+newFiles;
+            end
+        nImages =length(listOfImages);
         
-        filesinseries_hdr_prec = dicominfo( [new_pathtoseries '/' new_dicomfilesinseries(1).name]);
-        ImageType=filesinseries_hdr_prec.ImageType;
-        name=fullfile(ImageType,num2str(filesinseries_hdr_prec.EchoNumber));
-        new_pathtoseriestype = fullfile (new_pathtoseries,name);
-        if ~exist(new_pathtoseriestype,'dir')
-        mkdir(new_pathtoseries,name);
-        end
-        movefile(filesinseries_hdr_prec.Filename,new_pathtoseriestype);
-    
-            for j=2:nfilesinseries
-                 filesinseries_hdr = dicominfo( [new_pathtoseries '/' new_dicomfilesinseries(j).name]);
+        for iscan=a:b
+            newHdr = dicominfo( [unsortedDicomDir '/' listOfImages(iscan).name] ) ;
+        
+            if strcmp(newHdr.SeriesNumber,Hdr.SeriesNumber)==1
+                  copyfile(newHdr.Filename,sortedFilename);
+            else
+            newseriesName=newHdr.SeriesDescription;
+            newfolderNumber=newHdr.SeriesNumber;
             
-                if strcmp(filesinseries_hdr.ImageType,files_hdr_prec.ImageType)==1
-                    movefile(filesinseries_hdr.Filename,new_pathtoseriestype);
+                  if (newfolderNumber < 10)
+                    folderName= strcat('0',num2str(newfolderNumber),'_',newseriesName); %Add 0 for consistency between all folders.
+                  else
+                     folderName= strcat(num2str(newfolderNumber),'_',newseriesName);
+                  end
+                
+                  if ~any(strcmp(seriesDescription,folderName));
+                        iSeries=iSeries+1;
+                        seriesDescription{iSeries}= folderName;
+                        sortedFilename = fullfile (sortedDicomDir, folderName);
+                    
+                   if ~exist(sortedFilename,'dir')                 
+                            mkdir(sortedDicomDir,folderName);
+                   end
+                   end
+                   
+                   copyfile(newHdr.Filename,sortedFilename);        
+                   Hdr = newHdr;
+             end
+     
+        end
+
+
+
+
+
+%Sort files inside series folder ------------------------------------------
+    for i= 1:iSeries
+        sortedFilenametoseries = fullfile (sortedDicomDir, seriesDescription{i});
+%Dicom files inside series folder -----------------------------------------
+        newDicomfilesinseries=dir( [sortedFilenametoseries '/*.dcm'] );
+        nFilesinseries=length(newDicomfilesinseries);
+    
+        if ~isempty(newDicomfilesinseries) 
+        
+%Read Dicom files header and extract imageType and Echonumber -------------
+        filesinseriesHeader = dicominfo( [sortedFilenametoseries '/' newDicomfilesinseries(1).name]);
+        imageType=filesinseriesHeader.ImageType;
+        name=fullfile(imageType,num2str(filesinseriesHeader.EchoNumber));
+        sortedFilenametoseriestype = fullfile (sortedFilenametoseries,name);
+        
+%Create new directories for each imageType and Echo number-----------------
+        if ~exist(sortedFilenametoseriestype,'dir')
+            mkdir(sortedFilenametoseries,name);
+        end
+        
+        movefile(filesinseriesHeader.Filename,sortedFilenametoseriestype);
+    
+            for j=2:nFilesinseries
+                 newfilesinseriesHeader = dicominfo( [sortedFilenametoseries '/' newDicomfilesinseries(j).name]);
+            
+                if strcmp(newfilesinseriesHeader.ImageType,Hdr.ImageType)==1
+                    movefile(newfilesinseriesHeader.Filename,sortedFilenametoseriestype);
                 else
-                    foldertype=filesinseries_hdr.ImageType;
-                    name=fullfile(foldertype,num2str(filesinseries_hdr_prec.EchoNumber));
-                    new_pathtoseriestype = fullfile (new_pathtoseries, name);
-                        if ~exist(new_pathtoseriestype,'dir')
-                        mkdir(new_pathtoseries,name);
+                    foldertype=newfilesinseriesHeader.ImageType;
+                    name=fullfile(foldertype,num2str(filesinseriesHeader.EchoNumber));
+                    sortedFilenametoseriestype = fullfile (sortedFilenametoseries, name);
+                        if ~exist(sortedFilenametoseriestype,'dir')
+                        mkdir(sortedFilenametoseries,name);
                         end
-                    movefile(filesinseries_hdr.Filename,new_pathtoseriestype);
+                    movefile(newfilesinseriesHeader.Filename,sortedFilenametoseriestype);
                 end
-                filesinseries_hdr_prec = filesinseries_hdr;
+                filesinseriesHeader = newfilesinseriesHeader;
             end
         end
        
      end
- dicomfilesnew=dir( [ rawdataDirectory '/*.dcm'] );
- ndicomfilesnew =length(dicomfilesnew);
- display('Files in raw data directory are sorted');
- diary('background');
+
+ listOfImagesnew=dir( [ unsortedDicomDir '/*.dcm'] );
+ nImagesnew =length(listOfImagesnew);
+ display('Files in raw data directory are sorted');  
+
 else    
-  dicomfilesnew=dir( [ rawdataDirectory '/*.dcm'] );
-  ndicomfilesnew =length(dicomfilesnew);  
+
+  listOfImagesnew=dir( [ unsortedDicomDir '/*.dcm'] );
+  nImagesnew =length(listOfImagesnew);  
+
 end
+
 end

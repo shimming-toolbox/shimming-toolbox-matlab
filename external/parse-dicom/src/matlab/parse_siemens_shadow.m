@@ -7,6 +7,11 @@ function [img, ser, mrprot] = parse_siemens_shadow(varargin)
 %                  c_str.m
 %                  mread.m
 %   E. Auerbach, CMRR, Univ. of Minnesota, 2013
+%
+%   Update::20180409::ryan.topfer@polymtl.ca :
+%   Optional fast output for nargout == 1 OR 2, since parsing mrprot apparently
+%   takes an order of magnitude longer (~1s per dicom file). Only applies to
+%   dicom images* (not SPEC)
 
 debugOutput = false;
 
@@ -20,14 +25,19 @@ end
 if (size(dcm,2) > 1)
     error('parse_siemens_shadow does not work on arrayed dicominfo data!')
 end
-
 ver_string = private_field_str_fix(dcm.Private_0029_1008);
 csa_string = private_field_str_fix(dcm.Private_0029_10xx_Creator);
 
 if (strcmp(ver_string,'IMAGE NUM 4'))
     if (strcmp(csa_string,'SIEMENS CSA HEADER'))
         img = parse_shadow_func(dcm.Private_0029_1010, debugOutput);
+        if nargout == 1
+            return;
+        end
         ser = parse_shadow_func(dcm.Private_0029_1020, debugOutput);
+        if nargout == 2
+            return;
+        end
     else
         error('shadow: Invalid CSA HEADER identifier: %s',csa_string);
     end
