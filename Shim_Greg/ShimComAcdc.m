@@ -86,7 +86,7 @@ calibrationVal = (current - coeff2)/ coeff1;
   Channel=num2str(channel);
   
   
-  command=strcat(Shim.Cmd.updateOneChannel,Channel,'_',DACcurrent);d
+  command=strcat(Shim.Cmd.updateOneChannel,Channel,'_',DACcurrent);
 
 fprintf(Shim.ComPort,'%s',command,'sync');  
 
@@ -100,8 +100,11 @@ function [] = setandloadallshims( Shim, currents )
 %
 %--------------------------------------------------------------------------
 
-command =strcat('o',num2str(currents(1)),num2str(currents(2)),num2str(currents(3)),num2str(currents(4)),...
-num2str(currents(5)),num2str(currents(6)),num2str(currents(7)),num2str(currents(8)));
+convertedCurrents=Shim.ampstodac(currents,Shim.Specs.Com.feedbackcalibrationcoeffx,Shim.Specs.Com.feedbackcalibrationcoeffy);
+Currents=round(convertedCurrents);
+
+command =strcat('o',num2str(Currents(1)),num2str(Currents(2)),num2str(Currents(3)),num2str(Currents(4)),...
+num2str(Currents(5)),num2str(Currents(6)),num2str(Currents(7)),num2str(Currents(8)));
 
 fprintf(Shim.ComPort,'%s',command,'sync'); 
 

@@ -1,40 +1,10 @@
-classdef ShimCalAcdc < ShimCal 
-%SHIMCALC - Shim Calibration 
-%
-% .......
+classdef ShimCal_Acdc < ShimCal 
+%SHIMCAL_ACDC - Shim Calibration for the 8-channel "Ac/Dc" coil.
 % 
-% Usage
-%
-% Shim = ShimCal( )
-%
-%   Shim contains fields
-%
-%       .img
-%           Shim reference maps (4d array) [units: Hz/mV]
-%
-%       .Hdr
-%           Info re: calibration data
-%           (e.g. Hdr.MaskingImage defines the spatial support of the ref maps)
-%
+% ShimCal_Acdc is a ShimCal subclass [ShimCalAcdc < ShimCal]
 %
 % =========================================================================
-% Notes
-%
-% Part of series of classes pertaining to shimming:
-%
-%    Tracking
-%    ShimCal
-%    ShimCom
-%    ShimOpt
-%    ShimSpecs
-%    ShimUse
-%    ShimTest 
-%     
-% 
-% ShimCal is a MaRdI subclass [ShimCal < MaRdI]
-%
-% =========================================================================
-% Updated::20171101::ryan.topfer@polymtl.ca
+% Updated::20180328::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
@@ -46,17 +16,19 @@ end
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimCalAcdc( Params )
+function Shim = ShimCal_Acdc( Params )
 %SHIMCAL - Shim calibration (i.e. reference maps) 
 
 Shim.img = [] ;
 Shim.Hdr = [] ;
 
 if nargin < 1
-    % Params = ShimCalAcdc.declarecalibrationparameters20171018( ) ;
-    % Params = ShimCalAcdc.declarecalibrationparameters20171024( ) ;
-    % Params = ShimCalAcdc.declarecalibrationparameters20171107( ) ;
-    Params = ShimCalAcdc.declarecalibrationparameters20171209( ) ;
+    % Params = ShimCal_Acdc.declarecalibrationparameters20171018( ) ;
+    % Params = ShimCal_Acdc.declarecalibrationparameters20171024( ) ;
+    % Params = ShimCal_Acdc.declarecalibrationparameters20171107( ) ;
+    % Params = ShimCal_Acdc.declarecalibrationparameters20171209( ) ;
+    % Params = ShimCal_Acdc.declarecalibrationparameters20180322( ) ;
+    Params = ShimCal_Acdc.declarecalibrationparameters20180326( ) ;
 end
 
 % -------
@@ -65,268 +37,9 @@ end
 
 % -------
 % map dB/dI
-[Shim.img, Shim.Hdr] = Shim.mapdbdi( Params ) ;
+[Shim.img, Shim.Hdr] = ShimCal.mapdbdi_allchannels( Params ) ;
 
 save( Params.filenameSave ,'Shim' );
-
-end
-% =========================================================================
-function [ img, Hdr ] = mapdbdv( Shim, Params )
-%MAPDBDV
-% 
-% [ img, Hdr ] = mapdbdv( Shim, Params  ) 
-% map dB/dV --- change in field [Hz] per unit voltage [mV]
-% 
-% Params
-%   .reliabilityMask 
-%       binary array indicating where phase unwrapping should take place 
-img = [] ;
-Hdr = [] ;
-
-Params.DataDir = [] ;
-
-Mag     = MaRdI( Params.dataLoadDirectories{1} ) ;
-dBdVRaw = zeros( [Mag.getgridsize Params.nChannels] ) ;
-
-Params.isFilteringField = false ;
-Params.mask = Params.reliabilityMask ;
-
-for iChannel = 1 : Params.nChannels 
-
-    for iVoltage = 1 : (Params.nVoltages)
-
-        iImg  = 4*iChannel + 2*(iVoltage-1) ;
-
-        Params.DataDir.mag( iVoltage )   = Params.dataLoadDirectories(iImg-1) ;
-        Params.DataDir.phase( iVoltage ) = Params.dataLoadDirectories(iImg) ;
-
-        % -------
-        % PROCESS GRE FIELD MAPS
-        % -------
-        ImgArray = cell( 1, 1 ) ;
-
-        ImgArray{1,1}  = MaRdI( Params.DataDir.mag{ iVoltage }  ) ;
-        ImgArray{1,2}  = MaRdI( Params.DataDir.phase{ iVoltage }  ) ;
-
-        [Field,Extras] = FieldEval.mapfield( ImgArray, Params ) ;
-
-        fieldMaps( :,:,:, iVoltage ) = Field.img ;
-
-    end
-
-    disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
-    
-    % sends voltages tested to ShimCal.mapdbdi instead of currents but this doesn't matter,
-    % we just end up with reference maps in terms of field shift per millivolt instead of per ampere:
-    dBdVRaw(:,:,:, iChannel) = ShimCal.mapdbdi( fieldMaps, Params.voltages(iChannel,:), Params.reliabilityMask, Params ) ;  
-
-end 
-
-% -------
-% filter the dB/dI maps
-if Params.Filtering.isFiltering
-
-    disp(['Filtering dB/dV maps...'] )
-    Params.filterRadius = Params.Filtering.filterRadius ;
-
-    dBdVFiltered = zeros( size( dBdIRaw ) ) ;
-
-    Tmp = Field.copy();
-
-    for iChannel = 1 : Params.nChannels 
-
-        disp(['iChannel ' num2str(iChannel)] )
-
-        Tmp.img = dBdVRaw(:,:,:, iChannel) ;
-        [~,TmpFiltered] = Tmp.extractharmonicfield( Params ) ;
-        dBdVFiltered(:,:,:,iChannel) = TmpFiltered.img ;
-
-    end
-
-    Hdr = TmpFiltered.Hdr ;
-    img = dBdVFiltered ;
-
-    if Params.Extension.isExtending
-
-        tic
-        disp(['Performing harmonic extension...']) ;
-        disp(['Channel 1 of ' num2str(Params.nChannels) ] ) ;
-
-        gridSizeImg = size( Params.reliabilityMask ) ;
-        maskFov     = ones( gridSizeImg )  ; % extended spatial support
-
-        [ tmp, A, M ] = extendharmonicfield( img(:,:,:, 1) , maskFov, Hdr.MaskingImage, Params.Extension ) ;
-
-        for iChannel = 1 : Params.nChannels 
-            disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] ) ;
-
-            reducedField         = Hdr.MaskingImage .* img(:,:,:, iChannel) ;
-            extendedField        = reshape( M'*A*reducedField(:), gridSizeImg ) ;
-            img(:,:,:, iChannel) = extendedField + reducedField ;
-        end
-
-        Hdr.MaskingImage = (sum(abs(img),4))~=0 ; % extended spatial support
-
-        toc
-
-    end
-
-else
-    Hdr = ImgArray{1,2}.Hdr ;
-    img = dBdVRaw ;
-end
-
-end
-% =========================================================================
-function [ img, Hdr ] = mapdbdi( Shim, Params )
-%MAPDBDV
-% 
-% [ img, Hdr ] = mapdbdv( Shim, Params  ) 
-% map dB/dI --- change in field [Hz] per unit current (A)
-% 
-% Params
-%   .reliabilityMask 
-%       binary array indicating where phase unwrapping should take place 
-img = [] ;
-Hdr = [] ;
-
-Params.DataDir = [] ;
-
-Mag     = MaRdI( Params.dataLoadDirectories{1} ) ;
-dBdIRaw = zeros( [Mag.getgridsize Params.nChannels] ) ;
-
-Params.isFilteringField = false ;
-Params.mask = Params.reliabilityMask ;
-
-dbstop in ShimCalAcdc at 202
-for iChannel = 1 : Params.nChannels 
-    
-    fieldMaps = zeros( [Mag.getgridsize Params.nCurrents] ) ;
-
-    for iCurrent = 1 : (Params.nCurrents)
-
-        iImg  = 4*iChannel + 2*(iCurrent-1) ;
-
-        Params.DataDir.mag( iCurrent )   = Params.dataLoadDirectories(iImg-1) ;
-        Params.DataDir.phase( iCurrent ) = Params.dataLoadDirectories(iImg) ;
-
-        % -------
-        % PROCESS GRE FIELD MAPS
-        % -------
-        ImgArray = cell( 1, 2 ) ;
-
-        ImgArray{1,1}  = MaRdI( Params.DataDir.mag{ iCurrent }  ) ;
-        ImgArray{1,2}  = MaRdI( Params.DataDir.phase{ iCurrent }  ) ;
-        
-        [Field,Extras] = FieldEval.mapfield( ImgArray, Params ) ;
-
-        fieldMaps( :,:,:, iCurrent ) = Field.img ;
-
-    end
-
-    disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
-    
-    dBdIRaw(:,:,:, iChannel) = ShimCal.mapdbdi( fieldMaps, Params.currents(iChannel,:), Params.reliabilityMask, Params ) ;  
-
-end 
-
-
-for iChannel = 1 : Params.nChannels 
-    
-    ImgArray = cell(2,2) ;
-
-    for iCurrent = 1 : (Params.nCurrents)
-
-        iImg  = 4*iChannel + 2*(iCurrent-1) ;
-
-        Params.DataDir.mag( iCurrent )   = Params.dataLoadDirectories(iImg-1) ;
-        Params.DataDir.phase( iCurrent ) = Params.dataLoadDirectories(iImg) ;
-
-        ImgArray{iCurrent, 1}  = MaRdI( Params.DataDir.mag{ iCurrent }  ) ;
-        ImgArray{iCurrent, 2}  = MaRdI( Params.DataDir.phase{ iCurrent }  ) ;
-
-    end
-
-    % -------
-    % complex difference
-    PhaseDiff = ImgArray{1,2}.copy() ;
-    PhaseDiff.Hdr.EchoTime = Params.echoTimeDifference
-
-    PhaseDiff.img = angle( ( ImgArray{2,1}.img .* exp(-i * ImgArray{2,2}.img) ) ./ ...
-                       ( ImgArray{1,1}.img .* exp(-i * ImgArray{1,2}.img) ) ) ;
-
-    % -------
-    % 3d path-based unwrapping
-    PhaseDiff.Hdr.MaskingImage = Params.mask ;
-
-    PhaseDiff = PhaseDiff.unwrapphase(  ) ;
-
-    FieldDiff = FieldEval( PhaseDiff.scalephasetofrequency( ) ) ;
-
-    disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
-    
-    dI = Params.currents( iChannel, 2 ) - Params.currents( iChannel, 1 ) ;
-
-    dBdIRaw(:,:,:, iChannel) = FieldDiff.img / dI ;  
-
-end 
-
-
-
-% -------
-% filter the dB/dI maps
-if Params.Filtering.isFiltering
-
-    disp(['Filtering dB/dI maps...'] )
-    Params.filterRadius = Params.Filtering.filterRadius ;
-
-    dBdIFiltered = zeros( size( dBdIRaw ) ) ;
-
-    Tmp = Field.copy();
-
-    for iChannel = 1 : Params.nChannels 
-
-        disp(['iChannel ' num2str(iChannel)] )
-
-        Tmp.img = dBdIRaw(:,:,:, iChannel) ;
-        [~,TmpFiltered] = Tmp.extractharmonicfield( Params ) ;
-        dBdIFiltered(:,:,:,iChannel) = TmpFiltered.img ;
-        
-
-    end
-
-    Hdr = TmpFiltered.Hdr ;
-    img = dBdIFiltered ;
-
-    if Params.Extension.isExtending
-
-        tic
-        disp(['Performing harmonic extension...']) ;
-        disp(['Channel 1 of ' num2str(Params.nChannels) ] ) ;
-
-        gridSizeImg = size( Params.reliabilityMask ) ;
-        maskFov     = ones( gridSizeImg )  ; % extended spatial support
-
-        [ ~, A, M ] = extendharmonicfield( img(:,:,:, 1) , maskFov, Hdr.MaskingImage, Params.Extension ) ;
-
-        for iChannel = 1 : Params.nChannels 
-            disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] ) ;
-
-            reducedField         = Hdr.MaskingImage .* img(:,:,:, iChannel) ;
-            extendedField        = reshape( M'*A*reducedField(:), gridSizeImg ) ;
-            img(:,:,:, iChannel) = extendedField + reducedField ;
-        end
-
-        Hdr.MaskingImage = (sum(abs(img),4))~=0 ; % extended spatial support
-
-        toc
-
-    end
-
-else
-    Hdr = ImgArray{1,2}.Hdr ;
-    img = dBdIRaw ;
-end
 
 end
 % =========================================================================
@@ -528,8 +241,122 @@ Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
 voxelSize                     = Mag.getvoxelsize() ;
 Params.Filtering.filterRadius = 2*voxelSize(1) ;
 
-Params.reliabilityMask = Mag.img > 0.01 ; % region of reliable SNR for unwrapping
+Params.reliabilityMask = Mag.img/max(Mag.img(:)) > 0.01 ; % region of reliable SNR for unwrapping
 % Params.reliabilityMask(:,47:end,:) = 0; % artifacts observed around the 'posterior' edge of the phantom (partial volume?)
+
+Params.Extension.isExtending = true ; % harmonic field extrapolation 
+Params.Extension.voxelSize   = voxelSize ;
+Params.Extension.expansionOrder = 2 ;
+Params.Extension.radius     = 6 ;
+
+end
+% =========================================================================
+function Params = declarecalibrationparameters20180322( )
+%DECLARECALIBRATIONPARAMETERS20180322
+% 
+% Initializes parameters for shim reference map construction (i.e. shim calibration)
+%  
+%  NOTE
+% Difference from declarecalibrationparameters20171209 :
+% 
+% -Numerous changes to the coil electronics (e.g. new power source)
+% -Different GRE acquisition parameters 
+% -Different phantom used (long ~40+ cm Siemens torpedo)
+
+
+fprintf('##### \n WARNING: Ignoring EchoTime DICOM header when normalizing phase to field. \n\n')
+Params.isHardCodingEchoTime = true ;
+Params.EchoTimes  = [ 4.92 7.38 ] ;
+Params.echoTimeDifference = ( Params.EchoTimes(2) - Params.EchoTimes(1) ) ; 
+Params.nChannels  = 8 ;
+Params.nCurrents  = 2 ;
+
+Params.currents = [-0.4 0.4; %ch1, [units: A]
+                   -0.4 0.4; %
+                   -0.4 0.4; %
+                   -0.4 0.4; %...
+                   -0.4 0.4; %
+                   -0.4 0.4; %
+                   -0.4 0.4; % 
+                   -0.4 0.4;] ; %ch8
+
+% data from
+fileIn = fopen('/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_19pb/20180320AcdcShimCalibrationDataDirList.txt') ;
+Params.dataLoadDirectories = textscan( fileIn, '%s' ) ;
+Params.dataLoadDirectories = Params.dataLoadDirectories{1}; % not sure why this is necessary?
+fclose(fileIn);
+% NB: zero-current acquisition = the first 2 directories (mag, phase)
+
+Params.filenameSave = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/ShimReferenceMaps_Acdc_20180322' ;
+
+Params.Filtering.isFiltering  = true ;
+Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
+voxelSize                     = Mag.getvoxelsize() ;
+Params.Filtering.filterRadius = 2*voxelSize(1) ;
+
+Params.reliabilityMask = Mag.img/max(Mag.img(:)) > 0.01 ; % region of reliable SNR for unwrapping
+
+Params.reliabilityMask(:,1:5,:)    = 0 ; % based on visual inspection of magnitude (there is aliasing in phase)
+Params.reliabilityMask(:,71:end,:) = 0 ; 
+
+Params.Extension.isExtending = true ; % harmonic field extrapolation 
+Params.Extension.voxelSize   = voxelSize ;
+Params.Extension.expansionOrder = 2 ;
+Params.Extension.radius     = 6 ;
+
+end
+% =========================================================================
+function Params = declarecalibrationparameters20180326( )
+%DECLARECALIBRATIONPARAMETERS20180326
+% 
+% Initializes parameters for shim reference map construction (i.e. shim calibration)
+%  
+%  NOTE
+% Difference from declarecalibrationparameters20180322 :
+% 
+% Same acquistion data but DIS3D (distortion correction) has been applied (+before unwrapping)
+
+
+fprintf('##### \n WARNING: Ignoring EchoTime DICOM header when normalizing phase to field. \n\n')
+Params.isHardCodingEchoTime = true ;
+Params.EchoTimes  = [ 4.92 7.38 ] ;
+Params.echoTimeDifference = ( Params.EchoTimes(2) - Params.EchoTimes(1) ) ; 
+Params.nChannels  = 8 ;
+Params.nCurrents  = 2 ;
+
+Params.currents = [-0.4 0.4; %ch1, [units: A]
+                   -0.4 0.4; %
+                   -0.4 0.4; %
+                   -0.4 0.4; %...
+                   -0.4 0.4; %
+                   -0.4 0.4; %
+                   -0.4 0.4; % 
+                   -0.4 0.4;] ; %ch8
+
+% data from
+fileIn = fopen('/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_19pb/20180326AcdcShimCalibrationDataDirList.txt') ;
+Params.dataLoadDirectories = textscan( fileIn, '%s' ) ;
+Params.dataLoadDirectories = Params.dataLoadDirectories{1}; % not sure why this is necessary?
+fclose(fileIn);
+% NB: zero-current acquisition = the first 2 directories (mag, phase)
+
+% load the uncorrected images as well
+fileIn = fopen('/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_19pb/20180320AcdcShimCalibrationDataDirList.txt') ;
+Params.dataLoadDirectoriesNd = textscan( fileIn, '%s' ) ;
+Params.dataLoadDirectoriesNd = Params.dataLoadDirectoriesNd{1};
+fclose(fileIn);
+
+Params.filenameSave = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/ShimReferenceMaps_Acdc_20180326' ;
+
+Params.Filtering.isFiltering  = true ;
+Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
+voxelSize                     = Mag.getvoxelsize() ;
+Params.Filtering.filterRadius = 2*voxelSize(1) ;
+
+Params.reliabilityMask = Mag.img/max(Mag.img(:)) > 0.01 ; % region of reliable SNR for unwrapping
+
+Params.reliabilityMask(:,1:5,:)    = 0 ; % based on visual inspection of magnitude (there is aliasing in phase-encore dir)
+Params.reliabilityMask(:,71:end,:) = 0 ; 
 
 Params.Extension.isExtending = true ; % harmonic field extrapolation 
 Params.Extension.voxelSize   = voxelSize ;

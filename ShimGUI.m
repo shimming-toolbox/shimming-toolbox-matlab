@@ -21,7 +21,7 @@ function varargout = ShimGUI(varargin)
 %       options with Sct. 
 
 
-% Last Modified by GUIDE v2.5 28-Mar-2018 14:50:28
+% Last Modified by GUIDE v2.5 28-Mar-2018 19:49:17
 
 
 % Begin initialization code - DO NOT EDIT
@@ -72,7 +72,7 @@ handles.Params = shimparameters();
 handles.output = hObject;                           % Default command line output for ShimGUI
 
 
-handles.itemSelected = 'Phase/Inspired';            %View selected
+handles.itemSelected = 'Mag/Inspired';              %View selected
 handles.lim=200;                                    %Constrast for phase images
 handles.limits=[-handles.lim handles.lim];
 handles.limMag=0.5;                                 %Constrast for magnitude images
@@ -104,12 +104,9 @@ if exist('environmentPath.txt')
 end
 
 
-if ~myisfield(handles, 'Shims')
-    handles.Shims = ShimUse(handles.Params);  %Construct an instance handles.Shims of ShimUse
-end
+handles.Shims = varargin{1};  %Construct an instance handles.Shims of ShimUse
+display(handles.Shims);
 
-
-display ('Load your directory with data from the scan'); 
   
 guidata(hObject, handles);
 
@@ -132,11 +129,13 @@ handles.rawData= uigetdir();                        %User choose the folder
 
 %Define a new folder to store the sorted data------------------------------
 
-handles.sortedData=fullfile(handles.pathtofolder,'/sorted_data');
+display(handles.Shims.Params.dataLoadDir);
+handles.sortedData=fullfile(handles.Shims.Params.dataLoadDir,'sorted_data');
 
 %Call function to sort the data in background------------------------------
+calltoSortdata=sprintf('%s','/Applications/MATLAB_R2016a.app/bin/matlab -nodesktop -nojvm -r ", SortData(''');
 
-sortCommand = sprintf('%s',handles.Params.calltoSortdata,handles.rawData,''' ,''',handles.sortedData,''');" &');
+sortCommand = sprintf('%s',calltoSortdata,handles.rawData,''' ,''',handles.sortedData,''');" &');
 
 unix(sortCommand);
 display('Load your training maps')
@@ -145,58 +144,25 @@ guidata (hObject,handles);
 
 % ---------- Executes on button press in "Load Inspired Maps" -------------
 
-function Load_inspired_maps_Callback(hObject, ~, handles)
+function Load_training_data_Callback(hObject, ~, handles)
 %Load_inspired_maps_Callback : 
 %
 % - Construct instance of ShimUse
-% - Convert dicom files into Matlab data to construct phase and magnitude images
+% - Convert dicom files into Matlab data to construct magnitude images
 % - Display these images on the GUI interface
 %--------------------------------------------------------------------------
 
 
-%Reverse polarization for the shims ---------------------------------------
-handles.Shims.Opt.img = -handles.Shims.Opt.img ;
+handles.Shims.loadtrainingdata();
+display(handles.Shims.Data.Img{1,1,1});
 
-imgArrayInspired = cell(1 , 2);  % Declaration of a cell array to save inspired field and magnitude maps
-
-%Loading of Magnitude Maps-------------------------------------------------
-
-display('Select folder with magnitude maps in inspired state')
-if handles.sortedData==' '
-    handles.pathtomagInspired=uigetdir(); %User select folder with dicom files from inspired magnitude maps
-else
-handles.pathtomagInspired=uigetdir(handles.sortedData);
-end
-imgArrayInspired{1,1} = MaRdI( handles.pathtomagInspired ) ; %Call MaRdI class to extract maps from dicomfiles
-
-
-%Loading of Phase Maps-----------------------------------------------------
-
-display('Select folder with phase maps in inspired state')
-if handles.sortedData==' '
-    handles.pathtophaseInspired=uigetdir(); %User select folder with dicom files from inspired phase maps
-else
-handles.pathtophaseInspired = uigetdir(handles.sortedData);
-end
-imgArrayInspired{1,2} = MaRdI(handles.pathtophaseInspired) ; %Call MaRdI class to extract maps from dicomfiles
-
-
-
-handles.fieldInspired = ShimOpt.mapfield( imgArrayInspired, handles.Params ) ;
-display('Loading Inspired Fieldmap--------------> Done');
-
-handles.magInspired = imgArrayInspired{1,1};
-display('Loading Inspired Magnitudes --------------> Done');
-
-
-%Definition of new variables from the fieldmaps----------------------------
-
-handles.Params.scaling = [min(handles.fieldInspired.img(:)) max(handles.fieldInspired.img(:))]; 
-handles.dim = size(handles.fieldInspired.img);                             %Dimension of the fieldmaps
-handles.sliceSelected=round(handles.dim(3)*0.5);                           %Slice selected : Middle of the third dimensions.                       
-handles.clear=zeros(size(handles.fieldInspired.img));                      
+                
 
 %Set the slice selected and the contrasts on the images--------------------
+
+handles.dim = size(handles.Shims.Data.Img{1,1,1}.img);                             %Dimension of the fieldmaps
+handles.sliceSelected=round(handles.dim(3)*0.5);                           %Slice selected : Middle of the third dimensions.                       
+handles.clear=zeros(size(handles.Shims.Data.Img{1,1,1}.img)); 
 
 
 set(handles.sliceSelector,'value',handles.middleCursor);                                    
@@ -204,22 +170,17 @@ set(handles.Magnitude_contrast,'value',handles.middleCursor);
 set(handles.Fieldmaps_contrast,'value',handles.phaseContrast);
 set(handles.commandLine,'string',num2str(handles.sliceSelected));
 
-%Interpolation to the image grid-------------------------------------------
+ 
+handles.Shims.Data.Img{1,1,1}.img=handles.Shims.Data.Img{1,1,1}.img-handles.middleCursor;      %Use middleCursor to shift magnitude image from [0,1] to [-0.5,0.5]
 
-handles.fieldInspired.Hdr.Private_0019_1014 = [0 0 0] ;
-handles.Shims.Opt.interpolatetoimggrid( handles.fieldInspired );
 
 %Display Inspired Fieldmap ------------------------------------------------
 
-imagefield(handles.fieldInspired,handles.Fieldmaps,handles);
+imagemag(handles.Shims.Data.Img{1,1,1},handles.Fieldmaps,handles);
 
-handles.magInspired.img=handles.magInspired.img-handles.middleCursor;      %Use middleCursor to shift magnitude image from [0,1] to [-0.5,0.5]
 
-fieldParametersins=assessfielddistribution( handles.fieldInspired );       %Calculate statictical parameters from the field distribution
-handles.meanIns=strcat('Mean Abs=',num2str(fieldParametersins.meanAbs));
-handles.medianIns=strcat('Median =',num2str(fieldParametersins.median));
-handles.stdIns=strcat('Std dev =',num2str(fieldParametersins.std));
-setparameters(handles.fieldMean,handles.fieldMedian,handles.fieldStd,handles.meanIns,handles.medianIns,handles.stdIns);
+
+
 
 %Display the from the background script---------------------------
 
@@ -233,54 +194,58 @@ guidata(hObject, handles) ;
 
 % ---------- Executes on button press in "Load Expired Maps" --------------
 
-function Load_expired_maps_Callback(hObject, ~, handles)
-%Load_expired_maps_Callback :
+
+% --- Executes on button press in Process_training_data.
+function Process_training_data_Callback(hObject, eventdata, handles)
 %
 % - Convert dicom files into Matlab data to construct phase and magnitude images
 %--------------------------------------------------------------------------
+handles.Shims.Data.Aux.Tracker = cell(1,1,3) ;
+TmpTracked = ProbeTracked( ) ;
+[TmpTracked.Data.p] = TmpTracked.loadmeasurementlog( [handles.Shims.Params.dataLoadDir '20171013T150203-pressureLog-INS.bin'] ) ;
+handles.Shims.Data.Aux.Tracker{1} = TmpTracked ;
 
-imgArrayExpired = cell( 1, 2 ) ; % Declaration of a cell array to save expired field and magnitude maps
+TmpTracked = ProbeTracked( ) ;
+[TmpTracked.Data.p] = TmpTracked.loadmeasurementlog( [handles.Shims.Params.dataLoadDir '20171013T150341-pressureLog-EXP.bin'] ) ;
+handles.Shims.Data.Aux.Tracker{2} = TmpTracked ;
+
+TmpTracked = ProbeTracked( ) ;
+[TmpTracked.Data.p] = TmpTracked.loadmeasurementlog( [handles.Shims.Params.dataLoadDir '20171013T144940-pressureLog-BreathingTest.bin'] ) ;
+handles.Shims.Data.Aux.Tracker{3} = TmpTracked ;
+
+handles.Shims.processtrainingdata();
 
 
-%Loading of Magnitude Maps ------------------------------------------------
-display('Select folder with magnitude maps in expired state')
-if handles.sortedData==' '
-    handles.pathtomagExpired=uigetdir();  %User select folder with dicom files from expired magnitude maps
-else
-handles.pathtomagExpired=uigetdir(handles.sortedData);
-end
-imgArrayExpired{1,1} = MaRdI( handles.pathtomagExpired ) ;
+%Definition of new variables from the fieldmaps----------------------------
 
-%Loading of Phase Maps  ---------------------------------------------------
-display('Select folder with phase maps in expired state')
-if handles.sortedData==' '
-    handles.pathtophaseExpired=uigetdir();  %User select folder with dicom files from expired phase maps
-else
-handles.pathtophaseExpired=uigetdir(handles.sortedData);
-end
-imgArrayExpired{1,2} = MaRdI( handles.pathtophaseExpired ) ;
+handles.Params.scaling = [min(handles.Shims.Data.Img{1,3,1}.img) max(handles.Shims.Data.Img{1,3,1}.img)]; 
+handles.totalVoi=handles.Shims.Params.cordVoi;
 
-handles.fieldExpired = ShimOpt.mapfield( imgArrayExpired, handles.Params ) ;
-display('Loading Expired Fieldmap  --------------> Done');
+handles.Params.shimVoi = handles.Shims.Opt.getvaliditymask({handles.Shims.Data.Img{1,3,1}, handles.Shims.Data.Img{1,3,2}});
 
-handles.magExpired = imgArrayExpired{1,1};
-display('Loading Expired Magnitudes --------------> Done');
+ for j=1:handles.dim(3)    
+     handles.bound{j}=bwboundaries(handles.totalVoi(:,:,j));        
+ end
+    
 
 %Declaration of the field distribution parameters -------------------------
 
-fieldParametersexp=assessfielddistribution( handles.fieldExpired );
-handles.meanExp=strcat('Mean Abs=',num2str(fieldParametersexp.meanAbs));
-handles.medianExp=strcat('Median =',num2str(fieldParametersexp.median));
-handles.stdExp=strcat('Std dev =',num2str(fieldParametersexp.std));
+fieldParametersexp=handles.Shims.Data.Img{1,3,1}.assessfielddistribution(handles.Shims.Params.cordVoi);
+handles.meanIns=strcat('Mean Abs=',num2str(fieldParametersexp.meanAbs));
+handles.medianIns=strcat('Median =',num2str(fieldParametersexp.median));
+handles.stdIns=strcat('Std dev =',num2str(fieldParametersexp.std));
+setparameters(handles.fieldMean,handles.fieldMedian,handles.fieldStd,handles.meanIns,handles.medianIns,handles.stdIns);
 
-handles.magExpired.img=handles.magExpired.img-handles.middleCursor;        %Use middleCursor to shift magnitude range from [0,1] to [-0.5,0.5]
+imagefield(handles.Shims.Data.Img{1,3,1},handles.Fieldmaps,handles);
+imagefieldroi(handles.Shims.Data.Img{1,3,1},handles.Roi,handles.totalVoi(:,:,handles.sliceSelected),handles);
 
-%Feedback from the background script --------------------------------------
 
-%feedback=fopen('background');
-%a=fscanf(feedback,'%c');
-%disp(a);
-%fclose(feedback);
+
+%fieldParametersins=assessfielddistribution( handles.Shims.Data.Img{1,1,1}.img);       %Calculate statictical parameters from the field distribution
+%handles.meanIns=strcat('Mean Abs=',num2str(fieldParametersins.meanAbs));
+%handles.medianIns=strcat('Median =',num2str(fieldParametersins.median));
+%handles.stdIns=strcat('Std dev =',num2str(fieldParametersins.std));
+
 
 guidata(hObject, handles) ;
 
@@ -676,18 +641,17 @@ function Generate_predicted_maps_Callback(hObject, ~, handles)
 %--------------------------------------------------------------------------
 
 %Set original parameters for shim optimization-----------------------------
-handles.Shims.Opt.setoriginalfield( handles.fieldInspired ) ;
+handles.Shims.Opt.setoriginalfield( handles.Shims.Data.Img{1,3,1}.img ) ;
 handles.Shims.Opt.setshimvolumeofinterest( handles.Params.shimVoi) ;
 
 %Shim currents optimization -----------------------------------------------
-if (handles.fieldExpired ~=0)
 handles.Params.isSolvingAugmentedSystem    = true ;
 handles.Params.isPenalizingFieldDifference = true;
 handles.Params.regularizationParameter     = 0 ;
-[handles.Params.Inspired.currents, handles.Params.Expired.currents] = handles.Shims.Opt.optimizeshimcurrents( handles.Params, handles.fieldExpired ) ;
-else
-[handles.Params.Inspired.currents] = handles.Shims.Opt.optimizeshimcurrents(handles.Params) ;
-end
+
+
+handles.Shims.Opt.optimizeshimcurrents( handles.Shims.Params) ;
+
     
 handles.Shims.Opt.Model.currents   =  handles.Params.Inspired.currents ;
 
@@ -956,7 +920,7 @@ guidata (hObject,handles);
         switch handles.itemSelected
             
                 case 'Phase/Inspired'
-                    imagefieldroi(handles.fieldInspired,handles.Roi,handles.totalVoi(:,:,handles.sliceSelected),handles);  
+                    imagefieldroi(handles.Shims.Data.Img{1,3,1},handles.Roi,handles.totalVoi(:,:,handles.sliceSelected),handles);  
                     setparameters(handles.voiMean,handles.voiMedian,handles.voiStd,handles.meanRoi,handles.medianRoi,handles.stdRoi)
                 case 'Phase/Expired'
                     imagefieldroi(handles.fieldExpired,handles.Roi,handles.totalVoi(:,:,handles.sliceSelected),handles);   
@@ -1046,10 +1010,10 @@ function Send_current_Callback(hObject, ~, handles)
 
 %Conversion of the shim currents------------------------------------------
 
-handles.convertedCurrents = handles.Shims.Com.ampstodac(handles.currents,handles.Params.feedbackcalibrationcoeffx,handles.Params.feedbackcalibrationcoeffy); 
-handles.valuetoSend=round(handles.convertedCurrents);
+%handles.convertedCurrents = handles.Shims.Com.ampstodac(handles.currents,handles.Params.feedbackcalibrationcoeffx,handles.Params.feedbackcalibrationcoeffy); 
+%handles.valuetoSend=round(handles.convertedCurrents);
 
-handles.Shims.Com.setandloadallshims(handles.valuetoSend);
+handles.Shims.Com.setandloadallshims(handles.currents);
 
 
 guidata (hObject,handles);
@@ -1104,13 +1068,13 @@ function Calibration_Callback(hObject, ~, handles)
      f1=fit(calibrationref,calibrationvalues(:,i),'poly1');
 
      feedbackcoeff= coeffvalues(f1);
-     handles.Params.feedbackcalibrationcoeffx(i)=feedbackcoeff(1);
-     handles.Params.feedbackcalibrationcoeffy(i)=feedbackcoeff(2);
+     handles.Shims.Com.feedbackcalibrationcoeffx(i)=feedbackcoeff(1);
+     handles.Shims.Com.feedbackcalibrationcoeffy(i)=feedbackcoeff(2);
  end
  %Conversion of the shim currents with new coefficients -------------------
  
  if ~isempty(handles.predictedfieldInspired)
-    handles.convertedCurrents = handles.Shims.Com.ampstodac(handles.currents,handles.Params.feedbackcalibrationcoeffx,handles.Params.feedbackcalibrationcoeffy); 
+    handles.convertedCurrents = handles.Shims.Com.ampstodac(handles.currents,handles.Shims.Com.feedbackcalibrationcoeffx,handles.Shims.Com.feedbackcalibrationcoeffy); 
     handles.valuetoSend=round(handles.convertedCurrents);
  end
  dateandtime=sprintf('%s',datetime);
@@ -1118,9 +1082,9 @@ function Calibration_Callback(hObject, ~, handles)
  diaryName=strcat(dateandtime,'_Correction_coefficient');
  diary(diaryName);
  display('Feedback coeff X :')
- display(handles.Params.feedbackcalibrationcoeffx);
+ display(handles.Shims.Com.feedbackcalibrationcoeffx);
  display('Feedback coeff Y :')
- display(handles.Params.feedbackcalibrationcoeffy);
+ display(handles.Shims.Com.feedbackcalibrationcoeffy);
  diary(diaryName);
  display('Ready to send currents');
 
@@ -1186,7 +1150,7 @@ function imagemag(Field,ax,handles)
              imageToPlot = Field.img(:,:,handles.sliceSelected);
              imagesc(imageToPlot,'parent',ax);
              colormap(ax,gray);
-             caxis(ax,handles.limitsMag);
+             %caxis(ax,handles.limitsMag);
              colorbar(ax);
              
 function imagemagroi(Field,ax,mask,handles)
@@ -1552,3 +1516,5 @@ coeff2=handles.Params.feedbackcalibrationcoeffy(handles.channelNumber);
 handles.Shims.Com.setandloadshim(handles.channelNumber,handles.manualCurrent,coeff1,coeff2); 
 
 display('Channel Updated');
+
+

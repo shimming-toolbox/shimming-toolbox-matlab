@@ -1,40 +1,10 @@
-classdef ShimCalUnfPrisma < ShimCal 
-%SHIMCALC - Shim Calibration 
+classdef ShimCal_IUGM_Prisma_fit < ShimCal 
+%SHIMCAL_IUGM_PRISMA_FIT - Shim Calibration 
 %
-% .......
-% 
-% Usage
-%
-% Shim = ShimCal( )
-%
-%   Shim contains fields
-%
-%       .img
-%           Shim reference maps (4d array) [units: Hz/mV]
-%
-%       .Hdr
-%           Info re: calibration data
-%           (e.g. Hdr.MaskingImage defines the spatial support of the ref maps)
-%
+% ShimCal_IUGM_Prisma_fit is a ShimCal subclass 
 %
 % =========================================================================
-% Notes
-%
-% Part of series of classes pertaining to shimming:
-%
-%    Tracking
-%    ShimCal
-%    ShimCom
-%    ShimOpt
-%    ShimSpecs
-%    ShimUse
-%    ShimTest 
-%     
-% 
-% ShimCal is a MaRdI subclass [ShimCal < MaRdI]
-%
-% =========================================================================
-% Updated::20171116::ryan.topfer@polymtl.ca
+% Updated::20180325::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
@@ -46,130 +16,28 @@ end
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimCalUnfPrisma( Params )
+function Shim = ShimCal_IUGM_Prisma_fit( Params )
 %SHIMCAL - Shim calibration (i.e. reference maps) 
 
 Shim.img = [] ;
 Shim.Hdr = [] ;
 
 if nargin < 1
-    Params = ShimCalUnfPrisma.declarecalibrationparameters20171116( ) ;
+    Params = ShimCal_IUGM_Prisma_fit.declarecalibrationparameters20180319( ) ;
 end
-
-% -------
-% map dB/dV
-% [Shim.img, Shim.Hdr] = Shim.mapdbdv( Params ) ;
 
 % -------
 % map dB/dI
-[Shim.img, Shim.Hdr] = Shim.mapdbdi( Params ) ;
+[Shim.img, Shim.Hdr] = ShimCal.mapdbdi_allchannels( Params ) ;
+
+% insert channel (not measured) for "0th order" (Larmor transmit frequency):
+tmp = zeros( size(Shim.img) + [0 0 0 1] ) ;
+tmp(:,:,:,1)     = double( Shim.Hdr.MaskingImage );
+tmp(:,:,:,2:end) = Shim.img ;
+
+Shim.img = tmp; 
 
 save( Params.filenameSave ,'Shim' );
-
-end
-% =========================================================================
-function [ img, Hdr ] = mapdbdi( Shim, Params )
-%MAPDBDV
-% 
-% [ img, Hdr ] = mapdbdv( Shim, Params  ) 
-% map dB/dI --- change in field [Hz] per unit current (A)
-% 
-% Params
-%   .reliabilityMask 
-%       binary array indicating where phase unwrapping should take place 
-img = [] ;
-Hdr = [] ;
-
-Params.DataDir = [] ;
-
-Mag     = MaRdI( Params.dataLoadDirectories{1} ) ;
-dBdIRaw = zeros( [Mag.getgridsize Params.nChannels] ) ;
-
-Params.mask = Params.reliabilityMask ;
-
-for iChannel = 1 : Params.nChannels 
-
-    for iCurrent = 1 : (Params.nCurrents)
-
-        iImg  = 4*iChannel + 2*(iCurrent-1) ;
-
-        Params.DataDir.mag( iCurrent )   = Params.dataLoadDirectories(iImg-1) ;
-        Params.DataDir.phase( iCurrent ) = Params.dataLoadDirectories(iImg) ;
-
-        % -------
-        % PROCESS GRE FIELD MAPS
-        % -------
-        ImgArray = cell( 1, 1 ) ;
-
-        ImgArray{1,1}  = MaRdI( Params.DataDir.mag{ iCurrent }  ) ;
-        ImgArray{1,2}  = MaRdI( Params.DataDir.phase{ iCurrent }  ) ;
-        
-        [Field,Extras] = FieldEval.mapfield( ImgArray, Params ) ;
-
-        fieldMaps( :,:,:, iCurrent ) = Field.img ;
-
-    end
-
-    disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
-    
-    dBdIRaw(:,:,:, iChannel) = ShimCal.mapdbdi( fieldMaps, Params.currents(iChannel,:), Params.reliabilityMask, Params ) ;  
-
-end 
-
-% -------
-% filter the dB/dI maps
-if Params.Filtering.isFiltering
-
-    disp(['Filtering dB/dI maps...'] )
-    Params.filterRadius = Params.Filtering.filterRadius ;
-
-    dBdIFiltered = zeros( size( dBdIRaw ) ) ;
-
-    Tmp = Field.copy();
-
-    for iChannel = 1 : Params.nChannels 
-
-        disp(['iChannel ' num2str(iChannel)] )
-
-        Tmp.img = dBdIRaw(:,:,:, iChannel) ;
-        [~,TmpFiltered] = Tmp.extractharmonicfield( Params ) ;
-        dBdIFiltered(:,:,:,iChannel) = TmpFiltered.img ;
-        
-
-    end
-
-    Hdr = TmpFiltered.Hdr ;
-    img = dBdIFiltered ;
-
-    if Params.Extension.isExtending
-
-        tic
-        disp(['Performing harmonic extension...']) ;
-        disp(['Channel 1 of ' num2str(Params.nChannels) ] ) ;
-
-        gridSizeImg = size( Params.reliabilityMask ) ;
-        maskFov     = ones( gridSizeImg )  ; % extended spatial support
-
-        [ ~, A, M ] = extendharmonicfield( img(:,:,:, 1) , maskFov, Hdr.MaskingImage, Params.Extension ) ;
-
-        for iChannel = 1 : Params.nChannels 
-            disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] ) ;
-
-            reducedField         = Hdr.MaskingImage .* img(:,:,:, iChannel) ;
-            extendedField        = reshape( M'*A*reducedField(:), gridSizeImg ) ;
-            img(:,:,:, iChannel) = extendedField + reducedField ;
-        end
-
-        Hdr.MaskingImage = (sum(abs(img),4))~=0 ; % extended spatial support
-
-        toc
-
-    end
-
-else
-    Hdr = ImgArray{1,2}.Hdr ;
-    img = dBdIRaw ;
-end
 
 end
 % =========================================================================
@@ -180,8 +48,8 @@ end
 % =========================================================================
 methods(Static)
 % =========================================================================
-function Params = declarecalibrationparameters20171116( )
-%DECLARECALIBRATIONPARAMETERS20171018 
+function Params = declarecalibrationparameters20180319( )
+%DECLARECALIBRATIONPARAMETERS20180319
 % 
 % Initializes parameters for shim reference map construction (i.e. shim calibration)
 
@@ -207,7 +75,7 @@ Params.dataLoadDirectories = Params.dataLoadDirectories{1}; % not sure why this 
 fclose(fileIn);
 % NB: zero-current acquisition assumed to be the first 2 directories (mag, phase)
 
-Params.filenameSave = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/UnfPrismaShimReferenceMaps20171116' ;
+Params.filenameSave = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20180325' ;
 
 Params.Filtering.isFiltering  = true ;
 Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
@@ -224,6 +92,7 @@ Params.Extension.isExtending = true ; % harmonic field extrapolation
 Params.Extension.voxelSize = voxelSize ;
 Params.Extension.radius     = 6 ;
 
+Params.unwrapper = 'AbdulRahman_2007' ;        
 
 end
 % =========================================================================

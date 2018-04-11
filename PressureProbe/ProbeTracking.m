@@ -1,4 +1,4 @@
-classdef ProbeTracking < AuxTracking
+classdef ProbeTracking < ProbeTracked & AuxTracking 
 % PROBETRACKING - Respiratory probe for real-time shimming 
 %
 % Aux = PROBETRACKING(  )
@@ -56,12 +56,27 @@ if nargin < 1
     Specs = [] ;
 end
 
-
 [Aux.ComPort, Aux.Specs] = ProbeTracking.declareprobe( Specs ) ;
 
 Aux.Data.p = [];
 
+if isempty( Aux.ComPort )
+    % return ProbeTracked object instead?
+end
+
 end    
+% =========================================================================
+function [AuxInert] = copyinert( Aux )
+%COPYINERT  
+% 
+% Aux = COPYINERT( Aux )
+
+AuxInert = ProbeTracked(  ) ; % or just allow that constructor to accept ProbeTracking as an input and copy the fields...
+
+AuxInert.Data     = Aux ;
+AuxInert.Specs.dt = Aux.Specs.dt ;
+
+end
 % =========================================================================
 function [] = delete( Aux )
 %DELETE  
@@ -144,19 +159,6 @@ function [] = stoptracking( Aux )
 % fclose( Aux.ComPort )
 
 fclose(Aux.ComPort);
-
-end
-% =========================================================================
-function [weightedAvg] = calculateweightedaverage( Aux, normalizedWeights )
-%CALCULATEWEIGHTEDAVERAGE
-%
-% weightedAvg = CALCULATEWEIGHTEDAVERAGE( Aux, normalizedWeights )
-% 
-% weightedAvg = normalizedWeights .* ... 
-%    Aux.Data.p( (end-(numel(normalizedWeights)-1)) : end) ;
-
-weightedAvg = normalizedWeights .* ...
-    Aux.Data.p( (end-(numel(normalizedWeights)-1)) : end) ;
 
 end
 % =========================================================================
@@ -431,14 +433,14 @@ function [ComPort, AuxSpecs] = declareprobe( AuxSpecs )
 %       elseif isunix
 %           portName = '/dev/ttyS100'
 
-ShimUse.display( ['\n----- Pressure probe -----\n'] );
+ShimUse.customdisplay( ['\n----- Pressure probe -----\n'] );
 
 MIN_ARDUINOPERIOD     = 10 ; % [units: ms] 
 DEFAULT_ARDUINOPERIOD = 10 ; % [units: ms] 
 DEFAULT_BAUDRATE      = 115200 ;
 
 if nargin < 1 || isempty(AuxSpecs)
-    ShimUse.display('Default parameters will be used:')
+    ShimUse.customdisplay('Default parameters will be used:')
     AuxSpecs.dummy = [] ;
 end
 
@@ -501,9 +503,9 @@ if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
         listOfDevices = dir( '/dev/tty.usbmodem*' ) ;
 
         if isempty(listOfDevices) 
-            ShimUse.display( 'Error: Device file not found. Check USB device is connected.' ) ;
+            ShimUse.customdisplay( 'Error: Device file not found. Check USB device is connected.' ) ;
         elseif length(listOfDevices) ~= 1, ...
-            ShimUse.display( ['Error: Ambiguous device identifier.' ...
+            ShimUse.customdisplay( ['Error: Ambiguous device identifier.' ...
                 'Enter device file name as function argument. See HELP AuxAuxTracking.declareprobe.'] ) ;
         else
             isAssigningSerialPort = true ;
@@ -533,7 +535,7 @@ end
 if isAssigningSerialPort
     ComPort = serial( AuxSpecs.portName, 'BaudRate',  AuxSpecs.baudRate ) ;
 
-    ShimUse.display( [ 'Arduino sampling frequency = ' ...
+    ShimUse.customdisplay( [ 'Arduino sampling frequency = ' ...
         num2str(1000/AuxSpecs.dt) ' Hz'] )
     % ComPort = serial( AuxSpecs.portName, ...
     %   'InputBufferSize', 8 ) ; % 2x 32-bit floats
@@ -543,81 +545,7 @@ end
 
 end
 % =========================================================================
-function [pressureLog, sampleTimes] = loadpressurelog( pressureLogFilename, sampleTimesFilename )
-%LOADPRESSURELOG
-% 
-% Wraps to AuxTracking.loadmeasurementlog()
-%
-% pressureLog                = LOADPRESSURELOG( pressureLogFilename ) ;
-% [pressureLog, sampleTimes] = LOADPRESSURELOG( pressureLogFilename, sampleTimesFilename )
 
-if nargin < 1
-    error( 'Insufficient arguments. Must provide full path to pressure log .bin file.' ) ;
-else
-    if nargin == 1
-        [pressureLog] = AuxTracking.loadmeasurementlog( pressureLogFilename ) ;
-    elseif nargin == 2
-        [pressureLog, sampleTimes] = ...
-            AuxTracking.loadmeasurementlog( pressureLogFilename, sampleTimesFilename ) ;
-    end
-end
-
-end
-% =========================================================================
-function [] = plotpressurelog( pressureLog, Params )
-%PLOTPRESSURELOG
-% 
-% Wraps to AuxTracking.plotmeasurementlog()
-%
-% PLOTPRESSURELOG( pressureLog ) ;
-% PLOTPRESSURELOG( pressureLog, Params )
-%
-% Supported fields to Params struct
-%
-%   .figureTitle
-%       [default: 'Pressure log']
-%
-%   .sampleTimes
-%       vector (length == length(pressureLog)) of sample times in seconds
-
-DEFAULT_FIGURETITLE = 'Pressure log' ;
-DEFAULT_YLABEL      = 'Pressure (kPa)' ;
-
-if nargin < 1
-    error( 'Insufficient arguments. Must provide measurement log vector.' ) ;
-end
-
-if nargin == 1 || isempty( Params ) 
-    Params.dummy = [] ;
-end
-
-if ~myisfield( Params, 'figureTitle' ) || isempty( Params.figureTitle ) 
-    Params.figureTitle = DEFAULT_FIGURETITLE ;
-end
-
-if ~myisfield( Params, 'yLabel' ) || isempty( Params.yLabel ) 
-    Params.yLabel = DEFAULT_YLABEL ;
-end
-
-AuxTracking.plotmeasurementlog( pressureLog, Params ) ;
-
-end
-% =========================================================================
-function [medianPressure] = userselectmedianpressure( pressureLog )
-% USERSELECTMEDIANPRESSURE 
-%
-% Wraps to AuxTracking.userselectmedianmeasurement()
-%
-% medianPressure = USERSELECTMEDIANPRESSURE( pressureLog ) 
-%
-% Plots pressureLog and the user selects START and END (apnea) indices over
-% which to calculate the median. The median pressure is superposed over the
-% pressureLog graph and the user is asked if the result is satisfactory (or
-% redo).
-
-medianPressure = AuxTracking.userselectmedianmeasurement( pressureLog )
-
-end
 % =========================================================================
 
 end

@@ -1,5 +1,14 @@
-classdef Aux 
+classdef Aux < matlab.mixin.SetGet
 % AUX - Auxiliary data/measurement(s) associated with a MaRdI instance
+% 
+% for now, the only valid "Aux" objects are ProbeTracking & ProbeTracked
+% (the home-built respiratory probe)
+% however, other possiblilities exist for future implementation:
+% e.g.
+% -TTL watchdog for slicewise shimming
+% -resp bellows from the PMU (which may have a very different implementation to the homebuilt system)
+% -some sort of image-file (e.g. socket) or measurement-data (e.g. nav) watchdog?
+% -perhaps even other sorts of images might be linked here?
 %
 % AuxObj = Aux(  )
 %
@@ -37,14 +46,17 @@ classdef Aux
 % =========================================================================
 
 % *** TODO 
-%
+% 
+% Not sure how general the methods would be so there aren't any for now.
 % ..... 
+% 
+% How is Aux.Specs.state managed?
 %
 % =========================================================================
 
 properties   
     Data ;
-    Specs ;
+    Specs ; % state = {active, inactive, inert, void}
     Params ;
 end
 
@@ -52,11 +64,12 @@ end
 % =========================================================================
 methods
 % =========================================================================
-function Aux = AuxTracking( Specs )
+function Aux = Aux( Specs )
 %TRACKING  
 
 if nargin < 1
     Specs = [] ;
+    Specs.state = 'void' ;
 end
 
 Aux.Specs  = Specs ;
@@ -66,202 +79,29 @@ Aux.Data.p = [] ;
 
 end    
 % =========================================================================
-function [predictedMeasurement] = predictmeasurement( Aux, delay, order )
-% PREDICTMEASUREMENT
-% 
-% pPredicted = PREDICTMEASUREMENT( Aux, delay, p0, dpdt ) 
-% pPredicted = PREDICTMEASUREMENT( Aux, delay, p0, dpdt, d2pdt2 ) 
-%
-% delay
-%   [units: ms]
-
-
-if nargin < 3
-    predictedMeasurement = Aux.Data.p( end ) ; % 0th order prediction 
-    return;
-elseif nargin == 3
-    order = 0;
-elseif nargin == 4
-    order = 1;
-elseif nargin == 5
-    order = 2;
-end
-
-predictedMeasurement = p0 ; % 0th order term
-
-if order >= 1  
-    
-    % 1st order Taylor expansion 
-    predictedMeasurement = predictedMeasurement + delay*dpdt ;
-
-    if order == 2
-        predictedMeasurement = predictedMeasurement + ((delay^2)/2)*d2dp2 ;
-    end 
-
-end
 
 end
 % =========================================================================
+% =========================================================================
 
-% =========================================================================
-% =========================================================================
-end
 % =========================================================================
 % =========================================================================
 methods(Abstract)
 % =========================================================================
 
-% =========================================================================
 end
+% =========================================================================
+% =========================================================================
 
+% =========================================================================
+% =========================================================================
 methods(Static)
 % =========================================================================
-function [measurementLog, sampleTimes] = loadmeasurementlog( measurementLogFilename, sampleTimesFilename )
-%LOADMEASUREMENTLOG
-% 
-% Reads binary file of data measurements (e.g. pressure recording) to return
-% vector(s) of doubles.
-%
-% measurementLog                = LOADMEASUREMENTLOG( measurementLogFilename ) ;
-% [measurementLog, sampleTimes] = LOADMEASUREMENTLOG( measurementLogFilename, sampleTimesFilename )
 
-if nargin < 1
-    error( 'Insufficient arguments. Must provide full path to measurement log .bin file.' ) ;
-
-else
-    if nargin >= 1
-        measurementLogFid = fopen( measurementLogFilename, 'r' ) ;
-        measurementLog    = fread( measurementLogFid, inf, 'double' ) ;
-        fclose( measurementLogFid );
-    end
-
-    if nargin == 2 
-        sampleTimesFid = fopen( sampleTimesFilename, 'r' ) ;
-        sampleTimes    = fread( sampleTimesFid, inf, 'double' ) ;
-        fclose( sampleTimesFid );
-    end
-end
-
-end
 % =========================================================================
-function [] = plotmeasurementlog( measurementLog, Params )
-%PLOTMEASUREMENTLOG
-%
-% PLOTMEASUREMENTLOG( measurementLog ) ;
-% PLOTMEASUREMENTLOG( measurementLog, Params )
-%
-% Supported fields to Params struct
-%
-%   .figureTitle
-%       [default: 'Pressure log']
-%
-%   .sampleTimes
-%       vector (length == length(measurementLog)) of sample times in seconds
-%
-%   .yLabel
-%       [default: 'Pressure (kPa)']
-
-DEFAULT_FIGURETITLE = 'Pressure log' ;
-DEFAULT_YLABEL      = 'Pressure (kPa)' ;
-
-if nargin < 1
-    error( 'Insufficient arguments. Must provide measurement log vector.' ) ;
-end
-
-if nargin == 1 || isempty( Params ) 
-    Params.dummy = [] ;
-end
-
-if ~myisfield( Params, 'figureTitle' ) || isempty( Params.figureTitle ) 
-    Params.figureTitle = DEFAULT_FIGURETITLE ;
-end
-
-if ~myisfield( Params, 'yLabel' ) || isempty( Params.yLabel ) 
-    Params.yLabel = DEFAULT_YLABEL ;
-end
-
-% ------- 
-figure 
-
-if myisfield( Params, 'sampleTimes' ) && ~isempty( Params.sampleTimes ) 
-    plot( Params.sampleTimes, measurementLog, '+' ) ;
-    xlabel('Time (s)');
-else
-    plot( measurementLog, '+' ) ;
-    xlabel('Sample index');
-end
-    
-title( Params.figureTitle ) ;
-ylabel( Params.yLabel ) ;
-
-end
 % =========================================================================
-function [medianMeasure] = userselectmedianmeasurement( measurementLog )
-% USERSELECTMEDIANMEASUREMENT
-%
-%   medianMeasure = USERSELECTMEDIANMEASUREMENT( measurementLog ) 
-%
-%   Plots measurementLog and the user selects START and END (apnea) indices
-%   over which to calculate the median. The median measurement is superposed
-%   over the measurementLog graph and the user is asked if the result is 
-%   satisfactory (or redo).
-
-isUserSatisfied = false ;
-
-while ~isUserSatisfied
-
-    gcf ;
-    plot( measurementLog, '+' ) ;
-    title( 'Measure Log' ) ;
-    
-    xlabel('Sample index');
-    ylabel('Amplitude');
-    
-    apneaStartIndex = ...
-        input( ['Identify sample index corresponding to beginning of apnea ' ...
-            '([Enter] selects sample 1): '] ) ;
-    
-    if isempty(apneaStartIndex)
-        apneaStartIndex = 1;
-    end
-
-    apneaEndIndex = ...
-        input( ['Identify sample index corresponding to end of apnea ' ...
-            '([Enter] selects the last recorded sample): '] ) ;
-
-    if isempty(apneaEndIndex)
-       medianMeasure = ...
-           median( measurementLog( apneaStartIndex : end ) ) ;
-    else
-       medianMeasure = ...
-           median( measurementLog( apneaStartIndex : apneaEndIndex ) ) ;
-    end
-
-    gcf; 
-    plot( measurementLog, '+' );
-    hold on;
-    plot( medianMeasure*ones( size( measurementLog ) ) ) ;
-    title( 'Measure Log' ) ;
-    xlabel('Sample index');
-    ylabel('Amplitude');
-    legend('Measure log','Median measurement over given interval');    
-    hold off;
-
-    response = input(['Is the current median estimate satisfactory?' ...
-        '0 to re-enter the data range; 1 (or enter) to continue: ']) ;
-
-     if ~isempty(response)
-        isUserSatisfied = logical(response) ;
-     else
-         isUserSatisfied = true;
-     end
-
 end
 
-end
-% =========================================================================
-
-end
 % =========================================================================
 % =========================================================================
 

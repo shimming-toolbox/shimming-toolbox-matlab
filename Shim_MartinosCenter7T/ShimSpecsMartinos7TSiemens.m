@@ -32,7 +32,7 @@ classdef ShimSpecsMartinos7TSiemens < ShimSpecs
 %    ShimTest 
 %    ShimUse
 %    
-%    ShimSpecsRri is a ShimSpecs subclass
+%    ShimSpecsMartinos7TSiemens is a ShimSpecs subclass
 %
 % =========================================================================
 % Updated::20170213::ryan.topfer@polymtl.ca
