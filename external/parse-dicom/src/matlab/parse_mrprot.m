@@ -150,8 +150,18 @@ for curline=1:numlines
                     fields = {fields{:}, varname, stub};
                     
                 else
-                    fprintf('parse_mrprot WARNING: unknown data type for %s (value = %s), discarding this line!!',varname, stub);
                     skip_this = true;
+                    % 20180501::ryan.topfer@polymtl.ca changed:
+                    % fprintf('parse_mrprot WARNING: unknown data type for %s (value = %s), discarding this line!!',varname, stub);
+                    % in order to suppress the constant warning messages from within MaRdI.dicominfosiemens()
+                    % The format of the displayed warning changes slightly from
+                    % the original, but by default it will still appear unless
+                    % MaRdI.dicominfosiemens() is called first (i.e. since
+                    % these warnings might still be useful -- better not to
+                    % suppress them in general!)
+                    warningStr = sprintf('parse_mrprot WARNING: unknown data type for %s (value = %s), discarding this line!!',varname, stub);
+                    warningId  = 'PARSE_MRPROT:unknownDataType' ;
+                    warning( warningId, warningStr ) ;
                 end
             end
         end

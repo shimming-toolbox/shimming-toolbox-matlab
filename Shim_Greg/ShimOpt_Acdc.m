@@ -26,50 +26,50 @@ methods
 function Shim = ShimOpt_Acdc( Params, Field )
 %SHIMOPT_ACDC - Shim Optimization
 
+Shim.img   = [] ;
+Shim.Hdr   = [] ;
+Shim.Field = [] ;       
+Shim.Model = [] ;
+Shim.Aux   = [] ;
+
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
 end
 
 Params = ShimOpt_Acdc.assigndefaultparameters( Params ) ;
 
+% .......
+% Load shim basis if provided 
+if ~isempty(Params.pathToShimReferenceMaps)
+    
 ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
         'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
 
-% Loads .mat containing Shim struct
-% which has fields
-% Shim.img              - linear dB/dI 'current-to-field' opterator
-% Shim.Hdr              - defines info like voxel locations 
-% Shim.Hdr.MaskingImage - defines spatial support of reference maps
-RefMaps = load( Params.pathToShimReferenceMaps ) ; % load shim ref maps
+    % Loads .mat: struct with fields
+    %
+    % .img 
+    %       linear dB/dI 'current-to-field' operator
+    % .Hdr
+    %       dicom Hdr from the reference map acquisition 
+    RefMaps = load( Params.pathToShimReferenceMaps ) ; 
 
-%%-----
-% dB/dI linear 'Current-to-Field' operator
-Shim.img              = RefMaps.Shim.img ;
-Shim.Hdr              = RefMaps.Shim.Hdr ;
+    %%-----
+    % dB/dI linear 'Current-to-Field' operator
+    Shim.img              = RefMaps.Shim.img ;
+    Shim.Hdr              = RefMaps.Shim.Hdr ;
 
-% if myisfield( SpineShim, 'mask' )
-%     Shim.Hdr.MaskingImage = SpineShim.mask ;
-% end
-%
-% load( Params.pathToShimReferenceMaps ) ;
+elseif ~isempty( Params.dataLoadDirectories )
+   
+   [ Shim.img, Shim.Hdr ] = ShimOpt.mapdbdi( Params ) ;
 
-Shim.Field = [ ] ;       
-Shim.Model = [ ] ; 
+end
+
+
 Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
 if (nargin == 2) && (~isempty(Field))
     
-    Shim = Shim.setoriginalfield( Field ) ;
-    
-    if Params.isInterpolatingReferenceMaps
-        
-        Shim = interpolatetoimggrid( Shim, Field ) ;
-        Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
-
-    end
-
-else
-    Shim.Field = [ ] ; % user can assign later via Shim.setoriginalfield() 
+    Shim.setoriginalfield( Field ) ;
 
 end
 
@@ -153,8 +153,6 @@ function  [ Params ] = assigndefaultparameters( Params )
 DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Acdc/Calibration/data/ShimReferenceMaps_Acdc_20180326.mat';
 DEFAULT_PROBESPECS              = [] ;
 
-DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
-
 DEFAULT_INSTITUTIONNAME = 'IUGM' ;
 DEFAULT_STATIONNAME     = 'MRC35049' ;
 
@@ -164,10 +162,6 @@ end
 
 if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
    Params.TrackerSpecs = DEFAULT_PROBESPECS ;
-end
-
-if ~myisfield( Params, 'isInterpolatingReferenceMaps' ) || isempty(Params.isInterpolatingReferenceMaps)
-   Params.isInterpolatingReferenceMaps = DEFAULT_ISINTERPOLATINGREFERENCEMAPS ;
 end
 
 if ~myisfield( Params, 'InstitutionName' ) || isempty(Params.InstitutionName)

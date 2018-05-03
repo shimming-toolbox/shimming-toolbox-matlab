@@ -598,11 +598,15 @@ function [f0, g0, s0] = adjvalidateshim( Img )
 % [f0, g0, s0] = ADJVALIDATESHIM( Img )
 % 
 % ADJVALIDATESHIM is not a particularly revealing name for a function; however,
-% it is based on the Siemens AdjValidate commandline tool, with a "-shim" input argument.
+% it is based on the Siemens AdjValidate commandline tool, with a "-shim" input
+% argument.
 %
 % f0 = scalar Larmor (Tx) freq. [ units : Hz ]
-% g0 = 3-element vector of the linear gradient offsets (gX,gY,gZ) [units : DAC bits]
+% g0 = 3-element vector of the linear gradient offsets (gX, gY, gZ) [units : DAC bits]
 % s0 = 5-element vector of 2nd order shim currents [units : mA] 
+%
+% To convert to the units of the 3D Shim card on the Siemens (Prisma) console,
+% see ShimOpt_IUGM_Prisma_fit.converttomultipole( )
 
 % Larmor (Tx) freq.
 f0 = Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency ; 
@@ -1237,8 +1241,13 @@ function [ Hdr ] = dicominfosiemens( filename  )
 Hdr = dicominfo( filename ) ;
 
 % parses additional info (e.g. "MrProt" (re: protocol))
-[Hdr.Img, Hdr.Ser, Hdr.MrProt] = parse_siemens_shadow( Hdr ) ;
+[ Hdr.Img, Hdr.Ser, Hdr.MrProt ] = parse_siemens_shadow( Hdr ) ;
 fprintf('\n') ;
+
+% parse_mrprot produces many, many warning messages (at least for DICOMs from the Prisma).
+% This should suppress all but the 1st instance:
+[ lastMsg, lastWarnId ] = lastwarn( ) ;
+warning( 'off', lastWarnId ) ;
 
 % for some reason (?) Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency appears
 % to have multiple elements, only the first is non-empty and it contains the
@@ -1249,7 +1258,7 @@ f0 = Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency  ;
 Hdr.ImagingFrequency = f0 * 1E-6 ; % [units : MHz]
 
 % absolute table position (.Hdr field doesn't exist for the socket-delivered .dcm images)
-if ~myisfield( Img.Hdr, 'Private_0019_1013' ) && ~isempty( Hdr.Img.ImaAbsTablePosition )
+if ~myisfield( Hdr.Img, 'Private_0019_1013' ) && ~isempty( Hdr.Img.ImaAbsTablePosition )
     Img.Hdr.Private_0019_1013 = Hdr.Img.ImaAbsTablePosition ; % [units : mm?]
 end
 
