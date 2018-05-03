@@ -294,6 +294,7 @@ Params.reliabilityMask = (Mag.img/max(Mag.img(:))) > 0.1 ; % region of reliable 
 Params.Extension.isExtending = true ; % harmonic field extrapolation 
 Params.Extension.voxelSize = voxelSize ;
 Params.Extension.radius     = 8 ;
+Params.Extension.expansionOrder = 2 ;
 
 Params.unwrapper = 'AbdulRahman_2007' ;        
 
