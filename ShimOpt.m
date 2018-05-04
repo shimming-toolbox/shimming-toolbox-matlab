@@ -792,17 +792,11 @@ function [currents] = optimizeshimcurrents( Shim, Specs, Params, checknonlinearc
 %
 
 % DEFAULT_REGULARIZATIONPARAMETER     = 0;
-DEFAULT_ISRETURNINGPSEUDOINVERSE    = 0;
+DEFAULT_ISRETURNINGPSEUDOINVERSE = 0;
+DEFAULT_ISREALTIMESHIMMING       = false;
 
 if nargin < 2
     error('Function requires at least 2 arguments: a ShimOpt instance, and a ShimSpecs instance')
-elseif nargin == 3
-    Params.dummy = [];
-    DEFAULT_ISREALTIMESHIMMING    = false;
-    nInputFields = 1;
-elseif nargin == 4
-    DEFAULT_ISREALTIMESHIMMING    = true;
-    nInptFields = 2;
 end
 
 if ~myisfield(Params, 'isReturningPseudoInverse') || isempty( Params.isReturningPseudoInverse ) 
@@ -823,7 +817,7 @@ end
 
 if Params.isRealtimeShimming
     assert( myisfield( Shim.Field.Model, 'Shift') && ~isempty( Shim.Field.Model.Shift.img ) ) 
-
+    
     % change to Params.minP and Params.maxP
     pIn = Params.pMax 
     pEx = Params.pMin 
