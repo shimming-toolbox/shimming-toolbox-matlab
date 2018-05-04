@@ -798,10 +798,10 @@ if nargin < 2
     error('Function requires at least 2 arguments: a ShimOpt instance, and a ShimSpecs instance')
 elseif nargin == 3
     Params.dummy = [];
-    DEFAULT_ISSOLVINGAUGMENTEDSYSTEM    = false;
+    DEFAULT_ISREALTIMESHIMMING    = false;
     nInputFields = 1;
 elseif nargin == 4
-    DEFAULT_ISSOLVINGAUGMENTEDSYSTEM    = true;
+    DEFAULT_ISREALTIMESHIMMING    = true;
     nInptFields = 2;
 end
 
@@ -813,12 +813,15 @@ if ~myisfield(Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerCh
     Params.maxCurrentPerChannel = Specs.Amp.maxCurrentPerChannel ; 
 end
 
-if ~myisfield(Params, 'isSolvingAugmentedSystem') || isempty( Params.isSolvingAugmentedSystem )
-    Params.isSolvingAugmentedSystem = DEFAULT_ISSOLVINGAUGMENTEDSYSTEM ;
-    
+if ~myisfield(Params, 'minCurrentPerChannel') || isempty( Params.minCurrentPerChannel ) 
+    Params.minCurrentPerChannel = -Params.maxCurrentPerChannel ; 
 end
 
-if Params.isSolvingAugmentedSystem
+if ~myisfield(Params, 'isRealtimeShimming') || isempty( Params.isRealtimeShimming )
+    Params.isRealtimeShimming = DEFAULT_ISREALTIMESHIMMING ;
+end
+
+if Params.isRealtimeShimming
     assert( myisfield( Shim.Field.Model, 'Shift') && ~isempty( Shim.Field.Model.Shift.img ) ) 
 
     % change to Params.minP and Params.maxP
@@ -867,7 +870,7 @@ A  = M*Shim.getshimoperator ; % masked current-to-field operator
 MA = A;
 
 
-if ~Params.isSolvingAugmentedSystem
+if ~Params.isRealtimeShimming
     
     solutionVectorLength = Specs.Amp.nActiveChannels ;
 
@@ -892,6 +895,32 @@ else
 
 end
 
+% if numel( Params.maxCurrentPerChannel ) == 1
+%
+%     Params.maxCurrentPerchannel =  Params.maxCurrentPerChannel * ones( solutionVectorLength, 1 ) ;
+%
+% else
+%     
+%     [nRows, nCols] = size( Params.maxCurrentPerChannel ) ;
+%
+%     if ( nRows == 1 ) && ( nCols > 1 )
+%
+%         Params.maxCurrentPerChannel = Params.maxCurrentPerChannel' ;
+%         
+%         [nRows, nCols] = size( Params.maxCurrentPerChannel ) ;
+%
+%     end
+%
+%     assert( mod( solutionVectorLength, nRows ) == 0 )
+%     
+%     if length( Params.maxCurrentsPerChannel ) < solutionVectorLength
+%
+%         Params.maxCurrentsPerChannel = [ Params.maxCurrentsPerChannel ; Params.maxCurrentsPerChannel ] ;
+%
+%     end
+%
+% end 
+
 % ------- 
 % Least-squares solution via conjugate gradients
 x = cgls( A'*A, ... % least squares operator
@@ -899,7 +928,7 @@ x = cgls( A'*A, ... % least squares operator
           zeros( [solutionVectorLength 1] ), ... % initial model (currents) guess
           CgParams ) ;
 
-if ~Params.isSolvingAugmentedSystem
+if ~Params.isRealtimeShimming
     
     currents = x ;
     Shim.Model.currents = x ;
@@ -929,7 +958,7 @@ if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
 
     tic
 
-    if ~Params.isSolvingAugmentedSystem
+    if ~Params.isRealtimeShimming
    
         [currents] = fmincon( ...
             @shimcost,...
@@ -938,7 +967,7 @@ if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
             [],...
             [],...
             [],...
-            -Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
+            Params.minCurrentPerChannel * ones(solutionVectorLength,1),...
             Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
             checknonlinearconstraints,...
             Options);
@@ -954,7 +983,7 @@ if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
             [],...
             [],...
             [],...
-            -Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
+            Params.minCurrentPerChannel * ones(solutionVectorLength,1),...
             Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
             @checknonlinearconstraints_riro,...
             Options);
