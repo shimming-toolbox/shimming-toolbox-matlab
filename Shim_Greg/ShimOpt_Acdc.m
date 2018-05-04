@@ -39,37 +39,13 @@ end
 Params = ShimOpt_IUGM_Prisma_fit.assigndefaultparameters( Params ) ;
 
 if Params.isCalibratingReferenceMaps
-    %TODO?
-    % rewrite as ShimOpt_IUGM_Prisma_fit.calibrateshim() ??    
+    
     Params = ShimOpt_Acdc.declarecalibrationparameters( Params ) ;
-    [ img, Hdr ] = ShimOpt.mapdbdi( Params ) ;
-    
-    disp(['Saving Acdc shim reference maps for future use: '])
-    disp( Params.pathToShimReferenceMaps ) ;
+    [ Shim.img, Shim.Hdr ] = ShimOpt_Acdc.calibratereferencemaps( Params ) ;
 
-    save( Params.pathToShimReferenceMaps, 'img', 'Hdr' ) ;
-    
-    Shim.img = img ;
-    Shim.Hdr = Hdr ;
+elseif ~isempty( Params.pathToShimReferenceMaps )
 
-% Load shim basis if provided 
-elseif ~isempty(Params.pathToShimReferenceMaps)
-    
-    ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
-        'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
-
-    % Loads .mat: struct with fields
-    %
-    % .img 
-    %       linear dB/dI 'current-to-field' operator
-    % .Hdr
-    %       dicom Hdr from the reference map acquisition 
-    RefMaps = load( Params.pathToShimReferenceMaps ) ; 
-
-    assert( myisfield( RefMaps, 'img' ) && myisfield( RefMaps, 'Hdr' ), ...
-        [ 'Contents of ' Params.pathToShimReferenceMaps ' are invalid.'] ) ;
-    Shim.img = RefMaps.img ;
-    Shim.Hdr = RefMaps.Hdr ;
+    [ Shim.img, Shim.Hdr ] = ShimOpt.loadshimreferencemaps( Params.pathToShimReferenceMaps )   
 
 end
 
@@ -285,7 +261,6 @@ Params.Extension.radius     = 8 ;
 Params.unwrapper = 'AbdulRahman_2007' ;        
 
 end
-
 % =========================================================================
 
 end

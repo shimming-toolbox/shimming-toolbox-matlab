@@ -1321,11 +1321,51 @@ end
 
 end
 % =========================================================================
+function [ img, Hdr ] = calibratereferencemaps( Params )
+%CALIBRATEREFERENCEMAPS
+% 
+% Wraps to ShimOpt.mapdbdi( ) and writes output to disk
+% 
+% [ img, Hdr ] = CALIBRATEREFERENCEMAPS( Params )
+
+[ img, Hdr ] = ShimOpt.mapdbdi( Params ) ;
+
+disp(['Saving shim reference maps for future use: '])
+disp( Params.pathToShimReferenceMaps ) ;
+
+save( Params.pathToShimReferenceMaps, 'img', 'Hdr' ) ;
+
+end
+% =========================================================================
 
 end
 % =========================================================================
 % =========================================================================
-methods(Abstract)
+methods(Static=true)
+% =========================================================================
+function [ img, Hdr ] = loadshimreferencemaps( pathToShimReferenceMaps )
+%LOADSHIMREFERENCEMAPS
+%
+% [ img, Hdr ] = LOADSHIMREFERENCEMAPS( filename )
+
+ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
+        'Loading shim reference maps from ' pathToShimReferenceMaps '\n\n']) ;
+
+% Loads .mat: struct with fields
+%
+% .img 
+%       linear dB/dI 'current-to-field' operator
+% .Hdr
+%       dicom Hdr from the reference map acquisition 
+RefMaps = load( pathToShimReferenceMaps ) ; 
+
+assert( myisfield( RefMaps, 'img' ) && myisfield( RefMaps, 'Hdr' ), ...
+    [ 'Deprecated format. Contents of ' pathToShimReferenceMaps ' are invalid.'] ) ;
+
+img = RefMaps.img ;
+Hdr = RefMaps.Hdr ;
+
+end
 % =========================================================================
 
 % =========================================================================

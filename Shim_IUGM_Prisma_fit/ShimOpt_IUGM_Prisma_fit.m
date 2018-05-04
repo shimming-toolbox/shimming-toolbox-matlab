@@ -2,7 +2,7 @@ classdef ShimOpt_IUGM_Prisma_fit < ShimOpt
 %SHIMOPTUNFPRISMA - Shim Optimization for Prisma-fit @ UNF 
 %     
 % =========================================================================
-% Updated::20180414::ryan.topfer@polymtl.ca
+% Updated::20180503::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -37,64 +37,24 @@ end
 Params = ShimOpt_IUGM_Prisma_fit.assigndefaultparameters( Params ) ;
 
 if Params.isCalibratingReferenceMaps
-    %TODO?
-    % rewrite as ShimOpt_IUGM_Prisma_fit.calibrateshim() ??    
+
     Params = ShimOpt_IUGM_Prisma_fit.declarecalibrationparameters( Params ) ;
-    [ img, Hdr ] = ShimOpt.mapdbdi( Params ) ;
-    
-    % insert channel (not measured) for "0th order" (Larmor transmit frequency):
-    tmp = zeros( size(img) + [0 0 0 1] ) ;
-    tmp(:,:,:,1)     = double( Hdr.MaskingImage ); % assigning the same support as the other channels
-    tmp(:,:,:,2:end) = img ;
+    [ Shim.img, Shim.Hdr ] = ShimOpt_IUGM_Prisma_fit.calibratereferencemaps( Params ) ;
 
-    img = tmp;
-
-    % DICOM .Hdr.Private_0019_1013 
-    %
-    % Describes the absolute table position of the reference maps.  This is
-    % used in ShimOpt.interpolatetoimggrid( ) to account for variable table
-    % positioning relative to ISO, but, since the scanner shims are fixed in place:
-    Hdr.Private_0019_1013 = [] ;
-    
-    disp(['Saving IUGM_Prisma_fit shim reference maps for future use: '])
-    disp( Params.pathToShimReferenceMaps ) ;
-
-    save( Params.pathToShimReferenceMaps, 'img', 'Hdr' ) ;
-    
-    Shim.img = img ;
-    Shim.Hdr = Hdr ;
-
-
-% Load shim basis if provided 
 elseif ~isempty(Params.pathToShimReferenceMaps)
-    
-    ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
-        'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
+   
+   [ Shim.img, Shim.Hdr ] = ShimOpt.loadshimreferencemaps( Params.pathToShimReferenceMaps ) ; 
 
-    % Loads .mat: struct with fields
-    %
-    % .img 
-    %       linear dB/dI 'current-to-field' operator
-    % .Hdr
-    %       dicom Hdr from the reference map acquisition 
-    RefMaps = load( Params.pathToShimReferenceMaps ) ; 
-
-    assert( myisfield( RefMaps, 'img' ) && myisfield( RefMaps, 'Hdr' ), ...
-        [ 'Contents of ' Params.pathToShimReferenceMaps ' are invalid.'] ) ;
-    Shim.img = RefMaps.img ;
-    Shim.Hdr = RefMaps.Hdr ;
+    % DICOM Hdr.Private_0019_1013 describes the absolute table position (of the
+    % reference maps).  It's used in ShimOpt.interpolatetoimggrid() to account for
+    % variable table positioning, but for the scanner shims the field shift
+    % doesn't depend on table position, so, (in case it's not already empty) :
+    Shim.Hdr.Private_0019_1013 = [] ;
 
 end
 
 Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
-% DICOM .Hdr.Private_0019_1013 
-%
-% Describes the absolute table position (of the reference maps). 
-% Used in ShimOpt.interpolatetoimggrid() to account for variable table positioning,
-% but for the scanner shims the field shift doesn't depend on table position, so:
-
-Shim.Hdr.Private_0019_1013 = [] ;
 
 if (nargin == 2) && (~isempty(Field))
     
@@ -173,7 +133,7 @@ function  [ Params ] = assigndefaultparameters( Params )
 
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20180325';
+DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20180502';
 DEFAULT_PROBESPECS              = [] ;
 
 if ~myisfield( Params, 'isCalibratingReferenceMaps' ) || isempty(Params.isCalibratingReferenceMaps)
@@ -190,6 +150,7 @@ if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimR
     else
         Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
     end
+
 end
 
 if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
@@ -300,6 +261,48 @@ Params.unwrapper = 'AbdulRahman_2007' ;
 
 end
 % =========================================================================
+function [ img, Hdr ] = calibratereferencemaps( Params )
+%CALIBRATEREFERENCEMAPS
+% 
+% Wraps to ShimOpt.mapdbdi( )
+% 
+% [ img, Hdr ] = CALIBRATEREFERENCEMAPS( Params )
+%
+% Differences for ShimOpt_IUGM_Prisma_fit :
+%   
+%   1. After the actual mapping of the shim fields, the '0th' order frequency
+%   offset is added to the array stack as img(:,:,:,1) (i.e. gradient terms
+%   become img(:,:,:,2) for X, img(:,:,:,3) for Y, etc.)
+%
+%   2. Hdr.Private_0019_1013 is made empty 
+%       This field describes the absolute table position of the reference maps.
+%       It is used (i.e. for multi-coil shim arrays, for which the shim
+%       position, relative to ISO, varies with the table). Having this empty
+%       will indicate that values of these shim fields are fixed relative to ISO.
+
+[ img, Hdr ] = ShimOpt.mapdbdi( Params ) ;
+
+% insert channel (not measured) for "0th order" (Larmor transmit frequency):
+tmp = zeros( size(img) + [0 0 0 1] ) ;
+tmp(:,:,:,1)     = double( Hdr.MaskingImage ); % assigning the same support as the other channels
+tmp(:,:,:,2:end) = img ;
+
+img = tmp;
+
+% DICOM .Hdr.Private_0019_1013 
+%
+% Describes the absolute table position of the reference maps.  This is
+% used in ShimOpt.interpolatetoimggrid( ) to account for variable table
+% positioning relative to ISO, but, since the scanner shims are fixed in place:
+Hdr.Private_0019_1013 = [] ;
+
+disp(['Saving shim reference maps for future use: '])
+disp( Params.pathToShimReferenceMaps ) ;
+
+save( Params.pathToShimReferenceMaps, 'img', 'Hdr' ) ;
+
+end
+% =========================================================================
 
 end
 % =========================================================================
@@ -363,4 +366,3 @@ end
 % =========================================================================
 
 end
-
