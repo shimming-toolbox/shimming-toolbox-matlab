@@ -44,9 +44,13 @@ classdef (Abstract) ShimOpt < FieldEval
 %           Object of type MaRdI pertaining to field distribution to be shimmed
 %
 %       .Aux
-%           [default : isempty(Shim.Aux)]
-%           When Shim does not itself refer to the scanner shims, then .Aux 
-%           is a ShimOpt object corresponding to the MRI host system.
+%           .Shim
+%               When Shim does not itself refer to the scanner shims, then .Aux 
+%               is a ShimOpt object corresponding to the MRI host system.
+%           
+%           .Tracker
+%               Object of type Tracking (e.g ProbeTracking, NavTracking)
+%
 %
 %       .Model
 %           .currents  
@@ -63,9 +67,6 @@ classdef (Abstract) ShimOpt < FieldEval
 %               For realtime shimming, vector of "y-intercept" currents 
 %               (i.e. currents when Tracker.Data.p = 0)
 %               [units A]
-%
-%       .Tracker
-%           Object of type Tracking (e.g ProbeTracking, NavTracking)
 %
 % =========================================================================
 % Notes
@@ -124,8 +125,8 @@ classdef (Abstract) ShimOpt < FieldEval
 properties
     Field ; % object of type FieldEval
     % Model ; % Modeled quantities for shimming
-    Tracker ; % object of type Tracking (e.g. ProbeTracking)
     ShimmedField; % object of type FieldEval 
+    Tracker;
 end
 
 % =========================================================================
@@ -135,10 +136,11 @@ methods
 function Shim = ShimOpt( Params, Field )
 %SHIMOPT - Shim Optimization
 
-Shim.img = [];
-Shim.Hdr = [];
-Shim.Model = [ ] ; 
-Shim.Aux = []; 
+Shim.img   = [] ;
+Shim.Hdr   = [] ;
+Shim.Field = [] ;  
+Shim.Model = [] ;
+Shim.Aux   = [] ;
 
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
@@ -149,33 +151,31 @@ Params = ShimOpt.assigndefaultparameters( Params ) ;
 % .......
 % Load shim basis if provided 
 if ~isempty(Params.pathToShimReferenceMaps)
-    ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
-            'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
+    
+ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
+        'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
 
-    load( Params.pathToShimReferenceMaps ) ;
-    % Loads .mat containing Shim struct
-    % which has fields
-    % Shim.img              - linear dB/dI 'current-to-field' opterator
-    % Shim.Hdr              - defines info like voxel locations 
-    % Shim.Hdr.MaskingImage - defines spatial support of reference maps
+    % Loads .mat: struct with fields
+    %
+    % .img 
+    %       linear dB/dI 'current-to-field' operator
+    % .Hdr
+    %       dicom Hdr from the reference map acquisition 
+    RefMaps = load( Params.pathToShimReferenceMaps ) ; 
+
+    %%-----
+    % dB/dI linear 'Current-to-Field' operator
+    Shim.img              = RefMaps.Shim.img ;
+    Shim.Hdr              = RefMaps.Shim.Hdr ;
+
 end
 
 Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
 if (nargin == 2) && (~isempty(Field))
     
-    Shim = Shim.setoriginalfield( Field ) ;
-    
-    if Params.isInterpolatingReferenceMaps
-        
-        Shim = interpolatetoimggrid( Shim, Field ) ;
-        Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
+    Shim.setoriginalfield( Field ) ;
 
-    end
-
-else
-
-    Shim.Field = [ ] ; % user can assign later via Shim.setoriginalfield() 
 end
 
 end
@@ -456,10 +456,12 @@ function [] = setoriginalfield( Shim, Field )
 Shim.Field = Field.copy() ;
 
 Shim.interpolatetoimggrid( Shim.Field ) ;
+Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
 
-if ~isempty( Shim.Aux )
-    Shim.Aux.Field = Shim.Field ;
-    Shim.Aux.interpolatetoimggrid( Shim.Field ) ;
+if ~isempty( Shim.Aux ) && ~isempty( Shim.Aux.Shim ) 
+    Shim.Aux.Shim.Field = Shim.Field ;
+    Shim.Aux.Shim.interpolatetoimggrid( Shim.Field ) ;
+    Shim.Aux.Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
 end
 
 end
@@ -1107,6 +1109,163 @@ end
 
 end
 % =========================================================================
+function [ img, Hdr ] = mapdbdi( Params )
+%MAPDBDI
+% 
+% [ img, Hdr ] = MAPDBDI( Params ) 
+%
+% map dB/dI --- change in field [Hz] per unit current (A)
+% 
+% Params
+%   .reliabilityMask 
+%       binary array indicating where phase unwrapping should take place 
+%
+% TODO
+%   Clean-up + Documentation
+
+img = [] ;
+Hdr = [] ;
+
+Mag         = MaRdI( Params.dataLoadDirectories{1} ) ;
+dBdIRaw     = zeros( [Mag.getgridsize Params.nChannels] ) ;
+
+Params.mask = Params.reliabilityMask ;
+
+for iChannel = 1 : Params.nChannels 
+    
+    fieldMaps = zeros( [Mag.getgridsize Params.nCurrents] ) ;
+
+    for iCurrent = 1 : (Params.nCurrents)
+
+        % -------
+        % PROCESS GRE FIELD MAPS
+        ImgArray = cell( 1, 1 ) ;
+
+        ImgArray{1,1}  = MaRdI( Params.dataLoadDirectories{ iCurrent, 1, iChannel +1 }  ) ; % mag
+        ImgArray{1,2}  = MaRdI( Params.dataLoadDirectories{ iCurrent, 2, iChannel +1 }  ) ; % phase
+        
+        [Field, Extras] = FieldEval.mapfield( ImgArray, Params ) ;
+
+        fieldMaps( :,:,:, iCurrent ) = Field.img ;
+
+    end
+
+    disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
+    
+    dBdIRaw(:,:,:, iChannel) = mapdbdi_singlechannel( fieldMaps, Params.currents(iChannel,:), Params.reliabilityMask, Params ) ;  
+
+end 
+
+% -------
+% filter the dB/dI maps
+if Params.Filtering.isFiltering
+
+    disp(['Filtering dB/dI maps...'] )
+    Params.filterRadius = Params.Filtering.filterRadius ;
+
+    dBdIFiltered = zeros( size( dBdIRaw ) ) ;
+
+    Tmp = Field.copy();
+    Tmp.Hdr.MaskingImage = shaver( Tmp.Hdr.MaskingImage, 1 ) ;
+
+    for iChannel = 1 : Params.nChannels 
+
+        disp(['iChannel ' num2str(iChannel)] )
+
+        Tmp.img = dBdIRaw(:,:,:, iChannel) ;
+        
+        Tmp.img = Tmp.Hdr.MaskingImage .* Tmp.img ;
+
+        [~,TmpFiltered] = Tmp.extractharmonicfield( Params ) ;
+        dBdIFiltered(:,:,:,iChannel) = TmpFiltered.img ;
+        
+
+    end
+
+    Hdr = TmpFiltered.Hdr ;
+    img = dBdIFiltered ;
+
+    % -------
+    % Extrapolate the dB/dI maps (EXPERIMENTAL)
+    if Params.Extension.isExtending
+
+        disp(['Extrapolating fields ...']) ;
+        disp(['Channel 1 of ' num2str(Params.nChannels) ] ) ;
+
+        gridSizeImg = size( Params.reliabilityMask ) ;
+        maskFov     = ones( gridSizeImg )  ; % extended spatial support
+
+        [ ~, A, M ] = extendharmonicfield( img(:,:,:, 1) , maskFov, Hdr.MaskingImage, Params.Extension ) ;
+
+        for iChannel = 1 : Params.nChannels 
+            disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] ) ;
+
+            reducedField         = Hdr.MaskingImage .* img(:,:,:, iChannel) ;
+            extendedField        = reshape( M'*A*reducedField(:), gridSizeImg ) ;
+            img(:,:,:, iChannel) = extendedField + reducedField ;
+        end
+
+        Hdr.MaskingImage = (sum(abs(img),4))~=0 ; % extended spatial support
+
+    end
+
+else
+    Hdr = ImgArray{1,2}.Hdr ;
+    img = dBdIRaw ;
+end
+
+function dBdI = mapdbdi_singlechannel( fieldMaps, currents, mask, Params )
+%MAPDBDI
+% 
+% Maps single channel dB/dI (change in field per unit current [Hz/A])  
+% 
+% dBdI = MAPDBDI( fields, currents, mask, Params ) 
+% 
+% fieldMaps
+%   field maps to be fitted to current
+% 
+% currents
+%   test currents 
+% 
+% mask
+%   binary mask indicating voi over which dB/dI is to be calculated
+%
+% if # fieldMaps == # curents == 2
+%   dBdI = mask .* diff(fieldMaps)/diff(currents);
+% else
+%   performs linear fitting.
+%
+% Params has fields...
+
+ShimUse.customdisplay('Fitting dB/dI...' )
+
+Params.isDisplayingProgress = true;
+
+dBdI  = [] ; % change in field per change in shim current
+
+nCurrents       = length( currents ) ; 
+nInputFieldMaps = size( fieldMaps, 4 ) ;
+
+assert( nCurrents == nInputFieldMaps )
+
+if nInputFieldMaps == 2
+
+    dB   = fieldMaps(:,:,:, 2) - fieldMaps(:,:,:, 1) ;
+    dI   = currents(2) - currents(1) ;
+    dBdI = mask .* (dB/dI) ;
+
+else
+    
+    error('Unimplemented feature');
+    % FitResults = ShimCal.fitfieldtocurrent( fieldMaps, currents, mask, Params ) ;
+    % dBdI = FitResults.dBdI ;
+end
+
+
+end
+
+end
+% =========================================================================
 % =========================================================================
 
 end
@@ -1162,11 +1321,51 @@ end
 
 end
 % =========================================================================
+function [ img, Hdr ] = calibratereferencemaps( Params )
+%CALIBRATEREFERENCEMAPS
+% 
+% Wraps to ShimOpt.mapdbdi( ) and writes output to disk
+% 
+% [ img, Hdr ] = CALIBRATEREFERENCEMAPS( Params )
+
+[ img, Hdr ] = ShimOpt.mapdbdi( Params ) ;
+
+disp(['Saving shim reference maps for future use: '])
+disp( Params.pathToShimReferenceMaps ) ;
+
+save( Params.pathToShimReferenceMaps, 'img', 'Hdr' ) ;
+
+end
+% =========================================================================
 
 end
 % =========================================================================
 % =========================================================================
-methods(Abstract)
+methods(Static=true)
+% =========================================================================
+function [ img, Hdr ] = loadshimreferencemaps( pathToShimReferenceMaps )
+%LOADSHIMREFERENCEMAPS
+%
+% [ img, Hdr ] = LOADSHIMREFERENCEMAPS( filename )
+
+ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
+        'Loading shim reference maps from ' pathToShimReferenceMaps '\n\n']) ;
+
+% Loads .mat: struct with fields
+%
+% .img 
+%       linear dB/dI 'current-to-field' operator
+% .Hdr
+%       dicom Hdr from the reference map acquisition 
+RefMaps = load( pathToShimReferenceMaps ) ; 
+
+assert( myisfield( RefMaps, 'img' ) && myisfield( RefMaps, 'Hdr' ), ...
+    [ 'Deprecated format. Contents of ' pathToShimReferenceMaps ' are invalid.'] ) ;
+
+img = RefMaps.img ;
+Hdr = RefMaps.Hdr ;
+
+end
 % =========================================================================
 
 % =========================================================================

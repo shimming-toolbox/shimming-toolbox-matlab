@@ -1,69 +1,8 @@
 classdef ShimOpt_IUGM_Prisma_fit < ShimOpt
 %SHIMOPTUNFPRISMA - Shim Optimization for Prisma-fit @ UNF 
-%
-% .......
-% 
-% Usage
-%
-% Shim = ShimOpt_IUGM_Prisma_fit( Params )
-% 
-% Defaults 
-% 
-% Params.pathToShimReferenceMaps = ...
-%
-% Params.TrackerSpecs = [] ;
-%   .TrackerSpecs is a parameters struct for ProbeTracking(). See HELP
-%   ProbeTracking() for more information.
-%
-%   Shim contains fields
-%
-%       .img
-%           Shim reference maps
-%
-%       .Hdr
-%           Info Re: calibration data
-%           (e.g. Hdr.MaskingImage defines the spatial support of the ref maps)
-%
-%       .Field
-%           Object of type MaRdI pertaining to field distribution to be shimmed
-%
-%       .Model
-%           .currents  
-%               Optimal shim current vector (i)
-%               [units A]
-%           .field     
-%               Optimal shim field from projection of i onto reference maps (Ai)
-%               [units Hz]
-%           .couplingCoefficients
-%               For realtime shimming, relates vector relating field to pressure
-%               [units Hz/Pa]
-%           .dcCurrentsOffsets
-%               For realtime shimming, vector of "y-intercept" currents 
-%               (i.e. currents for pressure = 0 Pa)
-%               [units A]
-%
-%       .Tracker
-%           Object of type TrackerTracking
-%
-% =========================================================================
-% Notes
-%
-% Part of series of classes pertaining to shimming:
-%
-%    FieldEval
-%    Tracking
-%    ShimCal
-%    ShimCom
-%    ShimEval
-%    ShimOpt
-%    ShimSpecs
-%    ShimTest 
-%    ShimUse
-%
-% ShimOpt is a MaRdI subclass [ShimOpt < MaRdI]
 %     
 % =========================================================================
-% Updated::20170301::ryan.topfer@polymtl.ca
+% Updated::20180503::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -85,61 +24,44 @@ methods
 function Shim = ShimOpt_IUGM_Prisma_fit( Params, Field )
 %SHIMOPTACDC - Shim Optimization
 
+Shim.img   = [] ;
+Shim.Hdr   = [] ;
+Shim.Field = [] ;       
+Shim.Model = [] ;
+Shim.Aux   = [] ;
+
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
 end
 
 Params = ShimOpt_IUGM_Prisma_fit.assigndefaultparameters( Params ) ;
 
-ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
-        'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
+if Params.isCalibratingReferenceMaps
 
-% Loads .mat containing Shim struct
-% which has fields
-% Shim.img              - linear dB/dI 'current-to-field' opterator
-% Shim.Hdr              - defines info like voxel locations 
-% Shim.Hdr.MaskingImage - defines spatial support of reference maps
-RefMaps = load( Params.pathToShimReferenceMaps ) ; % load shim ref maps
+    Params = ShimOpt_IUGM_Prisma_fit.declarecalibrationparameters( Params ) ;
+    [ Shim.img, Shim.Hdr ] = ShimOpt_IUGM_Prisma_fit.calibratereferencemaps( Params ) ;
 
-%%-----
-% dB/dI linear 'Current-to-Field' operator
-Shim.img              = RefMaps.Shim.img ;
-Shim.Hdr              = RefMaps.Shim.Hdr ;
+elseif ~isempty(Params.pathToShimReferenceMaps)
+   
+   [ Shim.img, Shim.Hdr ] = ShimOpt.loadshimreferencemaps( Params.pathToShimReferenceMaps ) ; 
 
-% if myisfield( SpineShim, 'mask' )
-%     Shim.Hdr.MaskingImage = SpineShim.mask ;
-% end
-%
-% load( Params.pathToShimReferenceMaps ) ;
-
-Shim.Field = [ ] ;       
-Shim.Model = [ ] ; 
-Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
-
-if (nargin == 2) && (~isempty(Field))
-    
-    Shim = Shim.setoriginalfield( Field ) ;
-    
-    if Params.isInterpolatingReferenceMaps
-        
-        Shim = interpolatetoimggrid( Shim, Field ) ;
-        Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
-
-    end
-
-else
-    Shim.Field = [ ] ; % user can assign later via Shim.setoriginalfield() 
+    % DICOM Hdr.Private_0019_1013 describes the absolute table position (of the
+    % reference maps).  It's used in ShimOpt.interpolatetoimggrid() to account for
+    % variable table positioning, but for the scanner shims the field shift
+    % doesn't depend on table position, so, (in case it's not already empty) :
+    Shim.Hdr.Private_0019_1013 = [] ;
 
 end
 
-Shim.Aux = [] ;
+Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
-% DICOM .Hdr.Private_0019_1013 
-%
-% Describes the absolute table position (of the reference maps). 
-% Used in ShimOpt.interpolatetoimggrid() to account for variable table positioning,
-% but for the scanner shims the field shift doesn't depend on table position, so:
-Shim.Hdr.Private_0019_1013 = [] ;
+
+if (nargin == 2) && (~isempty(Field))
+    
+    Shim.setoriginalfield( Field ) ;
+
+end
+
 
 end
 % =========================================================================
@@ -203,27 +125,181 @@ function  [ Params ] = assigndefaultparameters( Params )
 % 
 % Add default parameters fields to Params without replacing values (unless empty)
 %
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
-% DEFAULT_PROBESPECS = [] ;
+% DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
 %
-% DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
+% DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
+%
+% DEFAULT_PROBESPECS = [] ;
 
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20180325';
+
+DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
+DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20180502';
 DEFAULT_PROBESPECS              = [] ;
 
-DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
+if ~myisfield( Params, 'isCalibratingReferenceMaps' ) || isempty(Params.isCalibratingReferenceMaps)
+   Params.isCalibratingReferenceMaps = DEFAULT_ISCALIBRATINGREFERENCEMAPS ;
+end
 
 if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
-   Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
+   
+    if Params.isCalibratingReferenceMaps
+        today = datestr( now, 30 ) ;
+        today = today(1:8) ; % ignore the time of the day
+        Params.pathToShimReferenceMaps = [ '~/Projects/Shimming/Static/Calibration/Data/' ...
+                        'ShimReferenceMaps_IUGM_Prisma_fit_' today ] ;
+    else
+        Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
+    end
+
 end
 
 if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
    Params.TrackerSpecs = DEFAULT_PROBESPECS ;
 end
 
-if ~myisfield( Params, 'isInterpolatingReferenceMaps' ) || isempty(Params.isInterpolatingReferenceMaps)
-   Params.isInterpolatingReferenceMaps = DEFAULT_ISINTERPOLATINGREFERENCEMAPS ;
 end
+% =========================================================================
+function Params = declarecalibrationparameters( Params )
+%DECLARECALIBRATIONPARAMETERS
+% 
+% Initializes parameters for shim reference map construction (aka shim calibration)
+
+% error('if Params is empty, then replace w/following Params :' )
+% ...
+
+Params.nChannels  = 8 ;
+Params.nCurrents  = 2 ;
+
+% 2 columns: [ MAG | PHASE ] ;
+Params.dataLoadDirectories = cell( Params.nCurrents, 2, Params.nChannels ) ;
+
+Params.currents = zeros( Params.nChannels, Params.nCurrents ) ; 
+% will read shim current offsets (relative to baseline 'tune-up' values)
+% directly from Siemens DICOM Hdr below, but they should be:
+% Params.currents = [ -30 30; % A11
+%                     -30 30; % B11
+%                     -30 30; % A10
+%                     -600 600; % A20
+%                     -600 600; % A21
+%                     -600 600; % B21
+%                     -600 600; % A22
+%                     -600 600;] ; % B22
+tmp = { ...
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/149-eld_mapping_shim0_axial_fovPhase100perc_phaseOver0perc_S76_DIS3D/echo_7.38/'  ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/151-eld_mapping_shim0_axial_fovPhase100perc_phaseOver0perc_S78_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/153-gre_field_mapping_A11_minus30_S80_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/155-gre_field_mapping_A11_minus30_S82_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/157-gre_field_mapping_A11_plus30_S84_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/159-gre_field_mapping_A11_plus30_S86_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/161-gre_field_mapping_B11_minus30_S88_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/163-gre_field_mapping_B11_minus30_S90_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/165-gre_field_mapping_B11_plus30_S92_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/167-gre_field_mapping_B11_plus30_S94_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/169-gre_field_mapping_A10_minus30_S96_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/171-gre_field_mapping_A10_minus30_S98_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/173-gre_field_mapping_A10_plus30_S101_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/175-gre_field_mapping_A10_plus30_S103_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/177-gre_field_mapping_A20_minus600_S105_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/179-gre_field_mapping_A20_minus600_S107_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/181-gre_field_mapping_A20_plus600_S109_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/183-gre_field_mapping_A20_plus600_S111_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/185-gre_field_mapping_A21_minus600_S113_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/187-gre_field_mapping_A21_minus600_S115_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/189-gre_field_mapping_A21_plus600_S117_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/191-gre_field_mapping_A21_plus600_S119_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/193-gre_field_mapping_B21_minus600_S121_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/195-gre_field_mapping_B21_minus600_S123_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/197-gre_field_mapping_B21_plus600_S125_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/199-gre_field_mapping_B21_plus600_S127_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/201-gre_field_mapping_A22_minus800_S129_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/203-gre_field_mapping_A22_minus800_S131_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/209-gre_field_mapping_A22_plus600_S137_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/211-gre_field_mapping_A22_plus600_S139_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/213-gre_field_mapping_B22_minus600_S141_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/215-gre_field_mapping_B22_minus600_S143_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/217-gre_field_mapping_B22_plus600_S145_DIS3D/echo_7.38/' ;
+    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/219-gre_field_mapping_B22_plus600_S147_DIS3D/echo_7.38/' ; } ;
+
+% 1st 2 directories correspond to the baseline shim 
+Params.dataLoadDirectories{1,1,1} = tmp{1} ;
+Params.dataLoadDirectories{1,2,1} = tmp{2} ;
+
+nImgPerCurrent = 2 ; % = 1 mag image + 1 phase
+
+disp( ['Preparing shim calibration...' ] )        
+
+for iChannel = 1 : Params.nChannels
+    disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
+    
+    for iCurrent = 1 : Params.nCurrents 
+        Params.dataLoadDirectories{ iCurrent, 1, iChannel + 1} = tmp{ nImgPerCurrent*(Params.nCurrents*iChannel + iCurrent) -3 } ;
+        Params.dataLoadDirectories{ iCurrent, 2, iChannel + 1} = tmp{ nImgPerCurrent*(Params.nCurrents*iChannel + iCurrent) -2 } ;
+       
+        % for calibration of Siemens (e.g. Prisma) scanner shims only : 
+        % load one of the images for each 'current' to get the shim values directly from the Siemens Hdr
+        Img = MaRdI( Params.dataLoadDirectories{ iCurrent, 1, iChannel +1 }  ) ; % mag
+        [f0,g0,s0] = Img.adjvalidateshim( ) ;
+        shimValues = ShimOpt_IUGM_Prisma_fit.converttomultipole( [g0 ; s0] ) ; % convert to the 'multipole units' of the 3D shim card (Siemens console GUI)
+        Params.currents( iChannel, iCurrent ) = shimValues( iChannel ) ; % TODO : consistent approach to units, since these aren't in amps...
+    end
+end
+
+Params.Filtering.isFiltering  = true ;
+Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
+voxelSize                     = Mag.getvoxelsize() ;
+Params.Filtering.filterRadius = 2*voxelSize(1) ;
+
+Params.reliabilityMask = (Mag.img/max(Mag.img(:))) > 0.1 ; % region of reliable SNR for unwrapping
+
+
+Params.Extension.isExtending = true ; % harmonic field extrapolation 
+Params.Extension.voxelSize = voxelSize ;
+Params.Extension.radius     = 8 ;
+Params.Extension.expansionOrder = 2 ;
+
+Params.unwrapper = 'AbdulRahman_2007' ;        
+
+end
+% =========================================================================
+function [ img, Hdr ] = calibratereferencemaps( Params )
+%CALIBRATEREFERENCEMAPS
+% 
+% Wraps to ShimOpt.mapdbdi( )
+% 
+% [ img, Hdr ] = CALIBRATEREFERENCEMAPS( Params )
+%
+% Differences for ShimOpt_IUGM_Prisma_fit :
+%   
+%   1. After the actual mapping of the shim fields, the '0th' order frequency
+%   offset is added to the array stack as img(:,:,:,1) (i.e. gradient terms
+%   become img(:,:,:,2) for X, img(:,:,:,3) for Y, etc.)
+%
+%   2. Hdr.Private_0019_1013 is made empty 
+%       This field describes the absolute table position of the reference maps.
+%       It is used (i.e. for multi-coil shim arrays, for which the shim
+%       position, relative to ISO, varies with the table). Having this empty
+%       will indicate that values of these shim fields are fixed relative to ISO.
+
+[ img, Hdr ] = ShimOpt.mapdbdi( Params ) ;
+
+% insert channel (not measured) for "0th order" (Larmor transmit frequency):
+tmp = zeros( size(img) + [0 0 0 1] ) ;
+tmp(:,:,:,1)     = double( Hdr.MaskingImage ); % assigning the same support as the other channels
+tmp(:,:,:,2:end) = img ;
+
+img = tmp;
+
+% DICOM .Hdr.Private_0019_1013 
+%
+% Describes the absolute table position of the reference maps.  This is
+% used in ShimOpt.interpolatetoimggrid( ) to account for variable table
+% positioning relative to ISO, but, since the scanner shims are fixed in place:
+Hdr.Private_0019_1013 = [] ;
+
+disp(['Saving shim reference maps for future use: '])
+disp( Params.pathToShimReferenceMaps ) ;
+
+save( Params.pathToShimReferenceMaps, 'img', 'Hdr' ) ;
 
 end
 % =========================================================================
@@ -290,4 +366,3 @@ end
 % =========================================================================
 
 end
-
