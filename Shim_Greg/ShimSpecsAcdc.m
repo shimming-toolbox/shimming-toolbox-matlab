@@ -71,6 +71,9 @@ Shims.Amp.maxVoltagePerChannel = 2500 ; % (absolute) [units: mV]
 Shims.Amp.nChannels       = 8 ;  
 Shims.Amp.nActiveChannels = 8 ;
 
+Shims.Amp.staticChannels  = true( 1, Shims.Amp.nActiveChannels ) ;  
+Shims.Amp.dynamicChannels = true( 1, Shims.Amp.nActiveChannels ) ;  
+
 Shims.Adc.mVPerAdcCount = 2 ;
 
 Shims.Dac.resolution = 8 ; % [bits]

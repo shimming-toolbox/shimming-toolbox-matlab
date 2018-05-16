@@ -31,6 +31,8 @@ Shim.Hdr   = [] ;
 Shim.Field = [] ;       
 Shim.Model = [] ;
 Shim.Aux   = [] ;
+Shim.System.Specs    = ShimSpecsAcdc() ; 
+Shim.System.currents = zeros( Shim.System.Specs.nActiveChannels ) ; 
 
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
@@ -77,9 +79,6 @@ function [currents] = optimizeshimcurrents( Shim, Params )
 %   
 %   .maxCurrentPerChannel
 %       [default: determined by class ShimSpecsAcdc.Amp.maxCurrentPerChannel]
- 
-
-Specs = ShimSpecsAcdc();
 
 DEFAULT_REGULARIZATIONPARAMETER     = 0;
 DEFAULT_ISRETURNINGPSEUDOINVERSE    = 0;
@@ -90,7 +89,7 @@ end
 
 % TODO (if needed): define AcDc system-specific Params
 
-currents = optimizeshimcurrents@ShimOpt( Shim, Specs, Params, @checknonlinearconstraints ) ;
+currents = optimizeshimcurrents@ShimOpt( Shim, Params, @checknonlinearconstraints ) ;
 
 function [C, Ceq] = checknonlinearconstraints( currents )
 %CHECKNONLINEARCONSTRAINTS 

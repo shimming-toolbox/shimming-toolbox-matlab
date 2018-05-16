@@ -2,20 +2,8 @@ classdef ShimOpt_IUGM_Prisma_fit < ShimOpt
 %SHIMOPTUNFPRISMA - Shim Optimization for Prisma-fit @ UNF 
 %     
 % =========================================================================
-% Updated::20180503::ryan.topfer@polymtl.ca
+% Updated::20180516::ryan.topfer@polymtl.ca
 % =========================================================================
-
-% =========================================================================
-% *** TODO 
-%
-%
-% =========================================================================
-
-% properties % defined in parent class ShimOpt 
-    % Field ; % object of type MaRdI
-    % Model ;
-    % Tracker ; % object of type ProbeTracking
-% end
 
 % =========================================================================
 % =========================================================================    
@@ -29,6 +17,8 @@ Shim.Hdr   = [] ;
 Shim.Field = [] ;       
 Shim.Model = [] ;
 Shim.Aux   = [] ;
+Shim.System.Specs    = ShimSpecs_IUGM_Prisma_fit();
+Shim.System.currents = zeros( Shim.System.Specs.nActiveChannels ) ; 
 
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
@@ -74,10 +64,8 @@ function [currents] = optimizeshimcurrents( Shim, Params )
 % Params can have the following fields 
 %   
 %   .maxCurrentPerChannel
-%       [default: determined by class ShimSpecsPrisma.Amp.maxCurrentPerChannel]
+%       [default: determined by class ShimSpecs.Amp.maxCurrentPerChannel]
  
-
-Specs = ShimSpecsPrisma();
 
 DEFAULT_REGULARIZATIONPARAMETER     = 0;
 DEFAULT_ISRETURNINGPSEUDOINVERSE    = true; % THIS UNTIL MAX SHIM CURRENTS ARE KNOWN
@@ -86,7 +74,7 @@ if nargin < 2
     Params.dummy = [];
 end
 
-currents = optimizeshimcurrents@ShimOpt( Shim, Specs, Params, @checknonlinearconstraints ) ;
+currents = optimizeshimcurrents@ShimOpt( Shim, Params, @checknonlinearconstraints ) ;
 
 function [C, Ceq] = checknonlinearconstraints( currents )
 %CHECKNONLINEARCONSTRAINTS 
@@ -103,6 +91,32 @@ function [C, Ceq] = checknonlinearconstraints( currents )
     % check on abs current per channel
     C = abs(currents) - Params.maxCurrentPerChannel ;
 end
+
+end
+% =========================================================================
+function [] = setoriginalfield( Shim, Field )
+%SETORIGINALFIELD 
+%
+% [] = SETORIGINALFIELD( Shim, Field )
+%
+% Sets Shim.Field
+%
+% Field is a FieldEval type object with .img in Hz
+
+Shim.Field = Field.copy() ;
+
+Shim.interpolatetoimggrid( Shim.Field ) ;
+Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
+
+% get the original shim offsets
+[f0,g0,s0]  = Shim.Field.adjvalidateshim() ;
+Shim.System.currents =  [ f0 ; ShimOpt_IUGM_Prisma_fit.converttomultipole( [g0 ; s0] ) ] ; 
+
+% if ~isempty( Shim.Aux ) && ~isempty( Shim.Aux.Shim ) 
+%     Shim.Aux.Shim.Field = Shim.Field ;
+%     Shim.Aux.Shim.interpolatetoimggrid( Shim.Field ) ;
+%     Shim.Aux.Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
+% end
 
 end
 % =========================================================================
@@ -252,7 +266,7 @@ Params.Filtering.filterRadius = 2*voxelSize(1) ;
 Params.reliabilityMask = (Mag.img/max(Mag.img(:))) > 0.1 ; % region of reliable SNR for unwrapping
 
 
-Params.Extension.isExtending = true ; % harmonic field extrapolation 
+Params.Extension.isExtending = false ; % harmonic field extrapolation 
 Params.Extension.voxelSize = voxelSize ;
 Params.Extension.radius     = 8 ;
 Params.Extension.expansionOrder = 2 ;

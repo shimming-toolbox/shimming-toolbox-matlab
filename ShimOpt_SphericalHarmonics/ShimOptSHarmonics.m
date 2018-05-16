@@ -102,51 +102,49 @@ function Shim = ShimOptSHarmonics( Params, Field )
 % Params.isGeneratingBasis
 % Params.ordersToGenerate
 
+Shim.img   = [] ;
+Shim.Hdr   = [] ;
+Shim.Field = [] ;       
+Shim.Model = [] ;
+Shim.Aux   = [] ;
+
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
 end
 
 Params = ShimOptSHarmonics.assigndefaultparameters( Params ) ;
 
-Shim.Model = [ ] ; 
-Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
-
-% .......
-% Load shim basis if provided 
-if ~isempty(Params.pathToShimReferenceMaps) & ( ~Params.isGeneratingBasis )
-
-    ShimUse.display(['\n Preparing for shim ...  \n\n'...
-            'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
-
-    RefMaps = load( Params.pathToShimReferenceMaps ) ; % load shim ref maps
-
-    %%-----
-    % dB/dI linear 'Current-to-Field' operator
-    Shim.img              = RefMaps.Shim.img ;
-    Shim.Hdr              = RefMaps.Shim.Hdr ;
-
-    Shim.Field = [ ] ;       
-    Shim.Model = [ ] ; 
-
-end
-
+% Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
+%
+% % .......
+% % Load shim basis if provided 
+% if ~isempty(Params.pathToShimReferenceMaps) & ( ~Params.isGeneratingBasis )
+%
+%     ShimUse.display(['\n Preparing for shim ...  \n\n'...
+%             'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
+%
+%     RefMaps = load( Params.pathToShimReferenceMaps ) ; % load shim ref maps
+%
+%     %%-----
+%     % dB/dI linear 'Current-to-Field' operator
+%     Shim.img              = RefMaps.Shim.img ;
+%     Shim.Hdr              = RefMaps.Shim.Hdr ;
+%
+%     Shim.Field = [ ] ;       
+%     Shim.Model = [ ] ; 
+%
+% end
+%
 
 if Params.isGeneratingBasis || Params.isInterpolatingReferenceMaps
 
     assert( (nargin > 1) && ~isempty(Field), 'Must input Field [MaRdi-type object]. See HELP')
-    
-    Shim.setoriginalfield( Field ) ;
 
     if Params.isGeneratingBasis 
             [X,Y,Z]  = Field.getvoxelpositions();
             Shim.img = ShimOptSHarmonics.generatebasisfields( Params.ordersToGenerate, X, Y, Z );
             Shim.Hdr = Field.Hdr;
-
-    elseif Params.isInterpolatingReferenceMaps
-             
-            interpolatetoimggrid( Shim, Field );
-            Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
-
+            Shim.setoriginalfield( Field ) ;
     end
 
 end

@@ -736,11 +736,13 @@ end
 
 end
 % =========================================================================
-function Img = resliceimg( Img, X_1, Y_1, Z_1, interpolationMethod ) 
+function [] = resliceimg( Img, X_1, Y_1, Z_1, interpolationMethod ) 
 %RESLICEIMG
+% 
+%   Wraps to GRIDDATA() to interpolate Img, updates Img.Hdr accordingly.
 %
-%   Img = RESLICEIMG( Img, X, Y, Z )
-%   Img = RESLICEIMG( Img, X, Y, Z, interpolationMethod ) 
+%   [] = RESLICEIMG( Img, X, Y, Z )
+%   [] = RESLICEIMG( Img, X, Y, Z, interpolationMethod ) 
 %
 %   X, Y, Z MUST refer to X, Y, Z patient coordinates (i.e. of the DICOM
 %   reference coordinate system)
@@ -1356,6 +1358,67 @@ for iImage = 1 : nImages
 
 end
     
+end
+% =========================================================================
+function [ studyDirs ] = tablestudy( sortedDicomDir )
+%TABLESTUDY 
+%
+% Returns a cell array ( studyDirs ) pertaining to the study directory input
+% ( sortedDicomDir ) where each element in the second column is a MaRdI-loadable 
+% images series. (The 1st column is merely the row index.)
+%
+% e.g. Protocol to load MaRdI-object :
+%
+%   % omit semi-colon to display the full cell array (i.e. with the row indices)
+%   [ studyDirs ] = MaRdI.tablestudy( sortedDicomDir ) 
+%
+%   % determine the row index of the series you want to load (e.g. 10):
+%   Img = MaRdI( studyDirs{ 10, 2 } ) ;
+
+assert( nargin == 1, 'Function requires sortedDicomDirectory as input argument.' ) ;
+
+if ~strcmp( sortedDicomDir(end), '/' ) 
+    sortedDicomDir(end+1) = '/' ;
+end
+
+studyDirs = cell( 0 ) ;
+
+Tmp      = dir( [ sortedDicomDir ] );
+Tmp      = Tmp( 3:end ) ; % ignore self ('.') and parent ('..') dirs
+nEntries = length( Tmp ) ;
+
+for iEntry = 1 : nEntries 
+
+   if Tmp( iEntry ).isdir
+   
+       tmpSeriesSubdir = [ Tmp( iEntry ).name '/'] ;
+    
+        TmpEchoSubdirs = dir( [ sortedDicomDir tmpSeriesSubdir 'echo*' ] ) ;
+        nEchoSubdirs   = length( TmpEchoSubdirs ) ;
+
+        if nEchoSubdirs ~= 0
+
+            for iEchoSubdir = 1 : nEchoSubdirs
+
+                studyDirs{end+1, 2} = strcat( sortedDicomDir, tmpSeriesSubdir, TmpEchoSubdirs(iEchoSubdir).name )  ;
+                iSeries = size( studyDirs, 1 ) ;
+                studyDirs{ iSeries, 1 } = iSeries ;
+            end
+
+        % check if tmpSeriesSubdir itself contains images
+        elseif length( dir( [ sortedDicomDir tmpSeriesSubdir '/*.dcm'] ) ) ~= 0 || ...
+                length( dir( [ sortedDicomDir tmpSeriesSubdir '/*.IMA'] ) ) ~= 0 
+
+           studyDirs{end+1, 2} = strcat( sortedDicomDir,tmpSeriesSubdir )  ;
+            iSeries = size( studyDirs, 1 ) ;
+            studyDirs{ iSeries, 1 } = iSeries ;
+
+        end
+
+   end
+   
+end
+
 end
 % =========================================================================
 function [Params] = writeimg( img, Params )

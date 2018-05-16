@@ -41,15 +41,12 @@ classdef (Abstract) ShimOpt < FieldEval
 %           (e.g. Hdr.MaskingImage defines the spatial support of the ref maps)
 %
 %       .Field
-%           Object of type MaRdI pertaining to field distribution to be shimmed
+%           Object of type FieldEval pertaining to field distribution to be shimmed
 %
 %       .Aux
 %           .Shim
 %               When Shim does not itself refer to the scanner shims, then .Aux 
 %               is a ShimOpt object corresponding to the MRI host system.
-%           
-%           .Tracker
-%               Object of type Tracking (e.g ProbeTracking, NavTracking)
 %
 %
 %       .Model
@@ -68,24 +65,28 @@ classdef (Abstract) ShimOpt < FieldEval
 %               (i.e. currents when Tracker.Data.p = 0)
 %               [units A]
 %
+%       .System
+%           .currents
+%               
+%           .Specs
+%               Object of a type of ShimSpecs sub-class (e.g. ShimSpecs_IUGM_Prisma_fit) 
+%
+%
 % =========================================================================
 % Notes
 %
 % Part of series of classes pertaining to shimming:
 %
-%    Tracking
 %    ShimCal
 %    ShimCom
-%    ShimEval
 %    ShimOpt
 %    ShimSpecs
-%    ShimTest 
 %    ShimUse
 %
 % ShimOpt is a FieldEval subclass [ShimOpt < FieldEval < MaRdI]
 %     
 % =========================================================================
-% Updated::20170306::ryan.topfer@polymtl.ca
+% Updated::20170516::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -127,6 +128,7 @@ properties
     % Model ; % Modeled quantities for shimming
     ShimmedField; % object of type FieldEval 
     Tracker;
+    System; %
 end
 
 % =========================================================================
@@ -141,6 +143,7 @@ Shim.Hdr   = [] ;
 Shim.Field = [] ;  
 Shim.Model = [] ;
 Shim.Aux   = [] ;
+Shim.System = [] ;
 
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
@@ -444,25 +447,33 @@ end
 
 end
 % =========================================================================
-function [] = setoriginalfield( Shim, Field )
+function [] = setoriginalfield( Shim, Field, currents )
 %SETORIGINALFIELD 
 %
 % [] = SETORIGINALFIELD( Shim, Field )
+% [] = SETORIGINALFIELD( Shim, Field, currents )
 %
 % Sets Shim.Field
 %
 % Field is a FieldEval type object with .img in Hz
 
+if nargin < 2
+    error('Not enough input arguments.') ;
+elseif nargin == 2
+    currents = 0;
+    warning('Assuming field map was acquired with all shim channels at 0 A.');
+end
+
+Shim.Model.currents = currents ;
 Shim.Field = Field.copy() ;
 
 Shim.interpolatetoimggrid( Shim.Field ) ;
 Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
 
-if ~isempty( Shim.Aux ) && ~isempty( Shim.Aux.Shim ) 
-    Shim.Aux.Shim.Field = Shim.Field ;
-    Shim.Aux.Shim.interpolatetoimggrid( Shim.Field ) ;
-    Shim.Aux.Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
+if ~isempty( Shim.Aux )  
+    Shim.Aux.setoriginalfield( Shim.Field ) ;
 end
+
 
 end
 % =========================================================================
@@ -503,10 +514,17 @@ function [] = setforwardmodelfield( Shim )
 %
 % Sets Shim.Model.field --- the predicted shim field for the *current* set of currents 
 % (held in Shim.Model.currents)
-    
-A = Shim.getshimoperator() ;
 
-Shim.Model.field = reshape( A*Shim.Model.currents, size( Shim.Field.img ) ) ;
+if myisfield( Shim.Model, 'currents' ) && ~isempty( Shim.Model.currents )
+
+    A = Shim.getshimoperator() ;
+
+    Shim.Model.field = reshape( A*Shim.Model.currents, Shim.Field.getgridsize() ) ;
+else
+    % Assume zero shim currents
+    Shim.Model.field = zeros( Shim.Field.getgridsize() ) ;
+
+end
 
 end
 % =========================================================================
@@ -770,15 +788,15 @@ f0VoiShimmed = f0 + mean( PredictedField.img( voi ) ) ;
 
 end
 % =========================================================================
-function [currents] = optimizeshimcurrents( Shim, Specs, Params, checknonlinearconstraints )
+function [currents] = optimizeshimcurrents( Shim, Params, checknonlinearconstraints )
 %OPTIMIZESHIMCURRENTS 
 %
-% currents = OPTIMIZESHIMCURRENTS( Shim, Specs, Params, @checknonlinearconstraints )
+% currents = OPTIMIZESHIMCURRENTS( Shim, Params, @checknonlinearconstraints )
 %   
 % Params can have the following fields 
 %   
 %   .maxCurrentPerChannel
-%       [default: 4 A,  determined by class ShimSpecs.Amp.maxCurrentPerChannel]
+%       [default defined as the .Amp.maxCurrentPerChannel property in the ShimSpecs_ [sub]class definition]
 %
 %   .dataWeights
 %       Array (size of Shim.Field.img) of data reliability weights [0:1].
@@ -794,6 +812,7 @@ function [currents] = optimizeshimcurrents( Shim, Specs, Params, checknonlinearc
 % DEFAULT_REGULARIZATIONPARAMETER     = 0;
 DEFAULT_ISRETURNINGPSEUDOINVERSE = 0;
 DEFAULT_ISREALTIMESHIMMING       = false;
+DEFAULT_ISOPTIMIZINGAUX          = true ;
 
 if nargin < 2
     error('Function requires at least 2 arguments: a ShimOpt instance, and a ShimSpecs instance')
@@ -804,7 +823,7 @@ if ~myisfield(Params, 'isReturningPseudoInverse') || isempty( Params.isReturning
 end
 
 if ~myisfield(Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerChannel ) 
-    Params.maxCurrentPerChannel = Specs.Amp.maxCurrentPerChannel ; 
+    Params.maxCurrentPerChannel = Shim.System.Specs.Amp.maxCurrentPerChannel ; 
 end
 
 if ~myisfield(Params, 'minCurrentPerChannel') || isempty( Params.minCurrentPerChannel ) 
@@ -813,6 +832,10 @@ end
 
 if ~myisfield(Params, 'isRealtimeShimming') || isempty( Params.isRealtimeShimming )
     Params.isRealtimeShimming = DEFAULT_ISREALTIMESHIMMING ;
+end
+
+if ~myisfield(Params, 'isOptimizingAux') || isempty( Params.isOptimizingAux )
+    Params.isOptimizingAux = DEFAULT_ISOPTIMIZINGAUX ;
 end
 
 if Params.isRealtimeShimming
@@ -830,10 +853,16 @@ end
 %     Params.regularizationParameter = DEFAULT_REGULARIZATIONPARAMETER ;
 % end
 
+% 
+
+
+
 
 % Params for conjugate-gradient optimization
 CgParams.tolerance     = 1E-10 ;
 CgParams.maxIterations = 100000 ;    
+
+
 
 
 nImg = numel( Shim.Field.img(:) ) ; % number of voxels
@@ -857,36 +886,92 @@ else
 
 end
 
-
 M  = Shim.gettruncationoperator*W ;
 
 A  = M*Shim.getshimoperator ; % masked current-to-field operator
 MA = A;
 
+% retain original currents for 'initial guess' of conjugate gradient solver
+i0 = Shim.System.currents ;
+
+% shim field present during acquisition of Shim.Field.img
+bs = reshape( Shim.getshimoperator*i0, Shim.Field.getgridsize() )
+
+if ~isempty( Shim.Aux ) && Params.isOptimizingAux
+
+    % ignore 1st ch. (frequency offset)
+    i0Aux    = Shim.Aux.System.currents ;
+    i0Aux(1) = 0 ;
+    bs = bs + reshape( Shim.Aux.getshimoperator*i0Aux, Shim.Field.getgridsize() ) ;
+
+end
+
+% -------
+% residual field offset *without* existing shim field. 
+bx = Shim.Field.img(:) - bs ;
+% (this way, optimizeshimcurrents() solves for the absolute shim currents, rather than a shift.)
+
 
 if ~Params.isRealtimeShimming
     
-    solutionVectorLength = Specs.Amp.nActiveChannels ;
+    b = M*(-bs(:)) ;
+    
+    activeChannelsMask = [ Shims.System.Specs.Amp.staticChannels(:) ]' ;
 
-    b = M*(-Shim.Field.img(:)) ;
+    if ~isempty( Shim.Aux ) && Params.isOptimizingAux
+
+       activeAuxChannelsMask = [ Shims.Aux.System.Specs.Amp.staticChannels(:) ]' ;
+       activeChannelsMask    = [ activeChannelsMask ; activeAuxChannelsMask ] ;
+
+    end
+
+    solutionVectorLength = sum( activeChannelsMask ) ;
 
 else 
    
-    % stacked/augmented solution vector length (top half: dc currents, bottom: insp-exp current shifts)
-    solutionVectorLength = 2*Specs.Amp.nActiveChannels ;
-
     % the 'dc' field, assuming a linear model of the field shift from respiration:
-    b0 = Shim.Field.img(:) ;
+    b0 = bs(:) ;
 
     % field shift from RIRO  
     db = Shim.Field.Model.Shift.img(:) ;
 
     % augmented data vector : dc field, field shift -- vertically concatenated
     b = [ M*-b0 ; M*-db ] ;
+   
+    % top half: dc currents, bottom: insp-exp current shifts
+    activeChannelsMask = [ Shims.System.Specs.Amp.staticChannels(:) Shims.System.Specs.Amp.dynamicChannels(:) ]' ;
     
+    % 'stacked' solution vector length : 
+    solutionVectorLength = sum( activeChannelsMask ) ;
+
     % augmented matrix operator
     A = [MA zeros(size(A)); zeros(size(A)) MA] ;
 
+    
+    if ~isempty( Shim.Aux ) && Params.isOptimizingAux 
+
+       % solution vector of shim currents organized as a stack of vectors:
+       % From top to bottom:
+       %    [ Main Shim DC currents; 
+       %      Main Shim insp-exp current shift; 
+       %      Aux Shim DC currents; 
+       %      Aux Shim current shifts ; ] 
+       %
+       activeAuxChannelsMask = [ Shims.Aux.Specs.Amp.staticChannels(:) Shims.Aux.Specs.Amp.dynamicChannels(:) ]' ;
+       activeChannelsMask    = logical( [activeChannelsMask ; activeAuxChannelsMask ] ) ;
+       
+       MAaux = M*Shim.Aux.getshimoperator() ;
+
+        % augmented matrix operator
+        A = [MA zeros(size(A)); zeros(size(A)) MA; MAaux zeros(size(A)); zeros(size(A)) MAaux;] ;
+    
+        solutionVectorLength = sum( activeChannelsMask ) ;
+        
+    end
+
+    % omit inactive channels from the operator (e.g. exclude the 'Aux'/scanner shims for the dynamic optimization)
+    A = A(:, activeChannelsMask) ; 
+    
 end
 
 % if numel( Params.maxCurrentPerChannel ) == 1
@@ -915,12 +1000,21 @@ end
 %
 % end 
 
+
+
+error('Use i0 i0Aux and zeros as initial guess')
 % ------- 
 % Least-squares solution via conjugate gradients
 x = cgls( A'*A, ... % least squares operator
           A'*b, ... % effective solution vector
           zeros( [solutionVectorLength 1] ), ... % initial model (currents) guess
           CgParams ) ;
+
+
+
+
+
+
 
 if ~Params.isRealtimeShimming
     
@@ -1045,9 +1139,9 @@ function [i0, di] = splitsolutionvector( solutionVector )
 %   where di/dp are the relational constants that scale the respiratory
 %   tracking data p(t) into real-time shim current corrections
 
-    assert( length(solutionVector) == 2*Specs.Amp.nActiveChannels ) ;
-    i0 = solutionVector(1:Specs.Amp.nActiveChannels) ;
-    di = solutionVector((Specs.Amp.nActiveChannels+1):end) ;
+    assert( length(solutionVector) == 2*Shim.System.Specs.Amp.nActiveChannels ) ;
+    i0 = solutionVector(1:Shim.System.Specs.Amp.nActiveChannels) ;
+    di = solutionVector((Shim.System.Specs.Amp.nActiveChannels+1):end) ;
 
 end
 

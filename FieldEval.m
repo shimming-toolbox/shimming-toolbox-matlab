@@ -597,6 +597,9 @@ DEFAULT_ORDERSTOGENERATE               = [0:8] ;
 DEFAULT_UNWRAPPER                      = 'Sunwrap' ; % 'AbdulRahman_2007' ;
 
 assert( (nargin >= 1) && ~isempty( ImgArray ) ) ;
+if nargin == 1
+    Params.dummy = [];
+end
 
 if ~myisfield( Params, 'isCorrectingPhaseOffset' ) || isempty( Params.isCorrectingPhaseOffset ) 
     Params.isCorrectingPhaseOffset = DEFAULT_ISCORRECTINGPHASEOFFSET ;
@@ -804,7 +807,7 @@ function [Field] = modelfield( Fields, Params )
 %
 %   Fields{1} = FieldInspired;
 %   Fields{2} = FieldExpired;
-%       where each Fields' entry is a FieldEval-type object
+%       where each Fields entry is a FieldEval-type object
 
 
 % Optional input

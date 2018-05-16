@@ -22,8 +22,8 @@ Shims.Com = [] ;
 Shims.Amp.nChannels       = 9 ;  
 Shims.Amp.nActiveChannels = 9 ;
 
-Shims.Amp.staticChannels  = ones( 1, Shims.Amp.nActiveChannels ) ;  
-Shims.Amp.dynamicChannels = zeros( 1, Shims.Amp.nActiveChannels ) ;  
+Shims.Amp.staticChannels  = true( 1, Shims.Amp.nActiveChannels ) ;  
+Shims.Amp.dynamicChannels = false( 1, Shims.Amp.nActiveChannels ) ;  
 
 Shims.Amp.minLarmorFrequency   = 123100100 ; % [units: Hz]
 Shims.Amp.maxLarmorFrequency   = 123265000 ; % [units: Hz]
