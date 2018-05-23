@@ -18,7 +18,7 @@ Shim.Field = [] ;
 Shim.Model = [] ;
 Shim.Aux   = [] ;
 Shim.System.Specs    = ShimSpecs_IUGM_Prisma_fit();
-Shim.System.currents = zeros( Shim.System.Specs.nActiveChannels ) ; 
+Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
 
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
@@ -66,10 +66,6 @@ function [currents] = optimizeshimcurrents( Shim, Params )
 %   .maxCurrentPerChannel
 %       [default: determined by class ShimSpecs.Amp.maxCurrentPerChannel]
  
-
-DEFAULT_REGULARIZATIONPARAMETER     = 0;
-DEFAULT_ISRETURNINGPSEUDOINVERSE    = true; % THIS UNTIL MAX SHIM CURRENTS ARE KNOWN
-
 if nargin < 2 
     Params.dummy = [];
 end

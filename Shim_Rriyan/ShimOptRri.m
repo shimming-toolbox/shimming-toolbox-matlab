@@ -90,21 +90,16 @@ function [currents] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESTATICSHIMCURRENTS 
 %
 % currents  = OPTIMIZESHIMCURRENTS( Shim, Params )
-% currents  = OPTIMIZESHIMCURRENTS( Shim, Params, FieldExpired )
-%   
-% Params can have the following fields 
-%   
-%   .maxCurrentPerChannel
-%       [default: 4 A,  determined by class ShimSpecsRri.Amp.maxCurrentPerChannel]
 
-DEFAULT_REGULARIZATIONPARAMETER     = 0;
-DEFAULT_ISRETURNINGPSEUDOINVERSE    = 0;
+DEFAULT_ISOPTIMIZINGAUX             = true ;
 
 if nargin < 2 
     Params.dummy = [];
 end
 
-% TODO (if needed): define RRI system-specific Params
+if ~myisfield(Params, 'isOptimizingAux') || isempty( Params.isOptimizingAux )
+    Params.isOptimizingAux = DEFAULT_ISOPTIMIZINGAUX ;
+end
 
 if nargin < 3
     currents = @optimizeshimcurrents.ShimOpt( Shim, Params, @checknonlinearconstraints ) ;

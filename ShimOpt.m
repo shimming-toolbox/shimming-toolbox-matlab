@@ -811,8 +811,8 @@ function [currents] = optimizeshimcurrents( Shim, Params, checknonlinearconstrai
 
 % DEFAULT_REGULARIZATIONPARAMETER     = 0;
 DEFAULT_ISRETURNINGPSEUDOINVERSE = 0;
+DEFAULT_ISOPTIMIZINGAUX          = false ;
 DEFAULT_ISREALTIMESHIMMING       = false;
-DEFAULT_ISOPTIMIZINGAUX          = true ;
 
 if nargin < 2
     error('Function requires at least 2 arguments: a ShimOpt instance, and a ShimSpecs instance')
@@ -822,21 +822,43 @@ if ~myisfield(Params, 'isReturningPseudoInverse') || isempty( Params.isReturning
     Params.isReturningPseudoInverse = DEFAULT_ISRETURNINGPSEUDOINVERSE ; 
 end
 
+if ~myisfield(Params, 'isOptimizingAux') || isempty( Params.isOptimizingAux )
+    Params.isOptimizingAux = DEFAULT_ISOPTIMIZINGAUX ;
+end
+
+if Params.isOptimizingAux
+    assert( ~isempty( Shim.Aux ) )
+    % total active channels over dual shim systems
+    Params.nActiveChannels = Shim.System.Specs.Amp.nActiveChannels + Shim.Aux.System.Specs.Amp.nActiveChannels ;
+else
+    Params.nActiveChannels = Shim.System.Specs.Amp.nActiveChannels ;
+end
+
 if ~myisfield(Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerChannel ) 
     Params.maxCurrentPerChannel = Shim.System.Specs.Amp.maxCurrentPerChannel ; 
+    if Params.isOptimizingAux
+        Params.maxCurrentPerChannel = [ Params.maxCurrentPerChannel Shim.Aux.System.Specs.Amp.maxCurrentPerChannel ]; 
+    end
 end
+
+assert( length( Params.maxCurrentPerChannel ) == length( Params.minCurrentPerChannel ) == Params.nActiveChannels, ...
+    'Shim system limits (Params.maxCurrentPerChannel and Params.minCurrentPerChannel) must possess an entry for each shim channel (primary and, if in use, auxiliary shims).' ) ;
 
 if ~myisfield(Params, 'minCurrentPerChannel') || isempty( Params.minCurrentPerChannel ) 
     Params.minCurrentPerChannel = -Params.maxCurrentPerChannel ; 
+    if Params.isOptimizingAux
+        Params.maxCurrentPerChannel = [ Params.minCurrentPerChannel -Shim.Aux.System.Specs.Amp.maxCurrentPerChannel ]; 
+    end
 end
 
 if ~myisfield(Params, 'isRealtimeShimming') || isempty( Params.isRealtimeShimming )
     Params.isRealtimeShimming = DEFAULT_ISREALTIMESHIMMING ;
 end
 
-if ~myisfield(Params, 'isOptimizingAux') || isempty( Params.isOptimizingAux )
-    Params.isOptimizingAux = DEFAULT_ISOPTIMIZINGAUX ;
-end
+
+% if ~myisfield(Params, 'regularizationParameter') || isempty( Params.regularizationParameter ) 
+%     Params.regularizationParameter = DEFAULT_REGULARIZATIONPARAMETER ;
+% end
 
 if Params.isRealtimeShimming
     assert( myisfield( Shim.Field.Model, 'Shift') && ~isempty( Shim.Field.Model.Shift.img ) ) 
@@ -847,13 +869,6 @@ if Params.isRealtimeShimming
     dp  = Shim.Field.Model.Shift.Aux.Tracker.Data.p
 
 end
-
-
-% if ~myisfield(Params, 'regularizationParameter') || isempty( Params.regularizationParameter ) 
-%     Params.regularizationParameter = DEFAULT_REGULARIZATIONPARAMETER ;
-% end
-
-% 
 
 
 
@@ -891,6 +906,10 @@ M  = Shim.gettruncationoperator*W ;
 A  = M*Shim.getshimoperator ; % masked current-to-field operator
 MA = A;
 
+% -------
+% Solve for residual field offset *without* existing shim fields. 
+% --> (this way, optimizeshimcurrents() solves for the absolute shim currents, rather than a shift.
+
 % retain original currents for 'initial guess' of conjugate gradient solver
 i0 = Shim.System.currents ;
 
@@ -909,33 +928,40 @@ end
 % -------
 % residual field offset *without* existing shim field. 
 bx = Shim.Field.img(:) - bs ;
-% (this way, optimizeshimcurrents() solves for the absolute shim currents, rather than a shift.)
 
 
 if ~Params.isRealtimeShimming
     
-    b = M*(-bs(:)) ;
+    b = M*(-bx(:)) ;
     
     activeChannelsMask = [ Shims.System.Specs.Amp.staticChannels(:) ]' ;
 
-    if ~isempty( Shim.Aux ) && Params.isOptimizingAux
+    if Params.isOptimizingAux
+       
+        % Solution vector of shim currents is a stack of vectors, i.e. from top to bottom:
+       %    [ Main Shim DC currents; 
+       %      Aux Shim DC currents;  ] 
 
        activeAuxChannelsMask = [ Shims.Aux.System.Specs.Amp.staticChannels(:) ]' ;
        activeChannelsMask    = [ activeChannelsMask ; activeAuxChannelsMask ] ;
+       
+       MAaux = M*Shim.Aux.getshimoperator() ;
+
+       A = [ MA MAaux ] ;
 
     end
 
     solutionVectorLength = sum( activeChannelsMask ) ;
 
 else 
-   
+    warning('Assuming TX frequency and shim fields remained constant across the 2 GRE field map acquistions.')
     % the 'dc' field, assuming a linear model of the field shift from respiration:
-    b0 = bs(:) ;
+    b0 = bx(:) ;
 
     % field shift from RIRO  
     db = Shim.Field.Model.Shift.img(:) ;
 
-    % augmented data vector : dc field, field shift -- vertically concatenated
+    %  stacked data vector : dc field, field shift -- vertically concatenated
     b = [ M*-b0 ; M*-db ] ;
    
     % top half: dc currents, bottom: insp-exp current shifts
@@ -944,62 +970,44 @@ else
     % 'stacked' solution vector length : 
     solutionVectorLength = sum( activeChannelsMask ) ;
 
-    % augmented matrix operator
+    % stacked matrix operator
     A = [MA zeros(size(A)); zeros(size(A)) MA] ;
 
-    
-    if ~isempty( Shim.Aux ) && Params.isOptimizingAux 
+    if Params.isOptimizingAux 
 
-       % solution vector of shim currents organized as a stack of vectors:
-       % From top to bottom:
+       % Solution vector of shim currents is a stack of vectors, i.e. from top to bottom:
        %    [ Main Shim DC currents; 
        %      Main Shim insp-exp current shift; 
        %      Aux Shim DC currents; 
        %      Aux Shim current shifts ; ] 
-       %
+       
        activeAuxChannelsMask = [ Shims.Aux.Specs.Amp.staticChannels(:) Shims.Aux.Specs.Amp.dynamicChannels(:) ]' ;
-       activeChannelsMask    = logical( [activeChannelsMask ; activeAuxChannelsMask ] ) ;
+       activeChannelsMask    = [activeChannelsMask ; activeAuxChannelsMask ] ;
        
        MAaux = M*Shim.Aux.getshimoperator() ;
 
         % augmented matrix operator
-        A = [MA zeros(size(A)); zeros(size(A)) MA; MAaux zeros(size(A)); zeros(size(A)) MAaux;] ;
-    
+        A = [MA zeros(size(A)); zeros(size(A)) MA; MAaux zeros(size(MAaux)); zeros(size(MAaux)) MAaux;] ;
+        
+        % TODO 
+        %   Remove inactive channels from the operator (and solution vector)
+        %   rather than setting them to zero. e.g. 
+        %   A = A(:, activeChannelsMask) ; 
+        A(:,~activeChannelsMask) = 0;
         solutionVectorLength = sum( activeChannelsMask ) ;
         
     end
 
-    % omit inactive channels from the operator (e.g. exclude the 'Aux'/scanner shims for the dynamic optimization)
-    A = A(:, activeChannelsMask) ; 
     
 end
 
-% if numel( Params.maxCurrentPerChannel ) == 1
-%
-%     Params.maxCurrentPerchannel =  Params.maxCurrentPerChannel * ones( solutionVectorLength, 1 ) ;
-%
-% else
-%     
-%     [nRows, nCols] = size( Params.maxCurrentPerChannel ) ;
-%
-%     if ( nRows == 1 ) && ( nCols > 1 )
-%
-%         Params.maxCurrentPerChannel = Params.maxCurrentPerChannel' ;
-%         
-%         [nRows, nCols] = size( Params.maxCurrentPerChannel ) ;
-%
-%     end
-%
-%     assert( mod( solutionVectorLength, nRows ) == 0 )
-%     
-%     if length( Params.maxCurrentsPerChannel ) < solutionVectorLength
-%
-%         Params.maxCurrentsPerChannel = [ Params.maxCurrentsPerChannel ; Params.maxCurrentsPerChannel ] ;
-%
-%     end
-%
-% end 
-
+% A = [1 0 0; 0 0 0;] ;
+% b = [1 ;0;];
+% solutionVectorLength = 3
+% x = cgls( A'*A, ... % least squares operator
+%           A'*b, ... % effective solution vector
+%           zeros( [solutionVectorLength 1] ), ... % initial model (currents) guess
+%           CgParams ) ;
 
 
 error('Use i0 i0Aux and zeros as initial guess')
@@ -1010,24 +1018,41 @@ x = cgls( A'*A, ... % least squares operator
           zeros( [solutionVectorLength 1] ), ... % initial model (currents) guess
           CgParams ) ;
 
-
-
-
-
-
-
 if ~Params.isRealtimeShimming
     
-    currents = x ;
-    Shim.Model.currents = x ;
+    if ~Params.isOptimizingAux
+        
+        currents = x ;
+        Shim.Model.currents = x ;
     
+    else
+        
+        [i0, i0Aux] = splitsolutionvector( x ) ;
+
+    end
+
 else
 
-    [i0, di] = splitsolutionvector( x ) ;
+    if ~Params.isOptimizingAux
+        
+        [i0, di] = splitsolutionvector( x ) ;
+        
+        currents = i0 ;
+        Shim.Model.currents = i0 ;
+        Shim.Model.couplingCoefficients = di/dp ;
     
-    currents = i0 ;
-    Shim.Model.currents = i0 ;
-    Shim.Model.couplingCoefficients = di/dp ;
+    else
+
+        [i0, di, i0Aux, diAux] = splitsolutionvector( x ) ;
+        
+        currents = [i0 i0Aux] ;
+        Shim.Model.currents = i0 ;
+        Shim.Model.couplingCoefficients = di/dp ;
+
+        Shim.Aux.Model.currents = i0Aux ;
+        Shim.Aux.Model.couplingCoefficients = diAux/dp ;
+
+    end
 
 end
 
@@ -1055,8 +1080,8 @@ if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
             [],...
             [],...
             [],...
-            Params.minCurrentPerChannel * ones(solutionVectorLength,1),...
-            Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
+            Params.minCurrentPerChannel,...
+            Params.maxCurrentPerChannel,...
             checknonlinearconstraints,...
             Options);
 
@@ -1071,8 +1096,8 @@ if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
             [],...
             [],...
             [],...
-            Params.minCurrentPerChannel * ones(solutionVectorLength,1),...
-            Params.maxCurrentPerChannel * ones(solutionVectorLength,1),...
+            Params.minCurrentPerChannel,...
+            Params.maxCurrentPerChannel,...
             @checknonlinearconstraints_riro,...
             Options);
         
@@ -1106,7 +1131,19 @@ function [C, Ceq] = checknonlinearconstraints_riro( solutionVector )
 
 Ceq = [];
 
-[i0, di] = splitsolutionvector( solutionVector ) ;
+[i0, di, i0Aux, diAux] = splitsolutionvector( solutionVector ) ;
+
+if ~isempty( i0Aux )
+    
+    if isempty( diAux )
+        diAux = zeros( size(i0Aux) ) ;
+    end
+
+    % stack auxiliary shim currents on bottom
+    i0 = [i0; i0Aux] ; 
+    di = [di; diAux] ; 
+
+end 
 
 didp = di/dp ;
 
@@ -1121,29 +1158,58 @@ C = [dcCurrentsC; inCurrentsC; exCurrentsC];
 
 end
 
-function [i0, di] = splitsolutionvector( solutionVector ) 
+function [i0, di, i0Aux, diAux] = splitsolutionvector( solutionVector ) 
 %SPLITSOLUTIONVECTOR
 %
-% De-concatenates vertically stacked/agumented solution vector into 
+% De-concatenates vertically stacked solution vector into 
 %
-% [i0, di]   
+% [i0, di, i0Aux, diAux]
 % 
 % i0 
-%   vector of DC static shim currents
-% 
+%   vector of DC static shim currents for the primary (e.g. multicoil) shim
+%  
 % di
-%   vector of current differences (inspired - expired), such that the
-%   time-varying shim current i(t) 
+%   vector of current differences (inspired - expired) for the primary shim, 
+%   such that the time-varying shim current i(t) 
 %       = i0 (di/dp)*p(t)
 %
 %   where di/dp are the relational constants that scale the respiratory
 %   tracking data p(t) into real-time shim current corrections
+%
+% i0Aux
+%   vector of DC static shim currents for the auxiliary (e.g. scanner) shim
+%
+% diAux 
+%   vector of current differences for the auxiliary (e.g. scanner) shim
 
-    assert( length(solutionVector) == 2*Shim.System.Specs.Amp.nActiveChannels ) ;
-    i0 = solutionVector(1:Shim.System.Specs.Amp.nActiveChannels) ;
-    di = solutionVector((Shim.System.Specs.Amp.nActiveChannels+1):end) ;
+i0    = [];
+di    = [];
+i0Aux = [];
+diAux = [];
 
+i0 = solutionVector(1:Shim.System.Specs.Amp.nActiveChannels) ;
+
+if Params.isRealtimeShimming 
+    
+    % solutionVector = [ i0 ; di ]
+    di = solutionVector(Shim.System.Specs.Amp.nActiveChannels+1:2*Shim.System.Specs.Amp.nActiveChannels) ;
+    
+    if Params.isOptimizingAux
+        % solutionVector = [ i0 ; di; i0Aux; diAux ]
+        iAuxTmp = solutionVector(  2*Shim.System.Specs.Amp.nActiveChannels + 1 : end ) ;
+        i0Aux = iAuxTmp(1:Shim.Aux.System.Specs.Amp.nActiveChannels) ;
+        diAux = iAuxTmp(Shim.Aux.System.Specs.Amp.nActiveChannels+1:end) ;
+        assert( length(diAux) == Shim.Aux.System.Specs.Amp.nActiveChannels ) 
+    end
+
+elseif ~Params.isRealtimeShimming && Params.isOptimizingAux
+    % solutionVector = [ i0 ; i0Aux ]
+    i0Aux = solutionVector(Shim.System.Specs.Amp.nActiveChannels+1:end) ;
+    assert( length(i0Aux) == Shim.Aux.System.Specs.Amp.nActiveChannels ) 
 end
+
+
+end %splitsolutionvector
 
 
 end
