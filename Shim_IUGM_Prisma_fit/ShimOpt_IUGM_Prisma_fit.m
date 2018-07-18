@@ -35,11 +35,22 @@ elseif ~isempty(Params.pathToShimReferenceMaps)
    
    [ Shim.img, Shim.Hdr ] = ShimOpt.loadshimreferencemaps( Params.pathToShimReferenceMaps ) ; 
 
+    % TODO
+    % --> DICOM positional fields (notably, ImagePositionPatient & ImageOrientationPatient)
+    % refer to the 'patient coordinate system' which is itself established upon positioning
+    % the patient (i.e. this coordinate system *moves with the patient table!*)
+    % therefore, in fact, i need a way to relate the PCS system to the scanner's (static) shim/coordinate system! 
+    % 
+    % i.e., what I wrote here is irrelevant:
+    % 
     % DICOM Hdr.Private_0019_1013 describes the absolute table position (of the
     % reference maps).  It's used in ShimOpt.interpolatetoimggrid() to account for
     % variable table positioning, but for the scanner shims the field shift
     % doesn't depend on table position, so, (in case it's not already empty) :
     Shim.Hdr.Private_0019_1013 = [] ;
+    
+    Shim.Ref.img = Shim.img ;
+    Shim.Ref.Hdr = Shim.Hdr ;
 
 end
 
@@ -143,7 +154,7 @@ function  [ Params ] = assigndefaultparameters( Params )
 
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20180502';
+DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20180606';
 DEFAULT_PROBESPECS              = [] ;
 
 if ~myisfield( Params, 'isCalibratingReferenceMaps' ) || isempty(Params.isCalibratingReferenceMaps)
@@ -179,9 +190,10 @@ function Params = declarecalibrationparameters( Params )
 
 Params.nChannels  = 8 ;
 Params.nCurrents  = 2 ;
+Params.nEchoes    = 1 ; % nEchoes = # phase *difference* images
 
 % 2 columns: [ MAG | PHASE ] ;
-Params.dataLoadDirectories = cell( Params.nCurrents, 2, Params.nChannels ) ;
+Params.dataLoadDirectories = cell( Params.nEchoes, 2, Params.nCurrents, Params.nChannels ) ;
 
 Params.currents = zeros( Params.nChannels, Params.nCurrents ) ; 
 % will read shim current offsets (relative to baseline 'tune-up' values)
@@ -231,8 +243,8 @@ tmp = { ...
     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/219-gre_field_mapping_B22_plus600_S147_DIS3D/echo_7.38/' ; } ;
 
 % 1st 2 directories correspond to the baseline shim 
-Params.dataLoadDirectories{1,1,1} = tmp{1} ;
-Params.dataLoadDirectories{1,2,1} = tmp{2} ;
+Params.dataLoadDirectories{1,1,1,1} = tmp{1} ;
+Params.dataLoadDirectories{1,2,1,1} = tmp{2} ;
 
 nImgPerCurrent = 2 ; % = 1 mag image + 1 phase
 
@@ -242,19 +254,21 @@ for iChannel = 1 : Params.nChannels
     disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
     
     for iCurrent = 1 : Params.nCurrents 
-        Params.dataLoadDirectories{ iCurrent, 1, iChannel + 1} = tmp{ nImgPerCurrent*(Params.nCurrents*iChannel + iCurrent) -3 } ;
-        Params.dataLoadDirectories{ iCurrent, 2, iChannel + 1} = tmp{ nImgPerCurrent*(Params.nCurrents*iChannel + iCurrent) -2 } ;
+        % mag
+        Params.dataLoadDirectories{ 1, 1, iCurrent, iChannel + 1} = tmp{ nImgPerCurrent*(Params.nCurrents*iChannel + iCurrent) -3 } ;
+        % phase
+        Params.dataLoadDirectories{ 1, 2, iCurrent, iChannel + 1} = tmp{ nImgPerCurrent*(Params.nCurrents*iChannel + iCurrent) -2 } ;
        
         % for calibration of Siemens (e.g. Prisma) scanner shims only : 
         % load one of the images for each 'current' to get the shim values directly from the Siemens Hdr
-        Img = MaRdI( Params.dataLoadDirectories{ iCurrent, 1, iChannel +1 }  ) ; % mag
+        Img = MaRdI( Params.dataLoadDirectories{ 1, 1, iCurrent, iChannel +1 }  ) ; % mag
         [f0,g0,s0] = Img.adjvalidateshim( ) ;
         shimValues = ShimOpt_IUGM_Prisma_fit.converttomultipole( [g0 ; s0] ) ; % convert to the 'multipole units' of the 3D shim card (Siemens console GUI)
         Params.currents( iChannel, iCurrent ) = shimValues( iChannel ) ; % TODO : consistent approach to units, since these aren't in amps...
     end
 end
 
-Params.Filtering.isFiltering  = true ;
+Params.Filtering.isFiltering  = false ;
 Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
 voxelSize                     = Mag.getvoxelsize() ;
 Params.Filtering.filterRadius = 2*voxelSize(1) ;

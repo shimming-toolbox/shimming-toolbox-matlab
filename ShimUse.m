@@ -61,7 +61,7 @@ classdef ShimUse < matlab.mixin.SetGet
 %    ShimUse
 %
 % =========================================================================
-% Updated::20180328::ryan.topfer@polymtl.ca
+% Updated::20180604::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -175,7 +175,7 @@ function [] = acquiretrainingdata( Shim, iTrainingFrame )
 
 Params.isSavingData        = true;
 Params.isForcingOverwrite  = true ;
-Params.runTime             = 3*60 ; % [units: s], max runTime = 3 min.
+Params.runTime             = 5*60 ; % [units: s], max runTime = 5 min.
 
 if nargin < 2
 
@@ -333,8 +333,7 @@ function [] = processtrainingdata( Shim )
 %
 % PROCESSTRAININGDATA( Shim )
 % 
-% Shim.Data.Img gains a 3rd column with cells containing the processed b0 field
-% map
+% Shim.Data.Img gains a 3rd column with cells containing the b0 field map
 % i.e. 
 %   Columns [1 | 2 | 3] = [MAG | PHASE | FIELD]
 %
@@ -377,6 +376,7 @@ end
 if ( Shim.Params.nTrainingFrames > 1 ) && ~isempty( Shim.Data.Aux.Tracker{ 1, 1, Shim.Params.nTrainingFrames + 1 } )
    
     % this is assumed to be a free breathing recording
+    % i.e. trainingFrame 1 = inspired; 2 = expired.
     Shim.Params.pDc  = median( Shim.Data.Aux.Tracker{ 1,1, Shim.Params.nTrainingFrames + 1 }.Data.p ) ;
     % TODO extract min + max pressures across ALL recordings instead?
     Shim.Params.pMin = min( Shim.Data.Aux.Tracker{ 1,1, Shim.Params.nTrainingFrames + 1 }.Data.p ) ;
@@ -393,7 +393,8 @@ if Shim.Params.isAutoSegmenting == true
 
     % call spinal cord toolbox 
     for iFrame = 1 : 1 % Shim.Params.nTrainingFrames TODO : make it faster ? takes too long with multiple training frames
-        TmpParams.dataSaveDir = [ Shim.Params.dataLoadDir ] ;
+
+        TmpParams.dataSaveDir       = [ Shim.Params.dataLoadDir ] ;
         TmpParams.isUsingPropsegCsf = true ;
         
         [cordVoi, sctWeights] = Shim.Data.Img{ 1, 1, iFrame }.segmentspinalcanal( TmpParams ) ;
@@ -402,7 +403,7 @@ if Shim.Params.isAutoSegmenting == true
         Shim.Params.cordVoi = Shim.Params.cordVoi & cordVoi ;
         
         t2sWeights = Shim.Opt.derivedataweights( ...
-            { Shim.Data.Img{ 1, 1, iFrame }  ; Shim.Data.Img{ 2, 1, iFrame } }, 16, Shim.Params.cordVoi ) ;
+            { Shim.Data.Img{ 1, 1, iFrame }  ; Shim.Data.Img{ 2, 1, iFrame } }, 15, Shim.Params.cordVoi ) ;
 
         Shim.Params.dataWeights = Shim.Params.dataWeights + sctWeights + t2sWeights ;
     end
@@ -427,11 +428,18 @@ function [] = runrealtimeshim( Shim, Params )
 % assert( strcmp( Shim.Opt.Tracker.ComPort.Status, 'closed' ), ...
 %     'Error: Serial port is open/in use.' );
 
+if ~myisfield( Shim.Params, 'dataLoadDir' )
+    Params.dataSaveDir = './' ;
+else
+    Params.dataSaveDir = Shim.Params.dataLoadDir ;
+end
+
 DEFAULT_ISSAVINGDATA            = true ;
 DEFAULT_ISFORCINGOVERWRITE      = false ;
-DEFAULT_MEASUREMENTLOGFILENAME  = ['./' datestr(now,30) '-pressureLog.bin' ] ;
-DEFAULT_SAMPLETIMESFILENAME     = ['./' datestr(now,30) '-sampleTimes.bin' ] ;
-DEFAULT_UPDATETIMESFILENAME     = ['./' datestr(now,30) '-updateTimes.bin' ] ;
+
+DEFAULT_MEASUREMENTLOGFILENAME  = [ Params.dataSaveDir datestr(now,30) '-pressureLog.bin' ] ;
+DEFAULT_SAMPLETIMESFILENAME     = [ Params.dataSaveDir datestr(now,30) '-sampleTimes.bin' ] ;
+DEFAULT_UPDATETIMESFILENAME     = [ Params.dataSaveDir datestr(now,30) '-updateTimes.bin' ] ;
 
 DEFAULT_RUNTIME                 = 5*60 ; % [units: s]
 DEFAULT_EXTRAPOLATIONORDER      = 0 ;
@@ -444,6 +452,7 @@ DEFAULT_ISCLIPPING              = true ;
 DEFAULT_MINCLIPTHRESHOLD        = 1 ;
 DEFAULT_MAXCLIPTHRESHOLD        = 1000 ;
 
+DEFAULT_TXDELAY                 = 100 ; % [units: ms]
 
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;
@@ -512,7 +521,13 @@ if  ~myisfield( Params, 'maxClipThreshold' ) || isempty(Params.maxClipThreshold)
     Params.maxClipThreshold  = Shim.Params.pMax ; % DEFAULT_MAXCLIPTHRESHOLD ; 
 end
 
+if  ~myisfield( Params, 'txDelay' ) || isempty(Params.txDelay)
+    Params.txDelay = DEFAULT_TXDELAY ;
+end
 
+if ~myisfield( Shim.Params, 'pDc' ) || isempty( Shim.Params.pDc )
+    error('Requires the DC respiratory pressure offset: Shim.Params.pDc')
+end
 
 
 Params.nSamplesFilter  = 5 ; % Window length -> 5 samples * 10 ms/sample = 50 ms
@@ -542,7 +557,7 @@ if strcmp( class( Shim.Com ), 'ShimComRri' )
 
 else
    
-   updatePeriod  = Shim.Com.Specs.updatePeriod ;
+   updatePeriod  = Shim.Com.Specs.Com.updatePeriod ;
     
    nSamplesBetweenUpdates = updatePeriod/( Shim.Opt.Tracker.Specs.dt/1000 ) ;
 
@@ -649,7 +664,7 @@ if isTracking
              Shim.Opt.Tracker.Data.p(iUpdate) = clipvalue( Shim.Opt.Tracker.Data.p(iUpdate) ) ;
          end
 
-        currents = Shim.Opt.computerealtimeupdate(  ) ;
+        currents = Shim.Opt.computerealtimeupdate( Shim.Params.pDc ) ;
         
         % currents = limitcurrents( currents ) ;
         currentsNorm = norm(currents) 
@@ -747,11 +762,8 @@ end
 % =========================================================================
 function [] = uiconfirmdataloaddir( Shim )
 %UICONFIRMDATALOADDIR
-% 
-% isAckReceived = TESTSHIMCONNECTION( Shim )
-% 
-% Queries shim amp for response (1 or 0)
 
+display('Select primary DATA folder.')
 uiBoxTitle = ['Select primary DATA folder.'] ;
 
 Shim.Params.dataLoadDir  = [ uigetdir( Shim.Params.dataLoadDir, uiBoxTitle ) '/']; 

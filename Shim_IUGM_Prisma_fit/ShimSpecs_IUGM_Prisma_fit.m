@@ -22,8 +22,8 @@ Shim.Com = [] ;
 Shim.Amp.nChannels       = 9 ;  
 Shim.Amp.nActiveChannels = 9 ;
 
-Shim.Amp.staticChannels  = true( 1, Shim.Amp.nActiveChannels ) ;  
-Shim.Amp.dynamicChannels = false( 1, Shim.Amp.nActiveChannels ) ;  
+Shim.Amp.staticChannels  = true( Shim.Amp.nActiveChannels, 1 ) ;  
+Shim.Amp.dynamicChannels = false( Shim.Amp.nActiveChannels, 1 ) ;  
 
 
 % NB: One can use the Siemens commandline AdjValidate tool to get all the values below:

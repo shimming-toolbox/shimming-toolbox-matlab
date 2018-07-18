@@ -40,7 +40,7 @@ classdef MaRdI < matlab.mixin.SetGet
 %       https://github.com/Human-Connectome-Project/parse-dicom
 % etc.
 % =========================================================================
-% Updated::20180409::ryan.topfer@polymtl.ca
+% Updated::20180711::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -93,6 +93,31 @@ if nargin == 1 && ~isempty(imgDir)
 
     if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
         Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
+    end
+    
+    % % Temp. fix for determining voxel positions
+    % % TODO: determine voxel positions on an image-by-image basis (and, if necessary, reorder the slices!)
+    % % load Hdr of last image in directory
+    r = Img.Hdr.ImageOrientationPatient(4:6) ; 
+    c = Img.Hdr.ImageOrientationPatient(1:3) ; 
+
+    % estimate positions based on the 1st loaded image in the directory:
+    % 1. using
+    Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;  
+    [X1,Y1,Z1] = Img.getvoxelpositions() ;     
+    
+    % 2. using the reverse
+    Img.Hdr.Img.SliceNormalVector = cross( r, c ) ;  
+    [X2,Y2,Z2] = Img.getvoxelpositions() ; % estimate positions based on the 1st loaded image in the directory. 
+   
+    % the actual position corresponding to the slice direction can be increasing or decreasing with slice/image number
+    HdrLastSlice = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(Img.Hdr.NumberOfSlices).name] ) ;
+   
+    % which estimate is closer? 1 or 2? 
+    if norm( HdrLastSlice.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) < ...
+            norm( HdrLastSlice.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) ;    
+        % if true, then 1. corresponds to the correct orientation
+        Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;
     end
 
 end
@@ -211,7 +236,6 @@ if ~Params.isUndoing
             Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\M\' ; 
         end
 
-        
 
     elseif ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) ) % is raw SIEMENS phase
     
@@ -229,7 +253,6 @@ if ~Params.isUndoing
         Img.img = (Img.Hdr.RescaleSlope .* double( Img.img ) ...
                     + Img.Hdr.RescaleIntercept)/double(2^Img.Hdr.BitsStored) ;
     
-
         Img.img            = pi*Img.img ; % scale to rad
         Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\P\' ; 
         Img.Hdr.PixelRepresentation = uint8(1) ; % i.e. signed 
@@ -244,7 +267,7 @@ elseif Params.isUndoing
     
     Img.Hdr.RescaleIntercept = min( Img.img(:) ) ;
     Img.img                  = Img.img - Img.Hdr.RescaleIntercept ;
-    Img.Hdr.RescaleSlope     = max( Img.img(:) )/double(2^Img.Hdr.BitsStored ) ;
+    Img.Hdr.RescaleSlope     = max( Img.img(:) )/double( 2^Img.Hdr.BitsStored ) ;
     Img.img                  = uint16( Img.img / Img.Hdr.RescaleSlope ) ;
 
 end
@@ -256,7 +279,7 @@ function Img = normalizeimg( Img )
 %
 % Img = NORMALIZEIMG( Img )
 
-Img.img = double(Img.img)/max(Img.img(:)) ; % normalize 
+Img.img = double(Img.img)/max( abs( Img.img(:) ) ) ; % normalize 
 
 end
 % =========================================================================
@@ -387,9 +410,9 @@ function Img = scalephasetofrequency( Img, undoFlag )
 % Converts unwrapped phase [units:rad] to field [units: Hz]
 % 
 %   Field = scalephasetofrequency( UnwrappedPhase )
-%   Phase = scalephasetofrequency( Field, 1 )
+%   Phase = scalephasetofrequency( Field, -1 )
 %   
-%   The 'undo' mode with the 2nd argument scales from Hz back to rad
+%   The 'undo' mode with -1 as the 2nd argument scales from Hz back to rad
 % .....
 %
 % UnwrappedPhase.Hdr.EchoTime              [units: ms]
@@ -425,7 +448,7 @@ switch Img.Hdr.ImagedNucleus
     case '1H' 
         GYRO = 267.513E6 ; 
     otherwise
-        error('Unknown nucleus. Do something useful: add case and corresponding gyromagnetic ratio.') ;
+        error('Unknown nucleus.') ;
 end
 
 end
@@ -501,7 +524,8 @@ if ~myisfield( Options, 'threshold') || isempty(Options.threshold)
     Options.threshold = DEFAULT_THRESHOLD ;
 end
 
-isPhaseBalanced = all( Phase.img(:) >= -pi ) & all( Phase.img(:) <= pi ) ;
+isPhaseBalanced = all( Phase.img(logical(Phase.Hdr.MaskingImage)) >= -pi ) ...
+                & all( Phase.img(logical(Phase.Hdr.MaskingImage)) <= pi ) ;
 
 switch Options.unwrapper
 
@@ -547,27 +571,28 @@ function [r,c,s] = getdirectioncosines( Img )
 %   https://en.wikipedia.org/wiki/Direction_cosine
 %
 % [r,c,s] = GETDIRECTIONALCOSINES( Img ) 
-%   r: row index direction cosine
+%   r: row *index* direction cosine
 %   c: column index " "
 %   s: slice index " "
+%
+%   NB: the *index* term. r & c may be defined obstrusely:
+%   i.e. r is not the row direction cosine (c is!), it is the direction cosine
+%   of the vector that points along the direction of increasing row indices
+%   (i.e. it's in the column direction!)
       
-r = Img.Hdr.ImageOrientationPatient(4:6) ; 
-c = Img.Hdr.ImageOrientationPatient(1:3) ; 
-s = cross( c, r ) ;  
-
 % " To make a full rotation matrix, we can generate the last column from
 % the cross product of the first two. However, Siemens defines, in its
 % private CSA header, a SliceNormalVector which gives the third column, but
 % possibly with a z flip, so that R is orthogonal, but not a rotation
 % matrix (it has a determinant of < 0)."
-%   -From http://nipy.org/nibabel/dicom/dicom_mosaic.html 
+%  -From http://nipy.org/nibabel/dicom/dicom_mosaic.html 
 %
-% In general, (I think) the coordinate is increasing along slice dimension
-% with slice index:
-[~,iS] = max( abs(s) ) ;
-if s(iS) < 0
-    s = -s ;
-end
+% RT 20180716: I define Hdr.Img.SliceNormalVector in the MaRdI constructor
+% s = cross( c, r ) ;  
+
+c = Img.Hdr.ImageOrientationPatient(1:3) ; 
+r = Img.Hdr.ImageOrientationPatient(4:6) ; 
+s = Img.Hdr.Img.SliceNormalVector ;
 
 end 
 % =========================================================================
@@ -631,7 +656,7 @@ function [X,Y,Z] = getvoxelpositions( Img )
 %   location [units: mm] of the corresponding voxel with respect to 
 %   DICOM's 'Reference Coordinate System'.
 
-% form DICOM standard: https://www.dabsoft.ch/dicom/3/C.7.6.2.1.1/
+% from DICOM standard: https://www.dabsoft.ch/dicom/3/C.7.6.2.1.1/
 %
 % If Anatomical Orientation Type (0010,2210) is absent or has a value of
 % BIPED, the x-axis is increasing to the left hand side of the patient. The
@@ -736,41 +761,84 @@ end
 
 end
 % =========================================================================
-function [] = resliceimg( Img, X_1, Y_1, Z_1, interpolationMethod ) 
+function [F] = resliceimg( Img, X_1, Y_1, Z_1, varargin ) 
 %RESLICEIMG
 % 
-%   Wraps to GRIDDATA() to interpolate Img, updates Img.Hdr accordingly.
+%   Interpolate Img using 'scatteredInterpolant' class; updates Img.Hdr accordingly.
 %
-%   [] = RESLICEIMG( Img, X, Y, Z )
-%   [] = RESLICEIMG( Img, X, Y, Z, interpolationMethod ) 
-%
+%   [F] = RESLICEIMG( Img, X, Y, Z )
+%   [F] = RESLICEIMG( Img, X, Y, Z, interpolationMethod ) 
+%   [F] = RESLICEIMG( Img, X, Y, Z, F ) 
+%   
 %   X, Y, Z MUST refer to X, Y, Z patient coordinates (i.e. of the DICOM
 %   reference coordinate system)
 %   
-%   Optional interpolationMethod is a string supported by griddata().
-%
-%   See: help griddata  
+%   Optional interpolationMethod is a string supported by the scatteredInterpolant constructor.
+%   F is the object of type 'scatteredInterpolant' used for interpolation.
 
-%------ 
-% Reslice to new resolution
+
+DEFAULT_INTERPOLATIONMETHOD  = 'linear' ;
+DEFAULT_ISFORMINGINTERPOLANT = true ;
+
 if nargin < 5
-    interpolationMethod = 'linear' ;
+
+    interpolationMethod  = DEFAULT_INTERPOLATIONMETHOD ;
+    isFormingInterpolant = DEFAULT_ISFORMINGINTERPOLANT ;
+
+elseif nargin == 5
+
+    if ischar( varargin{1} )
+
+        interpolationMethod = varargin{1} ;
+
+    elseif isa( varargin{1}, 'scatteredInterpolant' ) ;
+
+        F = varargin{1} ;
+
+        isFormingInterpolant = false ; 
+    
+    else
+        error( 'Unknown input.' ) ;
+    end
+
 end
 
 nImgStacks = size(Img.img, 4) ;
 
 [X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
 
-tmp = zeros( [ size(X_1) nImgStacks ] ) ;
+imgInterpolated  = zeros( [ size(X_1) nImgStacks ] ) ;
 
-for iImgStack = 1 : nImgStacks     
-    disp( ['Reslicing image stack...' num2str(iImgStack) ' of ' num2str(nImgStacks) ]) ;
-    
-    tmp(:,:,:,iImgStack) = ...
-        griddata( X_0, Y_0, Z_0, Img.img(:,:,:,iImgStack), X_1, Y_1, Z_1, interpolationMethod ) ;
+img0 = Img.img( :,:,:, 1 ) ;
+
+tic
+
+if isFormingInterpolant 
+    disp( ['Forming interpolant (may take ~1 min)...']) ;
+    F    = scatteredInterpolant( [X_0(:) Y_0(:) Z_0(:)], img0(:), interpolationMethod, 'none' ) ;
 end
 
-Img.img = tmp ; 
+img1 = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
+imgInterpolated(:,:,:, 1 ) = reshape( img1, size(X_1) ) ;
+
+for iImgStack = 2 : nImgStacks     
+    disp( ['Reslicing image stack...' num2str(iImgStack) ' of ' num2str(nImgStacks) ]) ;
+    
+    % replace samples with those of the next img stack 
+    img0     = Img.img(:,:,:, iImgStack ) ;
+    F.Values = img0(:) ;
+   
+    img1  = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
+    imgInterpolated(:,:,:, iImgStack ) = reshape( img1, size(X_1) ) ;
+   
+    % imgInterpolated(:,:,:,iImgStack) = ...
+    %     griddata( X_0, Y_0, Z_0, Img.img(:,:,:,iImgStack), X_1, Y_1, Z_1, interpolationMethod ) ;
+
+end
+
+toc
+
+Img.img = imgInterpolated ; 
 % if new positions are outside the range of the original, 
 % interp3/griddata replaces array entries with NaN
 Img.img( isnan( Img.img ) ) = 0 ; 
@@ -838,6 +906,31 @@ Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
 
 end
 % =========================================================================
+function [] = nii( Img )
+%NII - Write MaRdI image to NiFtI file
+%
+% Wraps to NII( ) (which wraps to the NiFtI toolbox)   
+%
+%.....
+%   Syntax
+%
+%   nii( Img ) 
+%.....
+%
+% WARNING
+%   My nii() function is convenient for quickly writing a file to throw
+%   into an external viewing application (ImageJ!). The nifti Hdr info (i.e. orientation) 
+%   is probably ALL WRONG! Can't use this if the NiFTi will later be used
+%   as an input for more processing (e.g. FSL, SCT, etc.).
+
+workingDir       = [ pwd '/' ] ;
+Params.filename  = [ workingDir Img.Hdr.PatientName.FamilyName '_' num2str( Img.Hdr.SeriesNumber ) '_' Img.Hdr.SeriesDescription  ] ;
+Params.voxelSize = Img.getvoxelsize() ;
+
+nii( Img.img, Params )  ;
+
+end
+% =========================================================================
 function [] = write( Img, saveDirectory, imgFormat )
 %WRITE Ma(t)-R-dI(com)
 %
@@ -855,6 +948,7 @@ function [] = write( Img, saveDirectory, imgFormat )
 %.....
 %
 % Adapted from dicom_write_volume.m (D.Kroon, University of Twente, 2009)
+% https://www.mathworks.com/matlabcentral/fileexchange/27941-dicom-toolbox?focused=5189263&tab=function
 
 DEFAULT_SAVEDIRECTORY = './tmp' ;
 DEFAULT_IMGFORMAT     = 'dcm' ;
@@ -871,9 +965,8 @@ fprintf(['\n Writing images to: ' saveDirectory ' ... \n'])
 
 [~,~,~] = mkdir( saveDirectory ) ;
 
-% if strcmp( imgFormat, 'dcm' ) 
-%     Img = scaleimgtophysical( Img, -1 ) ;
-% end
+TmpParams.isUndoing = true ;
+Img = scaleimgtophysical( Img, TmpParams ) ;
 
 [X,Y,Z] = Img.getvoxelpositions() ;
 
@@ -890,15 +983,20 @@ Hdr.StudyDate               = today;
 Hdr.StudyID                 = num2str(SN);
 Hdr.PatientID               = num2str(SN);
 Hdr.AccessionNumber         = num2str(SN);
-Hdr.ImageType               = Img.Hdr.ImageType ;
-Hdr.StudyDescription        = ['StudyMAT' num2str(SN)];
-Hdr.SeriesDescription       = ['StudyMAT' num2str(SN)];
+
+% Hdr.StudyInstanceUID        = Img.Hdr.StudyInstanceUID ;
+
+
+% copy from original
+Hdr.ImageType               = Img.Hdr.ImageType ; % TODO: 20180716: proper redefinition in .scaleimgtophysical()
+
+Hdr.StudyDescription        = Img.Hdr.StudyDescription ;
+Hdr.SeriesDescription       = Img.Hdr.SeriesDescription ;
 Hdr.Manufacturer            = Img.Hdr.Manufacturer ;
 Hdr.ScanningSequence        = Img.Hdr.ScanningSequence ;
 Hdr.SequenceVariant         = Img.Hdr.SequenceVariant ;
 Hdr.ScanOptions             = Img.Hdr.ScanOptions ;
 Hdr.MRAcquisitionType       = Img.Hdr.MRAcquisitionType ;
-% Hdr.StudyInstanceUID        = Img.Hdr.StudyInstanceUID ;
 Hdr.SliceThickness          = Img.Hdr.SliceThickness ;
 Hdr.SpacingBetweenSlices    = Img.Hdr.SpacingBetweenSlices ;
 Hdr.PatientPosition         = Img.Hdr.PatientPosition ;
@@ -910,27 +1008,27 @@ Hdr.NumberOfSlices          = Img.Hdr.NumberOfSlices ;
 
 [rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 
-for sliceIndex = 1 : Img.Hdr.NumberOfSlices 
+for iSlice = 1 : Img.Hdr.NumberOfSlices 
     
     %-------
     % filename 
     sliceSuffix = '000000' ;
-    sliceSuffix = [sliceSuffix( length(sliceIndex) : end ) num2str(sliceIndex) ] ;
+    sliceSuffix = [sliceSuffix( length(iSlice) : end ) num2str(iSlice) ] ;
     sliceSuffix = ['-' sliceSuffix '.dcm'] ;
     filename    = [saveDirectory '/' Img.Hdr.PatientName.FamilyName sliceSuffix] ;
 
     %-------
     % slice specific hdr info 
-    Hdr.ImageNumber          = sliceIndex ;
-    Hdr.InstanceNumber       = sliceIndex ;
-    Hdr.ImagePositionPatient = [(X(1,1,sliceIndex)) (Y(1,1,sliceIndex)) (Z(1,1,sliceIndex))] ;
+    Hdr.ImageNumber          = iSlice ;
+    Hdr.InstanceNumber       = iSlice ;
+    Hdr.ImagePositionPatient = [(X(1,1,iSlice)) (Y(1,1,iSlice)) (Z(1,1,iSlice))] ;
 
     Hdr.SliceLocation        = dot( Hdr.ImagePositionPatient, sHat ) ;
    
-    dicomwrite( Img.img(:,:,sliceIndex) , filename, ...; % Hdr ) ;
+    dicomwrite( Img.img(:,:,iSlice) , filename, ...; % Hdr ) ;
         'ObjectType', 'MR Image Storage',Hdr ) ;
     
-    if( sliceIndex==1 )
+    if( iSlice==1 )
         info                  = dicominfo( filename ) ;
         Hdr.StudyInstanceUID  = info.StudyInstanceUID ;
         Hdr.SeriesInstanceUID = info.SeriesInstanceUID ;
@@ -1167,15 +1265,23 @@ dicm2nii( Params.dataLoadDir, Params.tmpSaveDir )
 system( ['mv ' Params.tmpSaveDir '*.nii.gz ' Params.tmpSaveDir 't2s_allEchoes.nii.gz'] ) ;
 % average across echoes
 system( ['sct_maths -i ' Params.tmpSaveDir 't2s_allEchoes.nii.gz -mean t -o ' Params.tmpSaveDir 't2s.nii.gz'] ) ;
-% remove first axial slice because it's empty
-system( ['sct_crop_image -i ' Params.tmpSaveDir 't2s.nii.gz -m ' Params.tmpSaveDir 't2s.nii.gz -o ' Params.tmpSaveDir 't2sm.nii.gz'] ) ;
-% resample to 1mm iso
-system( ['sct_resample -i ' Params.tmpSaveDir 't2sm.nii.gz -mm 1x1x1 -o ' Params.tmpSaveDir 't2smr.nii.gz'] ) ;
+% use GUI to crop spine (trim out brain)
+system( ['sct_crop_image -i ' Params.tmpSaveDir 't2s.nii.gz ' '-g 1 -o ' Params.tmpSaveDir 't2smr.nii.gz '] ) ;
+warning('SCT_CROP_IMAGE using GUI does not use the desired output filename.') 
+system( ['mv ' pwd '/t2s_crop.nii.gz ' Params.tmpSaveDir 't2smr.nii.gz '] ) ;
+
 % get centerline 
 system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -ofolder ' Params.tmpSaveDir] ) ;
 
+% remove first axial slice because it's empty
+system( ['sct_crop_image -i ' Params.tmpSaveDir 't2s.nii.gz -m ' Params.tmpSaveDir 't2s.nii.gz -o ' Params.tmpSaveDir 't2sm.nii.gz'] ) ;
+% % resample to 1mm iso
+% system( ['sct_resample -i ' Params.tmpSaveDir 't2sm.nii.gz -mm 1x1x1 -o ' Params.tmpSaveDir 't2smr.nii.gz'] ) ;
+% % get centerline of resampled img
+% system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -ofolder ' Params.tmpSaveDir] ) ;
+
 system( ['sct_create_mask -i ' Params.tmpSaveDir 't2smr.nii.gz -p centerline,' ...
-    Params.tmpSaveDir 't2smr_centerline_optic.nii.gz -size 41 -f gaussian -o ' ...
+    Params.tmpSaveDir 't2smr_centerline_optic.nii.gz -size 20 -f gaussian -o ' ...
     Params.tmpSaveDir 't2smr_weights.nii.gz' ] ) ;
 
 % segment
@@ -1499,6 +1605,9 @@ end
 
 if  ~myisfield( Params, 'scaling' ) || isempty(Params.scaling)
     Params.scaling = [min(img(:)) max(img(:))] ;
+    if ( Params.scaling(2) == Params.scaling(1) )
+        Params.scaling(2) = Inf ;
+    end
 end
 
 [~,~,extension] = fileparts( Params.filename ) ;

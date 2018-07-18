@@ -1,5 +1,5 @@
 function varargout = ShimGUI(varargin)
-% SHIMGUI MATLAB code for ShimGUI.fig
+%SHIMGUI 
 
 %      This function allows to check insp/exp mag and phase data, define
 %      Shim VOIs, optimizing shim currents and send these currents 
@@ -14,8 +14,6 @@ function varargout = ShimGUI(varargin)
 %       The function SortData define by the script Sortdata.m is called in background and start to sort the
 %       files in a new folder called sorted_data.
 %
-%       You also need a configuration file which defines the function: 
-%       shimparameters(). Example:  shimparameters.m
 
 %       You need Spinal cord toolbox installed in your computer to use the
 %       options with Sct. 
@@ -66,7 +64,11 @@ function ShimGUI_OpeningFcn(hObject, ~, handles,varargin)
 % - Declare handles variables use in ShimGUI functions
 %
 %--------------------------------------------------------------------------
-handles.Params = shimparameters();
+
+
+handles.Shims = varargin{1};  % handles.Shims refers now the input instance of ShimUse( )
+
+handles.Params = handles.Shims.Params ; % copy
 
 
 handles.output = hObject;                           % Default command line output for ShimGUI
@@ -102,11 +104,6 @@ if exist('environmentPath.txt')
     environmentPATH = textread('environmentPath.txt','%s');
     setenv('PATH', environmentPATH{1});                 % Set enviroment path with Sct and Python
 end
-
-
-handles.Shims = varargin{1};  %Construct an instance handles.Shims of ShimUse
-display(handles.Shims);
-
   
 guidata(hObject, handles);
 
@@ -200,18 +197,6 @@ function Process_training_data_Callback(hObject, eventdata, handles)
 %
 % - Convert dicom files into Matlab data to construct phase and magnitude images
 %--------------------------------------------------------------------------
-handles.Shims.Data.Aux.Tracker = cell(1,1,3) ;
-TmpTracked = ProbeTracked( ) ;
-[TmpTracked.Data.p] = TmpTracked.loadmeasurementlog( [handles.Shims.Params.dataLoadDir '20171013T150203-pressureLog-INS.bin'] ) ;
-handles.Shims.Data.Aux.Tracker{1} = TmpTracked ;
-
-TmpTracked = ProbeTracked( ) ;
-[TmpTracked.Data.p] = TmpTracked.loadmeasurementlog( [handles.Shims.Params.dataLoadDir '20171013T150341-pressureLog-EXP.bin'] ) ;
-handles.Shims.Data.Aux.Tracker{2} = TmpTracked ;
-
-TmpTracked = ProbeTracked( ) ;
-[TmpTracked.Data.p] = TmpTracked.loadmeasurementlog( [handles.Shims.Params.dataLoadDir '20171013T144940-pressureLog-BreathingTest.bin'] ) ;
-handles.Shims.Data.Aux.Tracker{3} = TmpTracked ;
 
 handles.Shims.processtrainingdata();
 
@@ -1060,16 +1045,27 @@ function Calibration_Callback(hObject, ~, handles)
  % - Convert Shim current into DAC value (Values to send to the board)
  %
  %-------------------------------------------------------------------------
+ 
+ if strcmp( handles.Shims.Com.ComPort.Status, 'closed' ) 
+     handles.Shims.Com.opencomport() ;
+ end
 
  calibrationvalues = handles.Shims.Com.getcalibrationcoefficient();
- calibrationref = [-200;-100;0;100;200];
+
+ % TODO : convert units to A
+calibrationref = [-200;-100;0;100;200];
+ 
+ display( 'Calibration in process...(Wait 41 seconds)' )
 
  for i=1:8
-     f1=fit(calibrationref,calibrationvalues(:,i),'poly1');
+     % f1=fit(calibrationref,calibrationvalues(:,i),'poly1');
+     % feedbackcoeff= coeffvalues(f1);
+     % 
+     % 20180607: RT changed to polyfit (which doesn't require the MATLAB curvefitting toolbox)
+     feedbackcoeff = polyfit( calibrationref, calibrationvalues(:,i), 1 );
 
-     feedbackcoeff= coeffvalues(f1);
-     handles.Shims.Com.feedbackcalibrationcoeffx(i)=feedbackcoeff(1);
-     handles.Shims.Com.feedbackcalibrationcoeffy(i)=feedbackcoeff(2);
+     handles.Shims.Com.Specs.Com.feedbackcalibrationcoeffx(i)=feedbackcoeff(1);
+     handles.Shims.Com.Specs.Com.feedbackcalibrationcoeffy(i)=feedbackcoeff(2);
  end
  %Conversion of the shim currents with new coefficients -------------------
  
@@ -1077,16 +1073,15 @@ function Calibration_Callback(hObject, ~, handles)
     handles.convertedCurrents = handles.Shims.Com.ampstodac(handles.currents,handles.Shims.Com.feedbackcalibrationcoeffx,handles.Shims.Com.feedbackcalibrationcoeffy); 
     handles.valuetoSend=round(handles.convertedCurrents);
  end
- dateandtime=sprintf('%s',datetime);
- 
- diaryName=strcat(dateandtime,'_Correction_coefficient');
- diary(diaryName);
- display('Feedback coeff X :')
- display(handles.Shims.Com.feedbackcalibrationcoeffx);
- display('Feedback coeff Y :')
- display(handles.Shims.Com.feedbackcalibrationcoeffy);
- diary(diaryName);
- display('Ready to send currents');
+%  dateandtime=sprintf('%s',datetime);
+%  
+%  diaryName=strcat(dateandtime,'_Correction_coefficient');
+%  diary(diaryName);
+  display('Feedback coeff X :')
+  display(handles.Shims.Com.Specs.Com.feedbackcalibrationcoeffx);
+  display('Feedback coeff Y :')
+  display(handles.Shims.Com.Specs.Com.feedbackcalibrationcoeffy);
+  display('Ready to send currents');
 
  guidata (hObject,handles);
  
@@ -1511,9 +1506,10 @@ guidata(hObject, handles) ;
 % --- Executes on button press in Update.
 function sendmanualCurrent_Callback(hObject, eventdata, handles)
     
-coeff1=handles.Params.feedbackcalibrationcoeffx(handles.channelNumber);
-coeff2=handles.Params.feedbackcalibrationcoeffy(handles.channelNumber);
-handles.Shims.Com.setandloadshim(handles.channelNumber,handles.manualCurrent,coeff1,coeff2); 
+% coeff1=handles.Params.feedbackcalibrationcoeffx(handles.channelNumber);
+% coeff2=handles.Params.feedbackcalibrationcoeffy(handles.channelNumber);
+% handles.Shims.Com.setandloadshim(handles.channelNumber,handles.manualCurrent,coeff1,coeff2); 
+handles.Shims.Com.setandloadshim( handles.channelNumber, handles.manualCurrent ) ; 
 
 display('Channel Updated');
 

@@ -115,6 +115,29 @@ ylabel( Params.yLabel ) ;
 
 end
 % =========================================================================
+function [iFlattest] = findflattest( measurementLog, nSamples )
+%FINDFLATTEST 
+%
+% iFlattest = USERSELECTMEDIANMEASUREMENT( measurementLog, nSamples ) 
+% 
+% Calculates measurementLog variance over sliding window (nSamples long) and
+% returns index (iFlattest) corresponding to start of the most constant segment
+% (e.g. a breath-hold).
+
+assert( nSamples > 0 )
+assert( nSamples <= length(measurementLog) )
+
+nVariances = length(measurementLog) - nSamples ;
+variances  = zeros( nVariances, 1 );
+
+for iFlattest =  1 : nVariances
+   variances(iFlattest) = var( measurementLog(iFlattest:(iFlattest+nSamples)) ) ;
+end
+
+[~, iFlattest] = min( variances ) ;
+
+end
+% =========================================================================
 function [medianMeasure] = userselectmedianmeasurement( measurementLog )
 % USERSELECTMEDIANMEASUREMENT
 %

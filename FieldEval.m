@@ -36,7 +36,7 @@ end
 % =========================================================================    
 methods
 % =========================================================================
-function Field = FieldEval( Img )
+function Field = FieldEval( Img, Params )
 %FIELDEVAL - [B0] Field Evaluation 
 
 Field.img   = [] ; 
@@ -44,11 +44,33 @@ Field.Hdr   = [] ;
 Field.Aux   = [] ;
 Field.Model = [] ;
 
-if nargin ~= 0
-    Field.img = Img.img;
-    Field.Hdr = Img.Hdr;
-    Field.Aux = Img.Aux;
-    % Field.Model = Img.Model;
+if nargin ~= 0 
+    
+    if nargin == 1
+        Params.dummy = [] ;
+    end
+
+    if isa( Img, 'MaRdI' )
+
+        % convert MaRdI-type Img object to FieldEval
+        Field.img = Img.img ;
+        Field.Hdr = Img.Hdr ;
+        Field.Aux = Img.Aux ;
+    
+    elseif ischar( Img ) 
+       % input should be the path-string to the magnitude and phase directories of the GRE images 
+        Field = FieldEval.mapfield( Img, Params ) ;
+    
+    elseif isa( Img, 'cell' ) 
+        
+        % if Img is a cell array of MaRdI-images, this is presumed to be a set of GRE images destined for B0-mapping 
+        for iImg = 1 : numel( Img ) 
+            assert( isa( Img{ iImg }, 'MaRdI' ) ) ;
+        end
+        
+        Field = FieldEval.mapfield( Img, Params ) ;
+
+    end
 end
 
 end
@@ -143,8 +165,6 @@ rz = round(Params.filterRadius/voxelSize(3)) ;
 h = (X.^2/rx^2 + Y.^2/ry^2 + Z.^2/rz^2 <= 1);
 ker = h/sum(h(:));
 
-% erode the mask by convolving with the kernel
-reducedMask = shaver( Field.Hdr.MaskingImage, round(Params.filterRadius ./ voxelSize) ) ;  
 
 % cvsize = Field.getgridsize + [2*rx+1, 2*ry+1, 2*rz+1] -1; % linear conv size
 % mask_tmp = real(ifftn(fftn(mask,cvsize).*fftn(ker,cvsize)));
@@ -154,17 +174,26 @@ reducedMask = shaver( Field.Hdr.MaskingImage, round(Params.filterRadius ./ voxel
 % circularshift, linear conv to Fourier multiplication
 csh = [rx,ry,rz]; % circularshift
 
+tfs = Field.img ;
+% tfs  = padarray( Field.img, csh ) ;
+% mask = padarray( mask, csh ) ;
+%
+imsize = size( tfs );
+
+% erode the mask by convolving with the kernel
+reducedMask = shaver( mask, round(Params.filterRadius ./ voxelSize) ) ;  
+
 % prepare convolution kernel: delta-ker
 dker = -ker;
-dker(rx+1,ry+1,rz+1) = 1-ker(rx+1,ry+1,rz+1);
-DKER = fftn(dker,Field.getgridsize); % dker in Fourier domain
+dker(rx+1,ry+1,rz+1) = dker(rx+1,ry+1,rz+1) + 1 ;
+DKER = fftn( dker, imsize ); % dker in Fourier domain
 
 b = ifftn( conj(DKER).*fftn( circshift( ...
-    reducedMask .* circshift( ifftn( DKER.*fftn(Field.img) ), -csh), csh)));
-b = b(:);
+    reducedMask .* circshift( ifftn( DKER.*fftn( tfs ) ), -csh), csh) ) );
+b = b(:) ;
 
-localField = cgs(@Afun, b, Params.tolerance, Params.maxIterations );
-localField = real( reshape( localField, Field.getgridsize)).*reducedMask;
+localField = cgs( @Afun, b, Params.tolerance, Params.maxIterations ) ;
+localField = real( reshape( localField, imsize ) ) .* reducedMask;
 
 LocalField                       = Field.copy();
 LocalField.Hdr.MaskingImage      = reducedMask ;
@@ -176,7 +205,7 @@ BackgroundField.img              = reducedMask .* (Field.img  - localField);
 
 function y = Afun(x)
 
-    x = reshape( x, Field.getgridsize );
+    x = reshape( x, imsize );
     y = ifftn( conj(DKER) .* fftn( circshift( reducedMask.* ...
         circshift(ifftn(DKER.*fftn(x)),-csh),csh))) + Params.regularization*x;
     y = y(:);
@@ -516,24 +545,24 @@ end
 % =========================================================================
 methods(Static)
 % =========================================================================
-function [Field, Extras] = mapfield( ImgArray, Params, ObjectiveImg )
+function [Field, Extras] = mapfield( Img, Params, ObjectiveImg )
 % MAPFIELD
 %
-% Field = MAPFIELD( ImgArray ) 
-% Field = MAPFIELD( ImgArray, Params ) 
-% Field = MAPFIELD( ImgArray, Params, ObjectiveImg ) 
+% Field = MAPFIELD( Img ) 
+% Field = MAPFIELD( Img, Params ) 
+% Field = MAPFIELD( Img, Params, ObjectiveImg ) 
 % 
-% ImgArray --- a cell array where the 1st dimension (i.e. row) corresponds to
+% Img --- a cell array where the 1st dimension (i.e. row) corresponds to
 % echo number and the index along the second dimension (i=1,2) corresponds to
 % Magnitude & Wrapped Phase respectively (each a MaRdI-type object) 
 %
 % if nEchoes == 1 
-%   (i.e. ImgArray = { Mag, Phase } )
+%   (i.e. Img = { Mag, Phase } )
 %
 %   It is assumed that Phase is in fact a phase-difference image.
 %
 % if nEchoes == 2
-%   (i.e. ImgArray = { MagEcho1, PhaseEcho1 ; MagEcho2, PhaseEcho2 } )
+%   (i.e. Img = { MagEcho1, PhaseEcho1 ; MagEcho2, PhaseEcho2 } )
 %
 %
 % Params may contain the following fields
@@ -595,8 +624,10 @@ DEFAULT_ISFITTINGSPHERICALHARMONICS    = false ;
 DEFAULT_ORDERSTOGENERATE               = [0:8] ;
 
 DEFAULT_UNWRAPPER                      = 'Sunwrap' ; % 'AbdulRahman_2007' ;
+DEFAULT_ECHOINDICES                    = [ 1 2 ] ;
 
-assert( (nargin >= 1) && ~isempty( ImgArray ) ) ;
+assert( (nargin >= 1) && ~isempty( Img ) ) ;
+
 if nargin == 1
     Params.dummy = [];
 end
@@ -629,10 +660,46 @@ if ~myisfield( Params, 'unwrapper' ) || isempty( Params.unwrapper )
     Params.unwrapper = DEFAULT_UNWRAPPER ;
 end
 
-Extras = [] ;
+if ~myisfield( Params, 'echoIndices' ) || isempty( Params.echoIndices ) 
+    Params.echoIndices = DEFAULT_ECHOINDICES ;
+end
+    
+if isa( Img, 'cell' ) ;
+    
+    ImgArray = Img ;
+    nEchoes  = size( ImgArray, 1 ) ;
 
-% .......
-nEchoes = size( ImgArray, 1 ) ;
+elseif ischar( Img )
+    
+    warning('UNTESTED feature.')    
+    iSpace = strfind( Img, ' ' ) ;
+
+    magDirs   = [ Img( 1:iSpace-1 ) '/' ] ;
+    phaseDirs = [ Img( (iSpace+1):end ) '/' ] ;
+   
+    echoSubdirs = dir( [ phaseDirs 'echo*' ] ) ;
+    nEchoes     = length( echoSubdirs ) ; 
+    
+    ImgArray         = cell( numel( nEchoes ) , 2 ) ;
+    ImgArray{ 1, 1 } = MaRdI( strcat( magDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
+    ImgArray{ 1, 2 } = MaRdI( strcat( phaseDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
+
+    if nEchoes > 1 
+        assert( max(Params.echoIndices) <= nEchoes, ...
+            ['Max echo index exceeds the number of image echo-subdirectories found.']  ) ; 
+    end
+    
+   
+    for iEcho = 1 : 2
+
+        ImgArray{ 1, 1 } = MaRdI( strcat( magDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
+        ImgArray{ 1, 2 } = MaRdI( strcat( phaseDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
+
+    end 
+
+end
+
+Extras = [] ;
 
 % -------
 % define spatial support for unwrapping
@@ -642,33 +709,39 @@ if ~myisfield( Params, 'mask' ) || isempty( Params.mask )
 
     for iEcho = 1 : nEchoes 
 
-        Params.mask = Params.mask .* ( ImgArray{ iEcho, 1 }.img > Params.threshold ) ;
+        Params.mask = Params.mask .* ...
+            ( ImgArray{ iEcho, 1 }.img ./ max( ImgArray{ iEcho, 1 }.img(:) ) > Params.threshold ) ;
 
     end
 
 end
 
-if nEchoes == 1
+if nEchoes == 1 % 2 echoes acquired but only 1 input (phase *difference* image)
+   
+    assert( myisfield( ImgArray{ 1, 2}.Hdr.MrProt, 'alTE') && numel( ImgArray{ 1, 2}.Hdr.MrProt.alTE ) >= 2, ...
+       'Expected Siemens FM phase difference image with at least 2 TEs specified in the DICOM header.' )
     
     PhaseDiff = ImgArray{ 1, 2 }.copy() ;
-    PhaseDiff.Hdr.EchoTime = ...
-        ( ImgArray{ 1, 2}.Hdr.MrProt.alTE(2) - ImgArray{ 1, 2}.Hdr.MrProt.alTE(1) )/1000 ; % [units : ms]
+
+    PhaseDiff.Hdr.EchoTime = ... 
+        ( ImgArray{ 1, 2 }.Hdr.MrProt.alTE(2) - ImgArray{ 1, 2 }.Hdr.MrProt.alTE(1) )/1000 ; % [units : ms]
 
 else
-    
+
     % -------
     % phase difference image via complex division
     PhaseDiff      = ImgArray{ 1, 2}.copy() ;
 
-    img            = ImgArray{ 1, 1 }.img .* exp(-i*ImgArray{ 1, 2 }.img) ;
-    img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(-i*ImgArray{ 2, 2 }.img) ;
+    img            = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
+    img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(i*ImgArray{ 2, 2 }.img) ;
 
     PhaseDiff.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
 
-    PhaseDiff.Hdr.EchoTime = ( ImgArray{ 1, 2 }.Hdr.EchoTime - ImgArray{ 2, 2 }.Hdr.EchoTime );
+    PhaseDiff.Hdr.EchoTime = ImgArray{ 2, 2 }.Hdr.EchoTime - ImgArray{ 1, 2 }.Hdr.EchoTime ; % [units : ms]
 end
 
-PhaseDiff.Hdr.MaskingImage = Params.mask ;
+
+PhaseDiff.Hdr.MaskingImage = logical( Params.mask ) & ~isnan( PhaseDiff.img ) ;
 
 % -------
 % 3d path-based unwrapping
@@ -684,10 +757,19 @@ if Params.isFilteringField
         Field.Hdr.MaskingImage = logical(Field.Hdr.MaskingImage) & logical(Params.filteringMask) ;    
 
     end
-    
-    [Extras.LocalField,Field] = Field.extractharmonicfield( Params ) ;
+
+    Extras.fieldNoFilter = Field.img ;
+
+    for iSlice = 1 : size( Field.img, 3 ) ;
+        
+       Field.img(:,:, iSlice) = medfilt2( Field.img(:,:, iSlice), Params.filterRadius(1)*[1 1] ) ; 
+
+    end    
+    % [Extras.LocalField,Field] = Field.extractharmonicfield( Params ) ;
 
 end
+
+Field.Hdr.SeriesDescription = [ 'B0Field_measured_' Field.Hdr.SeriesDescription  ] ;
 
 if Params.isFittingSphericalHarmonics % UNTESTED
     % -------
