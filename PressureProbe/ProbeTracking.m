@@ -29,7 +29,7 @@ classdef ProbeTracking < ProbeTracked & AuxTracking
 %    ShimUse
 %
 % =========================================================================
-% Updated::20180221::ryan.topfer@polymtl.ca
+% Updated::20180721::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % *** TODO 
@@ -110,12 +110,11 @@ end
 end
 % =========================================================================
 function [isTracking] = begintracking( Aux )
-%BEGINTRACKING - Initialize (RS-232) Communication Port 
+%BEGINTRACKING - Initialize & open (RS-232) communication port 
 %
 % [isTracking] = BEGINTRACKING( Aux )
 %
-% Opens Aux.ComPort, assigns sampling frequency (whereby probe begins sampling
-% (filling internal buffer))
+% Opens Aux.ComPort 
 %
 % Returns TRUE if successful
 
@@ -131,13 +130,13 @@ disp('Connecting to respiratory probe...')
 while(~isTracking && iAttempt <= maxCommunicationAttempts )
 
     disp(['Attempt #' num2str(iAttempt)]);    
-    
-    firstWord = fscanf( Aux.ComPort, '%f') 
+   
+    firstWord = fscanf( Aux.ComPort, '%u') ;
     
     if( ~isempty(firstWord) && isnumeric(firstWord) )  
         isTracking = true;
     end
-
+    
     iAttempt = iAttempt + 1;
 
 end
@@ -165,13 +164,14 @@ end
 function [p] = getupdate( Aux )
 %GETUPDATE 
 %
-% Reads a single (32bit) pressure measurement (p) in from open com port.
+% Reads a single (16-bit) pressure measurement (p) in from open com port and 
+% returns p as the typecasted double.
 %
 % p = GETUPDATE( Aux )
 
 assert( strcmp( Aux.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
 
-p = fscanf( Aux.ComPort,'%f',[1 1]);
+p = fscanf( Aux.ComPort, '%u', [1 1] );
 
 end  
 % =========================================================================
@@ -268,7 +268,7 @@ while ~isUserSatisfied
         title( 'Pressure log' )
     end
     xlabel('Time (s)');
-    ylabel('Pressure (0.01 mbar)');
+    ylabel('Pressure (AU)');
     
     response = input(['\n Is the current pressure log satisfactory? ' ...
         'Enter 0 to rerecord; 1 to continue. \n']) ;
@@ -415,15 +415,17 @@ function [ComPort, AuxSpecs] = declareprobe( AuxSpecs )
 % 
 % [ComPort,AuxSpecs] = declareprobe( AuxSpecs )
 %
-% AuxSpecs can have the following fields
-% 
+% AuxSpecs can have the following fields 
+%  
+% NOTE 
+%   these are not really optional/configurable... TODO: remove deprecated/false 'options'
+%
 % .dt
 %   Interval between pressure samples [units: ms]
 %   Should be a positive multiple of the minimum period of 10 ms.
 % 
 % .baudRate
-%   default :
-%
+%   default : 115200
 %
 % .portName 
 %   Address of the probe-associated serial port within file system
