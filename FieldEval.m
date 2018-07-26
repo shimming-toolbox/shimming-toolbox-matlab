@@ -758,15 +758,12 @@ if Params.isFilteringField
 
     end
 
-    Extras.fieldNoFilter = Field.img ;
+    Extras.fieldUnfiltered = Field.img ;
 
-    for iSlice = 1 : size( Field.img, 3 ) ;
-        
-       Field.img(:,:, iSlice) = medfilt2( Field.img(:,:, iSlice), Params.filterRadius(1)*[1 1] ) ; 
-
-    end    
-    % [Extras.LocalField,Field] = Field.extractharmonicfield( Params ) ;
-
+    Field.img( ~Field.Hdr.MaskingImage ) = NaN ; % medfilt3() will ignore these values
+    Field.img = medfilt3( Field.img, round( Field.getvoxelsize()./Params.filterRadius ) ) ; 
+    Field.img( ~Field.Hdr.MaskingImage ) = 0 ;
+    
 end
 
 Field.Hdr.SeriesDescription = [ 'B0Field_measured_' Field.Hdr.SeriesDescription  ] ;
@@ -931,6 +928,10 @@ end
 
 FieldInspired = Fields{1} ;
 FieldExpired  = Fields{2} ;
+
+% if difference in Larmor frequency >= 1 Hz, issue an error:
+assert( abs( 1000*double( FieldInspired.Hdr.ImagingFrequency - FieldExpired.Hdr.ImagingFrequency ) ) < 1.0, ... 
+    'Expected the 2 given field maps to have been acquired at the same Larmor frequency. Unimplemented feature.' )
 
 if ~isempty( FieldInspired.Aux.Tracker.Data.p ) 
     assert( isscalar( FieldInspired.Aux.Tracker.Data.p), ...
