@@ -18,20 +18,15 @@ function Shim = ShimSpecs_IUGM_Prisma_fit(  )
     
 Shim.Com = [] ;  
 
-% 1st channel refers to RF transmit freq., 2-4 to the gradient offsets, 5-9 to the 2nd order shims
-Shim.Amp.nChannels       = 9 ;  
-Shim.Amp.nActiveChannels = 9 ;
+% channels 1-3 refer to the gradient offsets, 4-8 to the 2nd order shims
+Shim.Amp.nChannels       = 8 ;  
+Shim.Amp.nActiveChannels = 8 ;
 
 Shim.Amp.staticChannels  = true( Shim.Amp.nActiveChannels, 1 ) ;  
 Shim.Amp.dynamicChannels = false( Shim.Amp.nActiveChannels, 1 ) ;  
 
 
 % NB: One can use the Siemens commandline AdjValidate tool to get all the values below:
-Shim.Amp.minLarmorFrequency   = 123100100 ; % [units: Hz]
-Shim.Amp.maxLarmorFrequency   = 123265000 ; % [units: Hz]
-
-% the range of possible transmit frequencies (f0Bw) is also in Hz, not A.
-f0Bw = (Shim.Amp.maxLarmorFrequency - Shim.Amp.minLarmorFrequency)/2 ; % 82450 Hz
 % Shim.Amp.maxCurrentPerChannel
 %   First 3 terms correspond to the linear gradient offsets: [units: micro-T/m]
 %   Last 5 terms correspond to the 2nd order shims: [units: micro-T/m^2]
@@ -42,7 +37,7 @@ f0Bw = (Shim.Amp.maxLarmorFrequency - Shim.Amp.minLarmorFrequency)/2 ; % 82450 H
 %   these "multipole units" are those displayed in the Syngo/3D Shim card,
 %   so, it may simply be more convenient to deal with the shim currents in
 %   "display units".
-Shim.Amp.maxCurrentPerChannel = [ f0Bw, 2300, 2300, 2300, 4959.01, 3551.29, 3503.299, 3551.29, 3487.302 ]' ;
+Shim.Amp.maxCurrentPerChannel = [ 2300, 2300, 2300, 4959.01, 3551.29, 3503.299, 3551.29, 3487.302 ]' ;
 
 
 Shim.Dac = [] ;

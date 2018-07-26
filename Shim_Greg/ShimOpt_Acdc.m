@@ -4,7 +4,7 @@ classdef ShimOpt_Acdc < ShimOpt
 % ShimOpt_Acdc is a ShimOpt subclass 
 %     
 % =========================================================================
-% Updated::20180503::ryan.topfer@polymtl.ca
+% Updated::20180726::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -76,12 +76,16 @@ function [currents] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESHIMCURRENTS 
 %
 % currents = OPTIMIZESHIMCURRENTS( Shim, Params )
-% [currentsInspired, currentsExpired] = OPTIMIZESHIMCURRENTS( Shim, Params, FieldExpired )
 %   
 % Params can have the following fields 
-%   
+%   .isOptimizingAux
+%       [default: false]
+%
 %   .maxCurrentPerChannel
-%       [default: determined by class ShimSpecsAcdc.Amp.maxCurrentPerChannel]
+%       [default: determined by ShimSpecsAcdc property: .Amp.maxCurrentPerChannel]
+%
+%   .minCurrentPerChannel
+%       [default: -.maxCurrentPerChannel]
 
 DEFAULT_ISOPTIMIZINGAUX          = false ;
 
@@ -89,38 +93,19 @@ if nargin < 2
     Params.dummy = [];
 end
 
-if ~myisfield(Params, 'isOptimizingAux') || isempty( Params.isOptimizingAux )
+if ~myisfield( Params, 'isOptimizingAux') || isempty( Params.isOptimizingAux )
     Params.isOptimizingAux = DEFAULT_ISOPTIMIZINGAUX ;
 end
 
-if ~myisfield(Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerChannel ) 
+if ~myisfield( Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerChannel ) 
     Params.maxCurrentPerChannel = Shim.System.Specs.Amp.maxCurrentPerChannel ; 
-    if Params.isOptimizingAux
-        Params.maxCurrentPerChannel = [ Params.maxCurrentPerChannel ; Shim.Aux.System.Specs.Amp.maxCurrentPerChannel ]; 
-    end
 end
 
-if ~myisfield(Params, 'minCurrentPerChannel') || isempty( Params.minCurrentPerChannel ) 
+if ~myisfield( Params, 'minCurrentPerChannel') || isempty( Params.minCurrentPerChannel ) 
     Params.minCurrentPerChannel = -Params.maxCurrentPerChannel ; 
 end
 
-currents = optimizeshimcurrents@ShimOpt( Shim, Params, @checknonlinearconstraints ) ;
-
-function [C, Ceq] = checknonlinearconstraints( currents )
-%CHECKNONLINEARCONSTRAINTS 
-%
-% Check current solution satisfies nonlinear system constraints
-% 
-% i.e. this is the C(x) function in FMINCON (see DOC)
-%
-% C(x) <= 0
-%
-% (e.g. x = currents)
-    
-    Ceq = [];
-    % check on abs current per channel
-    C = abs(currents) - Params.maxCurrentPerChannel ;
-end
+currents = optimizeshimcurrents@ShimOpt( Shim, Params ) ;
 
 end
 % =========================================================================

@@ -1,8 +1,8 @@
 classdef ShimOpt_IUGM_Prisma_fit < ShimOpt
-%SHIMOPTUNFPRISMA - Shim Optimization for Prisma-fit @ UNF 
+%SHIMOPT_IUGM_PRISMA_FIT - Shim Optimization for Prisma-fit @ UNF 
 %     
 % =========================================================================
-% Updated::20180516::ryan.topfer@polymtl.ca
+% Updated::20180726::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -40,14 +40,6 @@ elseif ~isempty(Params.pathToShimReferenceMaps)
     % refer to the 'patient coordinate system' which is itself established upon positioning
     % the patient (i.e. this coordinate system *moves with the patient table!*)
     % therefore, in fact, i need a way to relate the PCS system to the scanner's (static) shim/coordinate system! 
-    % 
-    % i.e., what I wrote here is irrelevant:
-    % 
-    % DICOM Hdr.Private_0019_1013 describes the absolute table position (of the
-    % reference maps).  It's used in ShimOpt.interpolatetoimggrid() to account for
-    % variable table positioning, but for the scanner shims the field shift
-    % doesn't depend on table position, so, (in case it's not already empty) :
-    Shim.Hdr.Private_0019_1013 = [] ;
     
     Shim.Ref.img = Shim.img ;
     Shim.Ref.Hdr = Shim.Hdr ;
@@ -56,13 +48,11 @@ end
 
 Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
-
 if (nargin == 2) && (~isempty(Field))
     
     Shim.setoriginalfield( Field ) ;
 
 end
-
 
 end
 % =========================================================================
@@ -116,8 +106,9 @@ Shim.interpolatetoimggrid( Shim.Field ) ;
 Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
 
 % get the original shim offsets
-[f0,g0,s0]  = Shim.Field.adjvalidateshim() ;
-Shim.System.currents =  [ f0 ; ShimOpt_IUGM_Prisma_fit.converttomultipole( [g0 ; s0] ) ] ; 
+[f0, g0, s0]  = Shim.Field.adjvalidateshim() ;
+Shim.System.currents            =  [ ShimOpt_IUGM_Prisma_fit.converttomultipole( [g0 ; s0] ) ] ; 
+Shim.System.Tx.imagingFrequency = f0 ;
 
 % if ~isempty( Shim.Aux ) && ~isempty( Shim.Aux.Shim ) 
 %     Shim.Aux.Shim.Field = Shim.Field ;
@@ -154,8 +145,8 @@ function  [ Params ] = assigndefaultparameters( Params )
 
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20180606';
-DEFAULT_PROBESPECS              = [] ;
+DEFAULT_PATHTOSHIMREFERENCEMAPS    = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20180726';
+DEFAULT_PROBESPECS                 = [] ;
 
 if ~myisfield( Params, 'isCalibratingReferenceMaps' ) || isempty(Params.isCalibratingReferenceMaps)
    Params.isCalibratingReferenceMaps = DEFAULT_ISCALIBRATINGREFERENCEMAPS ;
@@ -268,62 +259,20 @@ for iChannel = 1 : Params.nChannels
     end
 end
 
-Params.Filtering.isFiltering  = false ;
+Params.Filtering.isFiltering  = true ;
 Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
 voxelSize                     = Mag.getvoxelsize() ;
-Params.Filtering.filterRadius = 2*voxelSize(1) ;
+Params.Filtering.filterRadius = voxelSize(3) ;
 
 Params.reliabilityMask = (Mag.img/max(Mag.img(:))) > 0.1 ; % region of reliable SNR for unwrapping
 
 
-Params.Extension.isExtending = false ; % harmonic field extrapolation 
-Params.Extension.voxelSize = voxelSize ;
-Params.Extension.radius     = 8 ;
+Params.Extension.isExtending    = false ; % harmonic field extrapolation
+Params.Extension.voxelSize      = voxelSize ;
+Params.Extension.radius         = 8 ;
 Params.Extension.expansionOrder = 2 ;
 
 Params.unwrapper = 'AbdulRahman_2007' ;        
-
-end
-% =========================================================================
-function [ img, Hdr ] = calibratereferencemaps( Params )
-%CALIBRATEREFERENCEMAPS
-% 
-% Wraps to ShimOpt.mapdbdi( )
-% 
-% [ img, Hdr ] = CALIBRATEREFERENCEMAPS( Params )
-%
-% Differences for ShimOpt_IUGM_Prisma_fit :
-%   
-%   1. After the actual mapping of the shim fields, the '0th' order frequency
-%   offset is added to the array stack as img(:,:,:,1) (i.e. gradient terms
-%   become img(:,:,:,2) for X, img(:,:,:,3) for Y, etc.)
-%
-%   2. Hdr.Private_0019_1013 is made empty 
-%       This field describes the absolute table position of the reference maps.
-%       It is used (i.e. for multi-coil shim arrays, for which the shim
-%       position, relative to ISO, varies with the table). Having this empty
-%       will indicate that values of these shim fields are fixed relative to ISO.
-
-[ img, Hdr ] = ShimOpt.mapdbdi( Params ) ;
-
-% insert channel (not measured) for "0th order" (Larmor transmit frequency):
-tmp = zeros( size(img) + [0 0 0 1] ) ;
-tmp(:,:,:,1)     = double( Hdr.MaskingImage ); % assigning the same support as the other channels
-tmp(:,:,:,2:end) = img ;
-
-img = tmp;
-
-% DICOM .Hdr.Private_0019_1013 
-%
-% Describes the absolute table position of the reference maps.  This is
-% used in ShimOpt.interpolatetoimggrid( ) to account for variable table
-% positioning relative to ISO, but, since the scanner shims are fixed in place:
-Hdr.Private_0019_1013 = [] ;
-
-disp(['Saving shim reference maps for future use: '])
-disp( Params.pathToShimReferenceMaps ) ;
-
-save( Params.pathToShimReferenceMaps, 'img', 'Hdr' ) ;
 
 end
 % =========================================================================
