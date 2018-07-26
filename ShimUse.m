@@ -365,10 +365,15 @@ for iFrame = 1 : Shim.Params.nTrainingFrames
         Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker = [] ;
         Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker = Shim.Data.Aux.Tracker{ 1, 1, iFrame }.copy() ;
 
+        % duration of breath-hold in number of pressure samples 
+        % (enables auto-estimation of the period corresponding to the breath-hold from
+        % the complete pressure log)
+        nSamplesApnea = (1000*Shim.Data.Img{1,1,iFrame}.Hdr.MrProt.lTotalScanTimeSec)/Shim.Opt.Tracker.Specs.dt ;
+        
         % ------
         % extract a single scalar
         Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p = ...
-            ProbeTracked.userselectmedianmeasurement( Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p ) ;
+            ProbeTracked.userselectmedianmeasurement( Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p, nSamplesApnea ) ;
     end
     
 end
