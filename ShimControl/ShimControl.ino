@@ -101,6 +101,15 @@ void loop() {
   }
   switch (incomingByte) {
 
+ 
+    case 'a':              // Update one channel input current 
+      uint8_t iCh = (Serial.parseInt()-1);
+      //Serial.println(element);
+      val = Serial.parseFloat();
+      //Serial.println(val);
+      req_val = (val - p2[element]) / p1[element];   
+      setandloadchannel( iCh, req_val);
+      break;
     /* case 'x':                 // Calibration of Adc current feedback */
     /*  */
     /*   for (sch = 1; sch <= 8; sch++) */
@@ -215,15 +224,6 @@ void loop() {
 
    break;
 
- 
-    case 'a':              // Update one channel input current 
-      element = (Serial.parseInt()-1);
-      //Serial.println(element);
-      val = Serial.parseFloat();
-      //Serial.println(val);
-      req_val = (val - p2[element]) / p1[element];   
-      setCh(element, req_val);
-      break;
 
   }
 }
@@ -262,11 +262,11 @@ void queryVoltage() {
   }
 }
 
-void setCh(int element, float val) {
+void setandloadchannel(uint8_t iCh, float current) {
   float vOut;
-  vOut = ((1.25 - val * 0.001 * 0.22) * 26214); // Convert current to DAC value
+  vOut = ((1.25 - current * 0.001 * 0.22) * 26214); // Convert current to DAC currentue
 
-  DAC.writeUpdateCh(element, vOut);             // Update channel 
+  DAC.writeUpdateCh( iCh, vOut);             // Update channel 
 }
 
 unsigned int ampstodac( float current ) {
