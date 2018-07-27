@@ -85,7 +85,6 @@ void loop() {
   String inString = "";
   char incomingByte;
 
-  float val0;
   float val;
   float req_val;
   float cal_val [] = { -200, -100, 0, 100, 200};                                    // Value for Feedback calibration
@@ -226,14 +225,6 @@ void loop() {
       setCh(element, req_val);
       break;
 
-    case 'z':            // Update all the channels with one value
-      for (int chAdr = 0; chAdr <= 7; chAdr++)
-      {
-        req_val = (val - p2[chAdr]) / p1[chAdr];
-        setCh(chAdr, req_val);
-        delay(50);
-      }
-      break;
   }
 }
 
