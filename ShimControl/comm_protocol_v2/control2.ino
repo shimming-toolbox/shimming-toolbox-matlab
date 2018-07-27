@@ -1,9 +1,19 @@
+/*
+  ShimControl.ino
+
+// =========================================================================
+// Updated::20180727::ryan.topfer@polymtl.ca
+// =========================================================================
+*/
+
 #include "AD5668.h"
 #include <SPI.h>
 #include <Wire.h>
 #include "Adafruit_ADS1015.h"
 #include <stdlib.h>     /* atoi */
+#include <math.h>
 
+//Declaration of global variables 
 Adafruit_ADS1015 adc1 (0x48);
 Adafruit_ADS1015 adc2 (0x49); /* Use thi for the 12-bit version */
 
@@ -13,14 +23,24 @@ Adafruit_ADS1015 adc2 (0x49); /* Use thi for the 12-bit version */
 #define clrPin 8
 #define ldacPin 7
 
-
 /*
     Software SPI instance, "AD5668(mosiPin, sclkPin ,ssPin, clrPin, ldacPin);"
     mosiPin is connected to AD5668 Din pin (15) and sclkPin to AD5668 SCK
     pin (16). Remaining connections as explained above.
 */
 
+// global variables re: DAC
 AD5668 DAC = AD5668(mosiPin, sclkPin , ssPin, clrPin, ldacPin);
+
+// 3 terms describing hardware:
+const uint8_t DAC_RESOLUTION      = 16 ; // 16-bit
+const float DAC_VREF              = 1.25 ; // [units: volts]
+const float DAC_PREAMP_RESISTANCE = 0.22 ; // [units: Ohms]
+
+// 3 derived terms (for convenience):
+const float DAC_RANGE_VOUT  = 2.0*DAC_VREF ; // [units: volts]
+const float DAC_BITSPERVOLT = ( pow( 2.0, float(DAC_RESOLUTION) ) - 1.0 )/DAC_RANGE_VOUT ; // =26214.0 [units: bit-counts]
+const float DAC_ZERO        = unsigned int( DAC_VREF* ) ; // =32767.5 [units: bit-counts]
 
 void setup() {
   Serial.begin(115200);   //Baudrate of the serial communication : Maximum
@@ -28,26 +48,20 @@ void setup() {
 
   Serial.println("-------Shim control board initialization--------");
 
-  // initialize the DAC
   DAC.init();
-  Serial.println("Initializing DAC ...");
 
   DAC.enableInternalRef(); // Uncomment this line to turn on the internal reference.
 
-  Serial.println("Turning on DAC internal reference ...");
-
   DAC.powerDAC_Normal(B11111111); // Power up all channels normal
-  Serial.println("Power up all DAC channels normal ...");
 
-
+  Serial.println("Setting ADC Range: +/- 2.048V  (1 bit = 1mV)");
   adc1.setGain(GAIN_TWO); //+/- 2.048V  1 bit = 1mV
   adc2.setGain(GAIN_TWO); //+/- 2.048V  1 bit = 1mV
-  Serial.println("Setting ADC Range: +/- 2.048V  (1 bit = 1mV)");
 
   adc1.begin();
   adc2.begin();
-  Serial.println("Starting ADC ...");
-  Serial.println("Ready to receive commands ...");
+  
+    Serial.println("Ready to receive commands ...");
 }
 
 void(* resetFunc) (void) = 0;//declare reset function at address 0
@@ -255,6 +269,12 @@ void setCh(int element, float val) {
   vOut = ((1.25 - val * 0.001 * 0.22) * 26214); // Convert current to DAC value
 
   DAC.writeUpdateCh(element, vOut);             // Update channel 
+}
+
+unsigned int ampstodac( float current ) {
+
+    return round( DAC_PREAMP_RESISTANCE*current*DAC_BITSPERVOLT - DAC_ZERO ) ;
+
 }
 
 //void feedback(int element){
