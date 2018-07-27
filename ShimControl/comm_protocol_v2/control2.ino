@@ -42,6 +42,9 @@ const float DAC_RANGE_VOUT  = 2.0*DAC_VREF ; // [units: volts]
 const float DAC_BITSPERVOLT = ( pow( 2.0, float(DAC_RESOLUTION) ) - 1.0 )/DAC_RANGE_VOUT ; // =26214.0 [units: bit-counts]
 const float DAC_ZERO        = unsigned int( DAC_VREF* ) ; // =32767.5 [units: bit-counts]
 
+// variables re: shim board
+const uint8_t SHIM_NCHANNELS = 8 ;
+
 void setup() {
   Serial.begin(115200);   //Baudrate of the serial communication : Maximum
   delay(100);
@@ -99,45 +102,49 @@ void loop() {
   }
   switch (incomingByte) {
 
-    case 'x':                 // Calibration of Adc current feedback
-
-      for (sch = 1; sch <= 8; sch++)
-      {
-        for (n_cal = 0; n_cal < 5; n_cal++)
-        {
-          vOut = ((1.25 - cal_val[n_cal] * 0.001 * 0.22) * 26214);
-          DAC.writeUpdateCh(sch - 1, vOut);
-          delay(1000);
-          if (sch < 5)
-          {
-            int adc0 = adc1.readADC_SingleEnded(sch - 1);
-            Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2);
-            //Serial.println('\n');
-          }
-          else
-          {
-            int adc0 = adc2.readADC_SingleEnded(sch - 5);
-            Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2);
-            //Serial.println('\n');
-          }
-        }
-
-      }
-
+    /* case 'x':                 // Calibration of Adc current feedback */
+    /*  */
+    /*   for (sch = 1; sch <= 8; sch++) */
+    /*   { */
+    /*     for (n_cal = 0; n_cal < 5; n_cal++) */
+    /*     { */
+    /*       vOut = ((1.25 - cal_val[n_cal] * 0.001 * 0.22) * 26214); */
+    /*       DAC.writeUpdateCh(sch - 1, vOut); */
+    /*       delay(1000); */
+    /*       if (sch < 5) */
+    /*       { */
+    /*         int adc0 = adc1.readADC_SingleEnded(sch - 1); */
+    /*         Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2); */
+    /*         //Serial.println('\n'); */
+    /*       } */
+    /*       else */
+    /*       { */
+    /*         int adc0 = adc2.readADC_SingleEnded(sch - 5); */
+    /*         Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2); */
+    /*         //Serial.println('\n'); */
+    /*       } */
+    /*     } */
+    /*  */
+    /*   } */
+    /*  */
       //Serial.print('\n'); 
       break;
 
     case 'w':                // Set all channels to 0V
 
-      DAC.writeUpdateCh(0, 1.259 * 26214.0);
-      DAC.writeUpdateCh(1, 1.246 * 26214.0);
-      DAC.writeUpdateCh(2, 1.251 * 26214.0);
-      DAC.writeUpdateCh(3, 1.257 * 26214.0);
-
-      DAC.writeUpdateCh(4, 1.259 * 26214.0);
-      DAC.writeUpdateCh(5, 1.253 * 26214.0);
-      DAC.writeUpdateCh(6, 1.244 * 26214.0);
-      DAC.writeUpdateCh(7, 1.262 * 26214.0);
+    for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ ) 
+    {
+        DAC.writeUpdateCh( iCh, ampstodac( 0.0 ) ) ;
+    }
+      /* DAC.writeUpdateCh(0, 1.259 * 26214.0); */
+      /* DAC.writeUpdateCh(1, 1.246 * 26214.0); */
+      /* DAC.writeUpdateCh(2, 1.251 * 26214.0); */
+      /* DAC.writeUpdateCh(3, 1.257 * 26214.0); */
+      /*  */
+      /* DAC.writeUpdateCh(4, 1.259 * 26214.0); */
+      /* DAC.writeUpdateCh(5, 1.253 * 26214.0); */
+      /* DAC.writeUpdateCh(6, 1.244 * 26214.0); */
+      /* DAC.writeUpdateCh(7, 1.262 * 26214.0); */
 
       break;
       
