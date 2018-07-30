@@ -40,7 +40,7 @@ const float DAC_PREAMP_RESISTANCE = 0.22 ; // [units: Ohms]
 // 3 derived terms (for convenience):
 const float DAC_RANGE_VOUT  = 2.0*DAC_VREF ; // [units: volts]
 const float DAC_BITSPERVOLT = ( pow( 2.0, float(DAC_RESOLUTION) ) - 1.0 )/DAC_RANGE_VOUT ; // =26214.0 [units: bit-counts]
-const float DAC_ZERO        = unsigned int( DAC_VREF* ) ; // =32767.5 [units: bit-counts]
+const float DAC_ZERO        = DAC_VREF*DAC_BITSPERVOLT ; // =32767.5 [units: bit-counts]
 
 // variables re: shim board
 const uint8_t SHIM_NCHANNELS = 8 ;
@@ -101,7 +101,6 @@ void loop() {
   }
   switch (incomingByte) {
 
- 
     case 'a':              // Update one channel input current 
       uint8_t iCh = (Serial.parseInt()-1);
       //Serial.println(element);
@@ -135,8 +134,8 @@ void loop() {
     /*  */
     /*   } */
     /*  */
-      //Serial.print('\n'); 
-      break;
+//      //Serial.print('\n'); 
+//      break;
 
     case 'w':                // Set all channels to 0V
 
