@@ -249,12 +249,11 @@ end
 
 voi = logical( voi ) ;
 
-Results.volume = nnz( voi ) .* prod( 0.1*Field.getvoxelsize() )  ; % [units: cm^3]
-Results.mean   = mean( Field.img( voi ) ) ;
-Results.median = median( Field.img( voi ) ) ;
-Results.std    = std( Field.img( voi ) ) ;
-Results.norm   = norm( Field.img( voi ), 2 ) ;
-
+Results.volume    = nnz( voi ) .* prod( 0.1*Field.getvoxelsize() )  ; % [units: cm^3]
+Results.mean      = mean( Field.img( voi ) ) ;
+Results.median    = median( Field.img( voi ) ) ;
+Results.std       = std( Field.img( voi ) ) ;
+Results.norm      = norm( Field.img( voi ), 2 ) ;
 Results.meanAbs   = mean( abs( Field.img( voi ) ) ) ;
 Results.medianAbs = median( abs( Field.img( voi ) ) ) ;
 
