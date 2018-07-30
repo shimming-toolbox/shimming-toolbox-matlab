@@ -221,7 +221,7 @@ function Field = histogramfield( Field )
 
 end
 % =========================================================================
-function Results = assessfielddistribution( Field, voi )
+function Results = assessfielddistribution( Field, voi, filename )
 %ASSESSSHIM
 %
 % Results = ASSESSFIELDDISTRIBUTION( Field )
@@ -257,6 +257,12 @@ Results.norm   = norm( Field.img( voi ), 2 ) ;
 
 Results.meanAbs   = mean( abs( Field.img( voi ) ) ) ;
 Results.medianAbs = median( abs( Field.img( voi ) ) ) ;
+
+if nargin == 3 || ischar( filename ) 
+    measure = {'Volume (cm^3)'; 'Mean (Hz)' ; 'Median (Hz)' ; 'St. dev. (Hz)' ; 'Norm (Hz)' ; 'Mean[abs.] (Hz)'; 'Median[abs.] (Hz)'} ;
+    value   = num2str([ Results.volume ; Results.mean ; Results.median ; Results.std ; Results.norm ; Results.meanAbs ; Results.medianAbs ], 4 ) ;
+    writetable( table( measure, value ), filename ) ;
+end
 
 end
 % =========================================================================

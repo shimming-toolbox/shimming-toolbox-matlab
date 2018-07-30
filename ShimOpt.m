@@ -848,7 +848,8 @@ function [currents] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESHIMCURRENTS 
 %
 % currents = OPTIMIZESHIMCURRENTS( Shim, Params )
-%   
+
+% TODO: write usage
 % Params can have the following fields 
 %
 %   .isOptimizingStaticTxFrequency
@@ -878,14 +879,9 @@ DEFAULT_ISOPTIMIZINGAUX                = false ;
 DEFAULT_ISREALTIMESHIMMING             = false ;
 
 
-
-error('fix TX defaults');
+% TODO: Create new class to handle all Tx related aspects
 DEFAULT_MINTXFREQUENCY = 123100100 ; % [units: Hz]
 DEFAULT_MAXTXFREQUENCY = 123265000 ; % [units: Hz]
-
-% the range of possible transmit frequencies (f0Bw) is also in Hz, not A.
-f0Bw = (Shim.Amp.maxLarmorFrequency - Shim.Amp.minLarmorFrequency)/2 ; % 82450 Hz
-
 
 
 if nargin < 1
@@ -906,6 +902,16 @@ if ~myisfield(Params, 'isOptimizingDynamicTxFrequency') || isempty( Params.isOpt
     Params.isOptimizingDynamicTxFrequency = DEFAULT_ISOPTIMIZINGDYNAMICTXFREQUENCY ;
 end
 
+if ~myisfield(Params, 'maxPositiveTxFrequencyShift') || isempty( Params.maxPositiveTxFrequencyShift )
+    % max + freq. shift relative to original Larmor
+    Params.maxPositiveTxFrequencyShift = DEFAULT_MAXTXFREQUENCY - double(Shim.Field.Hdr.ImagingFrequency)*1E6 ;
+end
+
+if ~myisfield(Params, 'maxNegativeTxFrequencyShift') || isempty( Params.maxNegativeTxFrequencyShift )
+    % max - freq. shift relative to original Larmor
+    Params.maxNegativeTxFrequencyShift = DEFAULT_MINTXFREQUENCY - double(Shim.Field.Hdr.ImagingFrequency)*1E6 ;
+end
+
 if ~myisfield(Params, 'isOptimizingAux') || isempty( Params.isOptimizingAux )
     Params.isOptimizingAux = DEFAULT_ISOPTIMIZINGAUX ;
 end
@@ -918,20 +924,32 @@ else
     Params.nActiveChannels = 1 + Shim.System.Specs.Amp.nActiveChannels ; % +1 for freq. adjust
 end
 
-if ~myisfield(Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerChannel ) 
-    Params.maxCurrentPerChannel = Shim.System.Specs.Amp.maxCurrentPerChannel ; 
+if ~myisfield(Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectionPerChannel ) 
+   
+    % 'tmp' because this is a TODO: 
+    % since the optimization solves for the Tx frequency *shift*, it can shift
+    % up or down relative to Larmor.  For now, I'll limit the max shift equally
+    % in both up/down directions, but in the future both should be specifically
+    % accounted for (only comes into play in checknonlinearconstraints_static() )
+    tmpMaxFreqShift = min(abs( [ Params.maxPositiveTxFrequencyShift Params.maxNegativeTxFrequencyShift ] )) ;
+
+    Params.maxCorrectionPerChannel = [ tmpMaxFreqShift ; Shim.System.Specs.Amp.maxCurrentPerChannel ] ; 
+
     if Params.isOptimizingAux
-        Params.maxCurrentPerChannel = [ Params.maxCurrentPerChannel Shim.Aux.System.Specs.Amp.maxCurrentPerChannel ]; 
+        Params.maxCorrectionPerChannel = [ Params.maxCorrectionPerChannel ; Shim.Aux.System.Specs.Amp.maxCurrentPerChannel ]; 
     end
+
 end
 
-if ~myisfield(Params, 'minCurrentPerChannel') || isempty( Params.minCurrentPerChannel ) 
-    Params.minCurrentPerChannel = -Params.maxCurrentPerChannel ; 
+if ~myisfield(Params, 'minCorrectionPerChannel') || isempty( Params.minCorrectionPerChannel ) 
+    Params.minCorrectionPerChannel = -Params.maxCorrectionPerChannel ; 
 end
 
-assert( ( length( Params.maxCurrentPerChannel ) == length( Params.minCurrentPerChannel ) ) && ...
-        ( length( Params.maxCurrentPerChannel ) == Params.nActiveChannels ), ...
-    'Shim system limits (Params.maxCurrentPerChannel and Params.minCurrentPerChannel) must possess an entry for each shim channel (primary and, if in use, auxiliary shims).' ) ;
+assert( ( length( Params.maxCorrectionPerChannel ) == length( Params.minCorrectionPerChannel ) ) && ...
+        ( length( Params.maxCorrectionPerChannel ) == Params.nActiveChannels ), ...
+    'Shim system limits (Params.maxCorrectionPerChannel and Params.minCorrectionPerChannel) must possess an entry for each shim channel (primary and, if in use, auxiliary shims).' ) ;
+
+
 
 if ~myisfield(Params, 'isRealtimeShimming') || isempty( Params.isRealtimeShimming )
     Params.isRealtimeShimming = DEFAULT_ISREALTIMESHIMMING ;
@@ -998,9 +1016,14 @@ if Params.isOptimizingAux
     A = [ MW*A_tx MW*A_mc MW*A_aux ] ;
     
     activeStaticChannelsMask = [ activeStaticChannelsMask ; Shim.Aux.System.Specs.Amp.staticChannels(:) ] ;
+
 else
     A = [ MW*A_tx MW*A_mc ] ;
 end
+
+Params.minStaticCorrectionPerChannel = Params.minCorrectionPerChannel ;
+Params.maxStaticCorrectionPerChannel = Params.maxCorrectionPerChannel ;
+
 
 if Params.isRealtimeShimming
     
@@ -1010,14 +1033,25 @@ if Params.isRealtimeShimming
         activeDynamicChannelsMask = [ 0 ; Shim.System.Specs.Amp.dynamicChannels(:) ] ;
     end
     
-    if isOptimizingAux
-        activeDynamicChannelsMask = [ activeDynamicChannelsMask Shim.Aux.System.Specs.Amp.dynamicChannels(:) ] ;
+    if Params.isOptimizingAux
+        activeDynamicChannelsMask = [ activeDynamicChannelsMask ; Shim.Aux.System.Specs.Amp.dynamicChannels(:) ] ;
     end
-    
-    activeChannelsMask = [ activeStaticChannelsMask activeDynamicChannelsMask ] ;
+   
+    activeDynamicChannelsMask = logical( activeDynamicChannelsMask ) ;  
+
+    activeChannelsMask = [ activeStaticChannelsMask ; activeDynamicChannelsMask ] ;
 
     % left half applies to the static field, right half to the resp.-induced dynamic component 
     A  = [ A zeros(size(A)) ; zeros(size(A)) A ] ; 
+
+    Params.minDynamicCorrectionPerChannel = zeros(size(activeDynamicChannelsMask)) ;
+    Params.minDynamicCorrectionPerChannel( activeDynamicChannelsMask ) = -Inf ;
+    
+    Params.maxDynamicCorrectionPerChannel = zeros(size(activeDynamicChannelsMask)) ;
+    Params.maxDynamicCorrectionPerChannel( activeDynamicChannelsMask ) = Inf ;
+
+    Params.minCorrectionPerChannel = [ Params.minStaticCorrectionPerChannel Params.minDynamicCorrectionPerChannel ] ;
+    Params.maxCorrectionPerChannel = [ Params.maxStaticCorrectionPerChannel Params.maxDynamicCorrectionPerChannel ] ;
 
 else
 
@@ -1031,6 +1065,7 @@ end
 A(:, ~activeChannelsMask) = 0;
 
 solutionVectorLength = size( A, 2 ) ;
+
 
 
 
@@ -1056,7 +1091,7 @@ if Params.isOptimizingAux
     
 end
 
-% residual off-resonance field without existing shim field : bx0
+% Residual off-resonance field without existing shim field : bx0
 %
 % i.e. the respiration-independent static field, assuming a linear model of the
 % time variation (van Gelderen et. al, MRM 2007):
@@ -1067,8 +1102,6 @@ if ~Params.isRealtimeShimming
     b  = MW*-bx0 ;
 
 else 
-    
-    A  = [ A zeros(size(A)) ; zeros(size(A)) A ] ; 
 
     % field shift from RIRO  
     db = Shim.Field.Model.Shift.img(:) ;
@@ -1098,8 +1131,6 @@ end
 
 
 
-
-
 % ------- 
 % linear optimization 
 
@@ -1112,6 +1143,7 @@ x = cgls( A'*A, ... % least squares operator
           x0, ... % initial 'guess' solution vector
           CgParams ) ;
 
+dbstop in ShimOpt at 1148
 % check linear solution
 isCurrentSolutionOk = all( checknonlinearconstraints_default( x ) < 0 ) ;
 
@@ -1139,13 +1171,12 @@ if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
             [],...
             [],...
             [],...
-            Params.minCorrections,...
-            Params.maxCorrections,...
-            checknonlinearconstraints_default,...
+            Params.minCorrectionPerChannel,...
+            Params.maxCorrectionPerChannel,...
+            @checknonlinearconstraints_default,...
             Options);
 
     toc
-    
     
 end
 
@@ -1155,10 +1186,13 @@ Shim.Model.Tx.imagingFrequency      = fo0 + (Shim.Field.Hdr.ImagingFrequency*1E6
 Shim.Model.currents                 = i0 ;
 Shim.Model.Aux.currents             = i0Aux ;
 
-Shim.Model.Tx.riroShift             = dfo/dp ; % resp-induced shift [units: Hz/unit-pressure]
-Shim.Model.couplingCoefficients     = di/dp ;
-Shim.Model.Aux.couplingCoefficients = diAux/dp ;
+currents = [ Shim.Model.Tx.imagingFrequency; Shim.Model.currents; Shim.Model.Aux.currents ] ;
 
+if Params.isRealtimeShimming
+    Shim.Model.Tx.riroShift             = dfo/dp ; % resp-induced shift [units: Hz/unit-pressure]
+    Shim.Model.couplingCoefficients     = di/dp ;
+    Shim.Model.Aux.couplingCoefficients = diAux/dp ;
+end
 
 function [f, df] = shimcost( x )
     
@@ -1179,7 +1213,7 @@ function [C, Ceq] = checknonlinearconstraints_default( solutionVector )
 % (e.g. x = solution vector of shim currents)
 % 
 % NOTE
-%   "Default" since it may be necessary later to introduce analogous,
+%   "Default" since it may be necessary later to introduce
 %   system-specific functions.
 
 Ceq = [];
@@ -1214,7 +1248,7 @@ function [C, Ceq] = checknonlinearconstraints_static( x0 )
     % checks on :
     %   global frequency shift ( C(1) )
     %   abs current per channel ( C(2:end) )
-    C = abs( x0 ) - Params.maxCorrections ;
+    C = abs( x0 ) - Params.maxStaticCorrectionPerChannel ;
 
 end
 
@@ -1269,7 +1303,7 @@ nTerms = length( x ) ;
 if Params.isRealtimeShimming
     assert( mod(nTerms,2) == 0, 'Expected solution vector of even length.' ) ; % should be 1 static + 1 dynamic term for every channel
     x0 = x(1:nTerms/2) ;   % static terms
-    x1 = x(nTerms+1:end) ; % dynamic terms
+    x1 = x(nTerms/2+1:end) ; % dynamic terms
 else
     x0 = x ;
 end

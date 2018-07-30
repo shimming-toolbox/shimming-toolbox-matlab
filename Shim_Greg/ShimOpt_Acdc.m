@@ -81,13 +81,13 @@ function [currents] = optimizeshimcurrents( Shim, Params )
 %   .isOptimizingAux
 %       [default: false]
 %
-%   .maxCurrentPerChannel
+%   .maxCorrectionPerChannel
 %       [default: determined by ShimSpecsAcdc property: .Amp.maxCurrentPerChannel]
 %
-%   .minCurrentPerChannel
-%       [default: -.maxCurrentPerChannel]
+%   .minCorrectionPerChannel
+%       [default: -.maxCorrectionPerChannel]
 
-DEFAULT_ISOPTIMIZINGAUX          = false ;
+DEFAULT_ISOPTIMIZINGAUX = false ;
 
 if nargin < 2 
     Params.dummy = [];
@@ -97,13 +97,13 @@ if ~myisfield( Params, 'isOptimizingAux') || isempty( Params.isOptimizingAux )
     Params.isOptimizingAux = DEFAULT_ISOPTIMIZINGAUX ;
 end
 
-if ~myisfield( Params, 'maxCurrentPerChannel') || isempty( Params.maxCurrentPerChannel ) 
-    Params.maxCurrentPerChannel = Shim.System.Specs.Amp.maxCurrentPerChannel ; 
-end
-
-if ~myisfield( Params, 'minCurrentPerChannel') || isempty( Params.minCurrentPerChannel ) 
-    Params.minCurrentPerChannel = -Params.maxCurrentPerChannel ; 
-end
+% if ~myisfield( Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectionPerChannel ) 
+%     Params.maxCorrectionPerChannel = Shim.System.Specs.Amp.maxCurrentPerChannel ; 
+% end
+%
+% if ~myisfield( Params, 'minCorrectionPerChannel') || isempty( Params.minCorrectionPerChannel ) 
+%     Params.minCorrectionPerChannel = -Params.maxCorrectionPerChannel ; 
+% end
 
 currents = optimizeshimcurrents@ShimOpt( Shim, Params ) ;
 
