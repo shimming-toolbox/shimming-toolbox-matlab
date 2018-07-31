@@ -220,7 +220,7 @@ Results.Norm.Predicted   = Predicted.norm ;
 
 if ~myisfield( Shim, 'ShimmedField' ) || isempty( Shim.ShimmedField )
     
-   isAssessingShimmedField = DEFAULT_ISASSESSINGSHIMMEDFIELD ;
+    isAssessingShimmedField = DEFAULT_ISASSESSINGSHIMMEDFIELD ;
 
 else
 
@@ -233,6 +233,7 @@ else
     Results.Mean.Shimmed     = Shimmed.mean ;
     Results.Median.Shimmed   = Shimmed.median ;
     Results.Norm.Shimmed     = Shimmed.norm ;
+
 end
 
 fprintf('\n')
@@ -543,7 +544,9 @@ if myisfield( Shim.Model, 'currents' ) && ~isempty( Shim.Model.currents )
     A = Shim.getshimoperator() ;
 
     Shim.Model.field = reshape( A*Shim.Model.currents, Shim.Field.getgridsize() ) ;
+
 else
+    
     % Assume zero shim currents
     Shim.Model.field = zeros( Shim.Field.getgridsize() ) ;
 
@@ -811,6 +814,22 @@ Shim.setforwardmodelfield() ;
 PredictedField     = Shim.Field.copy() ;
 PredictedField.img = ( Shim.Field.img + Shim.Model.field ) ;
 
+if ~isempty(Shim.Model.Tx.imagingFrequency)
+    
+    PredictedField.Hdr.ImagingFrequency = Shim.Model.Tx.imagingFrequency*1E-6 ;  % [units: MHz]
+    
+    % add frequency shift
+    df0 = Shim.Model.Tx.imagingFrequency - (Shim.Field.Hdr.ImagingFrequency*1E6) ; % [units: Hz]
+    PredictedField.img = PredictedField.img + df0 ;
+end
+
+if ~isempty(Shim.Aux.Model.currents)
+
+    Shim.Aux.setforwardmodelfield() ;
+    PredictedField.img = Shim.Aux.Model.field + PredictedField.img ;
+
+end
+
 if nargin == 2
     % revert entry
     Shim.Model.currents = currentsOriginal ;
@@ -879,6 +898,7 @@ DEFAULT_ISOPTIMIZINGAUX                = false ;
 DEFAULT_ISREALTIMESHIMMING             = false ;
 
 DEFAULT_ISDISPLAYINGRESULTS            = true ;
+DEFAULT_RESULTSTABLEFILENAME           = [];
 
 % TODO: Create new class to handle all Tx related aspects
 DEFAULT_MINTXFREQUENCY = 123100100 ; % [units: Hz]
@@ -964,6 +984,10 @@ if ~myisfield(Params, 'isDisplayingResults') || isempty( Params.isDisplayingResu
     Params.isDisplayingResults = DEFAULT_ISDISPLAYINGRESULTS ; 
 end
 
+if ~myisfield(Params, 'resultsTableFilename') || isempty( Params.resultsTableFilename ) 
+    Params.resultsTableFilename = DEFAULT_RESULTSTABLEFILENAME ; 
+end
+
 if Params.isRealtimeShimming
 
     assert( myisfield( Shim.Field.Model, 'Shift') && ~isempty( Shim.Field.Model.Shift.img ) ) % TODO: Rename 'Shift' Riro
@@ -1026,8 +1050,8 @@ else
     A = [ MW*A_tx MW*A_mc ] ;
 end
 
-Params.minStaticCorrectionPerChannel = Params.minCorrectionPerChannel ;
-Params.maxStaticCorrectionPerChannel = Params.maxCorrectionPerChannel ;
+Params.minStaticCorrectionPerChannel = activeStaticChannelsMask .* Params.minCorrectionPerChannel ;
+Params.maxStaticCorrectionPerChannel = activeStaticChannelsMask .* Params.maxCorrectionPerChannel ;
 
 
 if Params.isRealtimeShimming
@@ -1189,7 +1213,7 @@ end
 
 Shim.Model.Tx.imagingFrequency      = fo0 + (Shim.Field.Hdr.ImagingFrequency*1E6) ; % DC avg. [units: Hz]
 Shim.Model.currents                 = i0 ;
-Shim.Model.Aux.currents             = i0Aux ;
+Shim.Aux.Model.currents             = i0Aux ;
 
 currents = [ Shim.Model.Tx.imagingFrequency; Shim.Model.currents; Shim.Model.Aux.currents ] ;
 
@@ -1205,59 +1229,56 @@ if Params.isDisplayingResults
 
     fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
     fprintf('\n\n Static Correction:\n\n') ;
+    
+    dbstop in ShimOpt at 1212
+    
+    T = table ;
+    
+    Original        = [] ;
+    Optimal         = [] ;
+    Update          = [] ;
 
     if Params.isOptimizingStaticTxFrequency
-        fprintf('\n\n Tx Frequency Adjustment:\n\n') ;
-        TX = table ;
-        Tmp      = cell(1, 4) ;
-        % Tmp(1,:) = {'Correction_Term'; 'Original'; 'Optimal'; 'Update'} ;
-        Tmp{1} = 'Tx Imaging Frequency (Hz)' ;
-        Tmp{2} = num2str(Shim.Field.Hdr.ImagingFrequency*1E6, 9) ;
-        Tmp{3} = num2str(Shim.Model.Tx.imagingFrequency, 9) ;
-        Tmp{4} = num2str(fo0, 6) ;
-        TX = cell2table( Tmp, 'VariableNames', {'Correction_Term'; 'Original'; 'Optimal'; 'Update'} ) ;
-        display(TX)     
-    end
-    
-    fprintf('\n\n Primary shim:\n\n') ;
-    Shim1 = table ;
-    nCh = length(i0) ;
-    
-    str = 'Shim Ch1' ;
-    for iCh = 2 : nCh
-        str = [ str ; 'Shim Ch' num2str(iCh) ] ;
-    end
 
-    Shim1.Correction_Term = str ;
-    Shim1.Original        = Shim.System.currents ;
-    Shim1.Optimal         = i0 ;
-    Shim1T.Update          = i0 - Shim.System.currents ;
-    display(Shim1)     
-    
-    if Params.isOptimizingAux
-
-        fprintf('\n\n Auxiliary shim:\n\n') ;
-        Shim2 = table ;
-        nCh   = length(i0) ;
-        
-        str = 'Aux Ch1' ;
-        for iCh = 2 : nCh
-            str = [ str ; 'Aux Ch' num2str(iCh) ] ;
+        Correction_Term = {'Tx Freq. (Hz)'} ;
+        Original        = round( Shim.Field.Hdr.ImagingFrequency*1E6, 9, 'significant' ) ;
+        Optimal         = round( Shim.Model.Tx.imagingFrequency, 9, 'significant' ) ;
+        Update          = round( fo0, 6, 'significant' ) ;
+   
+        for iCh = 1 : length(i0)
+            Correction_Term(end+1) = { [ 'Shim Ch' num2str(iCh) ' (A)'] } ;
+        end
+    else
+        for iCh = 1 : length(i0)
+            Correction_Term(iCh) = { [ 'Shim Ch' num2str(iCh) ' (A)'] } ;
         end
 
-        Shim2.Correction_Term = str ;
-        Shim2.Original        = Shim.Aux.System.currents ;
-        Shim2.Optimal         = i0Aux ;
-        Shim2.Update          = i0Aux - Shim.Aux.System.currents ;
-        display(Shim2)     
-        %
-        % Tmp      = cell(1, 4) ;
-        % % Tmp(1,:) = {'Correction_Term'; 'Original'; 'Optimal'; 'Update'} ;
-        % Tmp{1} = 'Tx Imaging Frequency (Hz)' ;
-        % Tmp{2} = num2str(Shim.Field.Hdr.ImagingFrequency*1E6, 9) ;
-        % Tmp{3} = num2str(Shim.Model.Tx.imagingFrequency, 9) ;
-        % Tmp{4} = num2str(fo0, 6) ;
-        % T = cell2table( Tmp, 'VariableNames', {'Correction_Term'; 'Original'; 'Optimal'; 'Update'} ) 
+    end
+
+    Original = [ Original ; round(Shim.System.currents, 4, 'significant') ] ;
+    Optimal  = [ Optimal ; round(i0, 4, 'significant') ] ;
+    Update   = [ Update ; round(i0 - Shim.System.currents, 4, 'significant') ] ;
+
+    if Params.isOptimizingAux
+
+        for iCh = 2 : length(i0Aux)  
+            Correction_Term(end+1) = { [ 'Aux Ch' num2str(iCh) ] } ;
+        end
+
+        Original = [ Original ; round(Shim.Aux.System.currents, 4, 'significant') ] ;
+        Optimal  = [ Optimal ; round(i0Aux, 4, 'significant') ] ;
+        Update   = [ Update ; round((i0Aux - Shim.Aux.System.currents), 4, 'significant') ] ;
+        
+    end
+
+    T.Correction_Term = char( Correction_Term ) ;
+    T.Original        = Original ;
+    T.Optimal         = Optimal ;
+    T.Update          = Update ;
+    
+    T    
+    if ~isempty( Params.resultsTableFilename ) 
+        writetable( T, Params.resultsTableFilename ) ;
     end
 
 end
