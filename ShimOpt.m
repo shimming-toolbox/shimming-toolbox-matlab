@@ -785,12 +785,10 @@ function [PredictedField, PredictedRiro] = predictshimmedfield( Shim, currents )
 %PREDICTSHIMMEDFIELD
 %
 % [PredictedField] = PREDICTSHIMMEDFIELD( Shim ) ;
-% [PredictedField, PredictedRiro] = PREDICTSHIMMEDFIELD( Shim ) ;
 % 
 % Returns FieldEval-type object(s) 
 %
 % PredictedField.img = ( Shim.Field.img + Shim.Model.field ) ;
-% PredictedRiro.img  = ( Shim.Field.Model.Shift.img + Shim.Model.riro ) ;
 %
 % NOTE
 %   The regions of spatial support for Shim.Model.field and Shim.Field.img 
@@ -823,12 +821,75 @@ if ~isempty(Shim.Model.Tx.imagingFrequency)
     PredictedField.img = PredictedField.img + df0 ;
 end
 
+
+if nargin == 2
+    % revert entry
+    Shim.Model.currents = currentsOriginal ;
+end
+
 if ~isempty(Shim.Aux.Model.currents)
 
+    originalAuxCurrents      = Shim.Aux.System.currents ;
+    originalModelAuxCurrents = Shim.Aux.Model.currents ;
+
+    currentsUpdate = Shim.Aux.Model.currents - Shim.Aux.System.currents ;
+
+    Shim.Aux.Model.currents = currentsUpdate ;  
+
     Shim.Aux.setforwardmodelfield() ;
+    
     PredictedField.img = Shim.Aux.Model.field + PredictedField.img ;
+    
+    % reset
+    Shim.Aux.Model.currents  = originalModelAuxCurrents ;
+    Shim.Aux.System.currents = originalAuxCurrents ;
 
 end
+
+
+end
+% =========================================================================
+function [ PredictedRiro ] = predictshimmedriro( Shim, currents )
+%PREDICTSHIMMEDRIRO
+%
+% [PredictedRiro] = PREDICTSHIMMEDRIRO( Shim ) ;
+% 
+% Returns FieldEval-type object(s) 
+%
+% PredictedRiro.img  = ( Shim.Field.Model.Shift.img + Shim.Model.riro ) ;
+%
+% NOTE
+%   The regions of spatial support for Shim.Model.field and Shim.Field.img 
+%   are likely somewhat different (though ideally overlapping!).
+%   The predictions do not account for the finite spatial support of 
+%   either field term!
+
+% voi = logical( Shim.Field.Hdr.MaskingImage ) ;
+PredictedRiro = [] ;
+
+if nargin == 2
+    currentsOriginal = Shim.Model.currents ; 
+    Shim.Model.currents = currents ;
+else
+    assert( ~isempty( Shim.Model.currents ), ...
+    'Requires valid set of shim currents in Shim.Model.currents to predict shim field.' ) ;
+end
+    
+% set Shim.Model.field according to Shim.Model.currents
+Shim.setforwardmodelfield() ; 
+
+PredictedField     = Shim.Field.copy() ;
+PredictedField.img = ( Shim.Field.img + Shim.Model.field ) ;
+
+if ~isempty(Shim.Model.Tx.imagingFrequency)
+    
+    PredictedField.Hdr.ImagingFrequency = Shim.Model.Tx.imagingFrequency*1E-6 ;  % [units: MHz]
+    
+    % add frequency shift
+    df0 = Shim.Model.Tx.imagingFrequency - (Shim.Field.Hdr.ImagingFrequency*1E6) ; % [units: Hz]
+    PredictedField.img = PredictedField.img + df0 ;
+end
+
 
 if nargin == 2
     % revert entry
@@ -840,6 +901,29 @@ if myisfield( Shim.Model, 'riro' ) && ~isempty( Shim.Model.riro ) ...
 
     PredictedRiro     = Shim.Field.copy() ;
     PredictedRiro.img = ( Shim.Field.Model.Shift.img + Shim.Model.riro ) ;
+
+end
+
+if ~isempty(Shim.Aux.Model.currents)
+
+    originalAuxCurrents      = Shim.Aux.System.currents ;
+    originalModelAuxCurrents = Shim.Aux.Model.currents ;
+
+    currentsUpdate = Shim.Aux.Model.currents - Shim.Aux.System.currents ;
+
+    Shim.Aux.Model.currents = currentsUpdate ;  
+
+    Shim.Aux.setforwardmodelfield() ;
+    
+    PredictedField.img = Shim.Aux.Model.field + PredictedField.img ;
+
+    if myisfield( Shim.Aux.Model, 'couplingCoefficients' ) && ~isempty( Shim.Aux.Model.couplingCoefficients ) 
+        PredictedRiro.img = PredictedRiro.img + Shim.Aux.Model.riro ;
+    end
+    
+    % reset
+    Shim.Aux.Model.currents  = originalModelAuxCurrents ;
+    Shim.Aux.System.currents = originalAuxCurrents ;
 
 end
 
@@ -1172,7 +1256,6 @@ x = cgls( A'*A, ... % least squares operator
           x0, ... % initial 'guess' solution vector
           CgParams ) ;
 
-dbstop in ShimOpt at 1148
 % check linear solution
 isCurrentSolutionOk = all( checknonlinearconstraints_default( x ) < 0 ) ;
 
@@ -1215,12 +1298,12 @@ Shim.Model.Tx.imagingFrequency      = fo0 + (Shim.Field.Hdr.ImagingFrequency*1E6
 Shim.Model.currents                 = i0 ;
 Shim.Aux.Model.currents             = i0Aux ;
 
-currents = [ Shim.Model.Tx.imagingFrequency; Shim.Model.currents; Shim.Model.Aux.currents ] ;
+currents = [ Shim.Model.Tx.imagingFrequency; Shim.Model.currents; Shim.Aux.Model.currents ] ;
 
 if Params.isRealtimeShimming
     Shim.Model.Tx.riroShift             = dfo/dp ; % resp-induced shift [units: Hz/unit-pressure]
     Shim.Model.couplingCoefficients     = di/dp ;
-    Shim.Model.Aux.couplingCoefficients = diAux/dp ;
+    Shim.Aux.Model.couplingCoefficients = diAux/dp ;
 end
 
 % -------
@@ -1230,29 +1313,21 @@ if Params.isDisplayingResults
     fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
     fprintf('\n\n Static Correction:\n\n') ;
     
-    dbstop in ShimOpt at 1212
-    
     T = table ;
     
-    Original        = [] ;
-    Optimal         = [] ;
-    Update          = [] ;
-
+    Correction_Term = {'Tx Freq. (Hz)'} ;
+    Original        = round( Shim.Field.Hdr.ImagingFrequency*1E6, 9, 'significant' ) ;
+    
     if Params.isOptimizingStaticTxFrequency
-
-        Correction_Term = {'Tx Freq. (Hz)'} ;
-        Original        = round( Shim.Field.Hdr.ImagingFrequency*1E6, 9, 'significant' ) ;
-        Optimal         = round( Shim.Model.Tx.imagingFrequency, 9, 'significant' ) ;
-        Update          = round( fo0, 6, 'significant' ) ;
-   
-        for iCh = 1 : length(i0)
-            Correction_Term(end+1) = { [ 'Shim Ch' num2str(iCh) ' (A)'] } ;
-        end
+        Optimal = round( Shim.Model.Tx.imagingFrequency, 9, 'significant' ) ;
+        Update  = round( fo0, 6, 'significant' ) ;
     else
-        for iCh = 1 : length(i0)
-            Correction_Term(iCh) = { [ 'Shim Ch' num2str(iCh) ' (A)'] } ;
-        end
+        Optimal = NaN ;
+        Update  = NaN ;
+    end
 
+    for iCh = 1 : length(i0)
+        Correction_Term(iCh+1) = { [ 'Shim Ch' num2str(iCh) ' (A)'] } ;
     end
 
     Original = [ Original ; round(Shim.System.currents, 4, 'significant') ] ;
@@ -1261,7 +1336,7 @@ if Params.isDisplayingResults
 
     if Params.isOptimizingAux
 
-        for iCh = 2 : length(i0Aux)  
+        for iCh = 1 : length(i0Aux)  
             Correction_Term(end+1) = { [ 'Aux Ch' num2str(iCh) ] } ;
         end
 
