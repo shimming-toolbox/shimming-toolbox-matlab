@@ -34,7 +34,7 @@ classdef ShimComAcdc < ShimCom
 %    ShimComAcdc is a ShimCom subclass.
 %
 % =========================================================================
-% Updated::20180215::ryan.topfer@polymtl.ca
+% Updated::20180611::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -61,28 +61,33 @@ end
 % =========================================================================
 function [isAckReceived] = getsystemheartbeat( Shim ) ;
 %GETSYSTEMHEARTBEAT
-%
+
+warning('Unimplemented funct. ShimComAcdc.GETSYSTEMHEARTBEAT()')
 isAckReceived=true;
+
 end
 % =========================================================================
-function [] = setandloadshim( Shim, channel,current,coeff1,coeff2)  ;
-% setandloadshim :
+function [] = setandloadshim( Shim, channel, current )  ;
+%SETANDLOADSHIM
 %
-% - Update one channel with a current (Both in arg)
-%
-%--------------------------------------------------------------------------
+% Set shim current (in units of Amps) for single channel 
+% 
+% [] = SETANDLOADSHIM( Shims, channelIndex, current ) 
 
-calibrationVal = (current - coeff2)/ coeff1;
+% TODO
+% temp. fix: scaling to mA
+current = current*1000;
+
+calibrationVal = ( current - Shim.Specs.Com.feedbackcalibrationcoeffy(channel) )/ Shim.Specs.Com.feedbackcalibrationcoeffx(channel) ;
 
 % Variable used to convert currents into DAC value-------------------------
 
-  DACvoltref = 1.25;
   preampresistance = 0.22;
-  DACmaxvalue = 26214;
+  DACmaxvalue      = 26214;
   
 %Conversion----------------------------------------------------------------
 
-  DACcurrent = num2str(((DACvoltref - calibrationVal * 0.001 * preampresistance) * DACmaxvalue));
+  DACcurrent = num2str((( Shim.Specs.Dac.referenceVoltage - calibrationVal * 0.001 * preampresistance) * DACmaxvalue));
   Channel=num2str(channel);
   
   
@@ -94,80 +99,64 @@ end
 
 % =========================================================================
 function [] = setandloadallshims( Shim, currents )
-% setandloadallshim :
+%SETANDLOADALLSHIM
+% 
+% [] = SETANDLOADALLSHIMS( Shim, currents ) 
 %
-% - Update all channels with currents (DAC value) in argument
-%
-%--------------------------------------------------------------------------
+% Update all channels with currents (8-element vector w/units in A)
 
-convertedCurrents=Shim.ampstodac(currents,Shim.Specs.Com.feedbackcalibrationcoeffx,Shim.Specs.Com.feedbackcalibrationcoeffy);
-Currents=round(convertedCurrents);
+% TODO
+% temp. fix: scaling to mA
+currents = currents *1000;
 
-command =strcat('o',num2str(Currents(1)),num2str(Currents(2)),num2str(Currents(3)),num2str(Currents(4)),...
-num2str(Currents(5)),num2str(Currents(6)),num2str(Currents(7)),num2str(Currents(8)));
+currentsDac = Shim.ampstodac( currents ) ;
 
-fprintf(Shim.ComPort,'%s',command,'sync'); 
+command = strcat('o',num2str(currentsDac(1)),num2str(currentsDac(2)),num2str(currentsDac(3)),num2str(currentsDac(4)),...
+          num2str(currentsDac(5)),num2str(currentsDac(6)),num2str(currentsDac(7)),num2str(currentsDac(8)));
 
-%for i=1:(Shim.Specs.Amp.nChannels)    % To display feedback from querry
-%a = fscanf(Shim.ComPort,'%s');
-%disp(a);
-%end
+Shim.sendcmd( command ) ;
 
-disp('Currents Updated');
 fscanf(Shim.ComPort,'%s');
 
 end
 %==========================================================================
-function [DACvaluetosend] = ampstodac(Shim,currents,coeff1,coeff2)
-% ampstodac :
+function [dacValue] = ampstodac( Shim, currents )
+%AMPSTODAC
 %
-% - Convert currents from Amps to DAC value.
-%
-%--------------------------------------------------------------------------
+% Convert currents from Amps to DAC value.
  
-  calibrationVal=zeros(Shim.Specs.Amp.nChannels,1);
+calibrationVal = zeros(Shim.Specs.Amp.nChannels,1);
 
-  for i=1:Shim.Specs.Amp.nChannels
-  calibrationVal(i) = (currents(i) - coeff2(i)) / coeff1(i);
-  end
+for i=1:Shim.Specs.Amp.nChannels
+    calibrationVal(i) = ( currents(i) - Shim.Specs.Com.feedbackcalibrationcoeffy(i) ) / Shim.Specs.Com.feedbackcalibrationcoeffx(i);
+end
   
 % Variable used to convert currents into DAC value-------------------------
 
-  DACvoltref = 1.25;
-  preampresistance = 0.22;
-  DACmaxvalue = 26214;
+preampresistance = 0.22;
+DACmaxvalue      = 26214;
   
 %Conversion----------------------------------------------------------------
 
-  DACvaluetosend = ((DACvoltref - calibrationVal * 0.001 * preampresistance) * DACmaxvalue);
+dacValue = round( (Shim.Specs.Dac.referenceVoltage - calibrationVal * 0.001 * preampresistance) * DACmaxvalue ) ;
 
 end
 % =========================================================================
 function [] = resetallshims( Shim )
-% resetallshims :
+%RESETALLSHIMS 
 %
-% - Reset all shim currents to 0 Amp
-%
-%--------------------------------------------------------------------------
+%   Shim currents reset to 0 A
    
-
-% Send Command to set all channels to 0 Amp--------------------------------
-fprintf(Shim.ComPort,'%s',Shim.Cmd.resetAllShims,'sync');
+Shim.sendcmd( Shim.Cmd.resetAllShims );
 
 end
-
-
 % =========================================================================
 function [] = opencomport( Shim ) 
-% opencomport :
+%OPENCOMPORT
 % 
-% - Open serial communication port
-% - Reset arduino Board to make it ready to receive commands
-%
-%--------------------------------------------------------------------------
+% Open serial communication port & reset Arduino Board 
 
 instrument = instrfind;
-display(instrument);
 
 if isempty(instrument)
     Shim.ComPort = ShimComAcdc.initializecomport( Shim.Specs ) ;
@@ -177,37 +166,30 @@ fopen(Shim.ComPort);
 
 fprintf(Shim.ComPort,'%s',Shim.Cmd.resetArduino,'sync');
 
-
 nlinesFeedback = 8 ; % Lines of feedback after opening serial communication
 
 % Read the Feedback from the arduino---------------------------------------
 for i=1:nlinesFeedback
-a = fscanf(Shim.ComPort,'%s');
-disp(a);
-end
+    a = fscanf(Shim.ComPort,'%s');
 end
 
+end
 % =========================================================================
 function [] = closecomport( Shim ) 
-% closecomport :
+%CLOSECOMPORT
 % 
-% - Close serial communication port 
-%
-%--------------------------------------------------------------------------
-display(Shim.ComPort.BytesAvailable);
-%fread(Shim.ComPort, Shim.ComPort.BytesAvailable);
+% Close serial communication port 
+
 fclose(Shim.ComPort);
 delete(Shim.ComPort);
 clear Shim.ComPort;
-end
 
+end
 % =========================================================================
-function [ChannelOutput] = getchanneloutput( Shim ,~, Channel )
-% getchanneloutput :
+function [ChannelOutput] = getchanneloutput( Shim , ~, Channel )
+%GETCHANNELOUTPUT
 % 
-% - Querry and display a current feedback for one channel
-%
-%--------------------------------------------------------------------------
+%   Querry and display a current feedback for one channel
  
 %Command to querry the channel feedback------------------------------------
 command = strcat(Shim.Cmd.getChannelFeedback,Channel);
@@ -216,15 +198,13 @@ fprintf(Shim.ComPort,'%s',command,'sync');
 
 % Read the Feedback from the arduino---------------------------------------
 ChannelOutput=fscanf(Shim.ComPort,'%s');
-disp(ChannelOutput);
-end
 
+end
+% =========================================================================
 function [ChannelOutputs] = getallchanneloutputs( Shim )
-% getallchanneloutput :
+%GETALLCHANNELOUTPUT
 % 
-% - Querry and display a current feedback for all channels
-%
-%--------------------------------------------------------------------------
+%   Querry and display a current feedback for all channels
 
 %Command to querry the channels -------------------------------------------
 fprintf(Shim.ComPort,'%s',Shim.Cmd.getallChannelFeedback,'sync');
@@ -232,30 +212,27 @@ ChannelOutputs =zeros(1,Shim.Specs.Amp.nChannels);
 
 % Read Feedback from arduino-----------------------------------------------
 for i=1:(Shim.Specs.Amp.nChannels)
-a= fscanf(Shim.ComPort,'%s');
-disp(a);
-ChannelOutputs(i)=str2double(a); 
-end
+    a= fscanf(Shim.ComPort,'%s');
+    ChannelOutputs(i)=str2double(a); 
 end
 
+end
 % =========================================================================
 function [Shims, isSendOk]= sendcmd( Shim, command )
-% sendcmd : 
-%   
-% - Transmits a command from client to shim microcontroller 
-%
-%--------------------------------------------------------------------------
-isSendOk  = false ;
+%SENDCMD 
+% 
+%   Transmits command from client to shim microcontroller 
+
+isSendOk  = [] ;
 
 if strcmp( Shim.ComPort.Status, 'closed' ) ;
     fopen( Shim.ComPort ) ;
 end 
     
-fprintf( Shim.ComPort,'%s', command,'sync' ) ;
+fprintf( Shim.ComPort, '%s', command, 'sync' ) ;
     
 end
 % =========================================================================
-
 function [calibrationvalues]= getcalibrationcoefficient( Shim)
 % getcalibrationcoefficient : 
 %
@@ -283,15 +260,19 @@ for j=1:(Shim.Specs.Amp.nChannels)
         calibrationvalues(i,j) = str2double(a);
     end
 end
+
+Shim.resetallshims() ;
+
 display(calibrationvalues);
+
 end
 % =========================================================================
 
 end
+% =========================================================================
 % =========================================================================
 methods(Static)
-
-    
+% =========================================================================
 function [Cmd] = getcommands( )
 % getcommands :
 %
@@ -301,15 +282,15 @@ function [Cmd] = getcommands( )
 
 % System commands (as strings)---------------------------------------------
 
-Cmd.getChannelFeedback = 'f';
+% Cmd.getChannelFeedback    = 'f'; not implemented in .ino
 Cmd.getallChannelFeedback = 'e';
-Cmd.calibrateDacCurrent='x';
+Cmd.calibrateDacCurrent   = 'x';
 
-Cmd.resetArduino='r';
+Cmd.resetArduino          = 'r';
 
-Cmd.updateOneChannel = 'a';
-Cmd.resetAllShims    = 'w' ;
-Cmd.querry    = 'q' ;
+Cmd.updateOneChannel      = 'a';
+Cmd.resetAllShims         = 'w' ;
+Cmd.querry                = 'q' ;
 
 end
 % =========================================================================
@@ -321,16 +302,18 @@ function [ComPort] = initializecomport( Specs )
 %--------------------------------------------------------------------------
 
 % Serial Port 
+%
+warning( 'Serial port device name may change depending on the host computer.' )
 
 if ismac
-   portName = '/dev/cu.usbserial' ;          % USB to serial adapter
-  %  portName = '/dev/cu.usbmodem1421' ;        % Classical USB port
+   % portName = '/dev/cu.usbserial' ;          % USB to serial adapter
+    portName = '/dev/tty.usbserial' ;          % USB to serial adapter
 elseif isunix
-    portName = '/dev/ttyUSB0' ;  % Can be different depending on the computer 
+    portName = '/dev/ttyUSB0' ;   
 elseif ispc
     portName = 'COM4' ;
 else
-    error('Wtf kind of computer is this?')
+    error('What kind of computer is this!?')
 end
 
 ComPort = serial( portName,...

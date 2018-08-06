@@ -26,6 +26,14 @@ methods
 function Shim = ShimOptRri( Params, Field )
 %SHIMOPTRRI - Shim Optimization
 
+Shim.img   = [] ;
+Shim.Hdr   = [] ;
+Shim.Field = [] ;       
+Shim.Model = [] ;
+Shim.Aux   = [] ;
+Shim.System.Specs    = ShimSpecsRri();
+Shim.System.currents = zeros( Shim.System.Specs.nActiveChannels ) ; 
+
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
 end
@@ -82,26 +90,19 @@ function [currents] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESTATICSHIMCURRENTS 
 %
 % currents  = OPTIMIZESHIMCURRENTS( Shim, Params )
-% currents  = OPTIMIZESHIMCURRENTS( Shim, Params, FieldExpired )
-%   
-% Params can have the following fields 
-%   
-%   .maxCurrentPerChannel
-%       [default: 4 A,  determined by class ShimSpecs.Amp.maxCurrentPerChannel]
 
-Specs = ShimSpecsRri();
-
-DEFAULT_REGULARIZATIONPARAMETER     = 0;
-DEFAULT_ISRETURNINGPSEUDOINVERSE    = 0;
+DEFAULT_ISOPTIMIZINGAUX             = true ;
 
 if nargin < 2 
     Params.dummy = [];
 end
 
-% TODO (if needed): define RRI system-specific Params
+if ~myisfield(Params, 'isOptimizingAux') || isempty( Params.isOptimizingAux )
+    Params.isOptimizingAux = DEFAULT_ISOPTIMIZINGAUX ;
+end
 
 if nargin < 3
-    currents = @optimizeshimcurrents.ShimOpt( Shim, Specs, Params, @checknonlinearconstraints ) ;
+    currents = @optimizeshimcurrents.ShimOpt( Shim, Params, @checknonlinearconstraints ) ;
 end
 
 function [C, Ceq] = checknonlinearconstraints( currents )

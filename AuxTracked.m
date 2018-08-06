@@ -115,7 +115,30 @@ ylabel( Params.yLabel ) ;
 
 end
 % =========================================================================
-function [medianMeasure] = userselectmedianmeasurement( measurementLog )
+function [iFlattest] = findflattest( measurementLog, nSamples )
+%FINDFLATTEST 
+%
+% iFlattest = FINDFLATTEST( measurementLog, nSamples ) 
+% 
+% Calculates measurementLog variance over sliding window (nSamples long) and
+% returns index (iFlattest) corresponding to start of the most constant segment
+% (e.g. a breath-hold).
+
+assert( nSamples > 0 )
+assert( nSamples <= length(measurementLog) )
+
+nVariances = length(measurementLog) - nSamples ;
+variances  = zeros( nVariances, 1 );
+
+for iFlattest =  1 : nVariances
+   variances(iFlattest) = var( measurementLog( iFlattest:(iFlattest+nSamples) ) ) ;
+end
+
+[~, iFlattest] = min( variances ) ;
+
+end
+% =========================================================================
+function [medianMeasure] = userselectmedianmeasurement( measurementLog, nSamplesApnea )
 % USERSELECTMEDIANMEASUREMENT
 %
 %   medianMeasure = USERSELECTMEDIANMEASUREMENT( measurementLog ) 
@@ -124,6 +147,12 @@ function [medianMeasure] = userselectmedianmeasurement( measurementLog )
 %   over which to calculate the median. The median measurement is superposed
 %   over the measurementLog graph and the user is asked if the result is 
 %   satisfactory (or redo).
+
+if ( nargin == 1 ) 
+    nSamplesApnea = [] ;
+elseif ~isempty( nSamplesApnea ) 
+    assert( nSamplesApnea > 0 ) ;
+end
 
 isUserSatisfied = false ;
 
@@ -135,45 +164,82 @@ while ~isUserSatisfied
     
     xlabel('Sample index');
     ylabel('Amplitude');
-    
-    trainingFrameStartIndex = ...
-        input( ['Identify sample index corresponding to beginning of training frame ' ...
-            '([Enter] selects sample 1): '] ) ;
-    
-    if isempty(trainingFrameStartIndex)
-        trainingFrameStartIndex = 1;
-    end
 
-    trainingFrameEndIndex = ...
-        input( ['Identify sample index corresponding to end of training frame ' ...
-            '([Enter] selects the last recorded sample): '] ) ;
-
-    if isempty(trainingFrameEndIndex)
-       medianMeasure = ...
-           median( measurementLog( trainingFrameStartIndex : end ) ) ;
-    else
-       medianMeasure = ...
+    if ~isempty( nSamplesApnea )
+        if nSamplesApnea < length( measurementLog )
+            % Auto-selection of start/end breath-hold indices
+            trainingFrameStartIndex = AuxTracked.findflattest( measurementLog, nSamplesApnea ) ;
+            trainingFrameEndIndex   = trainingFrameStartIndex + nSamplesApnea ;
+        else
+            trainingFrameStartIndex = 1 ;
+            trainingFrameEndIndex   = length( measurementLog ) ;
+        end
+        
+        medianMeasure = ...
            median( measurementLog( trainingFrameStartIndex : trainingFrameEndIndex ) ) ;
+
+        % dbstop in AuxTracked at 179
+        gcf; 
+        plot( measurementLog, '+' );
+        hold on;
+        plot( [trainingFrameStartIndex : trainingFrameEndIndex-1], medianMeasure*ones( 1, nSamplesApnea ), 'LineWidth',3 ) ;
+        title( 'Measure Log' ) ;
+        xlabel('Sample index');
+        ylabel('Amplitude');
+        legend('Measure log',['Median over interval of min. variance']);    
+        hold off;
+
+        response = input(['Is the current median estimate satisfactory? ' ...
+            '0 to manually specify the data range; 1 (or enter) to accept & continue: ']) ;
+
+         if ~isempty(response)
+            isUserSatisfied = logical(response) ;
+         else
+             isUserSatisfied = true;
+         end
     end
 
-    gcf; 
-    plot( measurementLog, '+' );
-    hold on;
-    plot( medianMeasure*ones( size( measurementLog ) ) ) ;
-    title( 'Measure Log' ) ;
-    xlabel('Sample index');
-    ylabel('Amplitude');
-    legend('Measure log','Median measurement over given interval');    
-    hold off;
+    if ~isUserSatisfied
+        % Manual selection    
+        trainingFrameStartIndex = ...
+            input( ['Identify sample index corresponding to beginning of training frame ' ...
+                '([Enter] selects sample 1): '] ) ;
+        
+        if isempty(trainingFrameStartIndex)
+            trainingFrameStartIndex = 1;
+        end
 
-    response = input(['Is the current median estimate satisfactory?' ...
-        '0 to re-enter the data range; 1 (or enter) to continue: ']) ;
+        trainingFrameEndIndex = ...
+            input( ['Identify sample index corresponding to end of training frame ' ...
+                '([Enter] selects the last recorded sample): '] ) ;
 
-     if ~isempty(response)
-        isUserSatisfied = logical(response) ;
-     else
-         isUserSatisfied = true;
-     end
+        if isempty(trainingFrameEndIndex)
+           medianMeasure = ...
+               median( measurementLog( trainingFrameStartIndex : end ) ) ;
+        else
+           medianMeasure = ...
+               median( measurementLog( trainingFrameStartIndex : trainingFrameEndIndex ) ) ;
+        end
+
+        gcf; 
+        plot( measurementLog, '+' );
+        hold on;
+        plot( medianMeasure*ones( size( measurementLog ) ) ) ;
+        title( 'Measure Log' ) ;
+        xlabel('Sample index');
+        ylabel('Amplitude');
+        legend('Measure log','Median measurement over given interval');    
+        hold off;
+
+        response = input(['Is the current median estimate satisfactory? ' ...
+            '0 to re-enter the data range; 1 (or enter) to continue: ']) ;
+
+         if ~isempty(response)
+            isUserSatisfied = logical(response) ;
+         else
+             isUserSatisfied = true;
+         end
+    end
 
 end
 
