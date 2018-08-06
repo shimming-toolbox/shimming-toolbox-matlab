@@ -763,7 +763,7 @@ currents = Shim.Model.currents + ...
 
 end
 % =========================================================================
-function [PredictedField] = predictshimmedfield( Shim, currents )
+function [PredictedField] = predictshimmedfield( Shim )
 %PREDICTSHIMMEDFIELD
 %
 % [PredictedField] = PREDICTSHIMMEDFIELD( Shim ) ;
@@ -780,21 +780,15 @@ function [PredictedField] = predictshimmedfield( Shim, currents )
 
 % voi = logical( Shim.Field.Hdr.MaskingImage ) ;
 
-if nargin == 2
-    currentsOriginal = Shim.Model.currents ; 
-    Shim.Model.currents = currents ;
-else
-    assert( ~isempty( Shim.Model.currents ), ...
+assert( ~isempty( Shim.Model.currents ), ...
     'Requires valid set of shim currents in Shim.Model.currents to predict shim field.' ) ;
-end
+
+PredictedField     = Shim.Field.copy() ;
     
-PredictedField   = Shim.Field.copy() ;
+shimCurrentsUpdate = Shim.Model.currents - Shim.System.currents ;
+Shim.Model.field   = Shim.forwardmodelshimcorrection( shimCurrentsUpdate ) ;
 
-shimCurrentsUpdate = currents - Shim.System.currents ;
-Shim.Model.field = Shim.forwardmodelshimcorrection( Shim.Model.currents ) ;
-
-
-PredictedField.img = ( Shim.Field.img + Shim.Model.field ) ;
+PredictedField.img = PredictedField.img + Shim.Model.field ;
 
 if ~isempty(Shim.Model.Tx.imagingFrequency)
     
@@ -808,59 +802,15 @@ if ~isempty(Shim.Model.Tx.imagingFrequency)
 
 end
 
-
-if nargin == 2
-    % revert entry
-    Shim.Model.currents = currentsOriginal ;
-end
-
 if ~isempty(Shim.Aux.Model.currents)
 
-    originalAuxCurrents      = Shim.Aux.System.currents ;
-    originalModelAuxCurrents = Shim.Aux.Model.currents ;
+    auxCurrentsUpdate = Shim.Aux.Model.currents - Shim.Aux.System.currents ;
 
-    currentsUpdate = Shim.Aux.Model.currents - Shim.Aux.System.currents ;
+    Shim.Aux.Model.field = Shim.Aux.forwardmodelshimcorrection( auxCurrentsUpdate ) ;
 
-    Shim.Aux.Model.currents = currentsUpdate ;  
-
-    Shim.Aux.setforwardmodelfield() ;
-    
-    PredictedField.img = Shim.Aux.Model.field + PredictedField.img ;
-    
-    % reset
-    Shim.Aux.Model.currents  = originalModelAuxCurrents ;
-    Shim.Aux.System.currents = originalAuxCurrents ;
+    PredictedField.img = PredictedField.img + Shim.Aux.Model.field ;
 
 end
-
-% % =========================================================================
-% function [] = setforwardmodelriro( Shim )
-% % SETFORWARDMODELRIRO
-% %
-% % [] = SETFORWARDMODELRIRO( Shim ) ;
-% %
-% % Sets Shim.Model.riro --- the predicted shim correction for the respiration-induced
-% % resonance offset 
-%
-% if myisfield( Shim.Model, 'couplingCoefficients' ) && ~isempty( Shim.Model.couplingCoefficients ) ...
-%         && myisfield( Shim.Field.Model, 'Shift' ) && ~isempty( Shim.Field.Model.Shift.img ) 
-%
-%     % currents to correct respiration-induced resonance offset
-%     currentsRiro = Shim.Model.couplingCoefficients * Shim.Field.Model.Shift.Aux.Tracker.Data.p ;
-%     
-%     A = Shim.getshimoperator() ;
-%     
-%     Shim.Model.riro = reshape( A*currentsRiro, Shim.Field.getgridsize() ) ;
-%
-% else
-%     
-%     % Assume nul correction
-%     Shim.Model.riro = zeros( Shim.Field.getgridsize() ) ;
-%
-% end
-%
-% end
-
 
 end
 % =========================================================================
@@ -882,66 +832,39 @@ function [ PredictedRiro ] = predictshimmedriro( Shim, currents )
 % voi = logical( Shim.Field.Hdr.MaskingImage ) ;
 PredictedRiro = [] ;
 
-if nargin == 2
-    currentsOriginal = Shim.Model.currents ; 
-    Shim.Model.currents = currents ;
-else
-    assert( ~isempty( Shim.Model.currents ), ...
-    'Requires valid set of shim currents in Shim.Model.currents to predict shim field.' ) ;
-end
+assert( ~isempty( Shim.Field.Model.Shift ) && ~isempty( Shim.Field.Model.Shift.img ), ...
+    'Requires input model of respiration-induced reference offset (RIRO) in Shim.Field.Model.Shift' ) ;
+
+PredictedRiro = Shim.Field.Model.Shift.copy() ;
+
+if ~myisfield( Shim.Model, 'couplingCoefficients' ) || isempty( Shim.Model.couplingCoefficients ) 
     
-% set Shim.Model.field according to Shim.Model.currents
-Shim.setforwardmodelfield() ; 
+    warning('No RIRO correction: Returning input model RIRO')
 
-PredictedField     = Shim.Field.copy() ;
-PredictedField.img = ( Shim.Field.img + Shim.Model.field ) ;
-
-if ~isempty(Shim.Model.Tx.imagingFrequency)
+else    
     
-    PredictedField.Hdr.ImagingFrequency = Shim.Model.Tx.imagingFrequency*1E-6 ;  % [units: MHz]
+    % all field + correction terms scaled by dp (e.g. recorded inspired - expired pressure difference):
+    dp = Shim.Field.Model.Shift.Aux.Tracker.Data.p ; 
     
-    % add frequency shift
-    df0 = Shim.Model.Tx.imagingFrequency - (Shim.Field.Hdr.ImagingFrequency*1E6) ; % [units: Hz]
-    PredictedField.img = PredictedField.img + df0 ;
-end
+    Shim.Model.riro   = dp*Shim.forwardmodelshimcorrection( Shim.Model.couplingCoefficients ) ;
+    PredictedRiro.img = PredictedRiro.img + Shim.Model.riro ;
 
+    if ~isempty(Shim.Model.Tx.couplingCoefficients) && ( Shim.Model.Tx.couplingCoefficients ~= 0 )
+       
+       warning('Untested: TX RIRO adjustment') 
 
-if nargin == 2
-    % revert entry
-    Shim.Model.currents = currentsOriginal ;
-end
+       PredictedRiro.img = PredictedRiro.img + dp*Shim.Model.Tx.couplingCoefficients ;
 
-if myisfield( Shim.Model, 'riro' ) && ~isempty( Shim.Model.riro ) ...
-        && myisfield( Shim.Field.Model, 'Shift' ) && ~isempty( Shim.Field.Model.Shift.img ) 
-
-    PredictedRiro     = Shim.Field.copy() ;
-    PredictedRiro.img = ( Shim.Field.Model.Shift.img + Shim.Model.riro ) ;
-
-end
-
-if ~isempty(Shim.Aux.Model.currents)
-
-    originalAuxCurrents      = Shim.Aux.System.currents ;
-    originalModelAuxCurrents = Shim.Aux.Model.currents ;
-
-    currentsUpdate = Shim.Aux.Model.currents - Shim.Aux.System.currents ;
-
-    Shim.Aux.Model.currents = currentsUpdate ;  
-
-    Shim.Aux.setforwardmodelfield() ;
-    
-    PredictedField.img = Shim.Aux.Model.field + PredictedField.img ;
-
-    if myisfield( Shim.Aux.Model, 'couplingCoefficients' ) && ~isempty( Shim.Aux.Model.couplingCoefficients ) 
-        PredictedRiro.img = PredictedRiro.img + Shim.Aux.Model.riro ;
     end
-    
-    % reset
-    Shim.Aux.Model.currents  = originalModelAuxCurrents ;
-    Shim.Aux.System.currents = originalAuxCurrents ;
+
+    if myisfield( Shim.Aux.Model, 'couplingCoefficients' ) && ~isempty( Shim.Aux.Model.couplingCoefficients )
+
+        Shim.Aux.Model.riro = dp*Shim.Aux.forwardmodelshimcorrection( Shim.Aux.Model.couplingCoefficients ) ;
+        PredictedRiro.img   = PredictedRiro.img + Shim.Aux.Model.riro ;
+
+    end
 
 end
-
 
 end
 % =========================================================================
