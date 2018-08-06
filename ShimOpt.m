@@ -531,36 +531,18 @@ Shim.Field.Hdr.MaskingImage = mask ;
 
 end
 % =========================================================================
-function [] = setforwardmodelfield( Shim )
-% SETFORWARDMODELFIELD
+function [shimCorrection] = forwardmodelshimcorrection( Shim, correctionCoefficients )
+%FORWARDMODELSHIMCORRECTION
+% 
+% shimCorrection = FORWARDMODELSHIMCORRECTION( Shim, correctionCoefficients ) ;
+% 
+% Forward projection of the shim correction :
 %
-% [] = SETFORWARDMODELFIELD( Shim ) ;
-%
-% Sets Shim.Model.field --- the predicted shim field for the *current* set of currents 
-% (held in Shim.Model.currents)
+% shimCorrection = reshape( Shim.getshimoperator()*correctionCoefficients, Shim.Field.getgridsize() ) ;
 
-if myisfield( Shim.Model, 'currents' ) && ~isempty( Shim.Model.currents )
+assert( nargin == 2 )
 
-    A = Shim.getshimoperator() ;
-
-    Shim.Model.field = reshape( A*Shim.Model.currents, Shim.Field.getgridsize() ) ;
-
-else
-    
-    % Assume zero shim currents
-    Shim.Model.field = zeros( Shim.Field.getgridsize() ) ;
-
-end
-
-if myisfield( Shim.Model, 'couplingCoefficients' ) && ~isempty( Shim.Model.couplingCoefficients ) ...
-        && myisfield( Shim.Field.Model, 'Shift' ) && ~isempty( Shim.Field.Model.Shift.img ) 
-
-    % currents to correct respiration-induced resonance offset
-    currentsRiro = Shim.Model.couplingCoefficients * Shim.Field.Model.Shift.Aux.Tracker.Data.p ;
-    
-    Shim.Model.riro = reshape( A*currentsRiro, Shim.Field.getgridsize() ) ;
-
-end
+shimCorrection = reshape( Shim.getshimoperator()*correctionCoefficients, Shim.Field.getgridsize() ) ;
 
 end
 % =========================================================================
@@ -781,7 +763,7 @@ currents = Shim.Model.currents + ...
 
 end
 % =========================================================================
-function [PredictedField, PredictedRiro] = predictshimmedfield( Shim, currents )
+function [PredictedField] = predictshimmedfield( Shim, currents )
 %PREDICTSHIMMEDFIELD
 %
 % [PredictedField] = PREDICTSHIMMEDFIELD( Shim ) ;
@@ -806,19 +788,24 @@ else
     'Requires valid set of shim currents in Shim.Model.currents to predict shim field.' ) ;
 end
     
-% set Shim.Model.field according to Shim.Model.currents
-Shim.setforwardmodelfield() ; 
+PredictedField   = Shim.Field.copy() ;
 
-PredictedField     = Shim.Field.copy() ;
+shimCurrentsUpdate = currents - Shim.System.currents ;
+Shim.Model.field = Shim.forwardmodelshimcorrection( Shim.Model.currents ) ;
+
+
 PredictedField.img = ( Shim.Field.img + Shim.Model.field ) ;
 
 if ~isempty(Shim.Model.Tx.imagingFrequency)
     
-    PredictedField.Hdr.ImagingFrequency = Shim.Model.Tx.imagingFrequency*1E-6 ;  % [units: MHz]
-    
-    % add frequency shift
+    % frequency shift
     df0 = Shim.Model.Tx.imagingFrequency - (Shim.Field.Hdr.ImagingFrequency*1E6) ; % [units: Hz]
-    PredictedField.img = PredictedField.img + df0 ;
+    
+    if ( abs( df0 ) > 0.1 )
+        PredictedField.Hdr.ImagingFrequency = Shim.Model.Tx.imagingFrequency*1E-6 ;  % [units: MHz]
+        PredictedField.img = PredictedField.img + df0 ;
+    end
+
 end
 
 
@@ -845,6 +832,34 @@ if ~isempty(Shim.Aux.Model.currents)
     Shim.Aux.System.currents = originalAuxCurrents ;
 
 end
+
+% % =========================================================================
+% function [] = setforwardmodelriro( Shim )
+% % SETFORWARDMODELRIRO
+% %
+% % [] = SETFORWARDMODELRIRO( Shim ) ;
+% %
+% % Sets Shim.Model.riro --- the predicted shim correction for the respiration-induced
+% % resonance offset 
+%
+% if myisfield( Shim.Model, 'couplingCoefficients' ) && ~isempty( Shim.Model.couplingCoefficients ) ...
+%         && myisfield( Shim.Field.Model, 'Shift' ) && ~isempty( Shim.Field.Model.Shift.img ) 
+%
+%     % currents to correct respiration-induced resonance offset
+%     currentsRiro = Shim.Model.couplingCoefficients * Shim.Field.Model.Shift.Aux.Tracker.Data.p ;
+%     
+%     A = Shim.getshimoperator() ;
+%     
+%     Shim.Model.riro = reshape( A*currentsRiro, Shim.Field.getgridsize() ) ;
+%
+% else
+%     
+%     % Assume nul correction
+%     Shim.Model.riro = zeros( Shim.Field.getgridsize() ) ;
+%
+% end
+%
+% end
 
 
 end
@@ -1301,7 +1316,7 @@ Shim.Aux.Model.currents             = i0Aux ;
 currents = [ Shim.Model.Tx.imagingFrequency; Shim.Model.currents; Shim.Aux.Model.currents ] ;
 
 if Params.isRealtimeShimming
-    Shim.Model.Tx.riroShift             = dfo/dp ; % resp-induced shift [units: Hz/unit-pressure]
+    Shim.Model.Tx.couplingCoefficients  = dfo/dp ; % resp-induced shift [units: Hz/unit-pressure]
     Shim.Model.couplingCoefficients     = di/dp ;
     Shim.Aux.Model.couplingCoefficients = diAux/dp ;
 end
