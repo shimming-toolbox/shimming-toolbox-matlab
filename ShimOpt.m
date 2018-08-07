@@ -1248,11 +1248,14 @@ end
 % display results
 if Params.isDisplayingResults
 
-    fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
-    fprintf('\n\n Static Correction:\n\n') ;
-    
     T = table ;
     
+    fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
+    
+    % [table units: mA]
+    i0 = i0*1000 ;     
+    di = di*1000 ;
+
     Correction_Term = {'Tx Freq. (Hz)'} ;
     Original        = round( Shim.Field.Hdr.ImagingFrequency*1E6, 9, 'significant' ) ;
     
@@ -1260,17 +1263,27 @@ if Params.isDisplayingResults
         Optimal = round( Shim.Model.Tx.imagingFrequency, 9, 'significant' ) ;
         Update  = round( fo0, 6, 'significant' ) ;
     else
-        Optimal = NaN ;
-        Update  = NaN ;
+        Optimal  = NaN ;
+        Update   = NaN ;
+    end
+    
+    if Params.isOptimizingDynamicTxFrequency
+        Realtime       = round( dfo, 4, 'significant' ) ;
+        Relative_Power = round( 100*((dfo/fo0).^2), 4, 'significant' ) ;
+    else
+        Realtime       = 0 ;
+        Relative_Power = 0 ;
     end
 
     for iCh = 1 : length(i0)
-        Correction_Term(iCh+1) = { [ 'Shim Ch' num2str(iCh) ' (A)'] } ;
+        Correction_Term(iCh+1) = { [ 'Shim Ch' num2str(iCh) ' (mA)'] } ;
     end
 
-    Original = [ Original ; round(Shim.System.currents, 4, 'significant') ] ;
-    Optimal  = [ Optimal ; round(i0, 4, 'significant') ] ;
-    Update   = [ Update ; round(i0 - Shim.System.currents, 4, 'significant') ] ;
+    Original = [ Original ; round( 1000*Shim.System.currents ) ] ; % [units: mA]
+    Optimal  = [ Optimal ; round(i0) ] ; 
+    Update   = [ Update ; round(i0 - 1000*Shim.System.currents) ] ;
+    Realtime = [ Realtime ; round( di) ] ; 
+    Relative_Power = [ Relative_Power ; round( 100*((di./i0).^2), 4, 'significant') ] ;
 
     if Params.isOptimizingAux
 
@@ -1281,6 +1294,8 @@ if Params.isDisplayingResults
         Original = [ Original ; round(Shim.Aux.System.currents, 4, 'significant') ] ;
         Optimal  = [ Optimal ; round(i0Aux, 4, 'significant') ] ;
         Update   = [ Update ; round((i0Aux - Shim.Aux.System.currents), 4, 'significant') ] ;
+        Realtime = [ Realtime ; round( diAux, 4, 'significant') ] ;
+        Relative_Power = [ Relative_Power ; round( 100*((diAux./i0Aux ).^2), 4, 'significant') ] ;
         
     end
 
@@ -1288,7 +1303,9 @@ if Params.isDisplayingResults
     T.Original        = Original ;
     T.Optimal         = Optimal ;
     T.Update          = Update ;
-    
+    T.Realtime        = Realtime ;
+    T.Relative_Power  = Relative_Power ;
+
     T    
     if ~isempty( Params.resultsTableFilename ) 
         writetable( T, Params.resultsTableFilename ) ;
