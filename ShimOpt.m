@@ -919,8 +919,9 @@ DEFAULT_ISOPTIMIZINGDYNAMICTXFREQUENCY = false ;
 DEFAULT_ISOPTIMIZINGAUX                = false ;
 DEFAULT_ISREALTIMESHIMMING             = false ;
 
+DEFAULT_MEDIASAVEDIR                   = [ './shimopt_results_' datestr(now,30) '/' ] ;
 DEFAULT_ISDISPLAYINGRESULTS            = true ;
-DEFAULT_RESULTSTABLEFILENAME           = [];
+DEFAULT_ISSAVINGRESULTSTABLE           = true ;
 
 % TODO: Create new class to handle all Tx related aspects
 DEFAULT_MINTXFREQUENCY = 123100100 ; % [units: Hz]
@@ -1002,12 +1003,17 @@ end
 %     Params.regularizationParameter = DEFAULT_REGULARIZATIONPARAMETER ;
 % end
 
+if ~myisfield(Params, 'mediaSaveDir') || isempty( Params.mediaSaveDir ) 
+    Params.mediaSaveDir = DEFAULT_MEDIASAVEDIR ; 
+end
+mkdir( Params.mediaSaveDir ) ;
+
 if ~myisfield(Params, 'isDisplayingResults') || isempty( Params.isDisplayingResults ) 
     Params.isDisplayingResults = DEFAULT_ISDISPLAYINGRESULTS ; 
 end
 
-if ~myisfield(Params, 'resultsTableFilename') || isempty( Params.resultsTableFilename ) 
-    Params.resultsTableFilename = DEFAULT_RESULTSTABLEFILENAME ; 
+if ~myisfield(Params, 'isSavingResultsTable') || isempty( Params.isSavingResultsTable ) 
+    Params.isSavingResultsTable = DEFAULT_ISSAVINGRESULTSTABLE ; 
 end
 
 if Params.isRealtimeShimming
@@ -1245,70 +1251,98 @@ if Params.isRealtimeShimming
 end
 
 % -------
-% display results
-if Params.isDisplayingResults
+% results summary 
+%   TODO: clean up
 
-    T = table ;
-    
-    fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
-    
-    % [table units: mA]
-    i0 = i0*1000 ;     
+T = table ;
+
+fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
+
+% [table units: mA]
+i0 = i0*1000 ;     
+if Params.isRealtimeShimming
     di = di*1000 ;
+else
+    di = zeros( size( i0 ) ) ;
+end
 
-    Correction_Term = {'Tx Freq. (Hz)'} ;
-    Original        = round( Shim.Field.Hdr.ImagingFrequency*1E6, 9, 'significant' ) ;
+Correction_Term = {'Tx Freq. (Hz)'} ;
+Original        = round( Shim.Field.Hdr.ImagingFrequency*1E6, 9, 'significant' ) ;
+
+if Params.isOptimizingStaticTxFrequency
+    Optimal = round( Shim.Model.Tx.imagingFrequency, 9, 'significant' ) ;
+    Update  = round( fo0, 6, 'significant' ) ;
+else
+    Optimal  = NaN ;
+    Update   = NaN ;
+end
+
+if Params.isOptimizingDynamicTxFrequency
+    Realtime       = round( dfo, 4, 'significant' ) ;
+    Relative_Power = round( 100*((dfo/fo0).^2), 4, 'significant' ) ;
+else
+    Realtime       = 0 ;
+    Relative_Power = 0 ;
+end
+
+for iCh = 1 : length(i0)
+    Correction_Term(iCh+1) = { [ 'Shim Ch' num2str(iCh) ' (mA)'] } ;
+end
+
+Original = [ Original ; round( 1000*Shim.System.currents ) ] ; % [units: mA]
+Optimal  = [ Optimal ; round(i0) ] ; 
+Update   = [ Update ; round(i0 - 1000*Shim.System.currents) ] ;
+Realtime = [ Realtime ; round( di) ] ; 
+Relative_Power = [ Relative_Power ; round( 100*((di./i0).^2), 4, 'significant') ] ;
+
+if Params.isOptimizingAux
+
+    for iCh = 1 : length(i0Aux)  
+        Correction_Term(end+1) = { [ 'Aux Ch' num2str(iCh) ] } ;
+    end
+
+    Original = [ Original ; round(Shim.Aux.System.currents, 4, 'significant') ] ;
+    Optimal  = [ Optimal ; round(i0Aux, 4, 'significant') ] ;
+    Update   = [ Update ; round((i0Aux - Shim.Aux.System.currents), 4, 'significant') ] ;
+    if ~Params.isRealtimeShimming
+        diAux = zeros( size( i0Aux ) ) ;
+    end
+    Realtime = [ Realtime ; round( diAux, 4, 'significant') ] ;
+    Relative_Power = [ Relative_Power ; round( 100*((diAux./i0Aux ).^2), 4, 'significant') ] ;
     
-    if Params.isOptimizingStaticTxFrequency
-        Optimal = round( Shim.Model.Tx.imagingFrequency, 9, 'significant' ) ;
-        Update  = round( fo0, 6, 'significant' ) ;
-    else
-        Optimal  = NaN ;
-        Update   = NaN ;
-    end
-    
-    if Params.isOptimizingDynamicTxFrequency
-        Realtime       = round( dfo, 4, 'significant' ) ;
-        Relative_Power = round( 100*((dfo/fo0).^2), 4, 'significant' ) ;
-    else
-        Realtime       = 0 ;
-        Relative_Power = 0 ;
-    end
+end
 
-    for iCh = 1 : length(i0)
-        Correction_Term(iCh+1) = { [ 'Shim Ch' num2str(iCh) ' (mA)'] } ;
-    end
+T.Correction_Term = char( Correction_Term ) ;
+T.Original        = Original ;
+T.Optimal         = Optimal ;
+T.Update          = Update ;
+T.Realtime        = Realtime ;
+T.Relative_Power  = Relative_Power ;
 
-    Original = [ Original ; round( 1000*Shim.System.currents ) ] ; % [units: mA]
-    Optimal  = [ Optimal ; round(i0) ] ; 
-    Update   = [ Update ; round(i0 - 1000*Shim.System.currents) ] ;
-    Realtime = [ Realtime ; round( di) ] ; 
-    Relative_Power = [ Relative_Power ; round( 100*((di./i0).^2), 4, 'significant') ] ;
-
-    if Params.isOptimizingAux
-
-        for iCh = 1 : length(i0Aux)  
-            Correction_Term(end+1) = { [ 'Aux Ch' num2str(iCh) ] } ;
-        end
-
-        Original = [ Original ; round(Shim.Aux.System.currents, 4, 'significant') ] ;
-        Optimal  = [ Optimal ; round(i0Aux, 4, 'significant') ] ;
-        Update   = [ Update ; round((i0Aux - Shim.Aux.System.currents), 4, 'significant') ] ;
-        Realtime = [ Realtime ; round( diAux, 4, 'significant') ] ;
-        Relative_Power = [ Relative_Power ; round( 100*((diAux./i0Aux ).^2), 4, 'significant') ] ;
-        
-    end
-
-    T.Correction_Term = char( Correction_Term ) ;
-    T.Original        = Original ;
-    T.Optimal         = Optimal ;
-    T.Update          = Update ;
-    T.Realtime        = Realtime ;
-    T.Relative_Power  = Relative_Power ;
-
+if Params.isDisplayingResults
     T    
-    if ~isempty( Params.resultsTableFilename ) 
-        writetable( T, Params.resultsTableFilename ) ;
+end
+
+if Params.isSavingResultsTable
+    
+    writetable( T, [ Params.mediaSaveDir '/shimSystemStats' ]  ) ;
+
+    filename = [ Params.mediaSaveDir '/fieldStats_original' ] ;
+    Shim.Field.assessfielddistribution( Shim.Field.Hdr.MaskingImage, filename ) ;
+    
+    PredictedShimmedField = Shim.predictshimmedfield() ;
+    filename = [ Params.mediaSaveDir '/fieldStats_shimmedPrediction' ] ;
+    PredictedShimmedField.assessfielddistribution( Shim.Field.Hdr.MaskingImage, filename ) ;
+
+    if Params.isRealtimeShimming
+        
+        filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
+        Shim.Field.Model.Shift.assessfielddistribution( Shim.Field.Hdr.MaskingImage, filename ) ;
+        
+        PredictedShimmedRiro = Shim.predictshimmedriro() ;
+        filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction' ] ;
+        PredictedShimmedRiro.assessfielddistribution( Shim.Field.Hdr.MaskingImage, filename ) ;
+    
     end
 
 end
@@ -1451,7 +1485,7 @@ end
 end %splitsolutionvector
 
 
-end
+end %optimizeshimcurrents()
 % =========================================================================
 
 end
