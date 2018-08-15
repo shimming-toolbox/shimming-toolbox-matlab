@@ -913,7 +913,7 @@ function [Field] = modelfield( Fields, Params )
 %
 % Returns FieldEval-type objects
 %   
-%   FieldShift : Field shift from respiration (FieldInspired - FieldExpired) 
+%   Riro : Respiration induced resonance-offset (i.e. Field shift from respiration (FieldInspired - FieldExpired) )
 %   Field : The constant (DC) field
 %
 % If input both fields have Field.Aux.Data.p defined as single scalar
@@ -970,14 +970,14 @@ end
 
 pShiftTraining = pIn - pEx ;
 
-Field      = FieldInspired.copy() ; 
-FieldShift = FieldInspired.copy() ; 
-FieldZero  = FieldInspired.copy() ; 
+Field     = FieldInspired.copy() ; 
+Riro      = FieldInspired.copy() ; 
+FieldZero = FieldInspired.copy() ; 
 
-FieldShift.img                = FieldInspired.img - FieldExpired.img ;
-FieldShift.Hdr.MaskingImage   = FieldShift.getvaliditymask( Params.maxFieldDifference ) ;
-FieldShift.Aux.Tracker.Data.p = pShiftTraining ;
-Field.Model.Shift             = FieldShift ;
+Riro.img                = FieldInspired.img - FieldExpired.img ;
+Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
+Riro.Aux.Tracker.Data.p = pShiftTraining ;
+Field.Model.Riro        = Riro ;
 
 FieldZero.img                = ( pIn*FieldExpired.img - pEx*FieldInspired.img )/(pShiftTraining) ;
 FieldZero.Aux.Tracker.Data.p = 0 ;
@@ -985,33 +985,32 @@ Field.Model.Zero             = FieldZero ;
 % no way of knowing what values might be reasonable for this 'Zero' field, so
 % there is no call to .getvaliditymask()
 
-Field.img                = Params.pDc*(Field.Model.Shift.img/pShiftTraining) + Field.Model.Zero.img ;
+Field.img                = Params.pDc*(Field.Model.Riro.img/pShiftTraining) + Field.Model.Zero.img ;
 Field.Aux.Tracker.Data.p = Params.pDc ;
 Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
 
 if myisfield( Params, 'pMin' ) && myisfield( Params, 'pMax' ) ...
         && ~isempty( Params.pMin ) && ~isempty( Params.pMax )
     
-    scalefieldshifttoregularbreathing( FieldShift ); 
+    scalefieldshifttoregularbreathing( Riro ); 
 
 end
 
-function [] = scalefieldshifttoregularbreathing( FieldShift )
+function [] = scalefieldshifttoregularbreathing( Riro )
 %SCALEFIELDSHIFTTOREGULARBREATHING
 % 
 % the training fields themselves (e.g. inspired/expired breath-holds) might not
-% be entirely representative of the typical field shift if it's defined fot any given
+% be entirely representative of the typical field shift if it's defined for any given
 % phase of the respiratory cycle as the deviation from the expected (mean/DC) value.
 %
 % this function scales the shift by the max. absolute deviation from pDC observed over the course 
 % of a recording of regular breathing. 
-%
     
     pShiftBreathing = max( abs( [Params.pMin Params.pMax] - Params.pDc ) )
     
-    FieldShift.img  = ( pShiftBreathing./abs(pShiftTraining) ) * FieldShift.img ;
+    Riro.img  = ( pShiftBreathing./abs(pShiftTraining) ) * Riro.img ;
 
-    FieldShift.Aux.Tracker.Data.p = pShiftBreathing ;
+    Riro.Aux.Tracker.Data.p = pShiftBreathing ;
 
 end
 

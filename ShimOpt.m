@@ -821,7 +821,7 @@ function [ PredictedRiro ] = predictshimmedriro( Shim, currents )
 % 
 % Returns FieldEval-type object(s) 
 %
-% PredictedRiro.img  = ( Shim.Field.Model.Shift.img + Shim.Model.riro ) ;
+% PredictedRiro.img  = ( Shim.Field.Model.Riro.img + Shim.Model.riro ) ;
 %
 % NOTE
 %   The regions of spatial support for Shim.Model.field and Shim.Field.img 
@@ -832,10 +832,10 @@ function [ PredictedRiro ] = predictshimmedriro( Shim, currents )
 % voi = logical( Shim.Field.Hdr.MaskingImage ) ;
 PredictedRiro = [] ;
 
-assert( ~isempty( Shim.Field.Model.Shift ) && ~isempty( Shim.Field.Model.Shift.img ), ...
-    'Requires input model of respiration-induced reference offset (RIRO) in Shim.Field.Model.Shift' ) ;
+assert( ~isempty( Shim.Field.Model.Riro ) && ~isempty( Shim.Field.Model.Riro.img ), ...
+    'Requires input model of respiration-induced reference offset (RIRO) in Shim.Field.Model.Riro' ) ;
 
-PredictedRiro = Shim.Field.Model.Shift.copy() ;
+PredictedRiro = Shim.Field.Model.Riro.copy() ;
 
 if ~myisfield( Shim.Model, 'couplingCoefficients' ) || isempty( Shim.Model.couplingCoefficients ) 
     
@@ -844,7 +844,7 @@ if ~myisfield( Shim.Model, 'couplingCoefficients' ) || isempty( Shim.Model.coupl
 else    
     
     % all field + correction terms scaled by dp (e.g. recorded inspired - expired pressure difference):
-    dp = Shim.Field.Model.Shift.Aux.Tracker.Data.p ; 
+    dp = Shim.Field.Model.Riro.Aux.Tracker.Data.p ; 
     
     Shim.Model.riro   = dp*Shim.forwardmodelshimcorrection( Shim.Model.couplingCoefficients ) ;
     PredictedRiro.img = PredictedRiro.img + Shim.Model.riro ;
@@ -1018,12 +1018,12 @@ end
 
 if Params.isRealtimeShimming
 
-    assert( myisfield( Shim.Field.Model, 'Shift') && ~isempty( Shim.Field.Model.Shift.img ) ) % TODO: Rename 'Shift' Riro
+    assert( myisfield( Shim.Field.Model, 'Riro') && ~isempty( Shim.Field.Model.Riro.img ) ) 
     
     % change to Params.minP and Params.maxP
     pIn = Params.pMax 
     pEx = Params.pMin 
-    dp  = Shim.Field.Model.Shift.Aux.Tracker.Data.p
+    dp  = Shim.Field.Model.Riro.Aux.Tracker.Data.p
 
 end
 
@@ -1161,7 +1161,7 @@ if ~Params.isRealtimeShimming
 else 
 
     % field shift from RIRO  
-    db = Shim.Field.Model.Shift.img(:) ;
+    db = Shim.Field.Model.Riro.img(:) ;
 
     %  stacked data vector : dc field, RIRO field shift -- vertically concatenated
     b = [ MW*-bx0 ; MW*-db ] ;
@@ -1337,7 +1337,7 @@ if Params.isSavingResultsTable
     if Params.isRealtimeShimming
         
         filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
-        Shim.Field.Model.Shift.assessfielddistribution( Shim.Field.Hdr.MaskingImage, filename ) ;
+        Shim.Field.Model.Riro.assessfielddistribution( Shim.Field.Hdr.MaskingImage, filename ) ;
         
         PredictedShimmedRiro = Shim.predictshimmedriro() ;
         filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction' ] ;
