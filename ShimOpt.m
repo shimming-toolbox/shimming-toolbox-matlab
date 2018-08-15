@@ -697,6 +697,26 @@ M = sparse( [1:nVoxelsVoi], indicesVoi, ones([nVoxelsVoi 1]), nVoxelsVoi, nVoxel
 
 end
 % =========================================================================
+function M = gettruncationoperatorriro( Shim )
+% GETTRUNCATIONOPERATORRIRO
+%
+% M = GETTRUNCATIONOPERATORRIRO( Shim ) ;
+%
+% Returns sparse linear truncation operator M 
+% i.e. M*b, 'picks out' the VOI voxels from vector b 
+% where the VOI is defined by the full 3d array Shim.Field.Model.Riro.Hdr.MaskingImage
+%
+% if b has length nImg, and nVoi is the # of non-zero VOI voxels, then length(M*b)=nVoi.
+
+nVoxelsImg = numel( Shim.Field.Model.Riro.Hdr.MaskingImage ) ;
+nVoxelsVoi = nnz( Shim.Field.Model.Riro.Hdr.MaskingImage ) ;
+
+indicesVoi = find( Shim.Field.Model.Riro.Hdr.MaskingImage(:) ) ;
+
+M = sparse( [1:nVoxelsVoi], indicesVoi, ones([nVoxelsVoi 1]), nVoxelsVoi, nVoxelsImg ) ;
+
+end
+% =========================================================================
 function A = getshimoperator( Shim )
 % GETSHIMOPERATOR
 %
