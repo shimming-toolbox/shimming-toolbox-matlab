@@ -221,27 +221,39 @@ function Field = histogramfield( Field )
 
 end
 % =========================================================================
-function Results = assessfielddistribution( Field, voi, filename )
+function Stats = assessfielddistribution( Field, voi, filename )
 %ASSESSSHIM
 %
-% Results = ASSESSFIELDDISTRIBUTION( Field )
-% Results = ASSESSFIELDDISTRIBUTION( Field, VOI )
+% Stats = ASSESSFIELDDISTRIBUTION( Field )
+% Stats = ASSESSFIELDDISTRIBUTION( Field, VOI )
 % 
 % VOI 
 %    binary array the same size as Field.img indicating the region of
 %    interest over which field calculations are made. 
 %    default: Field.Hdr.MaskingImage
 %
-% Results contains fields
+% Stats contains fields
 %
 %   .volume
 %       volume of region of interest (VOI) [units: cm^3]
 %
+%   .mean
+%       mean value of the field over the VOI
+%
+%   .median
+%       median value of the field over the VOI
+%
 %   .std
-%       standard deviation of Field.img over the volume of interest
+%       standard deviation of Field.img over the VOI
 %   
 %   .norm
-%       L2 norm of the field over the VOI 
+%       L2 norm of the field (i.e. residual) over the VOI
+%
+%   .meanAbs
+%       mean absolute value of the field over the VOI.
+%
+%   .medianAbs
+%       median absolute value of the field over the VOI
 
 if nargin < 2 || isempty(voi)
     voi = Field.Hdr.MaskingImage ;
@@ -249,17 +261,17 @@ end
 
 voi = logical( voi ) ;
 
-Results.volume    = nnz( voi ) .* prod( 0.1*Field.getvoxelsize() )  ; % [units: cm^3]
-Results.mean      = mean( Field.img( voi ) ) ;
-Results.median    = median( Field.img( voi ) ) ;
-Results.std       = std( Field.img( voi ) ) ;
-Results.norm      = norm( Field.img( voi ), 2 ) ;
-Results.meanAbs   = mean( abs( Field.img( voi ) ) ) ;
-Results.medianAbs = median( abs( Field.img( voi ) ) ) ;
+Stats.volume    = nnz( voi ) .* prod( 0.1*Field.getvoxelsize() )  ; % [units: cm^3]
+Stats.mean      = mean( Field.img( voi ) ) ;
+Stats.median    = median( Field.img( voi ) ) ;
+Stats.std       = std( Field.img( voi ) ) ;
+Stats.norm      = norm( Field.img( voi ), 2 ) ;
+Stats.meanAbs   = mean( abs( Field.img( voi ) ) ) ;
+Stats.medianAbs = median( abs( Field.img( voi ) ) ) ;
 
 if nargin == 3 || ischar( filename ) 
     measure = {'Volume (cm^3)'; 'Mean (Hz)' ; 'Median (Hz)' ; 'St. dev. (Hz)' ; 'Norm (Hz)' ; 'Mean[abs.] (Hz)'; 'Median[abs.] (Hz)'} ;
-    value   = num2str([ Results.volume ; Results.mean ; Results.median ; Results.std ; Results.norm ; Results.meanAbs ; Results.medianAbs ], 4 ) ;
+    value   = num2str([ Stats.volume ; Stats.mean ; Stats.median ; Stats.std ; Stats.norm ; Stats.meanAbs ; Stats.medianAbs ], 4 ) ;
     writetable( table( measure, value ), filename ) ;
 end
 
