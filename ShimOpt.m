@@ -1052,10 +1052,10 @@ end
 nImg = numel( Shim.Field.img(:) ) ; % number of voxels
 
 % -------
-% define matrix of data-weighting coefficients : W
+% define matrix of data-weighting coefficients for the static optimization: W0
 if ~myisfield( Params, 'dataWeights' ) || isempty( Params.dataWeights ) 
 
-    W = speye( nImg, nImg ) ;
+    W0 = speye( nImg, nImg ) ;
 
 else
 
@@ -1063,13 +1063,34 @@ else
 
     if ( size( Params.dataWeights, 1 ) ~= nImg ) || ( size( Params.dataWeights, 2) ~= nImg )
         
-        W = spdiags( Params.dataWeights(:), 0, nImg, nImg ) ;
+        W0 = spdiags( Params.dataWeights(:), 0, nImg, nImg ) ;
 
     end
 
 end
 
-MW = Shim.gettruncationoperator*W ; % truncated (VOI-masked) weighting operator
+% truncated (VOI-masked) weighting operator for static shim: MW0
+MW0 = Shim.gettruncationoperator()*W0 ; 
+
+% define matrix of data-weighting coefficients for real-time (RIRO) correction: W1
+if ~myisfield( Params, 'dataWeightsRiro' ) || isempty( Params.dataWeightsRiro ) 
+
+    W1 = W0 ;
+
+else
+
+    assert( numel( Params.dataWeightsRiro ) == nImg ) 
+
+    if ( size( Params.dataWeightsRiro, 1 ) ~= nImg ) || ( size( Params.dataWeightsRiro, 2) ~= nImg )
+        
+        W1 = spdiags( Params.dataWeightsRiro(:), 0, nImg, nImg ) ;
+
+    end
+
+end
+
+% truncated (VOI-masked) weighting operator for static shim: MW0
+MW1 = Shim.gettruncationoperatorriro()*W1 ; 
 
 % -------
 % define off-resonance correction operator : A
@@ -1086,17 +1107,20 @@ else
     activeStaticChannelsMask = [ 0 ; Shim.System.Specs.Amp.staticChannels(:) ] ;
 end
 
+% static off-resonance correction operator: A0
 if Params.isOptimizingAux
 
     A_aux = Shim.Aux.getshimoperator() ;
 
-    A = [ MW*A_tx MW*A_mc MW*A_aux ] ;
-    
     activeStaticChannelsMask = [ activeStaticChannelsMask ; Shim.Aux.System.Specs.Amp.staticChannels(:) ] ;
 
 else
-    A = [ MW*A_tx MW*A_mc ] ;
+
+    A_aux = [] ;
+
 end
+
+A0 = [ MW0*A_tx MW0*A_mc MW0*A_aux ] ;
 
 Params.minStaticCorrectionPerChannel = activeStaticChannelsMask .* Params.minCorrectionPerChannel ;
 Params.maxStaticCorrectionPerChannel = activeStaticChannelsMask .* Params.maxCorrectionPerChannel ;
@@ -1117,9 +1141,10 @@ if Params.isRealtimeShimming
     activeDynamicChannelsMask = logical( activeDynamicChannelsMask ) ;  
 
     activeChannelsMask = [ activeStaticChannelsMask ; activeDynamicChannelsMask ] ;
-
+    
+    A1 = [ MW1*A_tx MW1*A_mc MW1*A_aux ]
     % left half applies to the static field, right half to the resp.-induced dynamic component 
-    A  = [ A zeros(size(A)) ; zeros(size(A)) A ] ; 
+    A  = [ A0 zeros(size(A1)) ; zeros(size(A0)) A1 ] ; 
 
     Params.minDynamicCorrectionPerChannel = zeros(size(activeDynamicChannelsMask)) ;
     Params.minDynamicCorrectionPerChannel( activeDynamicChannelsMask ) = -Inf ;
@@ -1131,7 +1156,9 @@ if Params.isRealtimeShimming
     Params.maxCorrectionPerChannel = [ Params.maxStaticCorrectionPerChannel Params.maxDynamicCorrectionPerChannel ] ;
 
 else
-
+    
+    A = A0 ;
+    
     activeChannelsMask = [ activeStaticChannelsMask ] ;
 
 end
@@ -1176,7 +1203,7 @@ bx0 = Shim.Field.img(:) - bs ;
 
 if ~Params.isRealtimeShimming
 
-    b  = MW*-bx0 ;
+    b  = MW0*-bx0 ;
 
 else 
 
@@ -1184,7 +1211,7 @@ else
     db = Shim.Field.Model.Riro.img(:) ;
 
     %  stacked data vector : dc field, RIRO field shift -- vertically concatenated
-    b = [ MW*-bx0 ; MW*-db ] ;
+    b = [ MW0*-bx0 ; MW1*-db ] ;
 
 end
 
