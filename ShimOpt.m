@@ -1032,7 +1032,9 @@ assert( ( length( Params.maxCorrectionPerChannel ) == length( Params.minCorrecti
         ( length( Params.maxCorrectionPerChannel ) == Params.nActiveChannels ), ...
     'Shim system limits (Params.maxCorrectionPerChannel and Params.minCorrectionPerChannel) must possess an entry for each shim channel (primary and, if in use, auxiliary shims).' ) ;
 
-
+if ~myisfield(Params, 'assessmentVoi') || isempty( Params.assessmentVoi )
+    Params.assessmentVoi = Shim.Field.Hdr.MaskingImage ;
+end
 
 if ~myisfield(Params, 'isRealtimeShimming') || isempty( Params.isRealtimeShimming )
     Params.isRealtimeShimming = DEFAULT_ISREALTIMESHIMMING ;
@@ -1394,20 +1396,20 @@ if Params.isSavingResultsTable
     writetable( T, [ Params.mediaSaveDir '/shimSystemStats' ]  ) ;
 
     filename = [ Params.mediaSaveDir '/fieldStats_original' ] ;
-    Shim.Field.assessfielddistribution( Shim.Field.Hdr.MaskingImage, filename ) ;
+    Shim.Field.assessfielddistribution( Params.assessmentVoi, filename ) ;
     
     PredictedShimmedField = Shim.predictshimmedfield() ;
     filename = [ Params.mediaSaveDir '/fieldStats_shimmedPrediction' ] ;
-    PredictedShimmedField.assessfielddistribution( Shim.Field.Hdr.MaskingImage, filename ) ;
+    PredictedShimmedField.assessfielddistribution( Params.assessmentVoi, filename ) ;
 
     if Params.isRealtimeShimming
         
         filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
-        Shim.Field.Model.Riro.assessfielddistribution( Shim.Field.Hdr.MaskingImage, filename ) ;
+        Shim.Field.Model.Riro.assessfielddistribution( Params.assessmentVoi, filename ) ;
         
         PredictedShimmedRiro = Shim.predictshimmedriro() ;
         filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction' ] ;
-        PredictedShimmedRiro.assessfielddistribution( Shim.Field.Hdr.MaskingImage, filename ) ;
+        PredictedShimmedRiro.assessfielddistribution( Params.assessmentVoi, filename ) ;
     
     end
 
