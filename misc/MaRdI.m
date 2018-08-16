@@ -1263,8 +1263,10 @@ dicm2nii( Params.dataLoadDir, Params.tmpSaveDir )
 
 % rename
 system( ['mv ' Params.tmpSaveDir '*.nii.gz ' Params.tmpSaveDir 't2s_allEchoes.nii.gz'] ) ;
+
 % average across echoes
 system( ['sct_maths -i ' Params.tmpSaveDir 't2s_allEchoes.nii.gz -mean t -o ' Params.tmpSaveDir 't2s.nii.gz'] ) ;
+
 % use GUI to crop spine (trim out brain)
 system( ['sct_crop_image -i ' Params.tmpSaveDir 't2s.nii.gz ' '-g 1 -o ' Params.tmpSaveDir 't2smr.nii.gz '] ) ;
 warning('SCT_CROP_IMAGE using GUI does not use the desired output filename.') 
@@ -1272,13 +1274,6 @@ system( ['mv ' pwd '/t2s_crop.nii.gz ' Params.tmpSaveDir 't2smr.nii.gz '] ) ;
 
 % get centerline 
 system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -ofolder ' Params.tmpSaveDir] ) ;
-
-% remove first axial slice because it's empty
-system( ['sct_crop_image -i ' Params.tmpSaveDir 't2s.nii.gz -m ' Params.tmpSaveDir 't2s.nii.gz -o ' Params.tmpSaveDir 't2sm.nii.gz'] ) ;
-% % resample to 1mm iso
-% system( ['sct_resample -i ' Params.tmpSaveDir 't2sm.nii.gz -mm 1x1x1 -o ' Params.tmpSaveDir 't2smr.nii.gz'] ) ;
-% % get centerline of resampled img
-% system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -ofolder ' Params.tmpSaveDir] ) ;
 
 system( ['sct_create_mask -i ' Params.tmpSaveDir 't2smr.nii.gz -p centerline,' ...
     Params.tmpSaveDir 't2smr_centerline_optic.nii.gz -size 20 -f gaussian -o ' ...
@@ -1327,7 +1322,7 @@ mask = dilater( mask, 1 ) ;
 Weights = load_untouch_nii( [ Params.dataSaveDir 'gre_weights.nii' ] );
 weights = Weights.img ;
 weights = double(permute( weights, [2 1 3] )) ;
-weights = flipdim( weights, 1 ) ;
+% weights = flipdim( weights, 1 ) ;
 
 end
 % =========================================================================
