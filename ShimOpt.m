@@ -531,6 +531,25 @@ Shim.Field.Hdr.MaskingImage = mask ;
 
 end
 % =========================================================================
+function [] = setshimvolumeofinterestriro( Shim, mask )
+%SETSHIMVOLUMEOFINTERESTRIRO 
+% 
+% [] = SETSHIMVOLUMEOFINTERESTRIRO( Shim, mask )
+%
+% Sets Shim.Field.Model.Riro.Hdr.MaskingImage
+%
+% mask is a binary image (with the same dimensions as Shim.Field.Model.Riro.img) of 
+% the desired shim region.
+
+assert( myisfield( Shim.Field.Model, 'Riro' ) && ~isempty( Shim.Field.Model.Riro ) )
+
+assert( all( size(mask) == size( Shim.Field.Model.Riro.img ) ), ...
+    'mask (shim VOI) and target field (Shim.Field.Model.Riro.img) must be the same size' ) ; 
+
+Shim.Field.Model.Riro.Hdr.MaskingImage = mask ;
+
+end
+% =========================================================================
 function [shimCorrection] = forwardmodelshimcorrection( Shim, correctionCoefficients )
 %FORWARDMODELSHIMCORRECTION
 % 
@@ -1142,9 +1161,9 @@ if Params.isRealtimeShimming
 
     activeChannelsMask = [ activeStaticChannelsMask ; activeDynamicChannelsMask ] ;
     
-    A1 = [ MW1*A_tx MW1*A_mc MW1*A_aux ]
+    A1 = [ MW1*A_tx MW1*A_mc MW1*A_aux ] ;
     % left half applies to the static field, right half to the resp.-induced dynamic component 
-    A  = [ A0 zeros(size(A1)) ; zeros(size(A0)) A1 ] ; 
+    A  = [ A0 zeros(size(A0)) ; zeros(size(A1)) A1 ] ; 
 
     Params.minDynamicCorrectionPerChannel = zeros(size(activeDynamicChannelsMask)) ;
     Params.minDynamicCorrectionPerChannel( activeDynamicChannelsMask ) = -Inf ;
