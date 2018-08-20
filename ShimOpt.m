@@ -779,28 +779,29 @@ shimSupport = sum(abs(Shim.img),4) > Shim.getnactivechannels()*eps  ;
 
 end
 % =========================================================================
-function currents = computerealtimeupdate( Shim, pDc )
+function currents = computerealtimeupdate( Shim, p )
 % COMPUTEREALTIMEUPDATE
 % 
 % Usage
 %
-% currents = COMPUTEREALTIMEUPDATE( Shim )
+% currents = COMPUTEREALTIMEUPDATE( Shim, p )
 %
-%   currents = Shim.Model.dcCurrentOffsets + Shim.Model.updateOperator * Shim.Tracker.Data.p(end) ; 
-%
-% TODO
-% this is a clumsy temporary fix:
-% currents = COMPUTEREALTIMEUPDATE( Shim, pDc )
+%   currents = Shim.Model.currents + p*Shim.Model.couplingCoefficients ;
 
-
-if nargin == 1
-    pDc = 0 ;
-end
-
-currents = Shim.Model.currents + ...
-        Shim.Model.couplingCoefficients * ( Shim.Tracker.Data.p(end) - pDc ) ; 
+currents = Shim.Model.currents + p*Shim.Model.couplingCoefficients ;
 
 end
+% % =========================================================================
+% function [ShimmedField] = GETINSTANTANEOUSFIELDSHIMMED( Shim, p )
+% %GETINSTANTANEOUSFIELDSHIMMED
+%
+% Field = Shim.Field.getinstantaneousfield( p ) ;
+%
+% ShimmedField = Field.copy ;
+%
+% ShimmedField.img = ShimmedField.img + Shim.forwardmodelshimcorrection( ...
+%
+% end
 % =========================================================================
 function [PredictedField] = predictshimmedfield( Shim )
 %PREDICTSHIMMEDFIELD
@@ -853,7 +854,7 @@ end
 
 end
 % =========================================================================
-function [ PredictedRiro ] = predictshimmedriro( Shim, currents )
+function [ PredictedRiro ] = predictshimmedriro( Shim, p )
 %PREDICTSHIMMEDRIRO
 %
 % [PredictedRiro] = PREDICTSHIMMEDRIRO( Shim ) ;
@@ -874,7 +875,6 @@ PredictedRiro = [] ;
 assert( ~isempty( Shim.Field.Model.Riro ) && ~isempty( Shim.Field.Model.Riro.img ), ...
     'Requires input model of respiration-induced reference offset (RIRO) in Shim.Field.Model.Riro' ) ;
 
-PredictedRiro = Shim.Field.Model.Riro.copy() ;
 
 if ~myisfield( Shim.Model, 'couplingCoefficients' ) || isempty( Shim.Model.couplingCoefficients ) 
     
@@ -882,8 +882,15 @@ if ~myisfield( Shim.Model, 'couplingCoefficients' ) || isempty( Shim.Model.coupl
 
 else    
     
-    % all field + correction terms scaled by dp (e.g. recorded inspired - expired pressure difference):
-    dp = Shim.Field.Model.Riro.Aux.Tracker.Data.p ; 
+    % all field + correction terms scaled by dp :
+    if nargin < 2
+        PredictedRiro = Shim.Field.getriro( ) ;
+        % (dp: recorded inspired - expired pressure difference)
+        dp = Shim.Field.Model.Riro.Aux.Tracker.Data.p ; 
+    else
+        PredictedRiro = Shim.Field.getriro( p ) ;
+        dp = Shim.Field.Aux.Tracker.debias( p ) ; 
+    end
     
     Shim.Model.riro   = dp*Shim.forwardmodelshimcorrection( Shim.Model.couplingCoefficients ) ;
     PredictedRiro.img = PredictedRiro.img + Shim.Model.riro ;
@@ -1402,35 +1409,37 @@ if Params.isSavingResultsTable
     filename = [ Params.mediaSaveDir '/fieldStats_shimmedPrediction' ] ;
     PredictedShimmedField.assessfielddistribution( Params.assessmentVoi, filename ) ;
 
+    dbstop in ShimOpt at 1425
     % Shim.Field.write( [Params.mediaSaveDir '/field'], 'nii' ) ; 
-    % %
-    % % Params.imgSlice     = 7 ; 
-    % % Params.scaling      = [ -100 100 ] ;
-    % % Params.colormap     = 'default' ;
-    % %
-    % Params.filename     = [Params.mediaSaveDir '/field_Dc_s' num2str(Params.imgSlice)] ;
-    % % MaRdI.writeimg( Shim.Field.img(:,:,Params.imgSlice), Params ) ;
-    % %
-    % % Params.filename     = [Params.mediaSaveDir '/fieldShimmed_Dc_s' num2str(Params.imgSlice)] ;
-    % % MaRdI.writeimg( PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
-    % %
-    % % if Params.isRealtimeShimming
-    % %     
-    % %     filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
-    % %     Shim.Field.Model.Riro.assessfielddistribution( Params.assessmentVoi, filename ) ;
-    % %     
-    % %     PredictedShimmedRiro = Shim.predictshimmedriro() ;
-    % %     filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction' ] ;
-    % %     PredictedShimmedRiro.assessfielddistribution( Params.assessmentVoi, filename ) ;
-    % %     
-    % %     Params.filename     = [Params.mediaSaveDir '/riro_s' num2str(Params.imgSlice)] ;
-    % %     MaRdI.writeimg( Shim.Field.Model.Riro.img(:,:,Params.imgSlice), Params ) ;
-    % %
-    % %     Params.filename     = [Params.mediaSaveDir '/riroShimmed_s' num2str(Params.imgSlice)] ;
-    % %     MaRdI.writeimg( PredictedShimmedRiro.img(:,:,Params.imgSlice), Params ) ;
-    % %
-    % % end
-    % %
+
+    Params.imgSlice     = 7 ; 
+    Params.scaling      = [ -100 100 ] ;
+    Params.colormap     = 'default' ;
+
+    Params.filename     = [Params.mediaSaveDir '/field_Dc_s' num2str(Params.imgSlice)] ;
+    MaRdI.writeimg( Shim.Field.img(:,:,Params.imgSlice), Params ) ;
+    
+    Params.filename     = [Params.mediaSaveDir '/fieldShimmed_Dc_s' num2str(Params.imgSlice)] ;
+    MaRdI.writeimg( PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
+    
+    if Params.isRealtimeShimming
+
+        filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
+        Shim.Field.Model.Riro.assessfielddistribution( Params.assessmentVoi, filename ) ;
+
+        PredictedShimmedRiro = Shim.predictshimmedriro() ;
+
+        filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction' ] ;
+        PredictedShimmedRiro.assessfielddistribution( Params.assessmentVoi, filename ) ;
+
+        Params.filename     = [Params.mediaSaveDir '/riro_s' num2str(Params.imgSlice)] ;
+        MaRdI.writeimg( Shim.Field.Model.Riro.img(:,:,Params.imgSlice), Params ) ;
+
+        Params.filename     = [Params.mediaSaveDir '/riroShimmed_s' num2str(Params.imgSlice)] ;
+        MaRdI.writeimg( PredictedShimmedRiro.img(:,:,Params.imgSlice), Params ) ;
+
+    end
+
 end
 
 function [f, df] = shimcost( x )

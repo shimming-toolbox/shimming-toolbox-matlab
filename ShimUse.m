@@ -382,11 +382,12 @@ if ( Shim.Params.nTrainingFrames > 1 ) && ~isempty( Shim.Data.Aux.Tracker{ 1, 1,
    
     % this is assumed to be a free breathing recording
     % i.e. trainingFrame 1 = inspired; 2 = expired.
-    Shim.Params.pDc  = median( Shim.Data.Aux.Tracker{ 1,1, Shim.Params.nTrainingFrames + 1 }.Data.p ) ;
+    Shim.Params.pBreathing = Shim.Data.Aux.Tracker{ 1,1, Shim.Params.nTrainingFrames + 1 }.Data.p ;
+
+    Shim.Params.pDc  = median( Shim.Params.pBreathing ) ;
     % TODO extract min + max pressures across ALL recordings instead?
-    Shim.Params.pMin = min( Shim.Data.Aux.Tracker{ 1,1, Shim.Params.nTrainingFrames + 1 }.Data.p ) ;
-    Shim.Params.pMax = max( Shim.Data.Aux.Tracker{ 1,1, Shim.Params.nTrainingFrames + 1 }.Data.p ) ;
-    
+    Shim.Params.pMin = min( Shim.Params.pBreathing ) ;
+    Shim.Params.pMax = max( Shim.Params.pBreathing ) ;
 else
     error('Free breathing measurements not available')
 end
@@ -403,12 +404,12 @@ if Shim.Params.isAutoSegmenting == true
         TmpParams.isUsingPropsegCsf = true ;
         
         [cordVoi, sctWeights] = Shim.Data.Img{ 1, 1, iFrame }.segmentspinalcanal( TmpParams ) ;
-
+        
         % retain the intersection with previous VOI:
         Shim.Params.cordVoi = Shim.Params.cordVoi & cordVoi ;
         
         t2sWeights = Shim.Opt.derivedataweights( ...
-            { Shim.Data.Img{ 1, 1, iFrame }  ; Shim.Data.Img{ 2, 1, iFrame } }, 15, Shim.Params.cordVoi ) ;
+            { Shim.Data.Img{ 1, 1, iFrame }  ; Shim.Data.Img{ 2, 1, iFrame } }, 5, Shim.Params.cordVoi ) ;
 
         Shim.Params.dataWeights = Shim.Params.dataWeights + sctWeights + t2sWeights ;
     end
@@ -669,7 +670,9 @@ if isTracking
              Shim.Opt.Tracker.Data.p(iUpdate) = clipvalue( Shim.Opt.Tracker.Data.p(iUpdate) ) ;
          end
 
-        currents = Shim.Opt.computerealtimeupdate( Shim.Params.pDc ) ;
+        pS = Shim.Opt.Tracker.Data.p(iUpdate) - Shim.Params.pDc ; % debiased measurement
+
+        currents = Shim.Opt.computerealtimeupdate( pS ) ;
         
         % currents = limitcurrents( currents ) ;
         currentsNorm = norm(currents) 

@@ -556,6 +556,34 @@ VoxelShiftMap.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
 
 end
 % =========================================================================
+function [Riro] = getriro( Field, p )
+%GETRIRO
+%
+% Riro = GETRIRO( Field )
+% Riro = GETRIRO( Field, p )
+%
+% Returns estimate of the respiration-induced resonance offset corresponding
+% to tracker measurement p assuming the linear field model 
+% (i.e. Riro[ p(t) ] ).
+%
+% If nargin == 1, Riro is simply a copy of Field.Model.Riro 
+% (e.g. inspired-expired field difference);
+
+Riro = Field.Model.Riro.copy() ;
+
+if nargin == 2
+    % return instantaneous RIRO corresponding to tracker value p
+    assert( isscalar(p) ) ;
+
+    dfdp = Field.Model.Riro.img()/Field.Model.Riro.Aux.Tracker.Data.p ;
+    dp   = Field.Aux.Tracker.debias( p ) ; 
+
+    Riro.img = dfdp*dp ;
+    Riro.Aux.Tracker.Data.p = p ;
+end
+
+end
+% =========================================================================
 
 end
 % =========================================================================
@@ -1005,34 +1033,6 @@ Field.Aux.Tracker.Data.p = pDc ;
 Field.Aux.Tracker.setdcbias( pDc ) ;
 
 Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
-
-end
-% =========================================================================
-function [CurrentRiro] = getriro( Field, p )
-%GETRIRO
-%
-% Riro = GETRIRO( Field )
-% Riro = GETRIRO( Field, p )
-%
-% Returns estimate of the respiration-induced resonance offset corresponding
-% to tracker measurement p assuming the linear field model 
-% (i.e. Riro[ p(t) ] ).
-%
-% If nargin == 1, Riro is simply a copy of Field.Model.Riro 
-% (e.g. inspired-expired field difference);
-
-Riro = Field.Model.Riro.copy() ;
-
-if nargin == 2
-    % return instantaneous RIRO corresponding to tracker value p
-    assert( isscalar(p) ) ;
-
-    dfdp = Field.Model.Riro.img()/Field.Model.Riro.Aux.Tracker.Data.p ;
-    dp   = Field.Aux.Tracker.debias( p ) ; 
-
-    Riro.img = dfdp*dp ;
-    Riro.Aux.Tracker.Data.p = p ;
-end
 
 end
 % =========================================================================
