@@ -968,16 +968,16 @@ else
     pEx = -1 ;
 end
 
+if ~myisfield( Params, 'pBreathing' ) || isempty( Params.pBreathing ) 
+    Params.pBreathing = [ pIn pEx ] ;
+end
+
+pDc            = median( Params.pBreathing ) ;
 pShiftTraining = pIn - pEx ;
 
 Field     = FieldInspired.copy() ; 
 Riro      = FieldInspired.copy() ; 
 FieldZero = FieldInspired.copy() ; 
-
-Riro.img                = FieldInspired.img - FieldExpired.img ;
-Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
-Riro.Aux.Tracker.Data.p = pShiftTraining ;
-Field.Model.Riro        = Riro ;
 
 FieldZero.img                = ( pIn*FieldExpired.img - pEx*FieldInspired.img )/(pShiftTraining) ;
 FieldZero.Aux.Tracker.Data.p = 0 ;
@@ -985,33 +985,53 @@ Field.Model.Zero             = FieldZero ;
 % no way of knowing what values might be reasonable for this 'Zero' field, so
 % there is no call to .getvaliditymask()
 
-Field.img                = Params.pDc*(Field.Model.Riro.img/pShiftTraining) + Field.Model.Zero.img ;
-Field.Aux.Tracker.Data.p = Params.pDc ;
+Riro.img                = FieldInspired.img - FieldExpired.img ;
+Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
+% The training fields themselves (e.g. inspired/expired breath-holds) might not
+% be representative of the typical field shift if it's defined for any
+% given phase of the respiratory cycle as the deviation from the expected
+% (mean/DC) value.
+%
+% Scale the shift by the RMS pressure deviation observed during regular breathing:
+pShiftRms = rms( Params.pBreathing - pDc ) ;
+
+Riro.img  = ( pShiftRms/pShiftTraining ) * Riro.img ;
+Riro.Aux.Tracker.Data.p = pShiftRms ;
+
+Field.Model.Riro = Riro ;
+
+Field.img                = pDc*(Field.Model.Riro.img/pShiftRms) + Field.Model.Zero.img ;
+Field.Aux.Tracker.Data.p = pDc ;
+Field.Aux.Tracker.setdcbias( pDc ) ;
+
 Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
 
-if myisfield( Params, 'pMin' ) && myisfield( Params, 'pMax' ) ...
-        && ~isempty( Params.pMin ) && ~isempty( Params.pMax )
-    
-    scalefieldshifttoregularbreathing( Riro ); 
-
 end
-
-function [] = scalefieldshifttoregularbreathing( Riro )
-%SCALEFIELDSHIFTTOREGULARBREATHING
-% 
-% the training fields themselves (e.g. inspired/expired breath-holds) might not
-% be entirely representative of the typical field shift if it's defined for any given
-% phase of the respiratory cycle as the deviation from the expected (mean/DC) value.
+% =========================================================================
+function [CurrentRiro] = getriro( Field, p )
+%GETRIRO
 %
-% this function scales the shift by the max. absolute deviation from pDC observed over the course 
-% of a recording of regular breathing. 
-    
-    pShiftBreathing = max( abs( [Params.pMin Params.pMax] - Params.pDc ) )
-    
-    Riro.img  = ( pShiftBreathing./abs(pShiftTraining) ) * Riro.img ;
+% Riro = GETRIRO( Field )
+% Riro = GETRIRO( Field, p )
+%
+% Returns estimate of the respiration-induced resonance offset corresponding
+% to tracker measurement p assuming the linear field model 
+% (i.e. Riro[ p(t) ] ).
+%
+% If nargin == 1, Riro is simply a copy of Field.Model.Riro 
+% (e.g. inspired-expired field difference);
 
-    Riro.Aux.Tracker.Data.p = pShiftBreathing ;
+Riro = Field.Model.Riro.copy() ;
 
+if nargin == 2
+    % return instantaneous RIRO corresponding to tracker value p
+    assert( isscalar(p) ) ;
+
+    dfdp = Field.Model.Riro.img()/Field.Model.Riro.Aux.Tracker.Data.p ;
+    dp   = Field.Aux.Tracker.debias( p ) ; 
+
+    Riro.img = dfdp*dp ;
+    Riro.Aux.Tracker.Data.p = p ;
 end
 
 end
