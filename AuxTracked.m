@@ -20,8 +20,26 @@ Aux.Specs  = Specs ;
 Aux.Specs.state = 'inert' ;
 Aux.Data   = [] ; 
 Aux.Data.p = [] ; 
+Aux.Data.pDc = [] ; % DC bias
 
 end    
+% =========================================================================
+function [] = setdcbias( Aux, pDc )
+%SETDCBIAS
+
+assert( ( nargin == 2 ) && isscalar( pDc ) ) ;
+Aux.Data.pDc = pDc ;
+
+end
+% =========================================================================
+function dp = debias( Aux, p )
+%DEBIAS
+
+assert( ( nargin == 2 ) && isvector( p ) ) ;
+assert( ~isempty( Aux.Data.pDc ), 'Tracker DC bias undefined. See AuxTracked.setdcbias().') ;
+dp = p - Aux.Data.pDc ;
+
+end
 % =========================================================================
 
 end
