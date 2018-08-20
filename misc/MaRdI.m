@@ -1322,7 +1322,7 @@ mask = dilater( mask, 1 ) ;
 Weights = load_untouch_nii( [ Params.dataSaveDir 'gre_weights.nii' ] );
 weights = Weights.img ;
 weights = double(permute( weights, [2 1 3] )) ;
-% weights = flipdim( weights, 1 ) ;
+weights = flipdim( weights, 1 ) ;
 
 end
 % =========================================================================

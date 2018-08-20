@@ -1402,17 +1402,35 @@ if Params.isSavingResultsTable
     filename = [ Params.mediaSaveDir '/fieldStats_shimmedPrediction' ] ;
     PredictedShimmedField.assessfielddistribution( Params.assessmentVoi, filename ) ;
 
-    if Params.isRealtimeShimming
-        
-        filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
-        Shim.Field.Model.Riro.assessfielddistribution( Params.assessmentVoi, filename ) ;
-        
-        PredictedShimmedRiro = Shim.predictshimmedriro() ;
-        filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction' ] ;
-        PredictedShimmedRiro.assessfielddistribution( Params.assessmentVoi, filename ) ;
-    
-    end
-
+    % Shim.Field.write( [Params.mediaSaveDir '/field'], 'nii' ) ; 
+    % %
+    % % Params.imgSlice     = 7 ; 
+    % % Params.scaling      = [ -100 100 ] ;
+    % % Params.colormap     = 'default' ;
+    % %
+    % Params.filename     = [Params.mediaSaveDir '/field_Dc_s' num2str(Params.imgSlice)] ;
+    % % MaRdI.writeimg( Shim.Field.img(:,:,Params.imgSlice), Params ) ;
+    % %
+    % % Params.filename     = [Params.mediaSaveDir '/fieldShimmed_Dc_s' num2str(Params.imgSlice)] ;
+    % % MaRdI.writeimg( PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
+    % %
+    % % if Params.isRealtimeShimming
+    % %     
+    % %     filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
+    % %     Shim.Field.Model.Riro.assessfielddistribution( Params.assessmentVoi, filename ) ;
+    % %     
+    % %     PredictedShimmedRiro = Shim.predictshimmedriro() ;
+    % %     filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction' ] ;
+    % %     PredictedShimmedRiro.assessfielddistribution( Params.assessmentVoi, filename ) ;
+    % %     
+    % %     Params.filename     = [Params.mediaSaveDir '/riro_s' num2str(Params.imgSlice)] ;
+    % %     MaRdI.writeimg( Shim.Field.Model.Riro.img(:,:,Params.imgSlice), Params ) ;
+    % %
+    % %     Params.filename     = [Params.mediaSaveDir '/riroShimmed_s' num2str(Params.imgSlice)] ;
+    % %     MaRdI.writeimg( PredictedShimmedRiro.img(:,:,Params.imgSlice), Params ) ;
+    % %
+    % % end
+    % %
 end
 
 function [f, df] = shimcost( x )
