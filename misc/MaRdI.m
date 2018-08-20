@@ -1208,7 +1208,7 @@ function [mask, weights] = segmentspinalcanal_s( Params )
 %
 % NOTE
 %   The protocol is basically that of Topfer R, et al. Magn Reson Med, 2018. 
-%   It hasn't been tested extensively for different acquisition prtocols/systems
+%   It hasn't been tested extensively for different acquisition protocols or systems 
 %
 % TODO
 % SEGMENTSPINALCANAL_S
@@ -1267,62 +1267,41 @@ system( ['mv ' Params.tmpSaveDir '*.nii.gz ' Params.tmpSaveDir 't2s_allEchoes.ni
 % average across echoes
 system( ['sct_maths -i ' Params.tmpSaveDir 't2s_allEchoes.nii.gz -mean t -o ' Params.tmpSaveDir 't2s.nii.gz'] ) ;
 
-% use GUI to crop spine (trim out brain)
-system( ['sct_crop_image -i ' Params.tmpSaveDir 't2s.nii.gz ' '-g 1 -o ' Params.tmpSaveDir 't2smr.nii.gz '] ) ;
-warning('SCT_CROP_IMAGE using GUI does not use the desired output filename.') 
-system( ['mv ' pwd '/t2s_crop.nii.gz ' Params.tmpSaveDir 't2smr.nii.gz '] ) ;
-
 % get centerline 
-system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -ofolder ' Params.tmpSaveDir] ) ;
+system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2s.nii.gz -c t2s -ofolder ' Params.tmpSaveDir] ) ;
 
-system( ['sct_create_mask -i ' Params.tmpSaveDir 't2smr.nii.gz -p centerline,' ...
-    Params.tmpSaveDir 't2smr_centerline_optic.nii.gz -size 20 -f gaussian -o ' ...
-    Params.tmpSaveDir 't2smr_weights.nii.gz' ] ) ;
+system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p centerline,' ...
+    Params.tmpSaveDir 't2s_centerline_optic.nii.gz -size 20mm -f cylinder -o ' ...
+    Params.tmpSaveDir 't2s_seg.nii.gz' ] ) ;
 
-% segment
-propsegCmd = ['sct_propseg -i ' Params.tmpSaveDir 't2smr.nii.gz -c t2s -init-centerline ' ...
-        Params.tmpSaveDir 't2smr_centerline_optic.nii.gz -min-contrast 5 -ofolder ' Params.tmpSaveDir] ;
-
-if Params.isUsingPropsegCsf
-    propsegCmd = [propsegCmd ' -CSF'] ;
-    
-    system( propsegCmd ) ;
-    % add in CSF segmentation 
-    system( ['sct_maths -i ' Params.tmpSaveDir 't2smr_seg.nii.gz -o ' ...
-        Params.tmpSaveDir 't2smr_seg.nii.gz -add ' Params.tmpSaveDir 't2smr_CSF_seg.nii.gz'] ) ;
-else
-    
-    system( propsegCmd ) ;
-end
+system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p centerline,' ...
+    Params.tmpSaveDir 't2s_centerline_optic.nii.gz -size 40mm -f gaussian -o ' ...
+    Params.tmpSaveDir 't2s_weights.nii.gz' ] ) ;
 
 % unzip the image volumes we wish to keep
-system( ['gunzip ' Params.tmpSaveDir 't2smr_seg.nii.gz -df'] ) ;
-system( ['gunzip ' Params.tmpSaveDir 't2smr_weights.nii.gz -df'] ) ;
-
-% regrid to original 
-system( ['sct_register_multimodal -i ' Params.tmpSaveDir 't2smr_seg.nii -d ' ... 
-    Params.tmpSaveDir 't2s_allEchoes.nii.gz -identity 1 -o ' Params.tmpSaveDir 't2smr_seg.nii'] ) ;
-system( ['sct_register_multimodal -i ' Params.tmpSaveDir 't2smr_weights.nii -d ' ... 
-    Params.tmpSaveDir 't2s_allEchoes.nii.gz -identity 1 -o ' Params.tmpSaveDir 't2smr_weights.nii'] ) ;
+system( ['gunzip ' Params.tmpSaveDir 't2s_seg.nii.gz -df'] ) ;
+system( ['gunzip ' Params.tmpSaveDir 't2s_weights.nii.gz -df'] ) ;
 
 % delete the other images
 system( ['rm ' Params.tmpSaveDir '*.nii.gz'] ) ;
 
 % move segmentation + weights
-system( ['mv ' Params.tmpSaveDir 't2smr_seg.nii ' Params.dataSaveDir 'gre_seg.nii'] ) ;  
-system( ['mv ' Params.tmpSaveDir 't2smr_weights.nii ' Params.dataSaveDir 'gre_weights.nii'] ) ;  
+system( ['mv ' Params.tmpSaveDir 't2s_seg.nii ' Params.dataSaveDir 'gre_seg.nii'] ) ;  
+system( ['mv ' Params.tmpSaveDir 't2s_weights.nii ' Params.dataSaveDir 'gre_weights.nii'] ) ;  
 system( ['rm -r ' Params.tmpSaveDir] ) ;
 
 Mask = load_untouch_nii( [ Params.dataSaveDir 'gre_seg.nii' ] );
 mask = Mask.img ;
 mask = logical(permute( mask, [2 1 3] )) ;
 mask = flipdim( mask, 1 ) ;
-mask = dilater( mask, 1 ) ;
 
 Weights = load_untouch_nii( [ Params.dataSaveDir 'gre_weights.nii' ] );
 weights = Weights.img ;
 weights = double(permute( weights, [2 1 3] )) ;
 weights = flipdim( weights, 1 ) ;
+% normalize
+weights = weights - min(weights(:)) ;
+weights = weights/max(weights(:)) ;
 
 end
 % =========================================================================
