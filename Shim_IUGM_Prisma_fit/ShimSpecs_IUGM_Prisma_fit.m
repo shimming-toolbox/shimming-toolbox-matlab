@@ -6,7 +6,7 @@ classdef ShimSpecs_IUGM_Prisma_fit < ShimSpecs
 %    ShimSpecs_IUGM_Prisma_fit is a ShimSpecs subclass
 %
 % =========================================================================
-% Updated::20180312::ryan.topfer@polymtl.ca
+% Updated::20180821::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -15,7 +15,10 @@ methods
 % =========================================================================
 function Shim = ShimSpecs_IUGM_Prisma_fit(  )
 %SHIMSPECS - Shim System Specifications 
-    
+
+Shim.Id.systemName   = 'IUGM_Prisma_fit' ;
+Shim.Id.channelNames = { 'X' ; 'Y' ; 'Z' ; 'A20' ; 'A21' ; 'B21' ; 'A22' ; 'B22' } ;
+
 Shim.Com = [] ;  
 
 % channels 1-3 refer to the gradient offsets, 4-8 to the 2nd order shims

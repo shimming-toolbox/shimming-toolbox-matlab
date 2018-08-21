@@ -39,7 +39,7 @@ classdef ShimSpecsAcdc < ShimSpecs
 %    ShimSpecsAcdc is a ShimSpecs subclass
 %
 % =========================================================================
-% Updated::20171107::ryan.topfer@polymtl.ca
+% Updated::20180821::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
@@ -52,6 +52,12 @@ methods
 % =========================================================================
 function Shim = ShimSpecsAcdc(  )
 %SHIMSPECS - Shim System Specifications 
+
+Shim.Id.systemName   = 'Greg' ;
+Shim.Id.channelNames = cell(8,1) ;
+for iCh = 1 :8 
+    Shim.Id.channelNames(iCh) = { ['Ch' num2str(iCh) ] } ; 
+end
     
 Shim.Com.baudRate    = 115200 ;  
 % Shim.Com.readTimeout = 500 ; %[units: ms] 
@@ -87,6 +93,7 @@ Shim.Dac.maximum          = 26214 ;
 %   should fall under property Shim.Com.Dac ?
 Shim.Com.feedbackcalibrationcoeffx = [0.65909, 0.65, 0.6591, 0.6499, 0.6545, 0.6454, 0.6637, 0.6409]; %Calibration coefficient to transform Voltages to Amps
 Shim.Com.feedbackcalibrationcoeffy = [25.456, -9.088, 5.456, 25.456, 30.91, 7.272, -19.09, 34.546]; %Calibration coefficient to transform Voltages to Amps
+
 
 end
 % =========================================================================
