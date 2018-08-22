@@ -377,10 +377,13 @@ function [] = setcouplingcoefficients( Shim, ...
 %
 % Sets Shim.Model.couplingCoefficients
 
-A = Shim.getshimoperator ;
+% A = Shim.getshimoperator ;
+%
+% Shim.Model.couplingCoefficients = ...
+%     A*(currentsInspired - currentsExpired)/(pInspired - pExpired) ;
 
 Shim.Model.couplingCoefficients = ...
-    A*(currentsInspired - currentsExpired)/(pInspired - pExpired) ;
+     (currentsInspired - currentsExpired)/(pInspired - pExpired) ;
 
 end
 % =========================================================================
@@ -984,6 +987,8 @@ if ~myisfield(Params, 'isReturningPseudoInverse') || isempty( Params.isReturning
     Params.isReturningPseudoInverse = DEFAULT_ISRETURNINGPSEUDOINVERSE ; 
 end
 
+
+
 if ~myisfield(Params, 'isOptimizingStaticTxFrequency') || isempty( Params.isOptimizingStaticTxFrequency )
     Params.isOptimizingStaticTxFrequency = DEFAULT_ISOPTIMIZINGSTATICTXFREQUENCY ;
 end
@@ -991,6 +996,8 @@ end
 if ~myisfield(Params, 'isOptimizingDynamicTxFrequency') || isempty( Params.isOptimizingDynamicTxFrequency )
     Params.isOptimizingDynamicTxFrequency = DEFAULT_ISOPTIMIZINGDYNAMICTXFREQUENCY ;
 end
+
+
 
 if ~myisfield(Params, 'maxPositiveTxFrequencyShift') || isempty( Params.maxPositiveTxFrequencyShift )
     % max + freq. shift relative to original Larmor
@@ -1002,17 +1009,25 @@ if ~myisfield(Params, 'maxNegativeTxFrequencyShift') || isempty( Params.maxNegat
     Params.maxNegativeTxFrequencyShift = DEFAULT_MINTXFREQUENCY - double(Shim.Field.Hdr.ImagingFrequency)*1E6 ;
 end
 
-if ~myisfield(Params, 'isOptimizingAux') || isempty( Params.isOptimizingAux )
-    Params.isOptimizingAux = DEFAULT_ISOPTIMIZINGAUX ;
+
+
+assert( ~isempty( Shim.Aux ) )
+
+% total active channels across systems
+Params.nActiveChannels = 1 + Shim.System.Specs.Amp.nActiveChannels + Shim.Aux.System.Specs.Amp.nActiveChannels ; % +1 for freq. adjust
+
+if ~myisfield(Params, 'activeStaticChannelsMask') || isempty( Params.activeStaticChannelsMask )
+    Params.activeStaticChannelsMask = [ Params.isOptimizingStaticTxFrequency ; ...
+                                        Shim.System.Specs.Amp.staticChannels(:) ; ...
+                                        Shim.Aux.System.Specs.Amp.staticChannels(:) ; ] ;
+end
+    
+if ~myisfield(Params, 'activeDynamicChannelsMask') || isempty( Params.activeDynamicChannelsMask )
+    Params.activeDynamicChannelsMask = [ Params.isOptimizingDynamicTxFrequency ; ...
+                                         Shim.System.Specs.Amp.dynamicChannels(:) ; ...
+                                         Shim.Aux.System.Specs.Amp.dynamicChannels(:) ; ] ;
 end
 
-if Params.isOptimizingAux
-    assert( ~isempty( Shim.Aux ) )
-    % total active channels over dual shim systems
-    Params.nActiveChannels = 1 + Shim.System.Specs.Amp.nActiveChannels + Shim.Aux.System.Specs.Amp.nActiveChannels ; % +1 for freq. adjust
-else
-    Params.nActiveChannels = 1 + Shim.System.Specs.Amp.nActiveChannels ; % +1 for freq. adjust
-end
 
 if ~myisfield(Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectionPerChannel ) 
    
@@ -1023,11 +1038,7 @@ if ~myisfield(Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectio
     % accounted for (only comes into play in checknonlinearconstraints_static() )
     tmpMaxFreqShift = min(abs( [ Params.maxPositiveTxFrequencyShift Params.maxNegativeTxFrequencyShift ] )) ;
 
-    Params.maxCorrectionPerChannel = [ tmpMaxFreqShift ; Shim.System.Specs.Amp.maxCurrentPerChannel ] ; 
-
-    if Params.isOptimizingAux
-        Params.maxCorrectionPerChannel = [ Params.maxCorrectionPerChannel ; Shim.Aux.System.Specs.Amp.maxCurrentPerChannel ]; 
-    end
+    Params.maxCorrectionPerChannel = [ tmpMaxFreqShift ; Shim.System.Specs.Amp.maxCurrentPerChannel ; Shim.Aux.System.Specs.Amp.maxCurrentPerChannel ]; 
 
 end
 
@@ -1038,6 +1049,10 @@ end
 assert( ( length( Params.maxCorrectionPerChannel ) == length( Params.minCorrectionPerChannel ) ) && ...
         ( length( Params.maxCorrectionPerChannel ) == Params.nActiveChannels ), ...
     'Shim system limits (Params.maxCorrectionPerChannel and Params.minCorrectionPerChannel) must possess an entry for each shim channel (primary and, if in use, auxiliary shims).' ) ;
+
+% set min/max static correction to 0 for inactive static channels
+Params.minStaticCorrectionPerChannel = Params.activeStaticChannelsMask .* Params.minCorrectionPerChannel ; 
+Params.maxStaticCorrectionPerChannel = Params.activeStaticChannelsMask .* Params.maxCorrectionPerChannel ;
 
 if ~myisfield(Params, 'assessmentVoi') || isempty( Params.assessmentVoi )
     Params.assessmentVoi = Shim.Field.Hdr.MaskingImage ;
@@ -1100,25 +1115,27 @@ end
 % truncated (VOI-masked) weighting operator for static shim: MW0
 MW0 = Shim.gettruncationoperator()*W0 ; 
 
-% define matrix of data-weighting coefficients for real-time (RIRO) correction: W1
-if ~myisfield( Params, 'dataWeightsRiro' ) || isempty( Params.dataWeightsRiro ) 
+if Params.isRealtimeShimming 
+    % define matrix of data-weighting coefficients for real-time (RIRO) correction: W1
+    if ~myisfield( Params, 'dataWeightsRiro' ) || isempty( Params.dataWeightsRiro ) 
 
-    W1 = W0 ;
+        W1 = W0 ;
 
-else
+    else
 
-    assert( numel( Params.dataWeightsRiro ) == nImg ) 
+        assert( numel( Params.dataWeightsRiro ) == nImg ) 
 
-    if ( size( Params.dataWeightsRiro, 1 ) ~= nImg ) || ( size( Params.dataWeightsRiro, 2) ~= nImg )
-        
-        W1 = spdiags( Params.dataWeightsRiro(:), 0, nImg, nImg ) ;
+        if ( size( Params.dataWeightsRiro, 1 ) ~= nImg ) || ( size( Params.dataWeightsRiro, 2) ~= nImg )
+            
+            W1 = spdiags( Params.dataWeightsRiro(:), 0, nImg, nImg ) ;
+
+        end
 
     end
 
+    % truncated (VOI-masked) weighting operator for static shim: MW0
+    MW1 = Shim.gettruncationoperatorriro()*W1 ; 
 end
-
-% truncated (VOI-masked) weighting operator for static shim: MW0
-MW1 = Shim.gettruncationoperatorriro()*W1 ; 
 
 % -------
 % define off-resonance correction operator : A
@@ -1129,56 +1146,26 @@ A_tx = ones( nImg, 1 ) ;
 % primary shim (i.e. current-to-field) operator ('mc' since it's likely a multi-coil array) : A_mc
 A_mc = Shim.getshimoperator() ; 
 
-if Params.isOptimizingStaticTxFrequency
-    activeStaticChannelsMask = [ 1 ; Shim.System.Specs.Amp.staticChannels(:) ] ;
-else
-    activeStaticChannelsMask = [ 0 ; Shim.System.Specs.Amp.staticChannels(:) ] ;
-end
+% auxiliary shim operator (e.g. scanner's spherical harmonic coils)
+A_aux = Shim.Aux.getshimoperator() ;
 
-% static off-resonance correction operator: A0
-if Params.isOptimizingAux
-
-    A_aux = Shim.Aux.getshimoperator() ;
-
-    activeStaticChannelsMask = [ activeStaticChannelsMask ; Shim.Aux.System.Specs.Amp.staticChannels(:) ] ;
-
-else
-
-    A_aux = [] ;
-
-end
-
+% combined: static off-resonance correction operator: A0
 A0 = [ MW0*A_tx MW0*A_mc MW0*A_aux ] ;
-
-Params.minStaticCorrectionPerChannel = activeStaticChannelsMask .* Params.minCorrectionPerChannel ;
-Params.maxStaticCorrectionPerChannel = activeStaticChannelsMask .* Params.maxCorrectionPerChannel ;
 
 
 if Params.isRealtimeShimming
     
-    if Params.isOptimizingDynamicTxFrequency
-        activeDynamicChannelsMask = [ 1 ; Shim.System.Specs.Amp.dynamicChannels(:) ] ;
-    else
-        activeDynamicChannelsMask = [ 0 ; Shim.System.Specs.Amp.dynamicChannels(:) ] ;
-    end
-    
-    if Params.isOptimizingAux
-        activeDynamicChannelsMask = [ activeDynamicChannelsMask ; Shim.Aux.System.Specs.Amp.dynamicChannels(:) ] ;
-    end
-   
-    activeDynamicChannelsMask = logical( activeDynamicChannelsMask ) ;  
-
-    activeChannelsMask = [ activeStaticChannelsMask ; activeDynamicChannelsMask ] ;
+    activeChannelsMask = [ Params.activeStaticChannelsMask ; Params.activeDynamicChannelsMask ] ;
     
     A1 = [ MW1*A_tx MW1*A_mc MW1*A_aux ] ;
     % left half applies to the static field, right half to the resp.-induced dynamic component 
     A  = [ A0 zeros(size(A0)) ; zeros(size(A1)) A1 ] ; 
 
-    Params.minDynamicCorrectionPerChannel = zeros(size(activeDynamicChannelsMask)) ;
-    Params.minDynamicCorrectionPerChannel( activeDynamicChannelsMask ) = -Inf ;
+    Params.minDynamicCorrectionPerChannel = zeros(size(Params.activeDynamicChannelsMask)) ;
+    Params.minDynamicCorrectionPerChannel( Params.activeDynamicChannelsMask ) = -Inf ;
     
-    Params.maxDynamicCorrectionPerChannel = zeros(size(activeDynamicChannelsMask)) ;
-    Params.maxDynamicCorrectionPerChannel( activeDynamicChannelsMask ) = Inf ;
+    Params.maxDynamicCorrectionPerChannel = zeros(size(Params.activeDynamicChannelsMask)) ;
+    Params.maxDynamicCorrectionPerChannel( Params.activeDynamicChannelsMask ) = Inf ;
 
     Params.minCorrectionPerChannel = [ Params.minStaticCorrectionPerChannel Params.minDynamicCorrectionPerChannel ] ;
     Params.maxCorrectionPerChannel = [ Params.maxStaticCorrectionPerChannel Params.maxDynamicCorrectionPerChannel ] ;
@@ -1187,7 +1174,10 @@ else
     
     A = A0 ;
     
-    activeChannelsMask = [ activeStaticChannelsMask ] ;
+    activeChannelsMask = [ Params.activeStaticChannelsMask ] ;
+
+    Params.minCorrectionPerChannel = [ Params.minStaticCorrectionPerChannel ] ;
+    Params.maxCorrectionPerChannel = [ Params.maxStaticCorrectionPerChannel ] ;
 
 end
 
@@ -1206,28 +1196,27 @@ solutionVectorLength = size( A, 2 ) ;
 % -------
 % Define the solution (data) vector: b
 
-% Solve for residual field offset (bx) *without* existing shim fields (bs). 
+% Solve for residual field offset (bx) *without* existing shim fields (bs) 
+% *from shim channels that will be optimized*
+% (i.e. if shim settings are to remain constant anyway, there is no need to
+% subtract out their contribution from the field)
 % 
-% this way, optimizeshimcurrents() solves for the absolute shim currents, rather than a shift.
+% this way, optimizeshimcurrents() solves for the absolute shim currents,
+% rather than a shift, which simplifies handling of the min/max constraints on
+% the correction terms.
 
-% retain original currents for 'initial guess' of conjugate gradient solver
-i0 = Shim.System.currents ;
+% retain original corrections for 'initial guess' of conjugate gradient solver
+% 1st element: initial guess of zero frequency shift relative to the imaging frequency of the input field map
+x0 = [ 0 ; Shim.System.currents ; Shim.Aux.System.currents ] ;
 
-% shim field present during acquisition of Shim.Field.img
-bs = Shim.getshimoperator*i0 ;
+x0( ~Params.activeStaticChannelsMask ) = 0 ;
 
-if Params.isOptimizingAux
-
-    i0Aux = Shim.Aux.System.currents ;
-    bs    = bs + Shim.Aux.getshimoperator*i0Aux ;
-    
-end
-
-% Residual off-resonance field without existing shim field : bx0
+% Residual static off-resonance field without existing shim fields from the
+% active static channels: bx0
 %
 % i.e. the respiration-independent static field, assuming a linear model of the
 % time variation (van Gelderen et. al, MRM 2007):
-bx0 = Shim.Field.img(:) - bs ;
+bx0 = Shim.Field.img(:) - [A_tx A_mc A_aux]*x0 ;
 
 if ~Params.isRealtimeShimming
 
@@ -1242,18 +1231,6 @@ else
     b = [ MW0*-bx0 ; MW1*-db ] ;
 
 end
-
-
-
-% ------- 
-% initial model (solution vector) guess : x0
-x0 = [ 0 ; i0 ] ; % initial guess of zero frequency shift relative to the imaging frequency of the input field map
-
-if Params.isOptimizingAux
-
-    x0 = [ x0 ; i0Aux ] ;
-
-end 
 
 if Params.isRealtimeShimming 
 % initial guess of zero shift for the all respiratory/dynamic terms
@@ -1277,9 +1254,6 @@ x = cgls( A'*A, ... % least squares operator
 
 % check linear solution
 isCurrentSolutionOk = all( checknonlinearconstraints_default( x ) < 0 ) ;
-
-
-
 
 % ------- 
 % nonlinear optimization
@@ -1311,11 +1285,20 @@ if ~Params.isReturningPseudoInverse && ~isCurrentSolutionOk
     
 end
 
-[ fo0, i0, i0Aux, dfo, di, diAux]   = splitsolutionvector( x ) ;
+[ fo0, i0, i0Aux, dfo, di, diAux] = splitsolutionvector( x ) ;
+
 
 Shim.Model.Tx.imagingFrequency      = fo0 + (Shim.Field.Hdr.ImagingFrequency*1E6) ; % DC avg. [units: Hz]
+
 Shim.Model.currents                 = i0 ;
+% replace inactive terms with their initial values: TODO reorganize
+Params.activeStaticChannelsMaskMc   = Params.activeStaticChannelsMask(2:2+length(i0)) ;
+Shim.Model.currents( ~Params.activeStaticChannelsMaskMc ) = Shim.System.currents( ~Params.activeStaticChannelsMaskMc ) ;
+
 Shim.Aux.Model.currents             = i0Aux ;
+% replace inactive terms with their initial values: TODO ditto
+Params.activeStaticChannelsMaskAux  = Params.activeStaticChannelsMask(2+length(i0):end) ;
+Shim.Aux.Model.currents( ~Params.activeStaticChannelsMaskAux ) = Shim.Aux.System.currents( ~Params.activeStaticChannelsMaskAux ) ;
 
 currents = [ Shim.Model.Tx.imagingFrequency; Shim.Model.currents; Shim.Aux.Model.currents ] ;
 
@@ -1361,7 +1344,7 @@ else
 end
 
 for iCh = 1 : length(i0)
-    Correction_Term(iCh+1) = { [ 'Shim Ch' num2str(iCh) ' (mA)'] } ;
+    Correction_Term(end+1) = { [ Shim.System.Specs.Id.systemName ' ' Shim.System.Specs.Id.channelNames{iCh} ' (mA)'] } ;
 end
 
 Original = [ Original ; round( 1000*Shim.System.currents ) ] ; % [units: mA]
@@ -1370,22 +1353,22 @@ Update   = [ Update ; round(i0 - 1000*Shim.System.currents) ] ;
 Realtime = [ Realtime ; round( di) ] ; 
 Relative_Power = [ Relative_Power ; round( 100*((di./i0).^2), 4, 'significant') ] ;
 
-if Params.isOptimizingAux
 
-    for iCh = 1 : length(i0Aux)  
-        Correction_Term(end+1) = { [ 'Aux Ch' num2str(iCh) ] } ;
-    end
-
-    Original = [ Original ; round(Shim.Aux.System.currents, 4, 'significant') ] ;
-    Optimal  = [ Optimal ; round(i0Aux, 4, 'significant') ] ;
-    Update   = [ Update ; round((i0Aux - Shim.Aux.System.currents), 4, 'significant') ] ;
-    if ~Params.isRealtimeShimming
-        diAux = zeros( size( i0Aux ) ) ;
-    end
-    Realtime = [ Realtime ; round( diAux, 4, 'significant') ] ;
-    Relative_Power = [ Relative_Power ; round( 100*((diAux./i0Aux ).^2), 4, 'significant') ] ;
-    
+for iCh = 1 : length(i0Aux)  
+    Correction_Term(end+1) = { [ Shim.Aux.System.Specs.Id.systemName ' ' Shim.Aux.System.Specs.Id.channelNames{iCh} ' (D.U.)'] } ;
 end
+
+Original = [ Original ; round(Shim.Aux.System.currents, 4, 'significant') ] ;
+Optimal  = [ Optimal ; round(i0Aux, 4, 'significant') ] ;
+Update   = [ Update ; round((i0Aux - Shim.Aux.System.currents), 4, 'significant') ] ;
+if ~Params.isRealtimeShimming
+    diAux = zeros( size( i0Aux ) ) ;
+end
+Realtime = [ Realtime ; round( diAux, 4, 'significant') ] ;
+Relative_Power = [ Relative_Power ; round( 100*((diAux./i0Aux ).^2), 4, 'significant') ] ;
+
+Optimal( ~Params.activeStaticChannelsMask ) = NaN ;
+Update( ~Params.activeStaticChannelsMask )  = NaN ;
 
 T.Correction_Term = char( Correction_Term ) ;
 T.Original        = Original ;
@@ -1409,7 +1392,6 @@ if Params.isSavingResultsTable
     filename = [ Params.mediaSaveDir '/fieldStats_shimmedPrediction' ] ;
     PredictedShimmedField.assessfielddistribution( Params.assessmentVoi, filename ) ;
 
-    dbstop in ShimOpt at 1425
     % Shim.Field.write( [Params.mediaSaveDir '/field'], 'nii' ) ; 
 
     Params.imgSlice     = 7 ; 
@@ -1423,6 +1405,7 @@ if Params.isSavingResultsTable
     MaRdI.writeimg( PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
     
     if Params.isRealtimeShimming
+        Params.scaling      = [ -10 10 ] ;
 
         filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
         Shim.Field.Model.Riro.assessfielddistribution( Params.assessmentVoi, filename ) ;
@@ -1559,10 +1542,8 @@ end
 fo0 = x0(1) ;
 i0  = x0(2:Shim.System.Specs.Amp.nActiveChannels+1) ;
 
-if Params.isOptimizingAux
-    i0Aux = x0(2+Shim.System.Specs.Amp.nActiveChannels:end) ;
-    assert( length(i0Aux) == Shim.Aux.System.Specs.Amp.nActiveChannels ) ;
-end
+i0Aux = x0(2+Shim.System.Specs.Amp.nActiveChannels:end) ;
+assert( length(i0Aux) == Shim.Aux.System.Specs.Amp.nActiveChannels ) ;
 
 
 if Params.isRealtimeShimming 
@@ -1570,9 +1551,7 @@ if Params.isRealtimeShimming
     dfo = x1(1) ;
     di  = x1(2:Shim.System.Specs.Amp.nActiveChannels+1) ;
 
-    if Params.isOptimizingAux
-        diAux = x1(2+Shim.System.Specs.Amp.nActiveChannels:end) ;
-    end
+    diAux = x1(2+Shim.System.Specs.Amp.nActiveChannels:end) ;
         
 end
 
