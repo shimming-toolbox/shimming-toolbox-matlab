@@ -265,6 +265,24 @@ clear Shim ;
 
 end
 % =========================================================================
+
+% function [ShimCopy] = copy( Shim )
+% %COPY  
+% % 
+% % ShimCopy = COPY( Shim )
+% ShimCopy = ShimOpt()
+% ShimCopy.img    = Shim.img ;
+% ShimCopy.Hdr    = Shim.Hdr ;
+% ShimCopy.Field  = Shim.Field.copy() ;
+%
+% ShimCopy.Model  = Shim.Model ;
+% ShimCopy.System = Shim.System ;
+%
+% ShimCopy.Tracker = Shim.Tracker.copyinert() ;
+% ShimCopy.Aux     = Shim.Aux.copy() ;
+%
+% end
+% =========================================================================
 function [] = resettoreference( Shim )
 %RESETTOREFERENCE  
 % 
@@ -934,10 +952,14 @@ f0VoiShimmed = f0 + mean( PredictedField.img( voi ) ) ;
 
 end
 % =========================================================================
-function [currents] = optimizeshimcurrents( Shim, Params )
+function [Corrections] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESHIMCURRENTS 
 %
-% currents = OPTIMIZESHIMCURRENTS( Shim, Params )
+% Corrections = OPTIMIZESHIMCURRENTS( Shim, Params )
+%
+% Corrections.static
+%
+% Corrections.realtime
 
 % TODO: write usage
 % Params can have the following fields 
@@ -956,10 +978,6 @@ function [currents] = optimizeshimcurrents( Shim, Params )
 %       Field entries corresponding to lower weighting coefficients receive
 %       less consideration in the shim optimization. 
 %       [default: ones(size(Shim.Field.img))]
-%   
-%   .Inspired.medianP
-%   .Expired.medianP
-%       Scalar values
 
 % DEFAULT_REGULARIZATIONPARAMETER     = 0; % deprecated
 DEFAULT_ISRETURNINGPSEUDOINVERSE       = false ;
@@ -1083,11 +1101,11 @@ if Params.isRealtimeShimming
 
     assert( myisfield( Shim.Field.Model, 'Riro') && ~isempty( Shim.Field.Model.Riro.img ) ) 
     
-    % change to Params.minP and Params.maxP
-    pIn = Params.pMax 
-    pEx = Params.pMin 
-    dp  = Shim.Field.Model.Riro.Aux.Tracker.Data.p
-
+    pMax = Params.pMax ; % max relevant/recorded pressure (e.g. ~inspired state)
+    pMin = Params.pMin ; % min relevant/recorded pressure (e.g. ~expired state) 
+    dp   = Shim.Field.Model.Riro.Aux.Tracker.Data.p ; % delta pressure shift to which input Riro has been scaled
+    % i.e. Riro = dp * ( Inspired_Field - Expired_Field )/( inspired_pressure - expired_pressure )
+    
 end
 
 
@@ -1300,12 +1318,14 @@ Shim.Aux.Model.currents             = i0Aux ;
 Params.activeStaticChannelsMaskAux  = Params.activeStaticChannelsMask(2+length(i0):end) ;
 Shim.Aux.Model.currents( ~Params.activeStaticChannelsMaskAux ) = Shim.Aux.System.currents( ~Params.activeStaticChannelsMaskAux ) ;
 
-currents = [ Shim.Model.Tx.imagingFrequency; Shim.Model.currents; Shim.Aux.Model.currents ] ;
+Corrections.static = [ Shim.Model.Tx.imagingFrequency; Shim.Model.currents; Shim.Aux.Model.currents ] ;
 
 if Params.isRealtimeShimming
     Shim.Model.Tx.couplingCoefficients  = dfo/dp ; % resp-induced shift [units: Hz/unit-pressure]
     Shim.Model.couplingCoefficients     = di/dp ;
     Shim.Aux.Model.couplingCoefficients = diAux/dp ;
+
+    Corrections.realtime = [Shim.Model.Tx.couplingCoefficients Shim.Model.couplingCoefficients Shim.Aux.Model.couplingCoefficients] ; 
 end
 
 % -------
@@ -1318,57 +1338,52 @@ fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
 
 % [table units: mA]
 i0 = i0*1000 ;     
+
 if Params.isRealtimeShimming
     di = di*1000 ;
 else
-    di = zeros( size( i0 ) ) ;
+    dfo = 0 ;
+    di  = zeros( size( i0 ) ) ;
+    diAux = zeros( size( i0Aux ) ) ;
 end
+
+x0 = [ fo0; i0; i0Aux; ] ;
+dx = [ dfo; di; diAux; ] ;
 
 Correction_Term = {'Tx Freq. (Hz)'} ;
-Original        = round( Shim.Field.Hdr.ImagingFrequency*1E6, 9, 'significant' ) ;
-
-if Params.isOptimizingStaticTxFrequency
-    Optimal = round( Shim.Model.Tx.imagingFrequency, 9, 'significant' ) ;
-    Update  = round( fo0, 6, 'significant' ) ;
-else
-    Optimal  = NaN ;
-    Update   = NaN ;
-end
-
-if Params.isOptimizingDynamicTxFrequency
-    Realtime       = round( dfo, 4, 'significant' ) ;
-    Relative_Power = round( 100*((dfo/fo0).^2), 4, 'significant' ) ;
-else
-    Realtime       = 0 ;
-    Relative_Power = 0 ;
-end
 
 for iCh = 1 : length(i0)
     Correction_Term(end+1) = { [ Shim.System.Specs.Id.systemName ' ' Shim.System.Specs.Id.channelNames{iCh} ' (mA)'] } ;
 end
 
-Original = [ Original ; round( 1000*Shim.System.currents ) ] ; % [units: mA]
-Optimal  = [ Optimal ; round(i0) ] ; 
-Update   = [ Update ; round(i0 - 1000*Shim.System.currents) ] ;
-Realtime = [ Realtime ; round( di) ] ; 
-Relative_Power = [ Relative_Power ; round( 100*((di./i0).^2), 4, 'significant') ] ;
-
-
 for iCh = 1 : length(i0Aux)  
     Correction_Term(end+1) = { [ Shim.Aux.System.Specs.Id.systemName ' ' Shim.Aux.System.Specs.Id.channelNames{iCh} ' (D.U.)'] } ;
 end
 
-Original = [ Original ; round(Shim.Aux.System.currents, 4, 'significant') ] ;
-Optimal  = [ Optimal ; round(i0Aux, 4, 'significant') ] ;
-Update   = [ Update ; round((i0Aux - Shim.Aux.System.currents), 4, 'significant') ] ;
-if ~Params.isRealtimeShimming
-    diAux = zeros( size( i0Aux ) ) ;
-end
-Realtime = [ Realtime ; round( diAux, 4, 'significant') ] ;
-Relative_Power = [ Relative_Power ; round( 100*((diAux./i0Aux ).^2), 4, 'significant') ] ;
+Original = [ round( Shim.Field.Hdr.ImagingFrequency*1E6, 9, 'significant' ) ; ... 
+             round( 1000*Shim.System.currents ) ; ... % [units: mA] 
+             round(Shim.Aux.System.currents, 4, 'significant') ] ; 
+
+Optimal = [ round( Shim.Model.Tx.imagingFrequency, 9, 'significant' ) ; ...
+            round(i0) ; ...
+            round(i0Aux, 4, 'significant') ] ; 
 
 Optimal( ~Params.activeStaticChannelsMask ) = NaN ;
+
+Update  = [ round( fo0, 6, 'significant' ) ; ...
+            round(i0 - 1000*Shim.System.currents) ; ...
+            round((i0Aux - Shim.Aux.System.currents), 4, 'significant') ] ;
+
 Update( ~Params.activeStaticChannelsMask )  = NaN ;
+
+Realtime       = round( dx, 4, 'significant' ) ;
+
+% relative power: RIRO / static
+relativePower = 100*(dx./x0).^2 ;
+relativePower( isnan( relativePower ) ) = 0 ;
+
+Relative_Power = round( relativePower, 4, 'significant' ) ;
+
 
 T.Correction_Term = char( Correction_Term ) ;
 T.Original        = Original ;
@@ -1463,12 +1478,12 @@ if Params.isRealtimeShimming
     
     dxdp = dx/dp ;
     
-    % inspired Currents ok?
-    [C_in, ~] = checknonlinearconstraints_static( x0 + ( dxdp * pIn ) ) ;
-    % expired Currents ok?
-    [C_ex, ~] = checknonlinearconstraints_static( x0 + ( dxdp * pEx ) ) ;
+    % currents for max recorded pressure ok? (e.g. ~inspired state)
+    [C_pMax, ~] = checknonlinearconstraints_static( x0 + ( dxdp * pMax ) ) ;
+    % currents for min recorded pressure ok? (e.g. ~expired state)
+    [C_pMin, ~] = checknonlinearconstraints_static( x0 + ( dxdp * pMin ) ) ;
     
-    C = [C ; C_in ; C_ex] ;
+    C = [C ; C_pMax ; C_pMin] ;
     
 end
 

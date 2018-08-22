@@ -72,14 +72,12 @@ end
 
 end
 % =========================================================================
-function [currents] = optimizeshimcurrents( Shim, Params )
+function [Corrections] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESHIMCURRENTS 
 %
-% currents = OPTIMIZESHIMCURRENTS( Shim, Params )
+% Corrections = OPTIMIZESHIMCURRENTS( Shim, Params )
 %   
 % Params can have the following fields 
-%   .isOptimizingAux
-%       [default: false]
 %
 %   .maxCorrectionPerChannel
 %       [default: determined by ShimSpecsAcdc property: .Amp.maxCurrentPerChannel]
@@ -87,14 +85,8 @@ function [currents] = optimizeshimcurrents( Shim, Params )
 %   .minCorrectionPerChannel
 %       [default: -.maxCorrectionPerChannel]
 
-DEFAULT_ISOPTIMIZINGAUX = false ;
-
 if nargin < 2 
     Params.dummy = [];
-end
-
-if ~myisfield( Params, 'isOptimizingAux') || isempty( Params.isOptimizingAux )
-    Params.isOptimizingAux = DEFAULT_ISOPTIMIZINGAUX ;
 end
 
 % if ~myisfield( Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectionPerChannel ) 
@@ -105,7 +97,7 @@ end
 %     Params.minCorrectionPerChannel = -Params.maxCorrectionPerChannel ; 
 % end
 
-currents = optimizeshimcurrents@ShimOpt( Shim, Params ) ;
+Corrections = optimizeshimcurrents@ShimOpt( Shim, Params ) ;
 
 end
 % =========================================================================

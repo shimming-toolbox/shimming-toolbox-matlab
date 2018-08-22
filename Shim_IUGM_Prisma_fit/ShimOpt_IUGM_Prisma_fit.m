@@ -56,11 +56,10 @@ end
 
 end
 % =========================================================================
-function [currents] = optimizeshimcurrents( Shim, Params )
+function [Corrections] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESHIMCURRENTS 
 %
-% currents = OPTIMIZESHIMCURRENTS( Shim, Params )
-% [currentsInspired, currentsExpired] = OPTIMIZESHIMCURRENTS( Shim, Params, FieldExpired )
+% Corrections = OPTIMIZESHIMCURRENTS( Shim, Params )
 %   
 % Params can have the following fields 
 %   
@@ -71,9 +70,9 @@ if nargin < 2
     Params.dummy = [];
 end
 
-currents = optimizeshimcurrents@ShimOpt( Shim, Params, @checknonlinearconstraints ) ;
+Corrections = optimizeshimcurrents@ShimOpt( Shim, Params, @checknonlinearconstraints ) ;
 
-function [C, Ceq] = checknonlinearconstraints( currents )
+function [C, Ceq] = checknonlinearconstraints( corrections )
 %CHECKNONLINEARCONSTRAINTS 
 %
 % Check current solution satisfies nonlinear system constraints
@@ -86,7 +85,8 @@ function [C, Ceq] = checknonlinearconstraints( currents )
     
     Ceq = [];
     % check on abs current per channel
-    C = abs(currents) - Params.maxCurrentPerChannel ;
+    C = abs( corrections ) - Params.maxCurrentPerChannel ;
+
 end
 
 end

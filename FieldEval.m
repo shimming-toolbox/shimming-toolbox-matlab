@@ -566,8 +566,10 @@ function [Riro] = getriro( Field, p )
 % to tracker measurement p assuming the linear field model 
 % (i.e. Riro[ p(t) ] ).
 %
-% If nargin == 1, Riro is simply a copy of Field.Model.Riro 
+% If nargin == 1, Riro is a copy of Field.Model.Riro 
 % (e.g. inspired-expired field difference);
+
+assert( myisfield( Field.Model, 'Riro' ) && ~isempty( Field.Model.Riro ) ) ;
 
 Riro = Field.Model.Riro.copy() ;
 
@@ -580,6 +582,30 @@ if nargin == 2
 
     Riro.img = dfdp*dp ;
     Riro.Aux.Tracker.Data.p = p ;
+end
+
+end
+% =========================================================================
+function [] = chartriro( Field, p )
+%CHARTRIRO
+%
+% [] = CHARTRIRO( Field )
+% [] = CHARTRIRO( Field, p )
+%
+assert( myisfield( Field.Model, 'Riro' ) && ~isempty( Field.Model.Riro ) ) ;
+
+dbstop in FieldEval at 599
+
+pR = resample( p, 30, 100 ) ; % resample from 100 to 30 Hz
+pR = medfilt1( pR, 5 ) ;
+
+nFrames = length( pR ) ;
+riro = zeros( [ Field.Model.Riro.getgridsize() nFrames ] ) ;
+
+for iFrame = 1 : nFrames
+    iFrame/nFrames
+    iRiro = Field.getriro( pR( iFrame ) ) ;
+    riro(:,:,:, iFrame) = iRiro.img ;    
 end
 
 end
