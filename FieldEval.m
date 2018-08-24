@@ -269,7 +269,7 @@ Stats.norm      = norm( Field.img( voi ), 2 ) ;
 Stats.meanAbs   = mean( abs( Field.img( voi ) ) ) ;
 Stats.medianAbs = median( abs( Field.img( voi ) ) ) ;
 
-if nargin == 3 || ischar( filename ) 
+if nargin == 3 && ischar( filename ) 
     measure = {'Volume (cm^3)'; 'Mean (Hz)' ; 'Median (Hz)' ; 'St. dev. (Hz)' ; 'Norm (Hz)' ; 'Mean[abs.] (Hz)'; 'Median[abs.] (Hz)'} ;
     value   = num2str([ Stats.volume ; Stats.mean ; Stats.median ; Stats.std ; Stats.norm ; Stats.meanAbs ; Stats.medianAbs ], 4 ) ;
     writetable( table( measure, value ), filename ) ;
