@@ -595,7 +595,8 @@ function UO = getupdateoperator( Shim )
 
 A = Shim.getshimoperator ;
 M = Shim.gettruncationoperator ;
-c = Shim.Model.couplingCoefficients ;
+c = Shim.forwardmodelshimcorrection( Shim.Model.couplingCoefficients ) ;
+c = c(:) ;
 
 X  = (A'*M'*M*A)\A'*M'*M ;
 UO = X*c ;
@@ -845,7 +846,6 @@ assert( ~isempty( Shim.Model.currents ), ...
     'Requires valid set of shim currents in Shim.Model.currents to predict shim field.' ) ;
 
 PredictedField     = Shim.Field.copy() ;
-    
 shimCurrentsUpdate = Shim.Model.currents - Shim.System.currents ;
 Shim.Model.field   = Shim.forwardmodelshimcorrection( shimCurrentsUpdate ) ;
 
@@ -1257,7 +1257,6 @@ end
     
 
 
-
 % ------- 
 % linear optimization 
 
@@ -1271,7 +1270,7 @@ x = cgls( A'*A, ... % least squares operator
           CgParams ) ;
 
 % check linear solution
-isCurrentSolutionOk = all( checknonlinearconstraints_default( x ) < 0 ) ;
+isCurrentSolutionOk = all( checknonlinearconstraints_default( x ) <= 0 ) ;
 
 % ------- 
 % nonlinear optimization
@@ -1325,7 +1324,7 @@ if Params.isRealtimeShimming
     Shim.Model.couplingCoefficients     = di/dp ;
     Shim.Aux.Model.couplingCoefficients = diAux/dp ;
 
-    Corrections.realtime = [Shim.Model.Tx.couplingCoefficients Shim.Model.couplingCoefficients Shim.Aux.Model.couplingCoefficients] ; 
+    Corrections.realtime = [Shim.Model.Tx.couplingCoefficients; Shim.Model.couplingCoefficients; Shim.Aux.Model.couplingCoefficients] ; 
 end
 
 % -------
