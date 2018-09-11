@@ -1,5 +1,5 @@
-classdef ShimSpecsAcdc < ShimSpecs
-%SHIMSPECSACDC
+classdef ShimSpecs_Greg < ShimSpecs
+%SHIMSPECS_GREG
 % 
 % Shim System Specifications for the AC/DC neck coil
 %
@@ -7,7 +7,7 @@ classdef ShimSpecsAcdc < ShimSpecs
 %   
 % Usage
 %
-% Specs = ShimSpecsAcdc(  )
+% Specs = ShimSpecs_Greg(  )
 %
 %   Specs contains fields
 %
@@ -36,7 +36,7 @@ classdef ShimSpecsAcdc < ShimSpecs
 %    ShimTest 
 %    ShimUse
 %     
-%    ShimSpecsAcdc is a ShimSpecs subclass
+%    ShimSpecs_Greg is a ShimSpecs subclass
 %
 % =========================================================================
 % Updated::20180821::ryan.topfer@polymtl.ca
@@ -50,7 +50,7 @@ end
 % =========================================================================
 methods
 % =========================================================================
-function Shim = ShimSpecsAcdc(  )
+function Shim = ShimSpecs_Greg(  )
 %SHIMSPECS - Shim System Specifications 
 
 Shim.Id.systemName   = 'Greg' ;

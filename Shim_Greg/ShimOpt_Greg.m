@@ -1,7 +1,7 @@
-classdef ShimOpt_Acdc < ShimOpt
-%SHIMOPT_ACDC - Shim Optimization for Ac/Dc 8 channel array (cervical spine shim)
+classdef ShimOpt_Greg < ShimOpt
+%SHIMOPT_GREG - Shim Optimization for Ac/Dc 8 channel array (cervical spine shim)
 %
-% ShimOpt_Acdc is a ShimOpt subclass 
+% ShimOpt_Greg is a ShimOpt subclass 
 %     
 % =========================================================================
 % Updated::20180726::ryan.topfer@polymtl.ca
@@ -23,27 +23,27 @@ classdef ShimOpt_Acdc < ShimOpt
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOpt_Acdc( Params, Field )
-%SHIMOPT_ACDC - Shim Optimization
+function Shim = ShimOpt_Greg( Params, Field )
+%SHIMOPT_GREG - Shim Optimization
 
 Shim.img   = [] ;
 Shim.Hdr   = [] ;
 Shim.Field = [] ;       
 Shim.Model = [] ;
 Shim.Aux   = [] ;
-Shim.System.Specs    = ShimSpecsAcdc() ; 
+Shim.System.Specs    = ShimSpecs_Greg() ; 
 Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
 
 if nargin < 1 || isempty( Params ) 
     Params.dummy = [] ;
 end
 
-Params = ShimOpt_Acdc.assigndefaultparameters( Params ) ;
+Params = ShimOpt_Greg.assigndefaultparameters( Params ) ;
 
 if Params.isCalibratingReferenceMaps
     
-    Params = ShimOpt_Acdc.declarecalibrationparameters( Params ) ;
-    [ Shim.img, Shim.Hdr ] = ShimOpt_Acdc.calibratereferencemaps( Params ) ;
+    Params = ShimOpt_Greg.declarecalibrationparameters( Params ) ;
+    [ Shim.img, Shim.Hdr ] = ShimOpt_Greg.calibratereferencemaps( Params ) ;
 
 elseif ~isempty( Params.pathToShimReferenceMaps )
 
@@ -80,7 +80,7 @@ function [Corrections] = optimizeshimcurrents( Shim, Params )
 % Params can have the following fields 
 %
 %   .maxCorrectionPerChannel
-%       [default: determined by ShimSpecsAcdc property: .Amp.maxCurrentPerChannel]
+%       [default: determined by ShimSpecs_Greg property: .Amp.maxCurrentPerChannel]
 %
 %   .minCorrectionPerChannel
 %       [default: -.maxCorrectionPerChannel]
@@ -143,7 +143,7 @@ if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimR
         today = datestr( now, 30 ) ;
         today = today(1:8) ; % ignore the time of the day
         Params.pathToShimReferenceMaps = [ '~/Projects/Shimming/Static/Calibration/Data/' ...
-                        'ShimReferenceMaps_' 'Acdc_' today ] ;
+                        'ShimReferenceMaps_' 'Greg_' today ] ;
     else
         Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
     end
@@ -440,7 +440,7 @@ end
 %
 % nImgPerCurrent = 2 ; % = 1 mag image + 1 phase
 %
-% % dbstop in ShimOpt_Acdc at 326
+% % dbstop in ShimOpt_Greg at 326
 % disp( ['Preparing shim calibration...' ] )        
 %
 % for iChannel = 1 : Params.nChannels
