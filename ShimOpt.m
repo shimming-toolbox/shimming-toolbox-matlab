@@ -444,19 +444,11 @@ function [] = interpolatetoimggrid( Shim, Field )
 [X0, Y0, Z0] = Shim.getvoxelpositions ;
 
 % Private header field indicating absolute position of table [units: mm?]
-if ~myisfield( Field.Hdr, 'Private_0019_1013' ) 
-    % TODO
-    % none of this table pos. stuff matters for the ac/dc array and is all deprecated anyway: use siemens shadow hdr fields for table pos.
-    % Tmp fix, merely copy in case i've planted an error flag somewhere else for an empty entry:
-    Field.Hdr.Private_0019_1013 = Shim.Hdr.Private_0019_1013 ;
-end
-
 % --------------tablePos0-----
-tablePos0 = double( Shim.Hdr.Private_0019_1013 ) ;
+tablePos0 = double( Shim.Hdr.Img.ImaAbsTablePosition ) ;
 
 % -----tablePos1--------------
-tablePos1 = double( Field.Hdr.Private_0019_1013 ) ;
-
+tablePos1 = double( Field.Hdr.Img.ImaAbsTablePosition ) ;
 
 % tablePos0 empty if Shim refers to the scanner shims (spatially fixed)
 % if ~isempty( tablePos0 )  
@@ -480,6 +472,7 @@ tablePos1 = double( Field.Hdr.Private_0019_1013 ) ;
 %     end
 %
 % end
+
 % -------
 % check if voxel positions already happen to coincide. if they do, don't interpolate (time consuming).
 if any( size(X) ~= size(X0) ) || any( X0(:) ~= X(:) ) || any( Y0(:) ~= Y(:) ) || any( Z0(:) ~= Z(:) )
@@ -964,11 +957,6 @@ function [Corrections] = optimizeshimcurrents( Shim, Params )
 % TODO: write usage
 % Params can have the following fields 
 %
-%   .isOptimizingStaticTxFrequency
-%       [default: TRUE]
-%
-%   .isOptimizingDynamicTxFrequency
-%       [default: FALSE]
 %   
 %   .maxCurrentPerChannel
 %       [default defined as the .Amp.maxCurrentPerChannel property in the ShimSpecs_ [sub]class definition]
@@ -1005,18 +993,6 @@ if ~myisfield(Params, 'isReturningPseudoInverse') || isempty( Params.isReturning
     Params.isReturningPseudoInverse = DEFAULT_ISRETURNINGPSEUDOINVERSE ; 
 end
 
-
-
-if ~myisfield(Params, 'isOptimizingStaticTxFrequency') || isempty( Params.isOptimizingStaticTxFrequency )
-    Params.isOptimizingStaticTxFrequency = DEFAULT_ISOPTIMIZINGSTATICTXFREQUENCY ;
-end
-
-if ~myisfield(Params, 'isOptimizingDynamicTxFrequency') || isempty( Params.isOptimizingDynamicTxFrequency )
-    Params.isOptimizingDynamicTxFrequency = DEFAULT_ISOPTIMIZINGDYNAMICTXFREQUENCY ;
-end
-
-
-
 if ~myisfield(Params, 'maxPositiveTxFrequencyShift') || isempty( Params.maxPositiveTxFrequencyShift )
     % max + freq. shift relative to original Larmor
     Params.maxPositiveTxFrequencyShift = DEFAULT_MAXTXFREQUENCY - double(Shim.Field.Hdr.ImagingFrequency)*1E6 ;
@@ -1027,21 +1003,19 @@ if ~myisfield(Params, 'maxNegativeTxFrequencyShift') || isempty( Params.maxNegat
     Params.maxNegativeTxFrequencyShift = DEFAULT_MINTXFREQUENCY - double(Shim.Field.Hdr.ImagingFrequency)*1E6 ;
 end
 
-
-
 assert( ~isempty( Shim.Aux ) )
 
 % total active channels across systems
 Params.nActiveChannels = 1 + Shim.System.Specs.Amp.nActiveChannels + Shim.Aux.System.Specs.Amp.nActiveChannels ; % +1 for freq. adjust
 
 if ~myisfield(Params, 'activeStaticChannelsMask') || isempty( Params.activeStaticChannelsMask )
-    Params.activeStaticChannelsMask = [ Params.isOptimizingStaticTxFrequency ; ...
+    Params.activeStaticChannelsMask = [ DEFAULT_ISOPTIMIZINGSTATICTXFREQUENCY ; ...
                                         Shim.System.Specs.Amp.staticChannels(:) ; ...
                                         Shim.Aux.System.Specs.Amp.staticChannels(:) ; ] ;
 end
     
 if ~myisfield(Params, 'activeDynamicChannelsMask') || isempty( Params.activeDynamicChannelsMask )
-    Params.activeDynamicChannelsMask = [ Params.isOptimizingDynamicTxFrequency ; ...
+    Params.activeDynamicChannelsMask = [ DEFAULT_ISOPTIMIZINGDYNAMICTXFREQUENCY ; ...
                                          Shim.System.Specs.Amp.dynamicChannels(:) ; ...
                                          Shim.Aux.System.Specs.Amp.dynamicChannels(:) ; ] ;
 end
@@ -1305,11 +1279,12 @@ end
 [ fo0, i0, i0Aux, dfo, di, diAux] = splitsolutionvector( x ) ;
 
 
+% dbstop in ShimOpt at 1309
 Shim.Model.Tx.imagingFrequency      = fo0 + (Shim.Field.Hdr.ImagingFrequency*1E6) ; % DC avg. [units: Hz]
 
 Shim.Model.currents                 = i0 ;
 % replace inactive terms with their initial values: TODO reorganize
-Params.activeStaticChannelsMaskMc   = Params.activeStaticChannelsMask(2:2+length(i0)) ;
+Params.activeStaticChannelsMaskMc   = Params.activeStaticChannelsMask(2:(length(i0)+1)) ;
 Shim.Model.currents( ~Params.activeStaticChannelsMaskMc ) = Shim.System.currents( ~Params.activeStaticChannelsMaskMc ) ;
 
 Shim.Aux.Model.currents             = i0Aux ;
