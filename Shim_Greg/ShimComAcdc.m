@@ -45,7 +45,7 @@ function Shim = ShimComAcdc( Specs )
 %SHIMCOM - Shim Communication
 
 if nargin < 2 || isempty( Specs ) 
-    Shim.Specs = ShimSpecsAcdc( );
+    Shim.Specs = ShimSpecs_Greg( );
 end
 
 Shim.ComPort = ShimComAcdc.initializecomport( Shim.Specs ) ;
