@@ -16,7 +16,7 @@ classdef ShimUse < matlab.mixin.SetGet
 % Params
 %   
 %   .shimSystem 
-%       'Acdc' or 'Rri' [default]
+%       'Greg' or 'Rri' [default]
 %
 %   .pathToShimReferenceMaps
 %   
@@ -109,12 +109,12 @@ Shim.uiconfirmdataloaddir( ) ;
 
 switch Shim.Params.shimSystem
     
-    case 'Rri'
+    case 'Rriyan'
         Shim.Opt = ShimOptRri( Shim.Params ) ;
         Shim.Com = ShimComRri( ) ;
 
-    case 'Acdc'
-        Shim.Opt = ShimOpt_Acdc( Shim.Params ) ;
+    case 'Greg'
+        Shim.Opt = ShimOpt_Greg( Shim.Params ) ;
         Shim.Com = ShimComAcdc( ) ;
     
     case 'UnfPrisma'
