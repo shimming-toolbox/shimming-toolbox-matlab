@@ -610,6 +610,28 @@ end
 
 end
 % =========================================================================
+function [] = scalefieldstrength( Field, B01 )
+%SCALEFIELDSTRENGTH
+%
+% [] = SCALEFIELDSTRENGTH( Field, B01 )
+%
+% Scales Field (and, if present, FieldEval objects within Field.Model) to
+% new (scanner) "main" field strength B01.
+
+B00 = Field.Hdr.MrProt.sProtConsistencyInfo.flNominalB0 ; % original field [units: Tesla]
+
+Field.img = Field.img * (B01/B00) ; % update field [units: Hz] 
+Field.Hdr.MrProt.sProtConsistencyInfo = B01 ; % update header
+
+if myisfield( Field.Model, 'Riro' )
+    Field.Model.Riro.scalefieldstrength( B01 ) ;
+end
+if myisfield( Field.Model, 'Zero' )
+    Field.Model.Zero.scalefieldstrength( B01 ) ;
+end
+
+end
+% =========================================================================
 
 end
 % =========================================================================
@@ -800,7 +822,7 @@ if nEchoes == 1 % 2 echoes acquired but only 1 input (phase *difference* image)
 else
 
     % -------
-    % phase difference image via complex division
+    % phase difference image via complex division of first 2 echoes
     PhaseDiff      = ImgArray{ 1, 2}.copy() ;
 
     img            = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
@@ -818,7 +840,44 @@ PhaseDiff.Hdr.MaskingImage = logical( Params.mask ) & ~isnan( PhaseDiff.img ) ;
 % 3d path-based unwrapping
 PhaseDiff = PhaseDiff.unwrapphase( ImgArray{1,1}, Params ) ;
 
-Field     = FieldEval( PhaseDiff.scalephasetofrequency( ) ) ;
+if nEchoes <= 2
+    Field     = FieldEval( PhaseDiff.scalephasetofrequency( ) ) ;
+elseif nEchoes > 2
+dbstop in FieldEval at 825
+display('here')
+% Unwrap later echoes using the phase difference/TE estimate from the 1st 2
+% echoes, assuming a linear model of phase evolution with TE
+% As described by Juchem C., Proc. Intl. Soc. Mag. Reson. Med. 21 (2013):
+% See recorded presentation, around 13:50:
+% https://cds.ismrm.org/protected/13MPresentations/E071/
+% https://cds.ismrm.org/protected/13MPresentations/abstracts/7298.pdf
+
+    PhaseTE = cell( nEchoes, 1 ) ;
+
+    % unwrap phases 
+    for iEcho = 1 : 2
+        PhaseTE{iEcho} = ImgArray{ iEcho, 2}.copy() ;
+        PhaseTE{iEcho}.Hdr.MaskingImage = PhaseDiff.Hdr.MaskingImage ;
+        PhaseTE{iEcho} = PhaseTE{iEcho}.unwrapphase( ImgArray{iEcho, 1}, Params ) ;
+    end
+
+    % phase @ TE = 0
+    PhaseOffset     = PhaseDiff.copy() ;
+    PhaseOffset.img = PhaseTE{1}.img - ...
+        (ImgArray{ 1, 2 }.Hdr.EchoTime/PhaseDiff.Hdr.EchoTime)*PhaseDiff.img ; 
+
+    for iEcho = 3 : 3 % nEchoes
+        phaseEstimate = PhaseOffset.img + ImgArray{ iEcho, 2 }.Hdr.EchoTime*PhaseDiff.img ;
+        
+        % phase @ iEcho
+        PhaseTE{iEcho} = ImgArray{ iEcho, 2 }.copy() ;
+        PhaseTE{iEcho}.Hdr.MaskingImage = PhaseDiff.Hdr.MaskingImage ;
+        PhaseTE{iEcho} = PhaseTE{iEcho}.unwrapphase( ImgArray{ iEcho, 1}, Params ) ;
+
+        nii( PhaseTE{3}.img - phaseEstimate ) ;
+    end
+
+end
 
 if Params.isFilteringField
 
