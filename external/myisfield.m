@@ -32,11 +32,16 @@ function isFieldResult = myisfield (inStruct, fieldName)
 % CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 % ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 % POSSIBILITY OF SUCH DAMAGE.
-isFieldResult = 0;
+
+% Updated::20181003::ryan.topfer@polymtl.ca
+isFieldResult = false;
+if isempty(inStruct)
+    return
+end
 f = fieldnames(inStruct(1));
 for i=1:length(f)
 if(strcmp(f{i},strtrim(fieldName)))
-isFieldResult = 1;
+isFieldResult = true;
 return;
 elseif isstruct(inStruct(1).(f{i}))
 isFieldResult = myisfield(inStruct(1).(f{i}), fieldName);
@@ -45,4 +50,3 @@ return;
 end
 end
 end
-
