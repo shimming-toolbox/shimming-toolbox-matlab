@@ -105,7 +105,9 @@ end
 
 Shim.Params = ShimUse.assigndefaultparameters( Params ) ;
 
-Shim.uiconfirmdataloaddir( ) ;
+if Shim.Params.isConfirmingDataLoadDir
+    Shim.uiconfirmdataloaddir( ) ;
+end
 
 switch Shim.Params.shimSystem
     
@@ -119,6 +121,10 @@ switch Shim.Params.shimSystem
     
     case 'UnfPrisma'
         Shim.Opt = ShimOpt_IUGM_Prisma_fit( Shim.Params ) ;
+        Shim.Com = [] ;
+    
+    case 'Des' % i.e. shim design, a virtual shim system
+        Shim.Opt = ShimOpt_Des( Shim.Params ) ;
         Shim.Com = [] ;
 
     otherwise
@@ -291,8 +297,17 @@ for iFrame = 1 : Shim.Params.nTrainingFrames
             imgType = 'PHASE' ;
         end
 
-        if isempty( imgDirectories{ 1, iImg, iFrame } )
+        if ~isempty( imgDirectories{ 1, iImg, iFrame } )
+            
+            nDicomSubDirs = size( imgDirectories( :, iImg, iFrame ), 1 ) ;
+            
+            for iDicomSubDir = 1 : nDicomSubDirs
+                if ~isempty( imgDirectories{ iDicomSubDir, iImg, iFrame } )
+                    Shim.Data.Img{ iDicomSubDir, iImg, iFrame }  = MaRdI( imgDirectories{ iDicomSubDir, iImg, iFrame } ) ;
+                end
+            end
 
+        else % User prompt via GUI 
             uiBoxTitle = ['Select the ' imgType ' training data parent folder containing the echo_* DICOM subfolders.' ...
                 ' (gre_field_mapping training data set ' num2str(iFrame) ' of ' num2str(Shim.Params.nTrainingFrames) ')'] ;
             
@@ -806,9 +821,11 @@ function [ Params ] = assigndefaultparameters( Params )
 
 DEFAULT_ISDEBUGGING = false ; 
 
+DEFAULT_ISCONFIRMINGDATALOADDIR = true ; 
+
 DEFAULT_UIMODE      = 'isCmdLine' ;% vs. 'isGui'
 
-DEFAULT_SHIMSYSTEM  = 'Rri' ; 
+DEFAULT_SHIMSYSTEM  = 'Rriyan' ; 
 
 DEFAULT_ISLOGGINGCOMMANDS  = true ; 
 DEFAULT_COMMANDLOGFILENAME = ['commandLog_' datestr(now,30)] ;
@@ -820,6 +837,10 @@ DEFAULT_NECHOES              = 2 ;
 
 if ~myisfield( Params, 'isDebugging' ) || isempty( Params.isDebugging ) 
    Params.isDebugging = DEFAULT_ISDEBUGGING ;
+end
+
+if ~myisfield( Params, 'isConfirmingDataLoadDir' ) || isempty( Params.isConfirmingDataLoadDir ) 
+   Params.isConfirmingDataLoadDir = DEFAULT_ISCONFIRMINGDATALOADDIR ;
 end
 
 if ~myisfield( Params, 'uiMode' ) || isempty( Params.uiMode ) 
