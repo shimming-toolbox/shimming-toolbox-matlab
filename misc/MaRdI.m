@@ -11,10 +11,11 @@ classdef MaRdI < matlab.mixin.SetGet
 %   
 % Usage
 %
-% Img = MaRdI( imgDir )
-% Img = MaRdI( imgDir, Params )
+% Img = MaRdI( imgPath )
+% Img = MaRdI( imgPath, Params )
 % 
-% where imgDir is the directory containing the .dcm or .IMA images.
+% where imgPath is the path to a single .dcm image OR a directory containing
+% the .dcm or .IMA images.
 %
 % Img contains fields
 %
@@ -22,7 +23,7 @@ classdef MaRdI < matlab.mixin.SetGet
 %       Array of images (3D if there are multiple DICOMs in directory)
 %
 %   .Hdr
-%       Header of the first DICOM file read by dir( imgDir )
+%       Header of the first DICOM file read by dir( imgPath )
 %       
 %   .Aux
 %       Aux-objects: auxiliary measurements (e.g. PMU/respiratory probe tracking)
@@ -39,8 +40,9 @@ classdef MaRdI < matlab.mixin.SetGet
 %   parse-dicom Matlab functions
 %       https://github.com/Human-Connectome-Project/parse-dicom
 % etc.
+%
 % =========================================================================
-% Updated::20180711::ryan.topfer@polymtl.ca
+% Updated::20181010::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -55,70 +57,99 @@ end
 % =========================================================================    
 methods
 % =========================================================================    
-function Img = MaRdI( imgDir )
+function Img = MaRdI( imgPath )
 
 Img.img = [] ;
 Img.Hdr = [] ;
 Img.Aux = [] ;
     
-if nargin == 1 && ~isempty(imgDir)
-
-    listOfImages = dir( [ imgDir '/*.dcm'] );
-
-    if length(listOfImages) == 0
-        % try .IMA
-        listOfImages = dir( [imgDir '/*.IMA'] ) ;
-    end
+if nargin == 1 
     
-    assert( length(listOfImages) ~= 0, 'No .dcm or .IMA files found in given directory' ) ;
-
-    Img.Hdr = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(1).name] ) ;
-
-    Img.Hdr.NumberOfSlices = uint16( length(listOfImages) ) ; 
-    
-    for sliceIndex = 1 : Img.Hdr.NumberOfSlices
-        Img.img(:,:,sliceIndex) = double( dicomread( [ imgDir '/' listOfImages(sliceIndex).name] ) );
-    end
-
-    Params = [] ;
-
-    if ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
+    if ( exist( imgPath  ) == 7 ) % input is an image directory (hopefully containing dicoms)
         
-        Params.isNormalizingMagnitude = false ;        
-        Img = reshapemosaic( Img ) ;
+        imgDir = imgPath ; 
 
+        listOfImages = dir( [ imgDir '/*.dcm'] );
+
+        if length(listOfImages) == 0
+            % try .IMA
+            listOfImages = dir( [imgDir '/*.IMA'] ) ;
+        end
+        
+        assert( length(listOfImages) ~= 0, 'No .dcm or .IMA files found in given directory' ) ;
+
+        Img.Hdr = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(1).name] ) ;
+
+        Img.Hdr.NumberOfSlices = uint16( length(listOfImages) ) ; 
+        
+        for sliceIndex = 1 : Img.Hdr.NumberOfSlices
+            Img.img(:,:,sliceIndex) = double( dicomread( [ imgDir '/' listOfImages(sliceIndex).name] ) );
+        end
+        
+        Params = [] ;
+
+        if ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
+            
+            Params.isNormalizingMagnitude = false ;        
+            Img = reshapemosaic( Img ) ;
+
+        end
+
+        Img = Img.scaleimgtophysical( Params ) ;   
+
+        if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
+            Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
+        end
+        
+        % % Temp. fix for determining voxel positions
+        % % TODO: determine voxel positions on an image-by-image basis (and, if necessary, reorder the slices!)
+        % % load Hdr of last image in directory
+        r = Img.Hdr.ImageOrientationPatient(4:6) ; 
+        c = Img.Hdr.ImageOrientationPatient(1:3) ; 
+
+        % estimate positions based on the 1st loaded image in the directory:
+        % 1. using
+        Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;  
+        [X1,Y1,Z1] = Img.getvoxelpositions() ;     
+        
+        % 2. using the reverse
+        Img.Hdr.Img.SliceNormalVector = cross( r, c ) ;  
+        [X2,Y2,Z2] = Img.getvoxelpositions() ; % estimate positions based on the 1st loaded image in the directory. 
+       
+        % the actual position corresponding to the slice direction can be increasing or decreasing with slice/image number
+        HdrLastSlice = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(Img.Hdr.NumberOfSlices).name] ) ;
+       
+        % which estimate is closer? 1 or 2? 
+        if norm( HdrLastSlice.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) < ...
+                norm( HdrLastSlice.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) ;    
+            % if true, then 1. corresponds to the correct orientation
+            Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;
+        end
+
+    elseif ( exist( imgPath ) == 2 ) % input may be a single dicom
+        
+        [~, ~, ext] = fileparts( imgPath ) ;
+        
+        assert( strcmp( ext, '.dcm' ) || strcmp( ext, '.IMA' ), ...
+            'Input must be a path string leading to a single dicom image OR to a dicom-containing folder' )
+
+            Img.img = double( dicomread( imgPath ) ) ;
+
+            Img.Hdr = MaRdI.dicominfosiemens( imgPath ) ;
+            Img.Hdr.NumberOfSlices = uint16( 1 ) ; 
+            
+            if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
+                Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
+            end
+            
+            % % Temp. fix for determining voxel positions
+            % % TODO: determine voxel positions on an image-by-image basis (and, if necessary, reorder the slices!)
+            % % load Hdr of last image in directory
+            r = Img.Hdr.ImageOrientationPatient(4:6) ; 
+            c = Img.Hdr.ImageOrientationPatient(1:3) ; 
+            Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;  
     end
 
-    Img = Img.scaleimgtophysical( Params ) ;   
-
-    if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
-        Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
-    end
-    
-    % % Temp. fix for determining voxel positions
-    % % TODO: determine voxel positions on an image-by-image basis (and, if necessary, reorder the slices!)
-    % % load Hdr of last image in directory
-    r = Img.Hdr.ImageOrientationPatient(4:6) ; 
-    c = Img.Hdr.ImageOrientationPatient(1:3) ; 
-
-    % estimate positions based on the 1st loaded image in the directory:
-    % 1. using
-    Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;  
-    [X1,Y1,Z1] = Img.getvoxelpositions() ;     
-    
-    % 2. using the reverse
-    Img.Hdr.Img.SliceNormalVector = cross( r, c ) ;  
-    [X2,Y2,Z2] = Img.getvoxelpositions() ; % estimate positions based on the 1st loaded image in the directory. 
-   
-    % the actual position corresponding to the slice direction can be increasing or decreasing with slice/image number
-    HdrLastSlice = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(Img.Hdr.NumberOfSlices).name] ) ;
-   
-    % which estimate is closer? 1 or 2? 
-    if norm( HdrLastSlice.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) < ...
-            norm( HdrLastSlice.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) ;    
-        % if true, then 1. corresponds to the correct orientation
-        Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;
-    end
 
 end
 
@@ -1245,7 +1276,7 @@ if  ~myisfield( Params, 'isForcingOverwrite' ) || isempty(Params.isForcingOverwr
     Params.isForcingOverwrite = DEFAULT_ISFORCINGOVERWRITE ;
 end
 
-Params.tmpSaveDir = [ Params.dataSaveDir '/tmp/' ] ;
+Params.tmpSaveDir = [ Params.dataSaveDir '/tmp_sct_' datestr(now, 30) '/'] ;
 
 % if ~Params.isForcingOverwrite & exist( Params.dataSaveDir )
 %     error('Params.dataSaveDir should not exist, or use input option Params.isForcingOverwrite == true')
