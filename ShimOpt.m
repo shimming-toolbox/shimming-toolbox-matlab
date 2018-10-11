@@ -1279,7 +1279,6 @@ end
 [ fo0, i0, i0Aux, dfo, di, diAux] = splitsolutionvector( x ) ;
 
 
-% dbstop in ShimOpt at 1309
 Shim.Model.Tx.imagingFrequency      = fo0 + (Shim.Field.Hdr.ImagingFrequency*1E6) ; % DC avg. [units: Hz]
 
 Shim.Model.currents                 = i0 ;
@@ -1383,7 +1382,7 @@ if Params.isSavingResultsTable
 
     % Shim.Field.write( [Params.mediaSaveDir '/field'], 'nii' ) ; 
 
-    Params.imgSlice     = 7 ; 
+    Params.imgSlice     = 5 ; 
     Params.scaling      = [ -100 100 ] ;
     Params.colormap     = 'default' ;
 
@@ -1394,7 +1393,7 @@ if Params.isSavingResultsTable
     MaRdI.writeimg( PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
     
     if Params.isRealtimeShimming
-        Params.scaling      = [ -10 10 ] ;
+        Params.scaling      = [ -5 5 ] ;
 
         filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
         Shim.Field.Model.Riro.assessfielddistribution( Params.assessmentVoi, filename ) ;
