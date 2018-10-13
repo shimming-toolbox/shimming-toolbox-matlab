@@ -1262,6 +1262,9 @@ DEFAULT_DATASAVEDIR        = './gre_seg/'
 DEFAULT_ISFORCINGOVERWRITE = false ;
 DEFAULT_ISUSINGPROPSEGCSF  = true ; %use the propseg -CSF option
 
+DEFAULT_CYLINDERSIZE       = 20 ;
+DEFAULT_GAUSSIANSIZE       = 20 ;
+
 if nargin < 1 || isempty(Params) || ~myisfield( Params, 'dataLoadDir' ) || isempty(Params.dataLoadDir)
     error('Function requires struct Params. with Params.dataLoadDir defined. See documentation.')
 end
@@ -1276,7 +1279,16 @@ if  ~myisfield( Params, 'isForcingOverwrite' ) || isempty(Params.isForcingOverwr
     Params.isForcingOverwrite = DEFAULT_ISFORCINGOVERWRITE ;
 end
 
-Params.tmpSaveDir = [ Params.dataSaveDir '/tmp_sct_' datestr(now, 30) '/'] ;
+if  ~myisfield( Params, 'cylinderSize' ) || isempty(Params.cylinderSize)
+    Params.cylinderSize = DEFAULT_CYLINDERSIZE ;
+end
+
+if  ~myisfield( Params, 'gaussianSize' ) || isempty(Params.gaussianSize)
+    Params.gaussianSize = DEFAULT_GAUSSIANSIZE ;
+end
+
+Params.tmpSaveDir = [ Params.dataSaveDir 'tmp_sct_' datestr(now, 30) '/'] ;
+mkdir( Params.tmpSaveDir )
 
 % if ~Params.isForcingOverwrite & exist( Params.dataSaveDir )
 %     error('Params.dataSaveDir should not exist, or use input option Params.isForcingOverwrite == true')
@@ -1302,11 +1314,13 @@ system( ['sct_maths -i ' Params.tmpSaveDir 't2s_allEchoes.nii.gz -mean t -o ' Pa
 system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2s.nii.gz -c t2s -ofolder ' Params.tmpSaveDir] ) ;
 
 system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p centerline,' ...
-    Params.tmpSaveDir 't2s_centerline_optic.nii.gz -size 20mm -f cylinder -o ' ...
+    Params.tmpSaveDir 't2s_centerline_optic.nii.gz -size ' ...
+    num2str(Params.cylinderSize) 'mm -f cylinder -o ' ...
     Params.tmpSaveDir 't2s_seg.nii.gz' ] ) ;
 
 system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p centerline,' ...
-    Params.tmpSaveDir 't2s_centerline_optic.nii.gz -size 40mm -f gaussian -o ' ...
+    Params.tmpSaveDir 't2s_centerline_optic.nii.gz -size ' ...
+    num2str(Params.gaussianSize) 'mm -f gaussian -o ' ...
     Params.tmpSaveDir 't2s_weights.nii.gz' ] ) ;
 
 % unzip the image volumes we wish to keep
