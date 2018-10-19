@@ -73,6 +73,7 @@ void loop() {
   //Declaration of global variables 
 
   int sch;
+  uint8_t iCh ;
   int element;
   int data;
   int i;
@@ -102,7 +103,7 @@ void loop() {
   switch (incomingByte) {
 
     case 'a':              // Update one channel input current 
-      uint8_t iCh = (Serial.parseInt()-1);
+      iCh = (Serial.parseInt()-1);
       //Serial.println(element);
       val = Serial.parseFloat();
       //Serial.println(val);
