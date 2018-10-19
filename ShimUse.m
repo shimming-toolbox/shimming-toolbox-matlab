@@ -240,7 +240,11 @@ function [] = loadandprocesstrainingdata( Shim, imgDirectories )
 %   Shim.loadtrainingdata( ) 
 %   Shim.processtrainingdata( )
 
-Shim.loadtrainingdata( ) ;
+if nargin == 1 || isempty( imgDirectories )
+    imgDirectories = [];
+end
+
+Shim.loadtrainingdata( imgDirectories ) ;
 Shim.processtrainingdata( ) ;
 
 end
@@ -305,6 +309,7 @@ for iFrame = 1 : Shim.Params.nTrainingFrames
                 if ~isempty( imgDirectories{ iDicomSubDir, iImg, iFrame } )
                     Shim.Data.Img{ iDicomSubDir, iImg, iFrame }  = MaRdI( imgDirectories{ iDicomSubDir, iImg, iFrame } ) ;
                 end
+            
             end
 
         else % User prompt via GUI 
@@ -366,6 +371,13 @@ function [] = processtrainingdata( Shim )
 % Shim.Data.Img{1,3,iFrame}.Aux.Tracker.Data.p
 Shim.Data.Img(1,3,:) = cell(1,1) ; % 3rd column for field maps
 
+if isempty( Shim.Params.isUserSelectionEnabled )
+    isUserSelectionEnabled = true ; % default
+else
+    assert( islogical( Shim.Params.isUserSelectionEnabled ) ) ;
+    isUserSelectionEnabled = Shim.Params.isUserSelectionEnabled ;
+end
+
 for iFrame = 1 : Shim.Params.nTrainingFrames
 
     ImgArray         = cell( 1, 2 ) ;
@@ -388,7 +400,7 @@ for iFrame = 1 : Shim.Params.nTrainingFrames
         % ------
         % extract a single scalar
         Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p = ...
-            ProbeTracked.userselectmedianmeasurement( Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p, nSamplesApnea ) ;
+            ProbeTracked.selectmedianmeasurement( Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p, nSamplesApnea, isUserSelectionEnabled ) ;
     end
     
 end

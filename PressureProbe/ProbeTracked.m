@@ -109,19 +109,19 @@ AuxTracking.plotmeasurementlog( pressureLog, Params ) ;
 
 end
 % =========================================================================
-function [medianPressure] = userselectmedianpressure( pressureLog )
-% USERSELECTMEDIANPRESSURE 
+function [medianPressure] = selectmedianpressure( pressureLog )
+% SELECTMEDIANPRESSURE 
 %
-% Wraps to AuxTracking.userselectmedianmeasurement()
+% Wraps to AuxTracking.selectmedianmeasurement()
 %
-% medianPressure = USERSELECTMEDIANPRESSURE( pressureLog ) 
+% medianPressure = SELECTMEDIANPRESSURE( pressureLog ) 
 %
 % Plots pressureLog and the user selects START and END (apnea) indices over
 % which to calculate the median. The median pressure is superposed over the
 % pressureLog graph and the user is asked if the result is satisfactory (or
 % redo).
 
-medianPressure = AuxTracking.userselectmedianmeasurement( pressureLog )
+medianPressure = AuxTracking.selectmedianmeasurement( pressureLog )
 
 end
 % =========================================================================

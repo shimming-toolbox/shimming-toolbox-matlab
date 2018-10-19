@@ -62,10 +62,14 @@ function Img = MaRdI( imgPath )
 Img.img = [] ;
 Img.Hdr = [] ;
 Img.Aux = [] ;
-    
+
 if nargin == 1 
     
-    if ( exist( imgPath  ) == 7 ) % input is an image directory (hopefully containing dicoms)
+    if ~exist( imgPath )
+        error( 'DICOM images not found. Check input path is valid.' ) ;
+        return;
+    
+    elseif ( exist( imgPath  ) == 7 ) % input is an image directory (hopefully containing dicoms)
         
         imgDir = imgPath ; 
 
@@ -732,6 +736,21 @@ Z1 = RS(3,1)*iRows + RS(3,2)*iColumns + RS(3,3)*iSlices;
 X = Img.Hdr.ImagePositionPatient(1) + X1 ; 
 Y = Img.Hdr.ImagePositionPatient(2) + Y1 ; 
 Z = Img.Hdr.ImagePositionPatient(3) + Z1 ; 
+
+end
+% =========================================================================
+function xyzIso = getisocenter( Img )
+%GETISOCENTER
+% 
+% xyzIso = GETISOCENTER( Img ) 
+%
+% Returns the 3-element vector of the x, y and z coordinates of the magnet
+% isocenter in the patient coordinate system
+
+xyzIso = Img.Hdr.Img.ImaRelTablePosition()' ;
+
+assert( xyzIso(1) == 0, 'Table shifted in L/R direction?' ) ;
+assert( xyzIso(2) == 0, 'Table shifted in A/P direction?' ) ;
 
 end
 % =========================================================================
@@ -1639,7 +1658,7 @@ end
 % Create figure
 % =========================================================================
 
-figure
+figure('units','normalized','outerposition',[0 0 1 1])
 
 imagesc( img, Params.scaling ) ; 
 colormap(Params.colormap); 

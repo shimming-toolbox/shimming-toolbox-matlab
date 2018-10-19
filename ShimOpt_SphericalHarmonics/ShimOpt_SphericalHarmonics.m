@@ -1,79 +1,26 @@
-classdef ShimOptSHarmonics < ShimOpt
+classdef ShimOpt_SphericalHarmonics < ShimOpt
 %SHIMOPTSHARMONICS - Shim optimization using spherical harmonic basis
 %
 % .......
 % 
 % Usage
 %
-% Shim = ShimOptSHarmonics( Params, Field )
+% Shim = ShimOpt_SphericalHarmonics( Params, Field )
 % 
 % Field is a MaRdI-type object representing the Field to be shimmed.
 %
 % Defaults 
-%
-% Params.isGeneratingBasis       = true ; 
 % 
 % Params.ordersToGenerate        = [0:2];
-% 
-% Params.pathToShimReferenceMaps = [] ; % if provided, then
-%   Params.isGeneratingBasis = false (spherical harmonic basis set is not
-%   generated)
-% 
-% Params.isInterpolatingReferencemaps = true ; % if true, the reference maps
-%   are automatically interpolated to the grid (voxel positions) of 'Field'
-%
-% Params.TrackerSpecs = [] ;
-%   .TrackerSpecs is a parameters struct for ProbeTracking(). See HELP
-%   ProbeTracking() for more information.
 %
 %   Shim contains fields
-%
-%       .img
-%           Shim reference maps
-%
-%       .Hdr
-%           Info Re: calibration data
-%           (e.g. Hdr.MaskingImage defines the spatial support of the ref maps)
-%
-%       .Field
-%           Object of type MaRdI pertaining to field distribution to be shimmed
-%
-%       .Model
-%           .currents  
-%               Optimal shim current vector (i)
-%               [units A]
-%           .field     
-%               Optimal shim field from projection of i onto reference maps (Ai)
-%               [units Hz]
-%           .couplingCoefficients
-%               For realtime shimming, relates vector relating field to pressure
-%               [units Hz/Pa]
-%           .dcCurrentsOffsets
-%               For realtime shimming, vector of "y-intercept" currents 
-%               (i.e. currents for pressure = 0 Pa)
-%               [units A]
-%
-%       .Tracker
-%           Object of type Tracking (e.g. ProbeTracking() ) 
-%
+% ... TODO : doc
 % =========================================================================
-% Notes
-%
-% Part of series of classes pertaining to shimming:
-%
-%    Tracking
-%    ShimCal
-%    ShimCom
-%    ShimEval
-%    ShimOpt
-%    ShimSpecs
-%    ShimTest 
-%    ShimUse
 %
 % ShimOpt is a MaRdI subclass [ShimOpt < MaRdI]
 %     
 % =========================================================================
-% Updated::20180215::ryan.topfer@polymtl.ca
+% Updated::20181017::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -86,17 +33,15 @@ classdef ShimOptSHarmonics < ShimOpt
 %
 % =========================================================================
 
-% properties % defined in parent class ShimOpt 
-    % Field ; % object of type MaRdI
-    % Model ;
-    % Tracker ; % object of type ProbeTracking
-% end
+properties  
+    Params;
+end
 
 % =========================================================================
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOptSHarmonics( Params, Field )
+function Shim = ShimOpt_SphericalHarmonics( Params, Field )
 %SHIMOPTSHARMONICS - Shim Optimization with spherical harmonic basis set
 % 
 % Params.isGeneratingBasis
@@ -112,82 +57,144 @@ if nargin < 1 || isempty( Params )
     Params.dummy = [] ;
 end
 
-Params = ShimOptSHarmonics.assigndefaultparameters( Params ) ;
+Shim.Params = ShimOpt_SphericalHarmonics.assigndefaultparameters( Params ) ;
 
-% Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
-%
-% % .......
-% % Load shim basis if provided 
-% if ~isempty(Params.pathToShimReferenceMaps) & ( ~Params.isGeneratingBasis )
-%
-%     ShimUse.display(['\n Preparing for shim ...  \n\n'...
-%             'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
-%
-%     RefMaps = load( Params.pathToShimReferenceMaps ) ; % load shim ref maps
-%
-%     %%-----
-%     % dB/dI linear 'Current-to-Field' operator
-%     Shim.img              = RefMaps.Shim.img ;
-%     Shim.Hdr              = RefMaps.Shim.Hdr ;
-%
-%     Shim.Field = [ ] ;       
-%     Shim.Model = [ ] ; 
-%
-% end
-%
+% =========================================================================
+% Define ShimSpecs for virtual shim system:
+% =========================================================================
+Specs.systemName           = [ 'SphericalHarmonics_' ...
+    num2str(min(Shim.Params.ordersToGenerate)) '-' num2str(max(Shim.Params.ordersToGenerate)) ] ;
 
-if Params.isGeneratingBasis || Params.isInterpolatingReferenceMaps
+Specs.nChannels            = 0 ;
+for iOrder = 1 : length( Shim.Params.ordersToGenerate )
+    Specs.nChannels = Specs.nChannels + 2*Shim.Params.ordersToGenerate(iOrder) + 1 ;
+end
+Specs.nActiveChannels      = Specs.nChannels ;
 
-    assert( (nargin > 1) && ~isempty(Field), 'Must input Field [MaRdi-type object]. See HELP')
+Specs.maxCurrentPerChannel = Inf*ones( Specs.nChannels, 1 ) ;
+Specs.staticChannels       = true( Specs.nChannels, 1 ) ;
+Specs.dynamicChannels      = true( Specs.nChannels, 1 ) ;
 
-    if Params.isGeneratingBasis 
-            [X,Y,Z]  = Field.getvoxelpositions();
-            Shim.img = ShimOptSHarmonics.generatebasisfields( Params.ordersToGenerate, X, Y, Z );
-            Shim.Hdr = Field.Hdr;
-            Shim.setoriginalfield( Field ) ;
-    end
+Specs.channelNames = cell( Specs.nChannels, 1 ) ;
 
+for iCh = 1 : Specs.nChannels
+    Specs.channelNames(iCh) = { [ 'SH_' num2str(iCh) ]} ;
 end
 
-Params
+Shim.System.Specs = ShimSpecs_Des( Specs ) ;
+
+Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
+
+
+if (nargin > 1) && ~isempty(Field)
+    
+    Shim.setoriginalfield( Field ) ;
+
+else
+    Shim.Field = [] ;
+end
+
 end
 % =========================================================================
-function currents = optimizeshimcurrents( Shim, CgParams )
+function [] = setoriginalfield( Shim, Field, currents )
+%SETORIGINALFIELD 
+%
+% [] = SETORIGINALFIELD( Shim, Field )
+% [] = SETORIGINALFIELD( Shim, Field, currents )
+%
+% Sets Shim.Field
+%
+% Field is a FieldEval type object with .img in Hz
+
+if nargin < 2
+    error('Not enough input arguments.') ;
+elseif nargin == 2
+    currents = 0;
+    warning('Assuming field map was acquired with all shim channels at 0 A.');
+end
+
+Shim.Model.currents = currents ;
+Shim.Field = Field.copy() ;
+
+
+[X,Y,Z]  = Field.getvoxelpositions();
+dR = Field.getisocenter() ;
+% Voxel positons are in the patient coordinate system,
+% shift along Z to account for possible table displacement:
+Z  = Z - dR(3) ; 
+Shim.img = ShimOpt_SphericalHarmonics.generatebasisfields( Shim.Params.ordersToGenerate, X, Y, Z );
+Shim.Hdr = Field.Hdr;
+
+Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
+
+
+end
+% =========================================================================
+function [Corrections] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESHIMCURRENTS 
 %
-% Shim = OPTIMIZESHIMCURRENTS( Shim )
-% Shim = OPTIMIZESHIMCURRENTS( Shim, CgParams )
+% Corrections = OPTIMIZESHIMCURRENTS( Shim, Params )
+%   
+% Params can have the following fields 
 %
-% CgParams : Parameters struct for conjugate-gradient optimization
+%   .maxCorrectionPerChannel
+%       [default: determined by ShimSpecs_Des property: .Amp.maxCurrentPerChannel]
 %
-%   .tolerance     [default = 1E-6] 
-%   .maxIterations [default = 10000]
+%   .minCorrectionPerChannel
+%       [default: -.maxCorrectionPerChannel]
 
-if nargin < 1
-    error('Function requires at least 1 argument of type ShimOpt')
-elseif nargin == 1
-    CgParams.dummy = [];
+if nargin < 2 
+    Params.dummy = [];
 end
 
-% Params for conjugate-gradient optimization
-CgParams.tolerance     = 1E-10 ;
-CgParams.maxIterations = 100000 ;    
+% if ~myisfield( Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectionPerChannel ) 
+%     Params.maxCorrectionPerChannel = Shim.System.Specs.Amp.maxCurrentPerChannel ; 
+% end
+%
+% if ~myisfield( Params, 'minCorrectionPerChannel') || isempty( Params.minCorrectionPerChannel ) 
+%     Params.minCorrectionPerChannel = -Params.maxCorrectionPerChannel ; 
+% end
 
-A = Shim.getshimoperator ;
-M = Shim.gettruncationoperator ;
-
-b = M*(-Shim.Field.img(:)) ;
-
-% ------- 
-% Least-squares solution via conjugate gradients
-Shim.Model.currents = cgls( A'*M'*M*A, ... % least squares operator
-                            A'*M'*b, ... % effective solution vector
-                            zeros( [Shim.getnactivechannels() 1] ), ... % initial model (currents) guess
-                            CgParams ) ;
-    
-currents = Shim.Model.currents ;
+Corrections = optimizeshimcurrents@ShimOpt( Shim, Params ) ;
 
 end
+% =========================================================================
+% function currents = optimizeshimcurrents( Shim, CgParams )
+% %OPTIMIZESHIMCURRENTS 
+% %
+% % Shim = OPTIMIZESHIMCURRENTS( Shim )
+% % Shim = OPTIMIZESHIMCURRENTS( Shim, CgParams )
+% %
+% % CgParams : Parameters struct for conjugate-gradient optimization
+% %
+% %   .tolerance     [default = 1E-6] 
+% %   .maxIterations [default = 10000]
+%
+% if nargin < 1
+%     error('Function requires at least 1 argument of type ShimOpt')
+% elseif nargin == 1
+%     CgParams.dummy = [];
+% end
+%
+% % Params for conjugate-gradient optimization
+% CgParams.tolerance     = 1E-10 ;
+% CgParams.maxIterations = 100000 ;    
+%
+% A = Shim.getshimoperator ;
+% M = Shim.gettruncationoperator ;
+%
+% b = M*(-Shim.Field.img(:)) ;
+%
+% % ------- 
+% % Least-squares solution via conjugate gradients
+% Shim.Model.currents = cgls( A'*M'*M*A, ... % least squares operator
+%                             A'*M'*b, ... % effective solution vector
+%                             zeros( [Shim.getnactivechannels() 1] ), ... % initial model (currents) guess
+%                             CgParams ) ;
+%     
+% currents = Shim.Model.currents ;
+%
+% end
 % =========================================================================
 end
 
@@ -391,36 +398,17 @@ function  [ Params ] = assigndefaultparameters( Params )
 % 
 % Add default parameters fields to Params without replacing values (unless empty)
 %
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
 % DEFAULT_PROBESPECS = [] ;
 %
-% DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
-%
-% DEFAULT_ISGENERATINGBASIS       = true ;
-% DEFAULT_ORDERSTOGENERATE        = [0:2] ;
+% DEFAULT_ORDERSTOGENERATE        = [1:2] ;
 
 DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
 DEFAULT_TRACKERSPECS            = [] ;
 
-DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
-
-DEFAULT_ISGENERATINGBASIS       = true ;
-DEFAULT_ORDERSTOGENERATE        = [0:2] ;
-
-if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
-   Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
-end
+DEFAULT_ORDERSTOGENERATE        = [1:2] ;
 
 if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
    Params.TrackerSpecs = DEFAULT_TRACKERSPECS ;
-end
-
-if ~myisfield( Params, 'isInterpolatingReferenceMaps' ) || isempty(Params.isInterpolatingReferenceMaps)
-   Params.isInterpolatingReferenceMaps = DEFAULT_ISINTERPOLATINGREFERENCEMAPS ;
-end
-
-if ~myisfield( Params, 'isGeneratingBasis' ) || isempty(Params.isGeneratingBasis)
-   Params.isGeneratingBasis = DEFAULT_ISGENERATINGBASIS ;
 end
 
 if ~myisfield( Params, 'ordersToGenerate' ) || isempty(Params.ordersToGenerate)

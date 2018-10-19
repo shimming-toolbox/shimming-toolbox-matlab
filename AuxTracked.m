@@ -156,27 +156,39 @@ end
 
 end
 % =========================================================================
-function [medianMeasure] = userselectmedianmeasurement( measurementLog, nSamplesApnea )
-% USERSELECTMEDIANMEASUREMENT
+function [medianMeasure] = selectmedianmeasurement( measurementLog, nSamplesApnea, isUserSelectionEnabled )
+% SELECTMEDIANMEASUREMENT
 %
-%   medianMeasure = USERSELECTMEDIANMEASUREMENT( measurementLog ) 
+%   medianMeasure = SELECTMEDIANMEASUREMENT( measurementLog ) 
+%   medianMeasure = SELECTMEDIANMEASUREMENT( measurementLog, nSamplesApnea ) 
+%   medianMeasure = SELECTMEDIANMEASUREMENT( measurementLog, nSamplesApnea, isUserSelectionEnabled ) 
 %
 %   Plots measurementLog and the user selects START and END (apnea) indices
 %   over which to calculate the median. The median measurement is superposed
 %   over the measurementLog graph and the user is asked if the result is 
 %   satisfactory (or redo).
 
+DEFAULT_ISUSERSELECTIONENABLED = true ;
+
 if ( nargin == 1 ) 
     nSamplesApnea = [] ;
+
 elseif ~isempty( nSamplesApnea ) 
     assert( nSamplesApnea > 0 ) ;
+    
 end
+
+if nargin < 3
+    isUserSelectionEnabled = DEFAULT_ISUSERSELECTIONENABLED ;
+end
+
 
 isUserSatisfied = false ;
 
 while ~isUserSatisfied
 
-    gcf ;
+    gcf ; 
+    clf ;
     plot( measurementLog, '+' ) ;
     title( 'Measure Log' ) ;
     
@@ -184,6 +196,7 @@ while ~isUserSatisfied
     ylabel('Amplitude');
 
     if ~isempty( nSamplesApnea )
+
         if nSamplesApnea < length( measurementLog )
             % Auto-selection of start/end breath-hold indices
             trainingFrameStartIndex = AuxTracked.findflattest( measurementLog, nSamplesApnea ) ;
@@ -196,7 +209,6 @@ while ~isUserSatisfied
         medianMeasure = ...
            median( measurementLog( trainingFrameStartIndex : trainingFrameEndIndex ) ) ;
 
-        % dbstop in AuxTracked at 179
         gcf; 
         plot( measurementLog, '+' );
         hold on;
@@ -206,7 +218,15 @@ while ~isUserSatisfied
         ylabel('Amplitude');
         legend('Measure log',['Median over interval of min. variance']);    
         hold off;
-
+    
+    end
+    
+    if ~isUserSelectionEnabled 
+         isUserSatisfied = true ;
+         return;
+    
+     else isUserSelectionEnabled 
+        
         response = input(['Is the current median estimate satisfactory? ' ...
             '0 to manually specify the data range; 1 (or enter) to accept & continue: ']) ;
 
@@ -215,50 +235,51 @@ while ~isUserSatisfied
          else
              isUserSatisfied = true;
          end
-    end
+    
 
-    if ~isUserSatisfied
-        % Manual selection    
-        trainingFrameStartIndex = ...
-            input( ['Identify sample index corresponding to beginning of training frame ' ...
-                '([Enter] selects sample 1): '] ) ;
-        
-        if isempty(trainingFrameStartIndex)
-            trainingFrameStartIndex = 1;
+
+        if ~isUserSatisfied
+            % Manual selection    
+            trainingFrameStartIndex = ...
+                input( ['Identify sample index corresponding to beginning of training frame ' ...
+                    '([Enter] selects sample 1): '] ) ;
+            
+            if isempty(trainingFrameStartIndex)
+                trainingFrameStartIndex = 1;
+            end
+
+            trainingFrameEndIndex = ...
+                input( ['Identify sample index corresponding to end of training frame ' ...
+                    '([Enter] selects the last recorded sample): '] ) ;
+
+            if isempty(trainingFrameEndIndex)
+               medianMeasure = ...
+                   median( measurementLog( trainingFrameStartIndex : end ) ) ;
+            else
+               medianMeasure = ...
+                   median( measurementLog( trainingFrameStartIndex : trainingFrameEndIndex ) ) ;
+            end
+
+            gcf; 
+            plot( measurementLog, '+' );
+            hold on;
+            plot( medianMeasure*ones( size( measurementLog ) ) ) ;
+            title( 'Measure Log' ) ;
+            xlabel('Sample index');
+            ylabel('Amplitude');
+            legend('Measure log','Median measurement over given interval');    
+            hold off;
+
+            response = input(['Is the current median estimate satisfactory? ' ...
+                '0 to re-enter the data range; 1 (or enter) to continue: ']) ;
+
+             if ~isempty(response)
+                isUserSatisfied = logical(response) ;
+             else
+                 isUserSatisfied = true;
+             end
         end
-
-        trainingFrameEndIndex = ...
-            input( ['Identify sample index corresponding to end of training frame ' ...
-                '([Enter] selects the last recorded sample): '] ) ;
-
-        if isempty(trainingFrameEndIndex)
-           medianMeasure = ...
-               median( measurementLog( trainingFrameStartIndex : end ) ) ;
-        else
-           medianMeasure = ...
-               median( measurementLog( trainingFrameStartIndex : trainingFrameEndIndex ) ) ;
-        end
-
-        gcf; 
-        plot( measurementLog, '+' );
-        hold on;
-        plot( medianMeasure*ones( size( measurementLog ) ) ) ;
-        title( 'Measure Log' ) ;
-        xlabel('Sample index');
-        ylabel('Amplitude');
-        legend('Measure log','Median measurement over given interval');    
-        hold off;
-
-        response = input(['Is the current median estimate satisfactory? ' ...
-            '0 to re-enter the data range; 1 (or enter) to continue: ']) ;
-
-         if ~isempty(response)
-            isUserSatisfied = logical(response) ;
-         else
-             isUserSatisfied = true;
-         end
     end
-
 end
 
 end

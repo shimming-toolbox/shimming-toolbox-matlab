@@ -226,11 +226,15 @@ function Stats = assessfielddistribution( Field, voi, filename )
 %
 % Stats = ASSESSFIELDDISTRIBUTION( Field )
 % Stats = ASSESSFIELDDISTRIBUTION( Field, VOI )
+% Stats = ASSESSFIELDDISTRIBUTION( Field, VOI, filename )
 % 
 % VOI 
 %    binary array the same size as Field.img indicating the region of
 %    interest over which field calculations are made. 
 %    default: Field.Hdr.MaskingImage
+%
+% filename
+%   output to text file using writetable()
 %
 % Stats contains fields
 %

@@ -56,6 +56,66 @@ end
 
 end
 % =========================================================================
+function [] = interpolatetoimggrid( Shim, Field )
+%INTERPOLATETOIMGGRID 
+%
+% [] = INTERPOLATETOIMGGRID( Shim, Field )
+%
+% Interpolates Shim.img (reference maps) to the grid (voxel positions) of
+% MaRdI-type Img
+% 
+% i.e.
+%
+%   [X,Y,Z] = Field.getvoxelpositions ;
+%   Shim.resliceimg( X, Y, Z ) ;
+%
+% NOTE
+%   On how this method differs from that of the parent class ShimOpt:
+%
+%   The patient coordinate system is defined by the initial (laser) placement
+%   of the subject. After the 1st localizer (for which the Z=0 position will
+%   correspond to isocenter), it is likely that the operator will choose a
+%   particular FOV for the following scans, thereby repositioning the table by
+%   a certain amount ( Field.Hdr.Img.ImaRelTablePosition ).  i.e. Isocenter has
+%   been moved from Z=0 to Z = Field.Hdr.Img.ImaRelTablePosition.
+% 
+%   For our multi-coil shim arrays, the shim moves along with the table (as
+%   does the patient coordinate system), so a shim field shift at initial
+%   location r' = (x',y',z') will continue to be exactly that.
+%
+%   The scanner shims, on the other hand, are fixed relative to isocenter. So a
+%   shim field shift induced at initial table position r', will now instead be
+%   induced at r' + Field.Hdr.Img.ImaRelTablePosition.
+
+[X, Y, Z]    = Field.getvoxelpositions ;
+[X0, Y0, Z0] = Shim.getvoxelpositions ;
+
+dR = Field.getisocenter() ; 
+assert( dR(1) == 0, 'Table shifted in L/R direction?' ) ;
+assert( dR(2) == 0, 'Table shifted in A/P direction?' ) ;
+
+if ( dR(3) ~= 0 ) % field positions originally at Z0 have been shifted
+    % NOTE
+    %   tablePosition is increasingly negative the more it is into the scanner.
+    %   the opposite is true for the z-coordinate of a voxel in the dicom
+    %   reference system.
+    warning('Correcting for table shift with respect to shim reference images')
+    Z0 = Z0 + dR(3) ;
+    Shim.Hdr.ImagePositionPatient(3) = Shim.Hdr.ImagePositionPatient(3) + dR(3) ;   
+end
+
+% -------
+% check if voxel positions already happen to coincide. if they do, don't interpolate (time consuming).
+if any( size(X) ~= size(X0) ) || any( X0(:) ~= X(:) ) || any( Y0(:) ~= Y(:) ) || any( Z0(:) ~= Z(:) )
+    Shim.resliceimg( X, Y, Z ) ;
+else
+    % voxel positions already coincide,
+    % i.e.
+    assert( all(X0(:) == X(:) ) && all( Y0(:) == Y(:) ) && all( Z0(:) == Z(:) ) ) ;
+end
+
+end
+% =========================================================================
 function [Corrections] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESHIMCURRENTS 
 %

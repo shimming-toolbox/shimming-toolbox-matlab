@@ -86,7 +86,7 @@ classdef (Abstract) ShimOpt < FieldEval
 % ShimOpt is a FieldEval subclass [ShimOpt < FieldEval < MaRdI]
 %     
 % =========================================================================
-% Updated::20180723::ryan.topfer@polymtl.ca
+% Updated::20181018::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -443,43 +443,12 @@ function [] = interpolatetoimggrid( Shim, Field )
 [X,Y,Z]      = Field.getvoxelpositions ;
 [X0, Y0, Z0] = Shim.getvoxelpositions ;
 
-% Private header field indicating absolute position of table [units: mm?]
-% --------------tablePos0-----
-tablePos0 = double( Shim.Hdr.Img.ImaAbsTablePosition ) ;
-
-% -----tablePos1--------------
-tablePos1 = double( Field.Hdr.Img.ImaAbsTablePosition ) ;
-
-% tablePos0 empty if Shim refers to the scanner shims (spatially fixed)
-% if ~isempty( tablePos0 )  
-%     
-%     % -------
-%     % translate original coordinates to shifted ref. frame
-%     warning('Adjusting for variable table position...  ')
-%     
-%     dR = tablePos1 - tablePos0 
-%
-%     assert( dR(1) == 0, 'Table shifted in L/R direction?' ) ;
-%     assert( dR(2) == 0, 'Table shifted in A/P direction?' ) ;
-%
-%     if ( dR(3) ~= 0 ) 
-%     % field positions originally at Z0 have been shifted
-%     % tablePosition is increasinly negative the more it is into the scanner.
-%     % the opposite is true for the z-coordinate of a voxel in the dicom reference system.
-%         warning('Correcting for table shift with respect to shim reference images')
-%     % dbstop in ShimOpt at 455
-%         % Shim.Hdr.ImagePositionPatient(3) = Shim.Hdr.ImagePositionPatient(3) + dR(3) ;   
-%     end
-%
-% end
-
 % -------
 % check if voxel positions already happen to coincide. if they do, don't interpolate (time consuming).
 if any( size(X) ~= size(X0) ) || any( X0(:) ~= X(:) ) || any( Y0(:) ~= Y(:) ) || any( Z0(:) ~= Z(:) )
     Shim.resliceimg( X, Y, Z ) ;
 else
-    % voxel positions already coincide,
-    % i.e.
+    % voxel positions already coincide, i.e.
     assert( all(X0(:) == X(:) ) && all( Y0(:) == Y(:) ) && all( Z0(:) == Z(:) ) ) ;
 end
 
@@ -790,6 +759,7 @@ function shimSupport = getshimsupport( Shim )
 %   shimSupport is a logical map over the grid (voxel positions) defined by
 %   Shim.img of where the shim reference maps have well defined values.
 
+warning('ShimOpt.getshimsupport() does not account for spatial support of Aux shim system. TODO')
 shimSupport = sum(abs(Shim.img),4) > Shim.getnactivechannels()*eps  ;
 
 end
@@ -1043,8 +1013,14 @@ assert( ( length( Params.maxCorrectionPerChannel ) == length( Params.minCorrecti
     'Shim system limits (Params.maxCorrectionPerChannel and Params.minCorrectionPerChannel) must possess an entry for each shim channel (primary and, if in use, auxiliary shims).' ) ;
 
 % set min/max static correction to 0 for inactive static channels
-Params.minStaticCorrectionPerChannel = Params.activeStaticChannelsMask .* Params.minCorrectionPerChannel ; 
-Params.maxStaticCorrectionPerChannel = Params.activeStaticChannelsMask .* Params.maxCorrectionPerChannel ;
+% NOTE some elements of Params.min/maxCorrectionPerChannel may be +/- Inf
+% (so don't just multiply by the logical array activeChannelsMask --> yields
+% NaN!)
+Params.minStaticCorrectionPerChannel = zeros( size( Params.activeStaticChannelsMask ) ) ;
+Params.minStaticCorrectionPerChannel( Params.activeStaticChannelsMask ) = Params.minCorrectionPerChannel( Params.activeStaticChannelsMask ) ;
+
+Params.maxStaticCorrectionPerChannel = zeros( size( Params.activeStaticChannelsMask ) ) ;
+Params.maxStaticCorrectionPerChannel( Params.activeStaticChannelsMask ) = Params.maxCorrectionPerChannel( Params.activeStaticChannelsMask ) ;
 
 if ~myisfield(Params, 'assessmentVoi') || isempty( Params.assessmentVoi )
     Params.assessmentVoi = Shim.Field.Hdr.MaskingImage ;
@@ -1380,20 +1356,25 @@ if Params.isSavingResultsTable
     filename = [ Params.mediaSaveDir '/fieldStats_shimmedPrediction' ] ;
     PredictedShimmedField.assessfielddistribution( Params.assessmentVoi, filename ) ;
 
-    % Shim.Field.write( [Params.mediaSaveDir '/field'], 'nii' ) ; 
+    Params.imgSlice     = round( size( Shim.Field.img, 3 )/2 ) ; 
+    
+    Params.scaling      = [ 0 1 ] ;
+    Params.colormap     = 'gray' ;
 
-    Params.imgSlice     = 5 ; 
-    Params.scaling      = [ -100 100 ] ;
+    Params.filename     = [Params.mediaSaveDir '/shimVoi_s' num2str(Params.imgSlice)] ;
+    MaRdI.writeimg( Params.assessmentVoi(:,:, Params.imgSlice ), Params ) ;
+    
+    Params.scaling      = [ -300 300 ] ;
     Params.colormap     = 'default' ;
-
+    
     Params.filename     = [Params.mediaSaveDir '/field_Dc_s' num2str(Params.imgSlice)] ;
-    MaRdI.writeimg( Shim.Field.img(:,:,Params.imgSlice), Params ) ;
+    MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).* Shim.Field.img(:,:,Params.imgSlice), Params ) ;
     
     Params.filename     = [Params.mediaSaveDir '/fieldShimmed_Dc_s' num2str(Params.imgSlice)] ;
-    MaRdI.writeimg( PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
+    MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
     
     if Params.isRealtimeShimming
-        Params.scaling      = [ -5 5 ] ;
+        Params.scaling      = [ -20 20 ] ;
 
         filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
         Shim.Field.Model.Riro.assessfielddistribution( Params.assessmentVoi, filename ) ;
@@ -1404,10 +1385,10 @@ if Params.isSavingResultsTable
         PredictedShimmedRiro.assessfielddistribution( Params.assessmentVoi, filename ) ;
 
         Params.filename     = [Params.mediaSaveDir '/riro_s' num2str(Params.imgSlice)] ;
-        MaRdI.writeimg( Shim.Field.Model.Riro.img(:,:,Params.imgSlice), Params ) ;
+        MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*Shim.Field.Model.Riro.img(:,:,Params.imgSlice), Params ) ;
 
         Params.filename     = [Params.mediaSaveDir '/riroShimmed_s' num2str(Params.imgSlice)] ;
-        MaRdI.writeimg( PredictedShimmedRiro.img(:,:,Params.imgSlice), Params ) ;
+        MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*PredictedShimmedRiro.img(:,:,Params.imgSlice), Params ) ;
 
     end
 
@@ -1459,6 +1440,8 @@ if Params.isRealtimeShimming
     C = [C ; C_pMax ; C_pMin] ;
     
 end
+
+C( C == -Inf ) = 0 ;
 
 function [C, Ceq] = checknonlinearconstraints_static( x0 )
 %CHECKNONLINEARCONSTRAINTS_STATIC
