@@ -371,7 +371,7 @@ function [] = processtrainingdata( Shim )
 % Shim.Data.Img{1,3,iFrame}.Aux.Tracker.Data.p
 Shim.Data.Img(1,3,:) = cell(1,1) ; % 3rd column for field maps
 
-if isempty( Shim.Params.isUserSelectionEnabled )
+if ~myisfield( Shim.Params, 'isUserSelectionEnabled' ) || isempty( Shim.Params.isUserSelectionEnabled )
     isUserSelectionEnabled = true ; % default
 else
     assert( islogical( Shim.Params.isUserSelectionEnabled ) ) ;
