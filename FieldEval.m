@@ -24,7 +24,7 @@ classdef FieldEval < MaRdI
 % FieldEval is a MaRdI subclass [FieldEval < MaRdI]
 %     
 % =========================================================================
-% Updated::20180403::ryan.topfer@polymtl.ca
+% Updated::20181019::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
@@ -802,7 +802,7 @@ Extras = [] ;
 % define spatial support for unwrapping
 if ~myisfield( Params, 'mask' ) || isempty( Params.mask )
 
-    Params.mask = ones( ImgArray{1,1}.getgridsize ) ;
+    Params.mask = true( ImgArray{1,1}.getgridsize ) ;
 
     for iEcho = 1 : nEchoes 
 
@@ -812,6 +812,8 @@ if ~myisfield( Params, 'mask' ) || isempty( Params.mask )
     end
 
 end
+
+Params.mask = logical( Params.mask ) ;
 
 if nEchoes == 1 % 2 echoes acquired but only 1 input (phase *difference* image)
    
@@ -844,42 +846,210 @@ PhaseDiff.Hdr.MaskingImage = logical( Params.mask ) & ~isnan( PhaseDiff.img ) ;
 % 3d path-based unwrapping
 PhaseDiff = PhaseDiff.unwrapphase( ImgArray{1,1}, Params ) ;
 
-if nEchoes <= 2
-    Field     = FieldEval( PhaseDiff.scalephasetofrequency( ) ) ;
-elseif nEchoes > 2
-dbstop in FieldEval at 825
-display('here')
-% Unwrap later echoes using the phase difference/TE estimate from the 1st 2
-% echoes, assuming a linear model of phase evolution with TE
-% As described by Juchem C., Proc. Intl. Soc. Mag. Reson. Med. 21 (2013):
-% See recorded presentation, around 13:50:
-% https://cds.ismrm.org/protected/13MPresentations/E071/
-% https://cds.ismrm.org/protected/13MPresentations/abstracts/7298.pdf
+PhaseDiffInRad = PhaseDiff.copy() ; % PhaseDiffInRad.img : [units: rad]
+
+% double echo estimate:
+PhaseDiff.scalephasetofrequency( ) ; % PhaseDiff.img : [units: Hz]
+Field     = FieldEval( PhaseDiff ) ;
+
+if nEchoes > 2
+
+    % Unwrap later echoes using the phase difference/TE estimate from the 1st 2
+    % echoes, assuming a linear model of phase evolution with TE
+    % As described by Juchem C., Proc. Intl. Soc. Mag. Reson. Med. 21 (2013):
+    % See recorded presentation, around 13:50:
+    % https://cds.ismrm.org/protected/13MPresentations/E071/
+    % https://cds.ismrm.org/protected/13MPresentations/abstracts/7298.pdf
+
+    TE = zeros( nEchoes, 1 ) ;
+
+    for iEcho = 1 : nEchoes
+        TE(iEcho) = ImgArray{ iEcho, 2 }.Hdr.EchoTime ; % [units: ms]
+    end
 
     PhaseTE = cell( nEchoes, 1 ) ;
 
     % unwrap phases 
-    for iEcho = 1 : 2
+    for iEcho = 1 : nEchoes
         PhaseTE{iEcho} = ImgArray{ iEcho, 2}.copy() ;
         PhaseTE{iEcho}.Hdr.MaskingImage = PhaseDiff.Hdr.MaskingImage ;
         PhaseTE{iEcho} = PhaseTE{iEcho}.unwrapphase( ImgArray{iEcho, 1}, Params ) ;
     end
 
-    % phase @ TE = 0
-    PhaseOffset     = PhaseDiff.copy() ;
-    PhaseOffset.img = PhaseTE{1}.img - ...
-        (ImgArray{ 1, 2 }.Hdr.EchoTime/PhaseDiff.Hdr.EchoTime)*PhaseDiff.img ; 
+    % TODO -- CORRECTION
+    % % phase @ TE = 0
+    % PhaseOffset     = PhaseDiff.copy() ;
+    % PhaseOffset.img = PhaseTE{1}.img - ...
+    %     (ImgArray{ 1, 2 }.Hdr.EchoTime/PhaseDiff.Hdr.EchoTime)*PhaseDiffInRad.img ; 
+    %
+    % for iEcho = 3 : nEchoes
+    %
+    %     phaseEstimate = PhaseOffset.img + ImgArray{ iEcho, 2 }.Hdr.EchoTime*PhaseDiffInRad.img ;
+    %     
+    %     n = ( phaseEstimate - ImgArray{ iEcho, 2 }.img )/ pi ;
+    %     
+    %     % phase @ iEcho
+    %     PhaseTE{iEcho}     = ImgArray{ iEcho, 2 }.copy() ; % wrapped
+    %     PhaseTE{iEcho}.img = PhaseTE{iEcho}.img + n*pi ; % unwrapped
+    % end
 
-    for iEcho = 3 : 3 % nEchoes
-        phaseEstimate = PhaseOffset.img + ImgArray{ iEcho, 2 }.Hdr.EchoTime*PhaseDiff.img ;
-        
-        % phase @ iEcho
-        PhaseTE{iEcho} = ImgArray{ iEcho, 2 }.copy() ;
-        PhaseTE{iEcho}.Hdr.MaskingImage = PhaseDiff.Hdr.MaskingImage ;
-        PhaseTE{iEcho} = PhaseTE{iEcho}.unwrapphase( ImgArray{ iEcho, 1}, Params ) ;
+    % fit PhaseTE to TE
+    %
+    %
+    % voxel by voxel approach (time-consuming for-loop):
+    %
+    %
+    % ph  = zeros( nEchoes, 1 ) ;
+    % ITE = eye( nEchoes, nEchoes ) * TE ;
+    %
+    % A   = [ ones( nEchoes, 1 ) TE ] ;
+    % At  = A';
+    % AtA  = A'*A ;
+    % invAtA = inv(AtA) ;
+    %
+    %
+    % Ph0   = zeros( size( PhaseTE{1} ) ) ;
+    % dPhdt = Ph0 ;
+    %
+    % nVoxels = numel( PhaseTE{1}.img ) ;
+    % % est:
+    % for iVoxel = 1 : nVoxels
+    %     100*(iVoxel/nVoxels)
+    %     for iEcho = 1 : nEchoes
+    %                  
+    %         ph(iEcho) = PhaseTE{iEcho}.img( iVoxel ) ;
+    %     
+    %     end
+    %
+    %     x = invAtA*At*ph ;  
+    %   assert( numel(x) == 2 )   
+    %     Ph0(iVoxel) = x(1) ;
+    %     dPhdt(iVoxel) = x(2) ;
+    % end 
+    
+    % Fit PhaseTE to TE
+    %
+    % To speed things up, construct masking/truncation operator M to limit the fit to 
+    % voxels within the reliable region of the image (i.e. region of sufficient SNR)
+    nVoxelsImg = numel( PhaseTE{1}.img(:) ) ;
+    nVoxelsVoi = nnz( Params.mask ) ;
 
-        nii( PhaseTE{3}.img - phaseEstimate ) ;
+    indicesVoi = find( Params.mask(:) ) ;
+
+    M0 = sparse( [1:nVoxelsVoi], indicesVoi, ones([nVoxelsVoi 1]), nVoxelsVoi, nVoxelsImg ) ;
+    % At this point, M0 would work for a single echo, but instead we have multiple echoes...
+
+    % Full truncation operator M: 
+    %   1 extra row for every extra echo,
+    %   nVoxelsImg extra columns for every extra echo 
+    M  = sparse( nVoxelsVoi + nEchoes-1, nVoxelsImg * nEchoes ) ; 
+
+    for iEcho = 1 : nEchoes
+        M( iEcho:(end-nEchoes+iEcho), iEcho:nEchoes:(end-nEchoes+iEcho) ) = M0 ;
     end
+
+    % phase looks like, ph:
+    %
+    % phase( 1st voxel: 1st echo )
+    % phase( 1st voxel: 2nd echo )
+    % ...
+    % phase( 1st voxel: Nth echo )
+    % phase( 2nd voxel: 1st echo )
+    % ...
+    % ...
+    % phase( last voxel:last echo )
+    %
+    % data weights W follow the same alternating pattern but on the diagonal of a sparse matrix 
+    
+    ph = zeros( nVoxelsVoi*nEchoes, 1 ) ;
+    W  = zeros( nVoxelsVoi*nEchoes, 1 ) ;
+    
+
+    for iEcho = 1 : nEchoes
+        ph(iEcho:nEchoes:(end-nEchoes+iEcho)) = PhaseTE{iEcho}.img( Params.mask ) ;
+        W(iEcho:nEchoes:(end-nEchoes+iEcho))  = ImgArray{iEcho, 1}.img( Params.mask ) ;
+    end
+
+    W = spdiags( W, 0, nEchoes*nVoxelsVoi, nEchoes*nVoxelsVoi ) ;
+
+    % Linear operator A should be the following:
+    %
+    % A = sparse( nEchoes*nVoxels, 2*nVoxels ) ;
+    %
+    %   for iVoxel = 1 : nVoxels 
+    %         iCol = iVoxel*2 - 1 ;
+    %       iRow = nEchoes*(iVoxel-1) + 1 ;
+    %       A( iRow:(iRow+nEchoes-1), iCol:(iCol+1) ) = A0 ;
+    %   end
+    %
+    % ... but that takes too long.
+    % Here is a shortcut:
+
+    A0 = sparse([ ones( nEchoes, 1 ) TE ]) ;
+    A  = A0 ;
+
+    while size( A, 2 ) < 2*nVoxelsVoi
+
+        A  = [ A  sparse( size(A,1), size(A,2) ) ; 
+               sparse( size(A,1), size(A,2) ) A ] ;
+    end
+
+    % crop to correct size
+    A = A(1:nVoxelsVoi*nEchoes, 1:2*nVoxelsVoi) ;
+    
+
+    % Params for conjugate-gradient optimization
+    CgParams.tolerance     = 1E-6 ;
+    CgParams.maxIterations = 100000 ;    
+    CgParams.isDisplayingProgress = true ;    
+    
+    tic
+    x = cgls( A'*A, ... % least squares operator
+              A'*ph, ... % effective solution vector
+              zeros( [2*nVoxelsVoi 1] ) , ... % % initial 'guess' solution vector
+           CgParams ) ;
+          
+    toc
+
+    % TODO
+    %   Using truncation mask and/or weighting matrix takes way too long :(
+    %   optimize somehow?
+    %
+    % e.g use unweighted solution as starting guess for weighted:
+    %
+    % tic
+    % x = cgls( A'*W'*W*A, ... % least squares operator
+    %           A'*W'*W*ph, ... % effective solution vector
+    %           x, ...  %x, ...%... % initial 'guess' solution vector
+    %           CgParams  ) ;     
+    % toc
+    %
+    % tic
+    % x = cgls( A'*W'*W*A, ... % least squares operator
+    %           A'*W'*W*ph, ... % effective solution vector
+    %           zeros( [2*nVoxelsVoi 1] ), ...  %x, ...%... % initial 'guess' solution vector
+    %           CgParams  ) ;     
+    % toc
+    %
+    % tic
+    % x = cgls( A'*W'*M'*M*W*A, ... % least squares operator
+    %           A'*W'*M'*M*W*ph, ... % effective solution vector
+    %           x, ...
+    %           CgParams  ); %... % initial 'guess' solution vector
+    % toc
+    
+    phaseOffset = zeros( ImgArray{1,1}.getgridsize() ) ;
+    phaseOffset( Params.mask ) = x(1:2:end-1) ;  % [units: rad]
+
+    dPhdt = zeros( ImgArray{1,1}.getgridsize() ) ;
+    dPhdt( Params.mask ) = x(2:2:end) ; % [units: rad/ms]
+
+    PhaseDiffFit     = PhaseTE{1}.copy() ;
+    PhaseDiffFit.img = dPhdt ;
+    PhaseDiffFit.Hdr.EchoTime = 1 ; % [units: ms]
+    PhaseDiffFit.scalephasetofrequency( ) ; % scales PhaseDiffFit.img to Hz
+
+    Field     = FieldEval( PhaseDiffFit ) ;
 
 end
 
