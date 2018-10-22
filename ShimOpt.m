@@ -86,7 +86,7 @@ classdef (Abstract) ShimOpt < FieldEval
 % ShimOpt is a FieldEval subclass [ShimOpt < FieldEval < MaRdI]
 %     
 % =========================================================================
-% Updated::20181018::ryan.topfer@polymtl.ca
+% Updated::20181022::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -1645,12 +1645,15 @@ for iChannel = 1 : Params.nChannels
         for iEcho = 1 : Params.nEchoes
             % -------
             % PROCESS GRE FIELD MAPS
-
-            ImgArray{iEcho, 1}  = MaRdI( Params.dataLoadDirectories{ iEcho, 1, iCurrent, iChannel +1 }  ) ; % mag
-            ImgArray{iEcho, 2}  = MaRdI( Params.dataLoadDirectories{ iEcho, 2, iCurrent, iChannel +1 }  ) ; % phase
+            ImgArray{iEcho, 1}  = MaRdI( Params.dataLoadDirectories{ iEcho, 1, iCurrent, iChannel }  ) ; % mag
+            ImgArray{iEcho, 2}  = MaRdI( Params.dataLoadDirectories{ iEcho, 2, iCurrent, iChannel }  ) ; % phase
         end 
 
+        % Field shift (relative to Larmor)
         [Field, Extras] = FieldEval.mapfield( ImgArray, Params ) ;
+        
+        % Absolute field shift:
+        Field.img = Field.img + Field.Hdr.ImagingFrequency*1E6 ; 
         
         Field.Hdr.MaskingImage = Field.Hdr.MaskingImage & Params.mask ;
         
