@@ -143,7 +143,7 @@ end
 Shim.Data.Aux.Tracker = cell( 1, 1, Shim.Params.nTrainingFrames + 1 ) ; % to record (in this order): (1) normal breathing; (2) breath-hold insp; (3) breath-hold exp
 
 if strcmp( Shim.Params.uiMode, 'isGui' ) 
-    ShimGUI( Shim ) ;
+    ShimGui( Shim ) ;
 end
 
 end
