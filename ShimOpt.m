@@ -587,6 +587,9 @@ function mask = getvaliditymask( Shim, Fields, Params )
 %   measurement. Voxels with abs-values greater than this might stem from
 %   errors in the unwrapping.  [default: 500 Hz]
 %   (To ignore this criterion, set value to Inf)
+%
+% .isAuxIncluded
+%   true || false, account for spatial support of the Shim.Aux system?
 
 %TODO
 %
@@ -601,6 +604,11 @@ function mask = getvaliditymask( Shim, Fields, Params )
 
 DEFAULT_MAXABSFIELD        = 500 ;
 DEFAULT_MAXFIELDDIFFERENCE = 150 ;
+if ~isempty( Shim.Aux )
+    DEFAULT_ISAUXINCLUDED      = true ;
+else
+    DEFAULT_ISAUXINCLUDED      = false ;
+end
 
 mask = Shim.getshimsupport() ;
 
@@ -617,6 +625,15 @@ end
 
 if ~myisfield( Params, 'maxFieldDifference' ) || isempty( Params.maxFieldDifference ) 
     Params.maxFieldDifference = DEFAULT_MAXFIELDDIFFERENCE ;
+end
+
+if ~myisfield( Params, 'isAuxIncluded' ) || isempty( Params.isAuxIncluded ) 
+    Params.isAuxIncluded = DEFAULT_ISAUXINCLUDED ;
+end
+
+if Params.isAuxIncluded
+    assert( ~isempty( Shim.Aux ), 'Auxiliary shim system unavailable' )   
+    mask = mask & Shim.Aux.getshimsupport() ;
 end
 
 
@@ -759,7 +776,6 @@ function shimSupport = getshimsupport( Shim )
 %   shimSupport is a logical map over the grid (voxel positions) defined by
 %   Shim.img of where the shim reference maps have well defined values.
 
-warning('ShimOpt.getshimsupport() does not account for spatial support of Aux shim system. TODO')
 shimSupport = sum(abs(Shim.img),4) > Shim.getnactivechannels()*eps  ;
 
 end
