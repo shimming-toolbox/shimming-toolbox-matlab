@@ -439,7 +439,7 @@ end
 
 end
 % =========================================================================
-function Img = scalephasetofrequency( Img, undoFlag )
+function [] = scalephasetofrequency( Img, undoFlag )
 %SCALEPHASETOFREQUENCY
 %
 % Converts unwrapped phase [units:rad] to field [units: Hz]
