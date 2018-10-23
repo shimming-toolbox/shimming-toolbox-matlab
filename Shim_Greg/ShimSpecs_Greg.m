@@ -91,8 +91,10 @@ Shim.Dac.maximum          = 26214 ;
 
 % TODO 
 %   should fall under property Shim.Com.Dac ?
-Shim.Com.feedbackcalibrationcoeffx = [0.65909, 0.65, 0.6591, 0.6499, 0.6545, 0.6454, 0.6637, 0.6409]; %Calibration coefficient to transform Voltages to Amps
-Shim.Com.feedbackcalibrationcoeffy = [25.456, -9.088, 5.456, 25.456, 30.91, 7.272, -19.09, 34.546]; %Calibration coefficient to transform Voltages to Amps
+
+%Calibration coefficients to transform Voltages to Amps
+Shim.Com.feedbackcalibrationcoeffx = [0.65909, 0.65, 0.6591, 0.6499, 0.6545, 0.6454, 0.6637, 0.6409]; 
+Shim.Com.feedbackcalibrationcoeffy = [25.456, -9.088, 5.456, 25.456, 30.91, 7.272, -19.09, 34.546]; 
 
 
 end

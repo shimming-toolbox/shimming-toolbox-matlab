@@ -1,11 +1,11 @@
-classdef ShimComAcdc < ShimCom 
+classdef ShimCom_Greg < ShimCom 
 %SHIMCOMACDC - Shim Communication for AC/DC neck coil 
 %
 % .......
 %   
 % Usage
 %
-%   Shims = ShimComAcdc(  )
+%   Shims = ShimCom_Greg(  )
 %
 %   Shims contains fields
 %
@@ -31,7 +31,7 @@ classdef ShimComAcdc < ShimCom
 %    ShimTest 
 %    ShimUse
 %     
-%    ShimComAcdc is a ShimCom subclass.
+%    ShimCom_Greg is a ShimCom subclass.
 %
 % =========================================================================
 % Updated::20180611::ryan.topfer@polymtl.ca
@@ -41,15 +41,15 @@ classdef ShimComAcdc < ShimCom
 % =========================================================================
 methods
 % =========================================================================
-function Shim = ShimComAcdc( Specs )
+function Shim = ShimCom_Greg( Specs )
 %SHIMCOM - Shim Communication
 
 if nargin < 2 || isempty( Specs ) 
     Shim.Specs = ShimSpecs_Greg( );
 end
 
-Shim.ComPort = ShimComAcdc.initializecomport( Shim.Specs ) ;
-Shim.Cmd     = ShimComAcdc.getcommands( ) ;
+Shim.ComPort = ShimCom_Greg.initializecomport( Shim.Specs ) ;
+Shim.Cmd     = ShimCom_Greg.getcommands( ) ;
 
 Shim.Data.output = uint8(0) ;
 Shim.Data.input  = uint8(0) ;
@@ -62,7 +62,7 @@ end
 function [isAckReceived] = getsystemheartbeat( Shim ) ;
 %GETSYSTEMHEARTBEAT
 
-warning('Unimplemented funct. ShimComAcdc.GETSYSTEMHEARTBEAT()')
+warning('Unimplemented funct. ShimCom_Greg.GETSYSTEMHEARTBEAT()')
 isAckReceived=true;
 
 end
@@ -159,7 +159,7 @@ function [] = opencomport( Shim )
 instrument = instrfind;
 
 if isempty(instrument)
-    Shim.ComPort = ShimComAcdc.initializecomport( Shim.Specs ) ;
+    Shim.ComPort = ShimCom_Greg.initializecomport( Shim.Specs ) ;
 end
 
 fopen(Shim.ComPort);
@@ -283,13 +283,14 @@ function [Cmd] = getcommands( )
 % System commands (as strings)---------------------------------------------
 
 % Cmd.getChannelFeedback    = 'f'; not implemented in .ino
+Cmd.updateOneChannel      = 'a';
+Cmd.resetAllShims         = 'w' ;
+
 Cmd.getallChannelFeedback = 'e';
 Cmd.calibrateDacCurrent   = 'x';
 
 Cmd.resetArduino          = 'r';
 
-Cmd.updateOneChannel      = 'a';
-Cmd.resetAllShims         = 'w' ;
 Cmd.querry                = 'q' ;
 
 end

@@ -115,7 +115,7 @@ void loop() {
     /*   break; */
 
     case 'x':                 // Calibration of Adc current feedback
-    calibrateadc() ;
+        calibrateadc() ;
       break;
 
     case 'w':                // Set all channels to 0V

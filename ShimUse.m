@@ -117,7 +117,7 @@ switch Shim.Params.shimSystem
 
     case 'Greg'
         Shim.Opt = ShimOpt_Greg( Shim.Params ) ;
-        Shim.Com = ShimComAcdc( ) ;
+        Shim.Com = ShimCom_Greg( ) ;
     
     case 'UnfPrisma'
         Shim.Opt = ShimOpt_IUGM_Prisma_fit( Shim.Params ) ;
