@@ -48,9 +48,16 @@ const float DAC_PREAMP_RESISTANCE = 0.22 ; // [units: Ohms]
 const float DAC_RANGE_VOUT  = 2.0*DAC_VREF ; // [units: volts]
 const float DAC_BITSPERVOLT = ( pow( 2.0, float(DAC_RESOLUTION) ) - 1.0 )/DAC_RANGE_VOUT ; // =26214.0 [units: bit-counts]
 const float DAC_ZERO        = DAC_VREF*DAC_BITSPERVOLT ; // =32767.5 [units: bit-counts]
-
+  
 // variables re: shim board
 const uint8_t SHIM_NCHANNELS = 8 ;
+
+// 
+float currentCompensationOffset [SHIM_NCHANNELS];
+float currentCompensationGain [SHIM_NCHANNELS];
+
+
+bool isPrintModeVerbose = true ;
 
 void setup() {
   Serial.begin(115200);   //Baudrate of the serial communication : Maximum
@@ -71,6 +78,12 @@ void setup() {
   adc1.begin();
   adc2.begin();
 
+  for( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ )
+  {
+    currentCompensationOffset[iCh] = 0.0 ;
+    currentCompensationGain[iCh]   = 1.0 ;
+  }
+
   resetallshims() ;
     
   Serial.println("Ready to receive commands ...");
@@ -79,7 +92,7 @@ void setup() {
 void(* resetFunc) (void) = 0;//declare reset function at address 0
 
 void loop() {
-
+  
   int element;
   int data;
   int i;
@@ -91,7 +104,7 @@ void loop() {
   char incomingByte;
 
   float val;
-  
+
   float p1[] = {0.65909, 0.65, 0.64547, 0.6499, 0.6591, 0.654, 0.65, 0.65};            // Coefficients from Feedback calibration
   float p2[] = {19.09, -10.908, -23.636, 20.91, 32.728, 11.308, -42.728, 34.546};
   float D [41];                                                                        // Array to store 40 digits from serial communication
@@ -102,7 +115,7 @@ void loop() {
   }
   switch (incomingByte) 
   {
-
+    
     /* case 'a':              // Update one channel input current  */
     /*   uint8_t iCh ; */
     /*  float req_val ; */
@@ -122,28 +135,28 @@ void loop() {
         resetallshims( ) ;
 
       break;
-      
-  //  case 'f':                 // Display current feedback from one channel
-  //    element=Serial.parseInt();
-  //    feedback(element);
-  //    break;
-
-    case 'e':                //Display raw current feedbacks from all channels
-      feedback();
+    
+    case 'm':                //Toggle between verbose print mode (true/false)
+      switchprintmode();
+      break;
+    
+    case 'n':                //Return current print mode (true when verbose)
+      getprintmode();
       break;
 
     case 'q':                
       queryallchannelcurrents();
+      break;
+    
+    case 'r':                // Reset the arduino
+      Serial.println("\n");
+      resetFunc();
       break;
 
     case 'y':                
       queryallchannelvoltages();
       break;
 
-    case 'r':                // Reset the arduino
-      Serial.println("\n");
-      resetFunc();
-      break;
 
 
     case 'o':                // Update all channels with 8 currents
@@ -194,6 +207,12 @@ void loop() {
   }
 }
 
+unsigned int ampstodac( float current ) 
+{
+    return round( current*DAC_PREAMP_RESISTANCE*DAC_BITSPERVOLT - DAC_ZERO ) ;
+}
+
+
 void calibrateadc( void )
 {
   // test currents [units: A]
@@ -204,20 +223,31 @@ void calibrateadc( void )
   {
     for (uint8_t iCalibrationCurrent = 0; iCalibrationCurrent < nCalibrationCurrents; iCalibrationCurrent++)
     {
-      DAC.writeUpdateCh( iCh, ampstodac( calibrationCurrents[iCalibrationCurrent] ) ) ;
+      float compensatedCurrent = compensatechannelcurrent( iCh, calibrationCurrents[iCalibrationCurrent] ) ;
+      DAC.writeUpdateCh( iCh, ampstodac( compensatedCurrent ) ) ;
       delay(1000) ;
 
-      Serial.println( querychannelcurrent( iCh ), 2);
+      Serial.println( querychannelcurrent( iCh ), 2 );
     }
   }
+}
+
+float compensatechannelcurrent( uint8_t iChannel, float requestedCurrent ) 
+{
+    return ( requestedCurrent - currentCompensationOffset[iChannel] )/currentCompensationGain[iChannel] ;
 }
 
 void queryallchannelcurrents() 
 {
     for (uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++)
     { 
-        Serial.print("CH ") ; Serial.print(iCh + 1) ; Serial.print(" set to : ") ;
-        Serial.print( querychannelcurrent( iCh ) , 5); Serial.println(" A");
+        if ( isPrintModeVerbose )
+        {
+            Serial.print("CH ") ; Serial.print(iCh + 1) ; Serial.print(" set to : ") ;
+            Serial.print( querychannelcurrent( iCh ), 5 ); Serial.println(" A");
+        }
+        else
+            Serial.println( querychannelcurrent( iCh ), 5 );
     } 
 }
 
@@ -225,8 +255,13 @@ void queryallchannelvoltages( void )
 {
     for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ )
     {
-        Serial.print("CH ") ; Serial.print(iCh + 1) ; Serial.print(" set to : ") ;
-        Serial.print( querychannelvoltage( iCh ), 4); Serial.println(" V");
+        if ( isPrintModeVerbose )
+        {
+            Serial.print("CH ") ; Serial.print(iCh + 1) ; Serial.print(" set to : ") ;
+            Serial.print( querychannelvoltage( iCh ), 4); Serial.println(" V");
+        }
+        else
+            Serial.println( querychannelvoltage( iCh ), 4 ) ;  
     } 
 }
 
@@ -240,8 +275,6 @@ float querychannelvoltage( uint8_t iChannel )
     return ADC_VOLTSPERBIT * float( readchanneladc( iChannel ) ) ; 
 }
 
-
-
 uint16_t readchanneladc( uint8_t iChannel ) 
 {
     if ( iChannel < ADC_NCHANNELS )                                  
@@ -249,7 +282,7 @@ uint16_t readchanneladc( uint8_t iChannel )
     else if ( iChannel < 2*ADC_NCHANNELS )
         return adc2.readADC_SingleEnded( iChannel - ADC_NCHANNELS ) ;
     else
-		Serial.print("Error: Invalid channel index. ") ;
+		Serial.println("Error: Invalid channel index. ") ;
 }
 
 void resetallshims( void ) 
@@ -260,28 +293,17 @@ void resetallshims( void )
     }
 }
 
-
-
-
-
-
-void feedback(){
-  for (int chAdr = 0; chAdr <= 3; chAdr++)
-  {
-    uint16_t adc0 = adc1.readADC_SingleEnded(chAdr);
-    Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 6);
-  }
-  for (int chAdr = 0; chAdr <= 3; chAdr++)
-  {
-    uint16_t adc0 = adc2.readADC_SingleEnded(chAdr);
-    Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 6);
-  }
-}
-
-unsigned int ampstodac( float current ) 
+void switchprintmode( void ) 
 {
-    return round( current*DAC_PREAMP_RESISTANCE*DAC_BITSPERVOLT - DAC_ZERO ) ;
+     isPrintModeVerbose = !isPrintModeVerbose ; 
 }
+
+void getprintmode( void ) 
+{
+     Serial.println( isPrintModeVerbose ) ; 
+}
+
+
 
 /* float adctoamps( uint16_t adcCounts ) { */
 /*  */
