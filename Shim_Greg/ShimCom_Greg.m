@@ -202,18 +202,20 @@ ChannelOutput=fscanf(Shim.ComPort,'%s');
 end
 % =========================================================================
 function [ChannelOutputs] = getallchanneloutputs( Shim )
-%GETALLCHANNELOUTPUT
+%GETALLCHANNELSOUTPUTS      
+%
+% ChannelOutputs = GETALLCHANNELOUTPUTS( Shim ) 
 % 
-%   Querry and display a current feedback for all channels
+% ChannelOutputs has fields
+%
+%   .current [amperes]
+ 
+Shim.sendcmd( Shim.Cmd.getAllChannelOutputs ) ;
 
-%Command to querry the channels -------------------------------------------
-fprintf(Shim.ComPort,'%s',Shim.Cmd.getallChannelFeedback,'sync');
-ChannelOutputs =zeros(1,Shim.Specs.Amp.nChannels);
+ChannelOutputs.current = zeros(1,Shim.Specs.Amp.nChannels);
 
-% Read Feedback from arduino-----------------------------------------------
-for i=1:(Shim.Specs.Amp.nChannels)
-    a= fscanf(Shim.ComPort,'%s');
-    ChannelOutputs(i)=str2double(a); 
+for iCh = 1 : Shim.Specs.Amp.nChannels
+    ChannelOutputs.current = str2double( fscanf( Shim.ComPort,'%s' ) ); 
 end
 
 end
@@ -282,11 +284,10 @@ function [Cmd] = getcommands( )
 
 % System commands (as strings)---------------------------------------------
 
-% Cmd.getChannelFeedback    = 'f'; not implemented in .ino
+Cmd.getAllChannelOutputs  = 'q'; 
 Cmd.updateOneChannel      = 'a';
 Cmd.resetAllShims         = 'w' ;
 
-Cmd.getallChannelFeedback = 'e';
 Cmd.calibrateDacCurrent   = 'x';
 
 Cmd.resetArduino          = 'r';
