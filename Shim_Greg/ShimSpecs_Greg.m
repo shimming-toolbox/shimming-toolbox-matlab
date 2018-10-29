@@ -77,8 +77,8 @@ Shim.Com.updatePeriod    = 0.05 ;
 Shim.Amp.nChannels       = 8 ;  
 Shim.Amp.nActiveChannels = 8 ;
 
-Shim.Amp.maxCurrentPerChannel = 2.2 * ones( Shim.Amp.nActiveChannels, 1 ) ; ; % (absolute) [units: A]
-Shim.Amp.maxVoltagePerChannel = 2500 ; % (absolute) [units: mV]
+Shim.Amp.maxCurrentPerChannel = 2.5 * ones( Shim.Amp.nActiveChannels, 1 ) ; ; % (absolute) [units: A]
+Shim.Amp.maxVoltagePerChannel = 2500 ; % [units: mV]
 
 Shim.Amp.staticChannels  = true( Shim.Amp.nActiveChannels, 1 ) ;  
 Shim.Amp.dynamicChannels = true( Shim.Amp.nActiveChannels, 1 ) ;  
@@ -86,7 +86,7 @@ Shim.Amp.dynamicChannels = true( Shim.Amp.nActiveChannels, 1 ) ;
 Shim.Adc.mVPerAdcCount = 2 ;
 
 Shim.Dac.resolution       = 8 ; % [bits]
-Shim.Dac.referenceVoltage = 1.25 ; % [units: V]
+Shim.Dac.referenceVoltage = 1250 ; % [units: mV]
 Shim.Dac.maximum          = 26214 ; 
 
 % TODO 
