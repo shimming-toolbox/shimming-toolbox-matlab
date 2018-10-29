@@ -124,7 +124,7 @@ if nargin < 2
     Params.dummy = [];
 end
 
-Corrections = optimizeshimcurrents@ShimOpt( Shim, Params, @checknonlinearconstraints ) ;
+Corrections = optimizeshimcurrents@ShimOpt( Shim, Params  ) ;
 
 function [C, Ceq] = checknonlinearconstraints( corrections )
 %CHECKNONLINEARCONSTRAINTS 
