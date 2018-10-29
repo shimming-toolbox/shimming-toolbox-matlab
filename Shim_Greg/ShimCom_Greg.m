@@ -1,5 +1,5 @@
 classdef ShimCom_Greg < ShimCom 
-%SHIMCOM_GREG - Shim Communication for 8ch AC/DC neck coil 
+%SHIMCOM_GREG - Shim Communication for the 8-channel AC/DC neck coil 
 %
 % .......
 %   
@@ -18,19 +18,6 @@ classdef ShimCom_Greg < ShimCom
 %       .Params
 %
 % =========================================================================
-% Notes
-%
-%   Part of series of classes pertaining to shimming:
-%
-%    ProbeTracking
-%    ShimCal
-%    ShimCom
-%    ShimEval
-%    ShimOpt
-%    ShimSpecs
-%    ShimTest 
-%    ShimUse
-%     
 %    ShimCom_Greg is a ShimCom subclass.
 %
 % =========================================================================
@@ -51,8 +38,8 @@ end
 Shim.ComPort = ShimCom_Greg.initializecomport( Shim.Specs ) ;
 Shim.Cmd     = ShimCom_Greg.getcommands( ) ;
 
-Shim.Data.output = uint8(0) ;
-Shim.Data.input  = uint8(0) ;
+Shim.Data.output = '' ;
+Shim.Data.input  = '' ;
 
 Shim.Params.nBytesToRead     = [] ; % depends on cmd sent to system
 Shim.Params.nSendAttemptsMax = 5; % # communication attempts before error
@@ -62,8 +49,16 @@ end
 function [isAckReceived] = getsystemheartbeat( Shim ) ;
 %GETSYSTEMHEARTBEAT
 
-warning('Unimplemented funct. ShimCom_Greg.GETSYSTEMHEARTBEAT()')
-isAckReceived=true;
+dbstop in ShimCom_Greg at 53
+Shims.Params.nBytesToRead = 1 ;   
+
+
+
+% [Shims, isSendOk] = Shims.sendcmd( Shim.Cmd.resetAllShims ) ;
+%
+% if isSendOk
+%     Shims.isackreceived() ;
+% end
 
 end
 % =========================================================================
@@ -96,10 +91,10 @@ function [] = setandloadshim( Shim, channel, current )  ;
 % fprintf(Shim.ComPort,'%s',command,'sync');  
 
 % dbstop in setandloadshim at 99
-[currentLB, currentHB] = Shims.splitint( Shims.ampstodac( currents ) ) ;    
-    
-Shims.Data.output(iByteOut) = currentHB ;
-Shims.Data.output(iByteOut) = currentLB ; 
+% [currentLB, currentHB] = Shims.splitint( Shims.ampstodac( currents ) ) ;    
+%     
+% Shims.Data.output(iByteOut) = currentHB ;
+% Shims.Data.output(iByteOut) = currentLB ; 
 
 
 end
@@ -132,11 +127,11 @@ function [] = resetallshims( Shim )
 Shims.Params.nBytesToRead = 1 ;   
 
 
-[Shims, isSendOk] = Shims.sendcmd( Shim.Cmd.resetAllShims ) ;
-
-if isSendOk
-    Shims.isackreceived() ;
-end
+% [Shims, isSendOk] = Shims.sendcmd( Shim.Cmd.resetAllShims ) ;
+%
+% if isSendOk
+%     Shims.isackreceived() ;
+% end
 
 end
 % =========================================================================
@@ -145,22 +140,25 @@ function [] = opencomport( Shim )
 % 
 % Open serial communication port & reset Arduino Board 
 
-instrument = instrfind;
-
-if isempty(instrument)
+if isempty( instrfind() )
     Shim.ComPort = ShimCom_Greg.initializecomport( Shim.Specs ) ;
 end
 
-fopen(Shim.ComPort);
-
-% fprintf(Shim.ComPort,'%s',Shim.Cmd.resetArduino,'sync');
-
-nlinesFeedback = 8 ; % Lines of feedback after opening serial communication
-
-% Read the Feedback from the arduino---------------------------------------
-for i=1:nlinesFeedback
-    a = fscanf(Shim.ComPort,'%s')
+if strcmp( Shim.ComPort.Status, 'open' )
+    return;
 end
+
+fopen( Shim.ComPort );
+pause(5);
+
+% Arduino should output a single char upon initialization
+inByte = [];
+
+while( Shim.ComPort.BytesAvailable > 0 )
+     inByte = str2num( fgetl( Shim.ComPort ) ) ;
+end
+
+assert( inByte == 1 ) ;
 
 end
 % =========================================================================
@@ -201,18 +199,20 @@ function [ChannelOutputs] = getallchanneloutputs( Shim )
 
 ChannelOutputs.current  = zeros( 1, Shim.Specs.Amp.nChannels ) ;
 ChannelOutputs.voltages = zeros( 1, Shim.Specs.Amp.nChannels ) ;
- 
-Shim.sendcmd( Shim.Cmd.getAllChannelCurrents ) ;
 
-for iCh = 1 : Shim.Specs.Amp.nChannels
-    ChannelOutputs.current(iCh) = str2double( fscanf( Shim.ComPort,'%s' ) ); 
-end
+Shims.Params.nBytesToRead = Shim.Specs.Amp.nChannels ;
 
-Shim.sendcmd( Shim.Cmd.getAllChannelVoltages ) ;
-
-for iCh = 1 : Shim.Specs.Amp.nChannels
-    ChannelOutputs.voltage(iCh) = str2double( fscanf( Shim.ComPort,'%s' ) ); 
-end
+% Shim.sendcmd( Shim.Cmd.getAllChannelCurrents ) ;
+%
+% for iCh = 1 : Shim.Specs.Amp.nChannels
+%     ChannelOutputs.current(iCh) = str2double( fscanf( Shim.ComPort,'%s' ) ); 
+% end
+%
+% Shim.sendcmd( Shim.Cmd.getAllChannelVoltages ) ;
+%
+% for iCh = 1 : Shim.Specs.Amp.nChannels
+%     ChannelOutputs.voltage(iCh) = str2double( fscanf( Shim.ComPort,'%s' ) ); 
+% end
 
 end
 % =========================================================================
@@ -233,7 +233,10 @@ end
 % =========================================================================
 function [dacCorrections]= calibratedac( Shim)
 %CALIBRATEDAC 
-%
+
+% Arduino prints TRUE/FALSE for each channel according to the success of its calibration 
+Shims.Params.nBytesToRead = Shim.Specs.Amp.nChannels ; 
+
 dacCorrections = [] ;
 
 % if strcmp( Shim.ComPort.Status, 'closed' ) ;
@@ -311,6 +314,8 @@ Cmd.setAndLoadAllShims    = 'a';
 
 Cmd.calibrateDac          = 'c';
 
+Cmd.getSystemHeartbeat    = 'h'; 
+
 Cmd.setAndLoadByChannel   = 'i';
 
 Cmd.getAllChannelCurrents  = 'q'; 
@@ -336,8 +341,9 @@ warning( 'Serial port device name may change depending on the host computer.' )
 
 if ismac
    % portName = '/dev/cu.usbserial' ;          % USB to serial adapter
-    % portName = '/dev/tty.usbserial' ;          % USB to serial adapter
-    portName = '/dev/tty.usbmodem14101' ;
+    portName = '/dev/tty.usbserial' ;          % USB to serial adapter
+    % portName = '/dev/tty.usbmodem14101' ;
+    % portName = '/dev/tty.usbmodem14201' ;
 elseif isunix
     portName = '/dev/ttyUSB0' ;   
 elseif ispc
