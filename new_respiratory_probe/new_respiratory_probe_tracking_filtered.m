@@ -7,8 +7,8 @@ delete(instrfindall);
 %% --
 treshold_freq = 0.3;  % threshold value above/below the mean of previous time points
 %% -- 
-duration = 200cd cod; % DURATION OF THE MEASUREMENT IN SECONDS
-%data_freq(1) = 0;
+duration = 200; % DURATION OF THE MEASUREMENT IN SECONDS
+
 s = serial('/dev/cu.usbmodem4471891'); %Teensy 3.5\
 
 exp_descr = inputdlg('Experiment_description: ');
@@ -21,14 +21,13 @@ fopen(s)
 timepoint = 1;
 limit = duration / 0.1;
 figure
-% ButtonHandle = uicontrol('Style', 'PushButton', ...
-%     'String', 'Stop loop', ...
-%     'Callback', 'delete(gcbf)');
+
 while timepoint<limit
     
     data_buffer = fscanf(s,'%s');
     data_freq(timepoint) = str2num(data_buffer)/100;
-    %data_freq(timepoint) = data_freq(timepoint-1) + 10;
+    % filter the peaks from RF by replacing current value with previous
+    % value
     if timepoint ~= 1
         if data_freq(timepoint) > data_freq(timepoint-1) + treshold_freq || data_freq(timepoint) < data_freq(timepoint-1) - treshold_freq 
             data_freq(timepoint) = data_freq(timepoint-1);
@@ -43,11 +42,9 @@ while timepoint<limit
     drawnow
     timepoint = timepoint + 1;
     
-%     if ~ishandle(ButtonHandle)
-%         
-%         break;
-%     end
 end
+
+%% Save freq trace
 freqLogFid = fopen( DEFAULT_FREQLOGFILENAME, 'w+' ) ;
 fwrite( freqLogFid, data_freq, 'double' ) ;
 fclose( freqLogFid );
