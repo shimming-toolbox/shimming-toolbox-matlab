@@ -45,7 +45,7 @@ classdef (Abstract) ShimCom < matlab.mixin.SetGet
 %    ShimCom is an Abstract class.
 %
 % =========================================================================
-% Updated::20170204::ryan.topfer@polymtl.ca
+% Updated::20181027::ryan.topfer@polymtl.ca
 % =========================================================================
 
 
@@ -189,26 +189,26 @@ function [lowByte, highByte] = splitint( z )
 %
 % else if z is in two's complement
 %   ...
- 
-    if isa(z, 'uint16' ) || z > 0 
-        lowByte  = uint8( bitand( uint16(z), uint16(255) ) ) ;
-        % bitshift by -8 discards the lowest 8 bits
-        highByte = uint8( bitshift( z, -8 ) ) ;
-    elseif isa(z, 'int16')
-        % invert bits
-        % [0, 65535] is the range of uint16.
-        % 2^16 = 65536 = 1 0000 0000 0000 0000 
-        % Subtraction of 2^16 from z works to flip the bits
-        % and add 1  
-        z = abs(int32(abs(z)) - int32(65536)) ;
-        
-        lowByte  = uint8( bitand( z, int32(255) ))  ;
 
-        % bitshift by -8 discards the lowest 8 bits
-        highByte = uint8( bitshift( z, -8 ) ) ;
-    else
-        error('Input must be int16 or uint16') ;
-    end 
+if isa( z, 'uint16' ) || z >= 0 
+    lowByte  = uint8( bitand( uint16(z), uint16(255) ) ) ;
+    % bitshift by -8 discards the lowest 8 bits
+    highByte = uint8( bitshift( z, -8 ) ) ;
+elseif isa(z, 'int16')
+    % invert bits
+    % [0, 65535] is the range of uint16.
+    % 2^16 = 65536 = 1 0000 0000 0000 0000 
+    % Subtraction of 2^16 from z works to flip the bits
+    % and add 1  
+    z = abs(int32(abs(z)) - int32(65536)) ;
+    
+    lowByte  = uint8( bitand( z, int32(255) ))  ;
+
+    % bitshift by -8 discards the lowest 8 bits
+    highByte = uint8( bitshift( z, -8 ) ) ;
+else
+    error('Input must be int16 or uint16') ;
+end 
 
 end
 % =========================================================================
