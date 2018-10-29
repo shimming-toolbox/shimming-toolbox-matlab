@@ -7,7 +7,7 @@ delete(instrfindall);
 %% --
 treshold_freq = 0.3;  % threshold value above/below the mean of previous time points
 %% -- 
-duration = 200cd cod; % DURATION OF THE MEASUREMENT IN SECONDS
+duration = 200; % DURATION OF THE MEASUREMENT IN SECONDS
 %data_freq(1) = 0;
 s = serial('/dev/cu.usbmodem4471891'); %Teensy 3.5\
 
