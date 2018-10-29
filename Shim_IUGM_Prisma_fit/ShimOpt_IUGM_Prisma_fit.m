@@ -2,7 +2,7 @@ classdef ShimOpt_IUGM_Prisma_fit < ShimOpt
 %SHIMOPT_IUGM_PRISMA_FIT - Shim Optimization for Prisma-fit @ UNF 
 %     
 % =========================================================================
-% Updated::20180726::ryan.topfer@polymtl.ca
+% Updated::20181022::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -34,12 +34,6 @@ if Params.isCalibratingReferenceMaps
 elseif ~isempty(Params.pathToShimReferenceMaps)
    
    [ Shim.img, Shim.Hdr ] = ShimOpt.loadshimreferencemaps( Params.pathToShimReferenceMaps ) ; 
-
-    % TODO
-    % --> DICOM positional fields (notably, ImagePositionPatient & ImageOrientationPatient)
-    % refer to the 'patient coordinate system' which is itself established upon positioning
-    % the patient (i.e. this coordinate system *moves with the patient table!*)
-    % therefore, in fact, i need a way to relate the PCS system to the scanner's (static) shim/coordinate system! 
     
     Shim.Ref.img = Shim.img ;
     Shim.Ref.Hdr = Shim.Hdr ;
@@ -130,7 +124,7 @@ if nargin < 2
     Params.dummy = [];
 end
 
-Corrections = optimizeshimcurrents@ShimOpt( Shim, Params, @checknonlinearconstraints ) ;
+Corrections = optimizeshimcurrents@ShimOpt( Shim, Params  ) ;
 
 function [C, Ceq] = checknonlinearconstraints( corrections )
 %CHECKNONLINEARCONSTRAINTS 
@@ -205,7 +199,7 @@ function  [ Params ] = assigndefaultparameters( Params )
 
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
-DEFAULT_PATHTOSHIMREFERENCEMAPS    = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20180726';
+DEFAULT_PATHTOSHIMREFERENCEMAPS    = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20181022';
 DEFAULT_PROBESPECS                 = [] ;
 
 if ~myisfield( Params, 'isCalibratingReferenceMaps' ) || isempty(Params.isCalibratingReferenceMaps)
@@ -241,78 +235,117 @@ function Params = declarecalibrationparameters( Params )
 
 Params.nChannels  = 8 ;
 Params.nCurrents  = 2 ;
-Params.nEchoes    = 1 ; % nEchoes = # phase *difference* images
+Params.nEchoes    = 5 ; % nEchoes = 1 for phase *difference* images
 
 % 2 columns: [ MAG | PHASE ] ;
 Params.dataLoadDirectories = cell( Params.nEchoes, 2, Params.nCurrents, Params.nChannels ) ;
 
-Params.currents = zeros( Params.nChannels, Params.nCurrents ) ; 
-% will read shim current offsets (relative to baseline 'tune-up' values)
-% directly from Siemens DICOM Hdr below, but they should be:
-% Params.currents = [ -30 30; % A11
-%                     -30 30; % B11
-%                     -30 30; % A10
-%                     -600 600; % A20
-%                     -600 600; % A21
-%                     -600 600; % B21
-%                     -600 600; % A22
-%                     -600 600;] ; % B22
+
 tmp = { ...
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/149-eld_mapping_shim0_axial_fovPhase100perc_phaseOver0perc_S76_DIS3D/echo_7.38/'  ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/151-eld_mapping_shim0_axial_fovPhase100perc_phaseOver0perc_S78_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/153-gre_field_mapping_A11_minus30_S80_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/155-gre_field_mapping_A11_minus30_S82_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/157-gre_field_mapping_A11_plus30_S84_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/159-gre_field_mapping_A11_plus30_S86_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/161-gre_field_mapping_B11_minus30_S88_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/163-gre_field_mapping_B11_minus30_S90_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/165-gre_field_mapping_B11_plus30_S92_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/167-gre_field_mapping_B11_plus30_S94_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/169-gre_field_mapping_A10_minus30_S96_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/171-gre_field_mapping_A10_minus30_S98_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/173-gre_field_mapping_A10_plus30_S101_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/175-gre_field_mapping_A10_plus30_S103_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/177-gre_field_mapping_A20_minus600_S105_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/179-gre_field_mapping_A20_minus600_S107_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/181-gre_field_mapping_A20_plus600_S109_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/183-gre_field_mapping_A20_plus600_S111_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/185-gre_field_mapping_A21_minus600_S113_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/187-gre_field_mapping_A21_minus600_S115_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/189-gre_field_mapping_A21_plus600_S117_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/191-gre_field_mapping_A21_plus600_S119_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/193-gre_field_mapping_B21_minus600_S121_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/195-gre_field_mapping_B21_minus600_S123_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/197-gre_field_mapping_B21_plus600_S125_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/199-gre_field_mapping_B21_plus600_S127_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/201-gre_field_mapping_A22_minus800_S129_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/203-gre_field_mapping_A22_minus800_S131_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/209-gre_field_mapping_A22_plus600_S137_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/211-gre_field_mapping_A22_plus600_S139_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/213-gre_field_mapping_B22_minus600_S141_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/215-gre_field_mapping_B22_minus600_S143_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/217-gre_field_mapping_B22_plus600_S145_DIS3D/echo_7.38/' ;
-    '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/219-gre_field_mapping_B22_plus600_S147_DIS3D/echo_7.38/' ; } ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/03-fm3d_shimX_chXX_XXmA_test/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/04-fm3d_shimX_chXX_XXmA_test/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/05-fm3d_A11_plus30/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/06-fm3d_A11_plus30/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/07-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/08-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/09-fm3d_B11_plus30/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/10-fm3d_B11_plus30/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/11-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/12-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/13-fm3d_A01_plus30/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/14-fm3d_A01_plus30/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/15-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/16-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/17-fm3d_A20_plus600/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/18-fm3d_A20_plus600/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/19-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/20-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/21-fm3d_A21_plus600/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/22-fm3d_A21_plus600/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/23-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/24-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/25-fm3d_B21_plus600/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/26-fm3d_B21_plus600/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/27-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/28-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/29-fm3d_A22_plus1000/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/30-fm3d_A22_plus1000/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/31-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/32-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/33-fm3d_B22_plus1000/' ;
+    '/Users/ryan/Projects/Shimming/Static/Calibration/Data/acdc_39p/34-fm3d_B22_plus1000/' ; } ;
 
-% 1st 2 directories correspond to the baseline shim 
-Params.dataLoadDirectories{1,1,1,1} = tmp{1} ;
-Params.dataLoadDirectories{1,2,1,1} = tmp{2} ;
+Params.dataLoadDirectories = cell( Params.nEchoes, 2, Params.nCurrents, Params.nChannels ) ;
 
-nImgPerCurrent = 2 ; % = 1 mag image + 1 phase
+for iChannel = 1 : Params.nChannels
+    for iCurrent = 1 : Params.nCurrents
+        for imgType = 1 : 2 % 1=mag, 2=phase
+
+        iDir = (iChannel-1)*(Params.nCurrents*2) + 1 ;
+
+        dicomSubDirs  = dir( [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo*/'] ) ;
+        nDicomSubDirs = length( dicomSubDirs ) ;
+        assert( nDicomSubDirs == 5 )
+
+        Params.dataLoadDirectories{ 1, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_1.68/' ] ;
+        Params.dataLoadDirectories{ 2, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_5.68/' ] ;
+        Params.dataLoadDirectories{ 3, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_10.68/' ] ;
+        Params.dataLoadDirectories{ 4, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_15.68/' ] ;
+        Params.dataLoadDirectories{ 5, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_20.68/' ] ;
+
+        end
+    end 
+end
+
+% tmp = { ...
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/149-eld_mapping_shim0_axial_fovPhase100perc_phaseOver0perc_S76_DIS3D/echo_7.38/'  ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/151-eld_mapping_shim0_axial_fovPhase100perc_phaseOver0perc_S78_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/153-gre_field_mapping_A11_minus30_S80_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/155-gre_field_mapping_A11_minus30_S82_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/157-gre_field_mapping_A11_plus30_S84_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/159-gre_field_mapping_A11_plus30_S86_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/161-gre_field_mapping_B11_minus30_S88_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/163-gre_field_mapping_B11_minus30_S90_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/165-gre_field_mapping_B11_plus30_S92_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/167-gre_field_mapping_B11_plus30_S94_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/169-gre_field_mapping_A10_minus30_S96_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/171-gre_field_mapping_A10_minus30_S98_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/173-gre_field_mapping_A10_plus30_S101_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/175-gre_field_mapping_A10_plus30_S103_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/177-gre_field_mapping_A20_minus600_S105_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/179-gre_field_mapping_A20_minus600_S107_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/181-gre_field_mapping_A20_plus600_S109_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/183-gre_field_mapping_A20_plus600_S111_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/185-gre_field_mapping_A21_minus600_S113_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/187-gre_field_mapping_A21_minus600_S115_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/189-gre_field_mapping_A21_plus600_S117_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/191-gre_field_mapping_A21_plus600_S119_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/193-gre_field_mapping_B21_minus600_S121_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/195-gre_field_mapping_B21_minus600_S123_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/197-gre_field_mapping_B21_plus600_S125_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/199-gre_field_mapping_B21_plus600_S127_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/201-gre_field_mapping_A22_minus800_S129_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/203-gre_field_mapping_A22_minus800_S131_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/209-gre_field_mapping_A22_plus600_S137_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/211-gre_field_mapping_A22_plus600_S139_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/213-gre_field_mapping_B22_minus600_S141_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/215-gre_field_mapping_B22_minus600_S143_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/217-gre_field_mapping_B22_plus600_S145_DIS3D/echo_7.38/' ;
+%     '~/Projects/Shimming/Static/Calibration/Data/acdc_21p/219-gre_field_mapping_B22_plus600_S147_DIS3D/echo_7.38/' ; } ;
 
 disp( ['Preparing shim calibration...' ] )        
 
+% Read shim current offsets (relative to baseline 'tune-up' values)
+% directly from Siemens DICOM Hdr
+Params.currents = zeros( Params.nChannels, Params.nCurrents ) ; 
+
 for iChannel = 1 : Params.nChannels
     disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
-    
+
     for iCurrent = 1 : Params.nCurrents 
-        % mag
-        Params.dataLoadDirectories{ 1, 1, iCurrent, iChannel + 1} = tmp{ nImgPerCurrent*(Params.nCurrents*iChannel + iCurrent) -3 } ;
-        % phase
-        Params.dataLoadDirectories{ 1, 2, iCurrent, iChannel + 1} = tmp{ nImgPerCurrent*(Params.nCurrents*iChannel + iCurrent) -2 } ;
-       
         % for calibration of Siemens (e.g. Prisma) scanner shims only : 
         % load one of the images for each 'current' to get the shim values directly from the Siemens Hdr
-        Img = MaRdI( Params.dataLoadDirectories{ 1, 1, iCurrent, iChannel +1 }  ) ; % mag
+        Img = MaRdI( Params.dataLoadDirectories{ 1, 1, iCurrent, iChannel }  ) ; % mag
         [f0,g0,s0] = Img.adjvalidateshim( ) ;
         shimValues = ShimOpt_IUGM_Prisma_fit.converttomultipole( [g0 ; s0] ) ; % convert to the 'multipole units' of the 3D shim card (Siemens console GUI)
         Params.currents( iChannel, iCurrent ) = shimValues( iChannel ) ; % TODO : consistent approach to units, since these aren't in amps...
@@ -324,7 +357,7 @@ Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
 voxelSize                     = Mag.getvoxelsize() ;
 Params.Filtering.filterRadius = voxelSize(3) ;
 
-Params.reliabilityMask = (Mag.img/max(Mag.img(:))) > 0.1 ; % region of reliable SNR for unwrapping
+Params.reliabilityMask = (Mag.img/max(Mag.img(:))) > 0.01 ; % region of reliable SNR for unwrapping
 
 
 Params.Extension.isExtending    = false ; % harmonic field extrapolation

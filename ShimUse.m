@@ -117,7 +117,7 @@ switch Shim.Params.shimSystem
 
     case 'Greg'
         Shim.Opt = ShimOpt_Greg( Shim.Params ) ;
-        Shim.Com = ShimComAcdc( ) ;
+        Shim.Com = ShimCom_Greg( ) ;
     
     case 'UnfPrisma'
         Shim.Opt = ShimOpt_IUGM_Prisma_fit( Shim.Params ) ;
@@ -143,7 +143,7 @@ end
 Shim.Data.Aux.Tracker = cell( 1, 1, Shim.Params.nTrainingFrames + 1 ) ; % to record (in this order): (1) normal breathing; (2) breath-hold insp; (3) breath-hold exp
 
 if strcmp( Shim.Params.uiMode, 'isGui' ) 
-    ShimGUI( Shim ) ;
+    ShimGui( Shim ) ;
 end
 
 end
@@ -371,7 +371,7 @@ function [] = processtrainingdata( Shim )
 % Shim.Data.Img{1,3,iFrame}.Aux.Tracker.Data.p
 Shim.Data.Img(1,3,:) = cell(1,1) ; % 3rd column for field maps
 
-if isempty( Shim.Params.isUserSelectionEnabled )
+if ~myisfield( Shim.Params, 'isUserSelectionEnabled' ) || isempty( Shim.Params.isUserSelectionEnabled )
     isUserSelectionEnabled = true ; % default
 else
     assert( islogical( Shim.Params.isUserSelectionEnabled ) ) ;

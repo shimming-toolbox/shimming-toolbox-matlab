@@ -2,7 +2,7 @@
   ShimControl.ino
 
 // =========================================================================
-// Updated::20180727::ryan.topfer@polymtl.ca
+// Updated::20181028::ryan.topfer@polymtl.ca
 // =========================================================================
 */
 
@@ -15,7 +15,7 @@
 
 //Declaration of global variables 
 Adafruit_ADS1015 adc1 (0x48);
-Adafruit_ADS1015 adc2 (0x49); /* Use thi for the 12-bit version */
+Adafruit_ADS1015 adc2 (0x49); /* Use this for the 12-bit version */
 
 #define mosiPin 11
 #define sclkPin 13
@@ -29,267 +29,520 @@ Adafruit_ADS1015 adc2 (0x49); /* Use thi for the 12-bit version */
     pin (16). Remaining connections as explained above.
 */
 
-// global variables re: DAC
-AD5668 DAC = AD5668(mosiPin, sclkPin , ssPin, clrPin, ldacPin);
+// global variables 
 
-// 3 terms describing hardware:
-const uint8_t DAC_RESOLUTION      = 16 ; // 16-bit
-const float DAC_VREF              = 1.25 ; // [units: volts]
-const float DAC_PREAMP_RESISTANCE = 0.22 ; // [units: Ohms]
+// re: shim board
+const uint8_t SHIM_NCHANNELS         = 8 ;
 
-// 3 derived terms (for convenience):
-const float DAC_RANGE_VOUT  = 2.0*DAC_VREF ; // [units: volts]
-const float DAC_BITSPERVOLT = ( pow( 2.0, float(DAC_RESOLUTION) ) - 1.0 )/DAC_RANGE_VOUT ; // =26214.0 [units: bit-counts]
-const float DAC_ZERO        = DAC_VREF*DAC_BITSPERVOLT ; // =32767.5 [units: bit-counts]
+// power supply:
+const float AMP_MAXCURRENTPERCHANNEL = 2.5 ; // [units: amps]
+const float AMP_CURRENTRANGE         = 2*AMP_MAXCURRENTPERCHANNEL ; // [units: amps]
 
-// variables re: shim board
-const uint8_t SHIM_NCHANNELS = 8 ;
+// 3 terms describing ADC hardware:
+const uint8_t ADC_NCHANNELS          = 4 ;
+const uint8_t ADC_RESOLUTION         = 12 ; // 12-bit
+const float   ADC_RANGE_VOUT         = 2.048 ; // for GAIN_TWO setting [units: volts]
+// 1 derived term for convenience:
+const uint16_t ADC_MILLIVOLTSPERBIT  = round( 1000*2.0*ADC_RANGE_VOUT/( pow( 2.0, float(ADC_RESOLUTION) ) - 1.0 ) ) ; // = 1 [uints: mV/bit-count]
+
+// 3 terms describing DAC hardware:
+AD5668 DAC                           = AD5668( mosiPin, sclkPin , ssPin, clrPin, ldacPin ) ;
+const uint8_t DAC_RESOLUTION         = 16 ; // 16-bit
+const int16_t DAC_VREF               = 1250 ; // [units: mV]
+const int16_t DAC_PREAMP_RESISTANCE  = 220 ; // [units: milli-Ohms]
+
+// 3 derived terms for convenience:
+const uint16_t DAC_RANGE_VOUT        = 2*DAC_VREF ; // [units: mV]
+const float DAC_BITSPERAMP           = ( pow( 2.0, float(DAC_RESOLUTION) ) - 1.0 )/AMP_CURRENTRANGE ; // = 13107 [units: bit-counts/A] 
+const uint16_t DAC_BITSPERVOLT       = (1000* pow( 2.0, float(DAC_RESOLUTION) ) - 1.0 )/DAC_RANGE_VOUT ; // = 26214 [units: bit-counts/V]
+
+// 
+float dacOffset [ SHIM_NCHANNELS ] ; // [units: mV]
+float dacGain [ SHIM_NCHANNELS ] ; // [unitless]
+
+float currentsBuffer [ SHIM_NCHANNELS ] ; // [units: A] 
+uint16_t dacBuffer [ SHIM_NCHANNELS ] ; // same as currentsBuffer but converted to DAC counts
+
+/* bool isPrintModeVerbose = true ; */
 
 void setup() {
   Serial.begin(115200);   //Baudrate of the serial communication : Maximum
   delay(100);
 
-  Serial.println("-------Shim control board initialization--------");
-
   DAC.init();
-
   DAC.enableInternalRef(); // Uncomment this line to turn on the internal reference.
-
   DAC.powerDAC_Normal(B11111111); // Power up all channels normal
 
-  Serial.println("Setting ADC Range: +/- 2.048V  (1 bit = 1mV)");
   adc1.setGain(GAIN_TWO); //+/- 2.048V  1 bit = 1mV
   adc2.setGain(GAIN_TWO); //+/- 2.048V  1 bit = 1mV
 
   adc1.begin();
   adc2.begin();
-  
-    Serial.println("Ready to receive commands ...");
+
+  for( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ )
+  {
+    currentsBuffer[iCh] = 0.0 ;
+    dacBuffer[iCh]      = 32768 ;
+    dacOffset[iCh]      = 0 ; 
+    dacGain[iCh]        = 1.0 ; 
+  }
+
+  resetallshims() ; 
+  // system heartbeat prints TRUE to indicate system is responsive
+  usergetsystemheartbeat() ; 
+  // TODO : print FALSE if setup unexpectedly failed  
 }
 
-void(* resetFunc) (void) = 0;//declare reset function at address 0
+void(* resetFunc) (void) = 0; //declare reset function at address 0
 
-void loop() {
-  //Declaration of global variables 
-
-  int sch;
-  uint8_t iCh ;
-  int element;
-  int data;
-  int i;
-  int bytesread;
-  int n_cal;
-  unsigned int DACvaluetosend [8];                                                   //Array to store the 8 currents converted in DAC values
-  int16_t adc0;
-  int64_t a [41];                                                                    // Array to store 40 digits from serial communication
-
-  String inString = "";
+void loop() 
+{
+  
   char incomingByte;
 
-  float val;
-  float req_val;
-  float cal_val [] = { -200, -100, 0, 100, 200};                                    // Value for Feedback calibration
-  float p1[] = {0.65909, 0.65, 0.64547, 0.6499, 0.6591, 0.654, 0.65, 0.65};            // Coefficients from Feedback calibration
-  float p2[] = {19.09, -10.908, -23.636, 20.91, 32.728, 11.308, -42.728, 34.546};
-  float D [41];                                                                        // Array to store 40 digits from serial communication
-  float currents [8];                                                                  //Array to store the 8 currents
-  float vOut;
-
-
-
-  if (Serial.available() > 0) {
+  if (Serial.available() > 0) 
     incomingByte = Serial.read();
-  }
-  switch (incomingByte) {
-
-    case 'a':              // Update one channel input current 
-      iCh = (Serial.parseInt()-1);
-      //Serial.println(element);
-      val = Serial.parseFloat();
-      //Serial.println(val);
-      req_val = (val - p2[element]) / p1[element];   
-      setandloadchannel( iCh, req_val);
+  
+  switch (incomingByte) 
+  {
+    
+    case 'a':
+      usersetandloadallshims(); 
       break;
-    /* case 'x':                 // Calibration of Adc current feedback */
+    
+    case 'c':                 
+      calibratedaccompensation() ;
+      break;
+    
+    case 'f': // read in channel index followed by channel current as float in units of amperes
+      usersetandloadshimbychannelasfloat();
+      break;
+    
+    case 'h':
+      usergetsystemheartbeat(); 
+      break;
+    
+    case 'i':
+      usersetandloadshimbychannel(); 
+      break;
+    
+    /* case 'm': */
+    /* //Toggle between verbose print mode (true/false) */
+    /*   userswitchprintmode(); */
+    /*   break; */
     /*  */
-    /*   for (sch = 1; sch <= 8; sch++) */
-    /*   { */
-    /*     for (n_cal = 0; n_cal < 5; n_cal++) */
-    /*     { */
-    /*       vOut = ((1.25 - cal_val[n_cal] * 0.001 * 0.22) * 26214); */
-    /*       DAC.writeUpdateCh(sch - 1, vOut); */
-    /*       delay(1000); */
-    /*       if (sch < 5) */
-    /*       { */
-    /*         int adc0 = adc1.readADC_SingleEnded(sch - 1); */
-    /*         Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2); */
-    /*         //Serial.println('\n'); */
-    /*       } */
-    /*       else */
-    /*       { */
-    /*         int adc0 = adc2.readADC_SingleEnded(sch - 5); */
-    /*         Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 2); */
-    /*         //Serial.println('\n'); */
-    /*       } */
-    /*     } */
-    /*  */
-    /*   } */
-    /*  */
-//      //Serial.print('\n'); 
-//      break;
+    /* case 'n':                 */
+    /* //Return current print mode (true when verbose) */
+    /*   usergetprintmode(); */
+    /*   break; */
 
-    case 'w':                // Set all channels to 0V
-
-    for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ ) 
-    {
-        DAC.writeUpdateCh( iCh, ampstodac( 0.0 ) ) ;
-    }
-      /* DAC.writeUpdateCh(0, 1.259 * 26214.0); */
-      /* DAC.writeUpdateCh(1, 1.246 * 26214.0); */
-      /* DAC.writeUpdateCh(2, 1.251 * 26214.0); */
-      /* DAC.writeUpdateCh(3, 1.257 * 26214.0); */
-      /*  */
-      /* DAC.writeUpdateCh(4, 1.259 * 26214.0); */
-      /* DAC.writeUpdateCh(5, 1.253 * 26214.0); */
-      /* DAC.writeUpdateCh(6, 1.244 * 26214.0); */
-      /* DAC.writeUpdateCh(7, 1.262 * 26214.0); */
-
+    case 'q':                
+      usergetallchannelcurrents();
       break;
-      
-  //  case 'f':                 // Display current feedback from one channel
-  //    element=Serial.parseInt();
-  //    feedback(element);
-  //    break;
-
-    case 'e':                //Display raw current feedbacks from all channels
-      feedback();
+    
+    case 'r':                
+      userresetallshims( ) ;
+      break;
+    
+    case 'v':                
+      usergetallchannelvoltages();
       break;
 
-
-    case 'q':                // Querry on currents feedback (Display current with channels info)
-      query();
+    case 'u':                 
+        usergetcompensationcoefficients() ;
       break;
-
-    case 'y':                // Querry on volatge feedback
-      queryVoltage();
-      break;
-
-    case 'r':                // Reset the arduino
+    
+    case 'z':                // Reset the arduino
       Serial.println("\n");
       resetFunc();
       break;
 
-
-    case 'o':                // Update all channels with 8 currents
-
-       for ( data= 0; data <= 40; data++){
-        
-       bytesread=Serial.read();       // Read digits receive by serial communication one by one
-       if (isDigit(bytesread)) {
-       inString += (char)bytesread;}  //Save these values in a string
-       a[data]=inString.toInt();
-       D[data]=double(a[data]);       //Conversion from string to double
-       Serial.print(D[data]);
-       
-       
-      // Clear the string for new input:
-      inString = "";
-   }
-      Serial.println("Coeff saved");
-      // Reconstruction of the DAC values to send
-      
-      DACvaluetosend[1]=(unsigned int)(D[1]*10000 + D[2]*1000 + D[3]*100 + D[4]*10 + D[5]);
-      DACvaluetosend[2]=(unsigned int)(D[6]*10000 + D[7]*1000 + D[8]*100 + D[9]*10 + D[10]);
-      DACvaluetosend[3]=(unsigned int)(D[11]*10000 + D[12]*1000 + D[13]*100 + D[14]*10 + D[15]);
-      DACvaluetosend[4]=(unsigned int)(D[16]*10000 + D[17]*1000 + D[18]*100 + D[19]*10 + D[20]);
-      DACvaluetosend[5]=(unsigned int)(D[21]*10000 + D[22]*1000 + D[23]*100 + D[24]*10 + D[25]);
-      DACvaluetosend[6]=(unsigned int)(D[26]*10000 + D[27]*1000 + D[28]*100 + D[29]*10 + D[30]);
-      DACvaluetosend[7]=(unsigned int)(D[31]*10000 + D[32]*1000 + D[33]*100 + D[34]*10 + D[35]);
-      DACvaluetosend[8]=(unsigned int)(D[36]*10000 + D[37]*1000 + D[38]*100 + D[39]*10 + D[40]);
-
-      // Update all the channels with the reconstructed DAC values
-      
-      DAC.writeUpdateCh(0, DACvaluetosend[1]);
-      DAC.writeUpdateCh(1, DACvaluetosend[2]);
-      DAC.writeUpdateCh(2, DACvaluetosend[3]);
-      DAC.writeUpdateCh(3, DACvaluetosend[4]);
-      DAC.writeUpdateCh(4, DACvaluetosend[5]);
-      DAC.writeUpdateCh(5, DACvaluetosend[6]);
-      DAC.writeUpdateCh(6, DACvaluetosend[7]);
-      DAC.writeUpdateCh(7, DACvaluetosend[8]);
-
-      // Feedback of all channels after updating the currents
-      
-      //query();
-
-   break;
-
-
   }
 }
 
-void query() {
-  Serial.println("\n");
-  for (int chAdr = 0; chAdr <= 3; chAdr++)
+
+uint16_t ampstodac( uint8_t iChannel, float current ) 
+{
+    return uint16_t( DAC_BITSPERVOLT * ( current*dacGain[iChannel]*float(DAC_PREAMP_RESISTANCE) + float( DAC_VREF ) + dacOffset[iChannel] )/1000.0  ) ;
+}
+
+float uint16toamps( uint16_t uint16current ) 
+{
+// Input: current scaled between [0, 65535], 
+// Output: current as float in units of amperes 
+    return ( float(uint16current) - 32768.0 )/DAC_BITSPERAMP ;
+}
+
+bool calibratedaccompensation( void )
+{
+// Determine the DAC voltage offsets and gain corrections for each channel
+// 
+// Prints a bool for each channel, TRUE if calibration was succesful
+//
+// Returns TRUE if all channels successful
+  bool isCalibrationSuccessful = false ;
+  bool isChannelCalibrationSuccessful [SHIM_NCHANNELS] ;
+
+  float offsetError0 [SHIM_NCHANNELS] ; // uncorrected
+  float offsetError1 [SHIM_NCHANNELS] ; // corrected
+  float gainError0 [SHIM_NCHANNELS] ; // uncorrected
+  float gainError1 [SHIM_NCHANNELS] ; // corrected
+
+  float currentRequested;
+  float currentsRead [ SHIM_NCHANNELS ];   
+  float currentCorrected ;
+
+  // reset DAC correction terms 
+  for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++)  
   {
-    int adc0 = adc1.readADC_SingleEnded(chAdr);
-    Serial.print("CH "); Serial.print(chAdr + 1); Serial.print(" set to : ");
-    Serial.print(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 6); Serial.println(" mA");
+    isChannelCalibrationSuccessful[iCh] = false ;
+    dacGain[iCh]   = 1.0 ;
+    dacOffset[iCh] = 0 ; 
   }
-  for (int chAdr = 0; chAdr <= 3; chAdr++)
-  {
-    int adc0 = adc2.readADC_SingleEnded(chAdr);
-    Serial.print("CH "); Serial.print(chAdr + 5); Serial.print(" set to : ");
-    //Serial.print(adc0, 4); Serial.println(" V");
-    Serial.print(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 6); Serial.println(" mA");
-  }
-}
 
-void queryVoltage() {
-  for (int chAdr = 0; chAdr <= 3; chAdr++)
-  {
-    int adc0 = adc1.readADC_SingleEnded(chAdr);
-    Serial.print("CH "); Serial.print(chAdr + 1); Serial.print(" set to : ");
-    Serial.print(adc0, 4); Serial.println(" V");
-    //Serial.print((adc0 * 0.001) , 6); Serial.println(" V");
-  }
-  for (int chAdr = 0; chAdr <= 3; chAdr++)
-  {
-    int adc0 = adc2.readADC_SingleEnded(chAdr);
-    Serial.print("CH "); Serial.print(chAdr + 5); Serial.print(" set to : ");
-    Serial.print(adc0, 4); Serial.println(" V");
-    //Serial.print((adc0 * 0.001), 6); Serial.println(" V");
-  }
-}
-
-void setandloadchannel(uint8_t iCh, float current) {
-  float vOut;
-  vOut = ((1.25 - current * 0.001 * 0.22) * 26214); // Convert current to DAC currentue
-
-  DAC.writeUpdateCh( iCh, vOut);             // Update channel 
-}
-
-unsigned int ampstodac( float current ) {
-
-    return round( DAC_PREAMP_RESISTANCE*current*DAC_BITSPERVOLT - DAC_ZERO ) ;
-
-}
-
-//void feedback(int element){
+  // determine DAC offset correction
+  currentRequested = 0.0 ;
+  // attempt to set all channels to 0.0 A
+  resetallshims(); 
   
-//    int adc0 = adc1.readADC_SingleEnded(element-1); // Read the feedback from the Adc
-//   Serial.print(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 6); //Display current feedback 
-//}
+  for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++)  
+  {
+    int16_t voltageRead = querychannelvoltage( iCh ) ;
+    currentsRead[iCh]   = querychannelcurrent( iCh ) ;
+    dacOffset[iCh]      = voltageRead - DAC_VREF ;  
+  }
 
-void feedback(){
-  for (int chAdr = 0; chAdr <= 3; chAdr++)
+  // reset channels, now with the dac offsets adjusted
+  resetallshims() ; 
+  
+  // error of original vs. adjusted currents: 
+  for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++)  
   {
-    int adc0 = adc1.readADC_SingleEnded(chAdr);
-    Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 6);
+    currentCorrected = querychannelcurrent( iCh )  ;
+
+    offsetError0[iCh] = abs( currentRequested - currentsRead[iCh] ) ;
+    offsetError1[iCh] = abs( currentRequested - currentCorrected ) ;
   }
-  for (int chAdr = 0; chAdr <= 3; chAdr++)
+  
+  // Determine dac gain compensation 
+  currentRequested = 1.0 ;
+  
+  for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++)  
+    setandloadshimbychannel( iCh, currentRequested ) ;
+  
+  for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++)  
   {
-    int adc0 = adc2.readADC_SingleEnded(chAdr);
-    Serial.println(((adc0 * 0.001) - 1.25) / 0.22 * 1000, 6);
+    currentsRead[iCh] = querychannelcurrent( iCh ) ;
+    dacGain[iCh]      = currentRequested/currentsRead[iCh] ; 
+
+    // update shim, now with adjusted correction:
+    setandloadshimbychannel( iCh, currentRequested ) ;
+
+    // pause to ensure query is accurate (some latency exists)
+    delay(1000);
+    currentCorrected = querychannelcurrent( iCh ) ;
+
+    // error of original vs. adjusted currents: 
+    gainError0[iCh] = abs( currentRequested - currentsRead[iCh] );
+    gainError1[iCh] = abs( currentRequested - currentCorrected ) ;
+    // NOTE:
+    // Given the necessary delay between setting/reading the channels
+    // it would be faster to load all channels at once, however that would
+    // result in a much larger demand on the power supply...  
+    // Hence, calibrating channel-by-channel for now:
+    setandloadshimbychannel( iCh, 0.0 ) ;
   }
+  
+  // check adjusted results have lower error: 
+  for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++)  
+  {
+    if( ( offsetError1[iCh] < offsetError0[iCh] ) & ( gainError1[iCh] < gainError0[iCh] ) )
+    {
+        isChannelCalibrationSuccessful[iCh] = true ;
+        Serial.println( isChannelCalibrationSuccessful[iCh] ) ;
+    }
+    else
+    {
+        isChannelCalibrationSuccessful[iCh] = false ;
+        Serial.println( isChannelCalibrationSuccessful[iCh] ) ;
+    }
+  }
+
+    uint8_t iCh ;
+
+    for( iCh = 0; iCh < SHIM_NCHANNELS; iCh++)
+        if ( !isChannelCalibrationSuccessful[iCh] )
+            break;
+
+    if ( iCh == SHIM_NCHANNELS )
+        isCalibrationSuccessful = true;
+      
+    return isCalibrationSuccessful ; 
+        
+}
+
+void loadallshims( void ) 
+{
+// Write shim buffer entries of all channels to DAC
+    for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ ) 
+        DAC.writeUpdateCh( iCh, dacBuffer[iCh] );    
+}
+
+void loadshimbychannel( uint8_t iCh ) 
+{
+// Write shim buffer of single channel to DAC
+    DAC.writeUpdateCh( iCh, dacBuffer[iCh] );    
+}
+
+
+float querychannelcurrent( uint8_t iChannel ) 
+{// return single channel current [units: A]
+    return ( float(querychannelvoltage( iChannel )) - float(DAC_VREF) )/float(DAC_PREAMP_RESISTANCE) ;
+}
+
+uint16_t querychannelvoltage( uint8_t iChannel ) 
+{// return single channel voltage [units: mV]
+    return ADC_MILLIVOLTSPERBIT * readchanneladc( iChannel ) ; 
+}
+
+uint16_t readchanneladc( uint8_t iChannel ) 
+{
+    if ( iChannel < ADC_NCHANNELS )                                  
+        return adc1.readADC_SingleEnded( iChannel ) ;
+    else if ( iChannel < 2*ADC_NCHANNELS )
+        return adc2.readADC_SingleEnded( iChannel - ADC_NCHANNELS ) ;
+    else
+		Serial.println("Error: Invalid channel index. ") ;
+}
+
+bool readfivedigitcurrent( uint16_t &current ) 
+{
+// Reads 5 digits from serial comprising a current value scaled between
+// [0:65535] 
+//
+// Returns TRUE if successful
+
+    String inString = "";
+    uint8_t nBytesRead = 0;
+    int inByte;
+    long D[5] ; // data buffer
+    
+    while( nBytesRead < 5 )
+    {
+       if ( Serial.available() > 0 ) 
+        {
+            inByte = Serial.read();
+
+            if ( !isDigit( (char)inByte ) )
+            {
+                Serial.println(false); return false;
+            }
+            inString = (char)inByte ;
+            D[nBytesRead] = inString.toInt() ;
+            nBytesRead = nBytesRead + 1 ;
+        }
+    }
+    
+    current = uint16_t(D[0]*10000 + D[1]*1000 + D[2]*100 + D[3]*10 + D[4]) ;
+    
+    if ( ( (D[0]*10000 + D[1]*1000 + D[2]*100 + D[3]*10 + D[4]) < 0 ) || 
+            ( (D[0]*10000 + D[1]*1000 + D[2]*100 + D[3]*10 + D[4]) > 65535 ) )
+        return false;
+    else
+        return true;
+
+}
+
+void resetallshims( void ) 
+{
+    for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ ) 
+    {
+        currentsBuffer[iCh] = 0.0 ;
+        dacBuffer[iCh] = ampstodac( iCh, currentsBuffer[iCh] ) ;
+    }
+    loadallshims();
+}
+
+
+void setandloadshimbychannel( uint8_t iCh, float current )
+{
+    setshimbufferbychannel( iCh, current ) ;
+    loadshimbychannel( iCh ) ;
+}
+
+void setshimbufferbychannel( uint8_t iCh, float current )
+{
+    currentsBuffer[iCh] = current ;
+    dacBuffer[iCh] = ampstodac( iCh, currentsBuffer[iCh] ) ;
+}
+
+// =========================================================================
+// User callable functions
+// =========================================================================
+
+void usergetallchannelcurrents() 
+{
+// Print all channel currents in A
+    for (uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++)
+        Serial.println( querychannelcurrent( iCh ), 5 ) ;
+}
+
+void usergetallchannelvoltages( void ) 
+{
+// Print all channel voltages in mV
+    for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ )
+        Serial.println( querychannelvoltage( iCh ) ) ;  
+}
+
+/* void userswitchprintmode( void )  */
+/* { */
+/*      isPrintModeVerbose = !isPrintModeVerbose ;  */
+/* } */
+/*  */
+/* void usergetprintmode( void )  */
+/* { */
+/*      Serial.println( isPrintModeVerbose ) ;  */
+/* } */
+
+void usergetsystemheartbeat( void ) 
+{
+//simple query to ensure system is responsive
+    Serial.println( true ); 
+}
+
+void usergetcompensationcoefficients( void ) 
+{
+    for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ ) 
+    {
+        Serial.println( dacOffset[ iCh ] ); 
+        Serial.println( dacGain[ iCh ] ); 
+    }
+}
+
+bool userresetallshims( void ) 
+{
+// same as resetallshims() but prints+returns true when finished 
+    resetallshims();
+    Serial.println(true); return true;
+}
+
+bool usersetandloadallshims( void ) 
+{
+// Reads sequentially from serial 5 digits X SHIM_NCHANNELS 
+// where each consecutive 5 digits represents the channel's
+// shim current scaled to be between [0:65535]
+// 
+// Updates the shim buffer + DAC values upon completion
+//
+// Returns TRUE if successful
+
+    bool isCurrentReadSuccessful = false;
+    uint16_t inputCurrents [ SHIM_NCHANNELS ] ;
+
+    for( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ )
+    {
+        isCurrentReadSuccessful = readfivedigitcurrent( inputCurrents[iCh] ) ;
+
+        if ( !isCurrentReadSuccessful )
+        {
+            Serial.println(false); return false; 
+        }
+    }
+
+    for( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ )
+    {
+        setshimbufferbychannel( iCh, uint16toamps( inputCurrents[iCh] ) ) ;
+    }    
+    
+    loadallshims() ;
+    Serial.println(true);  return true;
+        
+}
+
+bool usersetandloadshimbychannel( void ) 
+{
+// Read from serial the channel index [0:SHIM_NCHANNELS] and 5 digit uint16
+// current val.  and set the single channel's current buffer
+//
+// Returns TRUE if successful
+
+    String inString = "";
+    uint8_t nBytesRead = 0;
+    int inByte;
+    uint8_t iCh = 0;
+    long D ; // data buffer
+    uint16_t current ;
+    bool isCurrentReadSuccessful ;
+
+    // read channel index    
+    while( nBytesRead < 1 )
+    {
+       if ( Serial.available() > 0 ) 
+        {
+            inByte = Serial.read();
+            
+            if ( !isDigit( (char)inByte ) )
+            {
+                Serial.println(false); return false;
+            }
+            
+            inString = (char)inByte ;
+            D = inString.toInt() ;
+            nBytesRead = nBytesRead + 1 ;
+            
+        }
+    }
+   
+    iCh = uint8_t(D) ; 
+    if ( ( iCh < 0 ) || iCh >= SHIM_NCHANNELS )
+    {
+        Serial.println(false); return false;
+    }
+    
+    isCurrentReadSuccessful = readfivedigitcurrent( current ) ;
+    
+    if ( !isCurrentReadSuccessful )
+    {
+        Serial.println(false); return false ;
+    }
+    else
+    {
+        setandloadshimbychannel( iCh, uint16toamps( current ) ) ;
+        Serial.println(true); return true;
+    }
+        
+}
+    
+bool usersetandloadshimbychannelasfloat( void ) 
+{
+// This function takes significantly longer than usersetandloadshimbychannel() 
+// and produces the same result (setting and loading a single shim channel).
+// However, it may be more convenient for debugging:
+//
+// Rather than reading the channel current as a 5-digit scaled unsigned int, 
+// the input should be the channel index [0:SHIM_NCHANNELS-1] followed by the 
+// requested current, input as a single float in amperes.
+//
+// Returns TRUE if successful
+    uint8_t iCh ;
+    float current ;
+
+    iCh = uint8_t( Serial.parseInt() ) ;
+
+    if ( ( iCh < 0 ) || iCh >= SHIM_NCHANNELS )
+    {
+        Serial.println(false); return false;
+    }
+    
+    current = Serial.parseFloat() ; // [units: A]
+    if ( abs(current) <= AMP_MAXCURRENTPERCHANNEL )
+    {    
+        setandloadshimbychannel( iCh, current ) ;
+        Serial.println(true); return true;
+    }
+    else 
+    {    
+        Serial.println(false); return false;
+    }    
+    
 }

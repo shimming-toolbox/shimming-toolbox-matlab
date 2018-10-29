@@ -86,7 +86,7 @@ classdef (Abstract) ShimOpt < FieldEval
 % ShimOpt is a FieldEval subclass [ShimOpt < FieldEval < MaRdI]
 %     
 % =========================================================================
-% Updated::20181018::ryan.topfer@polymtl.ca
+% Updated::20181022::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -587,6 +587,9 @@ function mask = getvaliditymask( Shim, Fields, Params )
 %   measurement. Voxels with abs-values greater than this might stem from
 %   errors in the unwrapping.  [default: 500 Hz]
 %   (To ignore this criterion, set value to Inf)
+%
+% .isAuxIncluded
+%   true || false, account for spatial support of the Shim.Aux system?
 
 %TODO
 %
@@ -601,6 +604,11 @@ function mask = getvaliditymask( Shim, Fields, Params )
 
 DEFAULT_MAXABSFIELD        = 500 ;
 DEFAULT_MAXFIELDDIFFERENCE = 150 ;
+if ~isempty( Shim.Aux )
+    DEFAULT_ISAUXINCLUDED      = true ;
+else
+    DEFAULT_ISAUXINCLUDED      = false ;
+end
 
 mask = Shim.getshimsupport() ;
 
@@ -617,6 +625,15 @@ end
 
 if ~myisfield( Params, 'maxFieldDifference' ) || isempty( Params.maxFieldDifference ) 
     Params.maxFieldDifference = DEFAULT_MAXFIELDDIFFERENCE ;
+end
+
+if ~myisfield( Params, 'isAuxIncluded' ) || isempty( Params.isAuxIncluded ) 
+    Params.isAuxIncluded = DEFAULT_ISAUXINCLUDED ;
+end
+
+if Params.isAuxIncluded
+    assert( ~isempty( Shim.Aux ), 'Auxiliary shim system unavailable' )   
+    mask = mask & Shim.Aux.getshimsupport() ;
 end
 
 
@@ -759,7 +776,6 @@ function shimSupport = getshimsupport( Shim )
 %   shimSupport is a logical map over the grid (voxel positions) defined by
 %   Shim.img of where the shim reference maps have well defined values.
 
-warning('ShimOpt.getshimsupport() does not account for spatial support of Aux shim system. TODO')
 shimSupport = sum(abs(Shim.img),4) > Shim.getnactivechannels()*eps  ;
 
 end
@@ -776,17 +792,84 @@ function currents = computerealtimeupdate( Shim, p )
 currents = Shim.Model.currents + p*Shim.Model.couplingCoefficients ;
 
 end
-% % =========================================================================
-% function [ShimmedField] = GETINSTANTANEOUSFIELDSHIMMED( Shim, p )
-% %GETINSTANTANEOUSFIELDSHIMMED
-%
-% Field = Shim.Field.getinstantaneousfield( p ) ;
-%
-% ShimmedField = Field.copy ;
-%
-% ShimmedField.img = ShimmedField.img + Shim.forwardmodelshimcorrection( ...
-%
-% end
+% =========================================================================
+function [] = predictslicewiseshim( Shim, Params )
+%PREDICTSLICEWISESHIM
+% 
+% TEMPORARY FUNCTION FOR SAGITTAL FIELD MAPS:
+%   --> Decompose global shim voi into axial segments and shim segments individually
+
+Params.isSavingResultsTable = false ;
+Params.isDisplayingResults  = false ;
+Params.dataWeights   = [] ;
+   
+shimVoi = Shim.Field.Hdr.MaskingImage ;
+
+PredictedField = Shim.Field.copy() ;
+PredictedRiro  = Shim.Field.Model.Riro.copy() ;
+
+nZ = size( shimVoi, 1 ) ;% i.e. nImageRows, or nAxialSlices
+
+for iZ = 1 : nZ
+
+    axialShimVoi = false( size( shimVoi ) ) ;
+
+    if nnz( shimVoi( iZ, :, : ) ) > 0
+    % shim axial slice:
+        axialShimVoi(iZ,:,: ) = shimVoi(iZ,:,: ) ;
+        Shim.setshimvolumeofinterest( axialShimVoi ) ;
+        Shim.setshimvolumeofinterestriro( axialShimVoi ) ;
+
+        [currents] = Shim.optimizeshimcurrents( Params ) ;
+
+        AxialPredictedField = Shim.predictshimmedfield() ;
+
+        display( [ 'Axial slice ' num2str(iZ) 'of ' num2str(nZ) ] )
+        display('Field maxima: 1) unshimmed,2) shimmed:') 
+        max( abs( Shim.Field.img( axialShimVoi ) ) )
+        max( abs( AxialPredictedField.img( axialShimVoi ) ) )
+
+        PredictedField.img(iZ,:,: ) = AxialPredictedField.img(iZ,:,: ) ;
+        
+        if Params.isRealtimeShimming
+            AxialPredictedRiro  = Shim.predictshimmedriro() ;
+            PredictedRiro.img(iZ,:,: )  = AxialPredictedRiro.img(iZ,:,: ) ;
+            
+           display('Riro maxima: 1) unshimmed,2) shimmed:') 
+            max( abs( Shim.Field.Model.Riro.img( axialShimVoi ) ) )
+            max( abs( AxialPredictedRiro.img( axialShimVoi ) ) )
+        end
+
+    end
+
+end
+
+filename = [ Params.mediaSaveDir '/fieldStats_shimmedPrediction_dynamic' ] ;
+PredictedField.assessfielddistribution( Params.assessmentVoi, filename ) ;
+
+Params.colormap     = 'default' ;
+Params.imgSlice     = 14 ;
+
+Params.scaling      = [ -300 300 ] ;
+Params.filename     = [Params.mediaSaveDir '/fieldShimmed_Dc_s_dynamic' num2str(Params.imgSlice)] ;
+MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*PredictedField.img(:,:,Params.imgSlice), Params ) ;
+        
+if Params.isRealtimeShimming
+    filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction_dynamic' ] ;
+    PredictedRiro.assessfielddistribution( Params.assessmentVoi, filename ) ;
+
+    Params.scaling      = [ -20 20 ] ;
+    Params.filename     = [Params.mediaSaveDir '/riro_s_dynamic' num2str(Params.imgSlice)] ;
+    MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*PredictedRiro.img(:,:, Params.imgSlice), Params ) ;
+end
+
+% reset shim voi
+Shim.setshimvolumeofinterest( shimVoi ) ;
+Shim.setshimvolumeofinterestriro( shimVoi ) ;
+pause(5)
+close all
+
+end
 % =========================================================================
 function [PredictedField] = predictshimmedfield( Shim )
 %PREDICTSHIMMEDFIELD
@@ -1283,7 +1366,6 @@ end
 
 T = table ;
 
-fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
 
 % [table units: mA]
 i0 = i0*1000 ;     
@@ -1342,6 +1424,7 @@ T.Realtime        = Realtime ;
 T.Relative_Power  = Relative_Power ;
 
 if Params.isDisplayingResults
+    fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
     T    
 end
 
@@ -1374,7 +1457,6 @@ if Params.isSavingResultsTable
     MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
     
     if Params.isRealtimeShimming
-        Params.scaling      = [ -20 20 ] ;
 
         filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
         Shim.Field.Model.Riro.assessfielddistribution( Params.assessmentVoi, filename ) ;
@@ -1384,6 +1466,7 @@ if Params.isSavingResultsTable
         filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction' ] ;
         PredictedShimmedRiro.assessfielddistribution( Params.assessmentVoi, filename ) ;
 
+        Params.scaling      = [ -20 20 ] ;
         Params.filename     = [Params.mediaSaveDir '/riro_s' num2str(Params.imgSlice)] ;
         MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*Shim.Field.Model.Riro.img(:,:,Params.imgSlice), Params ) ;
 
@@ -1391,7 +1474,8 @@ if Params.isSavingResultsTable
         MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*PredictedShimmedRiro.img(:,:,Params.imgSlice), Params ) ;
 
     end
-
+    pause(5)
+    close all
 end
 
 function [f, df] = shimcost( x )
@@ -1645,12 +1729,15 @@ for iChannel = 1 : Params.nChannels
         for iEcho = 1 : Params.nEchoes
             % -------
             % PROCESS GRE FIELD MAPS
-
-            ImgArray{iEcho, 1}  = MaRdI( Params.dataLoadDirectories{ iEcho, 1, iCurrent, iChannel +1 }  ) ; % mag
-            ImgArray{iEcho, 2}  = MaRdI( Params.dataLoadDirectories{ iEcho, 2, iCurrent, iChannel +1 }  ) ; % phase
+            ImgArray{iEcho, 1}  = MaRdI( Params.dataLoadDirectories{ iEcho, 1, iCurrent, iChannel }  ) ; % mag
+            ImgArray{iEcho, 2}  = MaRdI( Params.dataLoadDirectories{ iEcho, 2, iCurrent, iChannel }  ) ; % phase
         end 
 
+        % Field shift (relative to Larmor)
         [Field, Extras] = FieldEval.mapfield( ImgArray, Params ) ;
+        
+        % Absolute field shift:
+        Field.img = Field.img + Field.Hdr.ImagingFrequency*1E6 ; 
         
         Field.Hdr.MaskingImage = Field.Hdr.MaskingImage & Params.mask ;
         

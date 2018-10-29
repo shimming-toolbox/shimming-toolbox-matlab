@@ -1,4 +1,4 @@
-function varargout = ShimGUI(varargin)
+function varargout = ShimGui(varargin)
 %SHIMGUI 
 
 %      This function allows to check insp/exp mag and phase data, define
@@ -28,8 +28,8 @@ function varargout = ShimGUI(varargin)
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
                    'gui_Singleton',  gui_Singleton, ...
-                   'gui_OpeningFcn', @ShimGUI_OpeningFcn, ...
-                   'gui_OutputFcn',  @ShimGUI_OutputFcn, ...
+                   'gui_OpeningFcn', @ShimGui_OpeningFcn, ...
+                   'gui_OutputFcn',  @ShimGui_OutputFcn, ...
                    'gui_LayoutFcn',  [] , ...
                    'gui_Callback',   []);
 if nargin && ischar(varargin{1})
@@ -48,20 +48,20 @@ end
 % PARAMETERS CONFIGURATION
 %==========================================================================
 
-% --- Executes just before ShimGUI is made visible.------------------------
+% --- Executes just before ShimGui is made visible.------------------------
 
-function varargout = ShimGUI_OutputFcn(~, ~, handles) 
-% ShimGUI_OutputFcn :
+function varargout = ShimGui_OutputFcn(~, ~, handles) 
+% ShimGui_OutputFcn :
 % - Define varargout
 %--------------------------------------------------------------------------
 varargout{1} = handles.output;
 
 
-function ShimGUI_OpeningFcn(hObject, ~, handles,varargin)   
-% ShimGUI_OpeningFcn :
+function ShimGui_OpeningFcn(hObject, ~, handles,varargin)   
+% ShimGui_OpeningFcn :
 %
 % - Declare parameters from shimparameters.m 
-% - Declare handles variables use in ShimGUI functions
+% - Declare handles variables use in ShimGui functions
 %
 %--------------------------------------------------------------------------
 
@@ -71,7 +71,7 @@ handles.Shims = varargin{1};  % handles.Shims refers now the input instance of S
 handles.Params = handles.Shims.Params ; % copy
 
 
-handles.output = hObject;                           % Default command line output for ShimGUI
+handles.output = hObject;                           % Default command line output for ShimGui
 
 
 handles.itemSelected = 'Mag/Inspired';              %View selected
@@ -1458,7 +1458,7 @@ end
 set(hObject,'String',{'Phase/Inspired';'Phase/Expired';'Mag/Inspired';'Mag/Expired'});
 
 
-% ------------------Executes when user  close ShimGUI----------------------
+% ------------------Executes when user  close ShimGui----------------------
 
 function figure1_CloseRequestFcn(hObject, eventdata, handles)
 % figure1_CloseRequestFcn : 
