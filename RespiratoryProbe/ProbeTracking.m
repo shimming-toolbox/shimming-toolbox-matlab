@@ -1,4 +1,4 @@
-classdef ProbeTracking < ProbeTracked & AuxTracking 
+classdef ProbeTracking < matlab.mixin.SetGet 
 % PROBETRACKING - Respiratory probe for real-time shimming 
 %
 % Aux = PROBETRACKING(  )
@@ -17,19 +17,10 @@ classdef ProbeTracking < ProbeTracked & AuxTracking
 %
 %
 % =========================================================================
-% Part of series of classes pertaining to shimming:
 %
-%    AuxTracking
-%    ShimCal
-%    ShimCom
-%    ShimEval
-%    ShimOpt
-%    ShimSpecs
-%    ShimTest 
-%    ShimUse
 %
 % =========================================================================
-% Updated::20180721::ryan.topfer@polymtl.ca
+% Updated::20181101::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % *** TODO 
@@ -43,6 +34,9 @@ classdef ProbeTracking < ProbeTracked & AuxTracking
 
 properties   
     ComPort ;
+    Data ;
+    Params ;
+    Specs ; % state = {active, inactive, inert, void}
 end
 
 % =========================================================================
@@ -66,15 +60,17 @@ end
 
 end    
 % =========================================================================
-function [AuxInert] = copyinert( Aux )
-%COPYINERT  
+function [AuxCopy] = copy( Aux )
+%COPY  
 % 
-% Aux = COPYINERT( Aux )
+% Aux = COPY( Aux )
 
-AuxInert = ProbeTracked(  ) ; % or just allow that constructor to accept ProbeTracking as an input and copy the fields...
+AuxCopy = ProbeTracked( Aux.Specs ) ; % or just allow that constructor to accept ProbeTracking as an input and copy the fields...
 
 AuxInert.Data     = Aux ;
 AuxInert.Specs.dt = Aux.Specs.dt ;
+
+AuxCopy.Data = Aux.Data ;
 
 end
 % =========================================================================
@@ -157,14 +153,14 @@ function [] = stoptracking( Aux )
 %
 % fclose( Aux.ComPort )
 
-fclose(Aux.ComPort);
+fclose( Aux.ComPort ) ;
 
 end
 % =========================================================================
 function [p] = getupdate( Aux )
 %GETUPDATE 
 %
-% Reads a single (16-bit) pressure measurement (p) in from open com port and 
+% Reads a single (16-bit) measurement (p) in from open com port and 
 % returns p as the typecasted double.
 %
 % p = GETUPDATE( Aux )
@@ -175,16 +171,16 @@ p = fscanf( Aux.ComPort, '%u', [1 1] );
 
 end  
 % =========================================================================
-function [pressureLog, sampleTimes] = recordandplotpressurelog( Aux, Params ) 
-%RECORDANDPLOTPRESSURELOG    
+function [measurements, sampleTimes] = recordandplotphysiosignal( Aux, Params ) 
+%RECORDANDPLOTPHYSIO    
 %
 %   Description
 %   
-%   Reads pressure data from microcontroller 
+%   Reads physiological data from microcontroller 
 %
 %   Syntax
 %
-%   [pressureLog, sampleTimes] = RECORDANDPLOTPRESSURELOG( Aux, Parameters )
+%   [measurements, sampleTimes] = RECORDANDPLOTPHYSIO( Aux, Parameters )
 %
 %    .......................
 %   
@@ -197,8 +193,8 @@ function [pressureLog, sampleTimes] = recordandplotpressurelog( Aux, Params )
 %       Will overwrite the log files if they already exist. 
 %       default = false
 %
-%   .pressureLogFilename
-%       default = ['./' datestr(now,30) '-pressureLog.bin' ] ; 
+%   .physioSignalFilename
+%       default = ['./' datestr(now,30) '-physioSignal.bin' ] ; 
 %
 %   .sampleTimesFilename
 %       default = ['./' datestr(now,30) '-sampleTimes.bin' ] ;
@@ -219,7 +215,7 @@ assert( strcmp( Aux.ComPort.Status, 'closed' ), 'Error: Serial port is open/in u
 
 DEFAULT_ISSAVINGDATA          = true ;
 DEFAULT_ISFORCINGOVERWRITE    = false ;
-DEFAULT_PRESSURELOGFILENAME   = ['./' datestr(now,30) '-pressureLog.bin' ] ;
+DEFAULT_PHYSIOFILENAME = ['./' datestr(now,30) '-physioSignal.bin' ] ;
 DEFAULT_SAMPLETIMESFILENAME   = ['./' datestr(now,30) '-sampleTimes.bin' ] ;
 
 if  nargin < 2 || isempty(Params)
@@ -234,8 +230,8 @@ if  ~myisfield( Params, 'isForcingOverwrite' ) || isempty(Params.isForcingOverwr
     Params.isForcingOverwrite = DEFAULT_ISFORCINGOVERWRITE ;
 end
 
-if  ~myisfield( Params, 'pressureLogFilename' ) || isempty(Params.pressureLogFilename)
-    Params.pressureLogFilename = DEFAULT_PRESSURELOGFILENAME ;
+if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
+    Params.physioSignalFilename = DEFAULT_PRESSURELOGFILENAME ;
 end
 
 if  ~myisfield( Params, 'sampleTimesFilename' ) || isempty(Params.sampleTimesFilename)
@@ -254,7 +250,7 @@ while ~isUserSatisfied
     Aux.Data.p = 0 ;
     Aux = Aux.recordpressurelog( Params ) ;
     
-    pressureLog = Aux.Data.p ;    
+    physioSignal = Aux.Data.p ;    
     sampleTimes = (Aux.Specs.dt/1000)*[0:(numel(Aux.Data.p)-1)] ;
    
     % ------- 
@@ -263,14 +259,14 @@ while ~isUserSatisfied
     plot( sampleTimes, Aux.Data.p, '+' ) ;
 
     if Params.isSavingData
-        title( Params.pressureLogFilename ) ;
+        title( Params.physioSignalFilename ) ;
     else
-        title( 'Pressure log' )
+        title( 'Physio signal' )
     end
     xlabel('Time (s)');
-    ylabel('Pressure (AU)');
+    ylabel('Amplitude (AU)');
     
-    response = input(['\n Is the current pressure log satisfactory? ' ...
+    response = input(['\n Is the current physio recording satisfactory? ' ...
         'Enter 0 to rerecord; 1 to continue. \n']) ;
 
     isUserSatisfied = logical(response) ;
@@ -279,9 +275,9 @@ end
 
 % ------- 
 if Params.isSavingData
-    pressureLogFid = fopen( Params.pressureLogFilename, 'w+' ) ;
-    fwrite( pressureLogFid, Aux.Data.p, 'double' ) ;
-    fclose( pressureLogFid );
+    physioSignalFid = fopen( Params.physioSignalFilename, 'w+' ) ;
+    fwrite( physioSignalFid, Aux.Data.p, 'double' ) ;
+    fclose( physioSignalFid );
 
     sampleTimesFid = fopen( Params.sampleTimesFilename, 'w+' ) ;
     fwrite( sampleTimesFid, sampleTimes, 'double' ) ;
@@ -290,8 +286,8 @@ end
 
 end
 % =========================================================================
-function [Aux] = recordpressurelog( Aux, Params )
-%RECORDPRESSURELOG  
+function [Aux] = recordphysiosignal( Aux, Params )
+%RECORDPHYSIOSIGNAL  
 %
 % Continuously tracks respiratory probe.
 %
@@ -309,10 +305,10 @@ function [Aux] = recordpressurelog( Aux, Params )
 %       Problems may arise if this is too fast!
 %       [default : 4 Hz ]
 
-DEFAULT_RUNTIME = 30 ; % [units : s]
-
-DEFAULT_ISPLOTTINGINREALTIME = true ; 
+DEFAULT_RUNTIME              = 30 ; % [units : s]
+DEFAULT_ISPLOTTINGINREALTIME = true ;
 DEFAULT_REFRESHRATE          = 4 ; % [units : Hz]
+
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;
 end
@@ -346,7 +342,7 @@ if Params.isPlottingInRealTime
     % ------- 
     % figure
     figureHandle = figure('NumberTitle','off',...
-        'Name','Sonde de respiration',...
+        'Name','Respiration',...
         'Color',[0 0 0],'Visible','off');
         
     % Set axes
@@ -372,9 +368,9 @@ if Params.isPlottingInRealTime
 
 end
 
-% for real-time plotting, updating @the same rate as the pressure samples
-% (100 Hz) poses a problem (computer can't seem to keep up with the incoming samples).
-% solution is to update the display ~every so often~ (4x per second seems OK)
+% for real-time plotting, updating @the same rate as the samples
+% (e.g. 100 Hz) poses a problem (computer can't seem to keep up with the incoming samples).
+% solution is to update the display ~every so often~ (e.g. 4x per second seems OK)
 nSamplesBetweenRefresh = (1/Params.refreshRate)/(Aux.Specs.dt/1000) ;
 
 while ( iSample < nSamples ) && ~StopButton.Stop()
@@ -421,7 +417,7 @@ function [ComPort, AuxSpecs] = declareprobe( AuxSpecs )
 %   these are not really optional/configurable... TODO: remove deprecated/false 'options'
 %
 % .dt
-%   Interval between pressure samples [units: ms]
+%   Interval between samples [units: ms]
 %   Should be a positive multiple of the minimum period of 10 ms.
 % 
 % .baudRate
@@ -543,6 +539,237 @@ if isAssigningSerialPort
     %   'InputBufferSize', 8 ) ; % 2x 32-bit floats
 else
     ComPort = [] ;
+end
+
+end
+% =========================================================================
+function [measurementLog, sampleTimes] = loadmeasurementlog( measurementLogFilename, sampleTimesFilename )
+%LOADMEASUREMENTLOG
+% 
+% Reads binary file of data measurements (e.g. pressure recording) to return
+% vector(s) of doubles.
+%
+% measurementLog                = LOADMEASUREMENTLOG( measurementLogFilename ) ;
+% [measurementLog, sampleTimes] = LOADMEASUREMENTLOG( measurementLogFilename, sampleTimesFilename )
+
+if nargin < 1
+    error( 'Insufficient arguments. Must provide full path to measurement log .bin file.' ) ;
+
+else
+    if nargin >= 1
+        measurementLogFid = fopen( measurementLogFilename, 'r' ) ;
+        measurementLog    = fread( measurementLogFid, inf, 'double' ) ;
+        fclose( measurementLogFid );
+    end
+
+    if nargin == 2 
+        sampleTimesFid = fopen( sampleTimesFilename, 'r' ) ;
+        sampleTimes    = fread( sampleTimesFid, inf, 'double' ) ;
+        fclose( sampleTimesFid );
+    end
+end
+
+end
+% =========================================================================
+function [] = plotmeasurementlog( measurementLog, Params )
+%PLOTMEASUREMENTLOG
+%
+% PLOTMEASUREMENTLOG( measurementLog ) ;
+% PLOTMEASUREMENTLOG( measurementLog, Params )
+%
+% Supported fields to Params struct
+%
+%   .figureTitle
+%       [default: 'Pressure log']
+%
+%   .sampleTimes
+%       vector (length == length(measurementLog)) of sample times in seconds
+%
+%   .yLabel
+%       [default: 'Pressure (kPa)']
+
+DEFAULT_FIGURETITLE = 'Respiration' ;
+DEFAULT_YLABEL      = 'Amplitude (AU)' ;
+
+if nargin < 1
+    error( 'Insufficient arguments. Must provide measurement log vector.' ) ;
+end
+
+if nargin == 1 || isempty( Params ) 
+    Params.dummy = [] ;
+end
+
+if ~myisfield( Params, 'figureTitle' ) || isempty( Params.figureTitle ) 
+    Params.figureTitle = DEFAULT_FIGURETITLE ;
+end
+
+if ~myisfield( Params, 'yLabel' ) || isempty( Params.yLabel ) 
+    Params.yLabel = DEFAULT_YLABEL ;
+end
+
+% ------- 
+figure 
+
+if myisfield( Params, 'sampleTimes' ) && ~isempty( Params.sampleTimes ) 
+    plot( Params.sampleTimes, measurementLog, '+' ) ;
+    xlabel('Time (s)');
+else
+    plot( measurementLog, '+' ) ;
+    xlabel('Sample index');
+end
+    
+title( Params.figureTitle ) ;
+ylabel( Params.yLabel ) ;
+
+end
+% =========================================================================
+function [iFlattest] = findflattest( measurementLog, nSamples )
+%FINDFLATTEST 
+%
+% iFlattest = FINDFLATTEST( measurementLog, nSamples ) 
+% 
+% Calculates measurementLog variance over sliding window (nSamples long) and
+% returns index (iFlattest) corresponding to start of the most constant segment
+% (e.g. a breath-hold).
+
+assert( nSamples > 0 )
+assert( nSamples <= length(measurementLog) )
+
+nVariances = length(measurementLog) - nSamples ;
+variances  = zeros( nVariances, 1 );
+
+for iFlattest =  1 : nVariances
+   variances(iFlattest) = var( measurementLog( iFlattest:(iFlattest+nSamples) ) ) ;
+end
+
+[~, iFlattest] = min( variances ) ;
+
+end
+% =========================================================================
+function [medianMeasure] = selectmedianmeasurement( measurementLog, nSamplesApnea, isUserSelectionEnabled )
+% SELECTMEDIANMEASUREMENT
+%
+%   medianMeasure = SELECTMEDIANMEASUREMENT( measurementLog ) 
+%   medianMeasure = SELECTMEDIANMEASUREMENT( measurementLog, nSamplesApnea ) 
+%   medianMeasure = SELECTMEDIANMEASUREMENT( measurementLog, nSamplesApnea, isUserSelectionEnabled ) 
+%
+%   Plots measurementLog and the user selects START and END (apnea) indices
+%   over which to calculate the median. The median measurement is superposed
+%   over the measurementLog graph and the user is asked if the result is 
+%   satisfactory (or redo).
+
+DEFAULT_ISUSERSELECTIONENABLED = true ;
+
+if ( nargin == 1 ) 
+    nSamplesApnea = [] ;
+
+elseif ~isempty( nSamplesApnea ) 
+    assert( nSamplesApnea > 0 ) ;
+    
+end
+
+if nargin < 3
+    isUserSelectionEnabled = DEFAULT_ISUSERSELECTIONENABLED ;
+end
+
+
+isUserSatisfied = false ;
+
+while ~isUserSatisfied
+
+    gcf ; 
+    clf ;
+    plot( measurementLog, '+' ) ;
+    title( 'Measure Log' ) ;
+    
+    xlabel('Sample index');
+    ylabel('Amplitude');
+
+    if ~isempty( nSamplesApnea )
+
+        if nSamplesApnea < length( measurementLog )
+            % Auto-selection of start/end breath-hold indices
+            trainingFrameStartIndex = AuxTracked.findflattest( measurementLog, nSamplesApnea ) ;
+            trainingFrameEndIndex   = trainingFrameStartIndex + nSamplesApnea ;
+        else
+            trainingFrameStartIndex = 1 ;
+            trainingFrameEndIndex   = length( measurementLog ) ;
+        end
+        
+        medianMeasure = ...
+           median( measurementLog( trainingFrameStartIndex : trainingFrameEndIndex ) ) ;
+
+        gcf; 
+        plot( measurementLog, '+' );
+        hold on;
+        plot( [trainingFrameStartIndex : trainingFrameEndIndex-1], medianMeasure*ones( 1, nSamplesApnea ), 'LineWidth',3 ) ;
+        title( 'Measure Log' ) ;
+        xlabel('Sample index');
+        ylabel('Amplitude');
+        legend('Measure log',['Median over interval of min. variance']);    
+        hold off;
+    
+    end
+    
+    if ~isUserSelectionEnabled 
+         isUserSatisfied = true ;
+         return;
+    
+     else isUserSelectionEnabled 
+        
+        response = input(['Is the current median estimate satisfactory? ' ...
+            '0 to manually specify the data range; 1 (or enter) to accept & continue: ']) ;
+
+         if ~isempty(response)
+            isUserSatisfied = logical(response) ;
+         else
+             isUserSatisfied = true;
+         end
+    
+
+
+        if ~isUserSatisfied
+            % Manual selection    
+            trainingFrameStartIndex = ...
+                input( ['Identify sample index corresponding to beginning of training frame ' ...
+                    '([Enter] selects sample 1): '] ) ;
+            
+            if isempty(trainingFrameStartIndex)
+                trainingFrameStartIndex = 1;
+            end
+
+            trainingFrameEndIndex = ...
+                input( ['Identify sample index corresponding to end of training frame ' ...
+                    '([Enter] selects the last recorded sample): '] ) ;
+
+            if isempty(trainingFrameEndIndex)
+               medianMeasure = ...
+                   median( measurementLog( trainingFrameStartIndex : end ) ) ;
+            else
+               medianMeasure = ...
+                   median( measurementLog( trainingFrameStartIndex : trainingFrameEndIndex ) ) ;
+            end
+
+            gcf; 
+            plot( measurementLog, '+' );
+            hold on;
+            plot( medianMeasure*ones( size( measurementLog ) ) ) ;
+            title( 'Measure Log' ) ;
+            xlabel('Sample index');
+            ylabel('Amplitude');
+            legend('Measure log','Median measurement over given interval');    
+            hold off;
+
+            response = input(['Is the current median estimate satisfactory? ' ...
+                '0 to re-enter the data range; 1 (or enter) to continue: ']) ;
+
+             if ~isempty(response)
+                isUserSatisfied = logical(response) ;
+             else
+                 isUserSatisfied = true;
+             end
+        end
+    end
 end
 
 end

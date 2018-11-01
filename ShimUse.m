@@ -61,7 +61,7 @@ classdef ShimUse < matlab.mixin.SetGet
 %    ShimUse
 %
 % =========================================================================
-% Updated::20180604::ryan.topfer@polymtl.ca
+% Updated::20181030::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -174,7 +174,7 @@ end
 function [] = acquiretrainingdata( Shim, iTrainingFrame )
 %ACQUIRETRAININGDATA  
 %
-% Wrapper to ProbeTracking.recordandplotpressurelog()
+% Wrapper to ProbeTracking.recordandplotrespiratorytrace( )
 % 
 % ACQUIRETRAININGDATA( Shim )
 
@@ -194,21 +194,21 @@ if nargin < 2
 
 end
 
-Params.pressureLogFilename = [Shim.Params.dataLoadDir datestr(now,30) '-pressureLog-Training' num2str(iTrainingFrame) '.bin'] ;
-Params.sampleTimesFilename = [Shim.Params.dataLoadDir datestr(now,30) '-sampleTimes-Training' num2str(iTrainingFrame) '.bin'] ;
+Params.physioSignalFilename = [Shim.Params.dataLoadDir datestr(now,30) '-physioSignal-Training' num2str(iTrainingFrame) '.bin'] ;
+Params.sampleTimesFilename      = [Shim.Params.dataLoadDir datestr(now,30) '-sampleTimes-Training' num2str(iTrainingFrame) '.bin'] ;
 
 % -------
-% begin (pressure) tracking
-Shim.Opt.Tracker.recordandplotpressurelog( Params ) ;
+% begin physio tracking
+Shim.Opt.Tracker.recordandplotrespiratorytrace( Params ) ;
 
-Shim.Params.pressureLogFilenames{iTrainingFrame} = Params.pressureLogFilename ;
+Shim.Params.physioSignalFilenames{iTrainingFrame} = Params.physioSignalFilename ;
 
 Shim.Data.Aux.Tracker{iTrainingFrame} = Shim.Opt.Tracker.copyinert() ;
 
 
 % TODO 
 %
-% sort field map image files and associate pressure reading with corresponding FieldEval object
+% sort field map image files and associate physio signal reading with corresponding FieldEval object
 %
 % each MaRdI obj. has Aux. field (i.e. Mag.Aux.Tracker )
 % ---> Tracker recordings should be saved there 
@@ -392,9 +392,9 @@ for iFrame = 1 : Shim.Params.nTrainingFrames
         Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker = [] ;
         Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker = Shim.Data.Aux.Tracker{ 1, 1, iFrame }.copy() ;
 
-        % duration of breath-hold in number of pressure samples 
+        % duration of breath-hold in number of samples 
         % (enables auto-estimation of the period corresponding to the breath-hold from
-        % the complete pressure log)
+        % the complete physio log)
         nSamplesApnea = (1000*Shim.Data.Img{1,1,iFrame}.Hdr.MrProt.lTotalScanTimeSec)/Shim.Opt.Tracker.Specs.dt ;
         
         % ------
@@ -412,7 +412,7 @@ if ( Shim.Params.nTrainingFrames > 1 ) && ~isempty( Shim.Data.Aux.Tracker{ 1, 1,
     Shim.Params.pBreathing = Shim.Data.Aux.Tracker{ 1,1, Shim.Params.nTrainingFrames + 1 }.Data.p ;
 
     Shim.Params.pDc  = median( Shim.Params.pBreathing ) ;
-    % TODO extract min + max pressures across ALL recordings instead?
+    % TODO extract min + max amplitudes across ALL recordings instead?
     Shim.Params.pMin = min( Shim.Params.pBreathing ) ;
     Shim.Params.pMax = max( Shim.Params.pBreathing ) ;
 else
@@ -470,9 +470,9 @@ end
 DEFAULT_ISSAVINGDATA            = true ;
 DEFAULT_ISFORCINGOVERWRITE      = false ;
 
-DEFAULT_MEASUREMENTLOGFILENAME  = [ Params.dataSaveDir datestr(now,30) '-pressureLog.bin' ] ;
-DEFAULT_SAMPLETIMESFILENAME     = [ Params.dataSaveDir datestr(now,30) '-sampleTimes.bin' ] ;
-DEFAULT_UPDATETIMESFILENAME     = [ Params.dataSaveDir datestr(now,30) '-updateTimes.bin' ] ;
+DEFAULT_PHYSIOSIGNALFILENAME = [ Params.dataSaveDir datestr(now,30) '-physioSignal.bin' ] ;
+DEFAULT_SAMPLETIMESFILENAME  = [ Params.dataSaveDir datestr(now,30) '-sampleTimes.bin' ] ;
+DEFAULT_UPDATETIMESFILENAME  = [ Params.dataSaveDir datestr(now,30) '-updateTimes.bin' ] ;
 
 DEFAULT_RUNTIME                 = 5*60 ; % [units: s]
 DEFAULT_EXTRAPOLATIONORDER      = 0 ;
@@ -559,7 +559,7 @@ if  ~myisfield( Params, 'txDelay' ) || isempty(Params.txDelay)
 end
 
 if ~myisfield( Shim.Params, 'pDc' ) || isempty( Shim.Params.pDc )
-    error('Requires the DC respiratory pressure offset: Shim.Params.pDc')
+    error('Requires the DC offset of the respiratory signal: Shim.Params.pDc')
 end
 
 

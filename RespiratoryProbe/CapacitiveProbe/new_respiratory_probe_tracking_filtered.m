@@ -1,5 +1,3 @@
-
-
 clear all;
 close all;
 delete(instrfindall);
@@ -7,8 +5,9 @@ delete(instrfindall);
 %% --
 treshold_freq = 0.3;  % threshold value above/below the mean of previous time points
 %% -- 
-duration = 200; % DURATION OF THE MEASUREMENT IN SECONDS
+duration = 60; % DURATION OF THE MEASUREMENT IN SECONDS
 
+%s = serial('/dev/cu.usbmodem1538791'); %Teensy 3.2
 s = serial('/dev/cu.usbmodem4471891'); %Teensy 3.5\
 
 exp_descr = inputdlg('Experiment_description: ');

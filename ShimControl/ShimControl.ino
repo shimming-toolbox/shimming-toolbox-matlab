@@ -65,12 +65,13 @@ uint16_t dacBuffer [ SHIM_NCHANNELS ] ; // same as currentsBuffer but converted 
 
 /* bool isPrintModeVerbose = true ; */
 
-void setup() {
+void setup() 
+{
   Serial.begin(115200);   //Baudrate of the serial communication : Maximum
   delay(100);
 
   DAC.init();
-  DAC.enableInternalRef(); // Uncomment this line to turn on the internal reference.
+  DAC.enableInternalRef(); 
   DAC.powerDAC_Normal(B11111111); // Power up all channels normal
 
   adc1.setGain(GAIN_TWO); //+/- 2.048V  1 bit = 1mV
