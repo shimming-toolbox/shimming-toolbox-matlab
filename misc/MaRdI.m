@@ -1281,7 +1281,7 @@ DEFAULT_DATASAVEDIR        = './gre_seg/'
 DEFAULT_ISFORCINGOVERWRITE = false ;
 DEFAULT_ISUSINGPROPSEGCSF  = true ; %use the propseg -CSF option
 
-DEFAULT_CYLINDERSIZE       = 20 ;
+DEFAULT_CYLINDERSIZE       = 40 ;
 DEFAULT_GAUSSIANSIZE       = 20 ;
 
 if nargin < 1 || isempty(Params) || ~myisfield( Params, 'dataLoadDir' ) || isempty(Params.dataLoadDir)
