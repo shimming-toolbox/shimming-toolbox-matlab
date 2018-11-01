@@ -250,14 +250,17 @@ function Stats = assessfielddistribution( Field, voi, filename )
 %   .std
 %       standard deviation of Field.img over the VOI
 %   
-%   .norm
-%       L2 norm of the field (i.e. residual) over the VOI
+%   .rmsePerCm3
+%       L2 norm of the field (i.e. residual) over the VOI normalized by the volume
 %
 %   .meanAbs
 %       mean absolute value of the field over the VOI.
 %
 %   .medianAbs
 %       median absolute value of the field over the VOI
+%
+%   .min
+%   .max
 
 if nargin < 2 || isempty(voi)
     voi = Field.Hdr.MaskingImage ;
@@ -269,13 +272,15 @@ Stats.volume    = nnz( voi ) .* prod( 0.1*Field.getvoxelsize() )  ; % [units: cm
 Stats.mean      = mean( Field.img( voi ) ) ;
 Stats.median    = median( Field.img( voi ) ) ;
 Stats.std       = std( Field.img( voi ) ) ;
-Stats.norm      = norm( Field.img( voi ), 2 ) ;
+Stats.rmsePerCm3 = norm( Field.img( voi ), 2 )/Stats.volume ;
 Stats.meanAbs   = mean( abs( Field.img( voi ) ) ) ;
 Stats.medianAbs = median( abs( Field.img( voi ) ) ) ;
+Stats.min       = min( ( Field.img( voi ) ) ) ;
+Stats.max       = max( ( Field.img( voi ) ) ) ;
 
 if nargin == 3 && ischar( filename ) 
-    measure = {'Volume (cm^3)'; 'Mean (Hz)' ; 'Median (Hz)' ; 'St. dev. (Hz)' ; 'Norm (Hz)' ; 'Mean[abs.] (Hz)'; 'Median[abs.] (Hz)'} ;
-    value   = num2str([ Stats.volume ; Stats.mean ; Stats.median ; Stats.std ; Stats.norm ; Stats.meanAbs ; Stats.medianAbs ], 4 ) ;
+    measure = {'Volume (cm^3)'; 'Mean (Hz)' ; 'Median (Hz)' ; 'St. dev. (Hz)' ; 'RMSE/Volume (Hz/cm^3)' ; 'Mean[abs.] (Hz)'; 'Median[abs.] (Hz)'; 'Min (Hz)'; 'Max (Hz)'} ;
+    value   = num2str([ Stats.volume ; Stats.mean ; Stats.median ; Stats.std ; Stats.rmsePerCm3 ; Stats.meanAbs ; Stats.medianAbs ; Stats.min ; Stats.max ;], 4 ) ;
     writetable( table( measure, value ), filename ) ;
 end
 
@@ -306,11 +311,11 @@ if nargin < 2
     maxAbsField = DEFAULT_MAXABSFIELD ;
 end
 
-% NOTE : assuming a valid measurement will never be exactly zero. Maybe avoid...
-% or possibly add extra conditions ?
+% NOTE : This assumes a valid measurement will never be exactly zero. 
+% Perhaps better/additional conditions could be used ?
 mask = ~( (Field.img==0) & (-Field.img==0) ) ; 
 
-mask = mask & logical(Field.Hdr.MaskingImage) ;
+mask = mask & logical( Field.Hdr.MaskingImage ) ;
 
 mask = mask & ( abs(Field.img) <= maxAbsField ) ;
 
