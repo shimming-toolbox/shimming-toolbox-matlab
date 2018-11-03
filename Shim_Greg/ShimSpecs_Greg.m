@@ -71,7 +71,7 @@ Shim.Com.byteOrder   = 'bigEndian' ;
 % min delay (in seconds) between transmission and reception of data is 1 s
 %
 % UNTESTED
-Shim.Com.txRxDelay       = 0.05 ; % [units: s]
+Shim.Com.txRxDelay       = 0.005 ; % [units: s]
 Shim.Com.updatePeriod    = 0.05 ;
 
 Shim.Amp.nChannels       = 8 ;  
