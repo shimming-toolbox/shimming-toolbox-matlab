@@ -126,7 +126,8 @@ function  [ Params ] = assigndefaultparameters( Params )
 % DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Acdc/Calibration/data/ShimReferenceMaps_Acdc_20180606.mat';
+% DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Acdc/Calibration/data/ShimReferenceMaps_Acdc_20180606.mat';
+DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_Greg_20181103';
 DEFAULT_PROBESPECS              = [] ;
 
 DEFAULT_INSTITUTIONNAME = 'IUGM' ;
@@ -173,110 +174,116 @@ function Params = declarecalibrationparameters( Params )
 
 Params.nChannels  = 8 ;
 Params.nCurrents  = 2 ;
-Params.nEchoes    = 2 ;
+Params.nEchoes    = 2 ; % nEchoes = 1 for phase *difference* images
 
-Params.currents = [0 0.2; %ch1, [units: A]
-                   0 0.2; %
-                   0 0.2; %
-                   0 0.2; %...
-                   0 0.2; %
-                   0 0.2; %
-                   0 0.2; % 
-                   0 0.2;] ; %ch8
+Params.currents = [0 1.0; %ch1, [units: A]
+                   0 1.0; %
+                   0 1.0; %
+                   0 1.0; %...
+                   0 1.0; %
+                   0 1.0; %
+                   0 1.0; % 
+                   0 1.0;] ; %ch8
 
 % 2 columns: [ MAG | PHASE ] ;
 Params.dataLoadDirectories = cell( Params.nEchoes, 2, Params.nCurrents, Params.nChannels ) ;
 
+
 tmp = { ...
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/28-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/28-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/29-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/29-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/26-fm3d_shimON_ch1_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/26-fm3d_shimON_ch1_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/27-fm3d_shimON_ch1_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/27-fm3d_shimON_ch1_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/28-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/28-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/29-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/29-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/30-fm3d_shimON_ch2_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/30-fm3d_shimON_ch2_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/31-fm3d_shimON_ch2_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/31-fm3d_shimON_ch2_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/34-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/34-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/35-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/35-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/32-fm3d_shimON_ch3_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/32-fm3d_shimON_ch3_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/33-fm3d_shimON_ch3_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/33-fm3d_shimON_ch3_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/34-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/34-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/35-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/35-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/36-fm3d_shimON_ch4_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/36-fm3d_shimON_ch4_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/37-fm3d_shimON_ch4_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/37-fm3d_shimON_ch4_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/40-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/40-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/41-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/41-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/38-fm3d_shimON_ch5_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/38-fm3d_shimON_ch5_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/39-fm3d_shimON_ch5_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/39-fm3d_shimON_ch5_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/40-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/40-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/41-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/41-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/42-fm3d_shimON_ch6_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/42-fm3d_shimON_ch6_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/43-fm3d_shimON_ch6_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/43-fm3d_shimON_ch6_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/46-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/46-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/47-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/47-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/44-fm3d_shimON_ch7_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/44-fm3d_shimON_ch7_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/45-fm3d_shimON_ch7_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/45-fm3d_shimON_ch7_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/46-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/46-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/47-fm3d_shimOFF/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/47-fm3d_shimOFF/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/48-fm3d_shimON_ch8_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/48-fm3d_shimON_ch8_200mA/echo_10.21';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/49-fm3d_shimON_ch8_200mA/echo_4.26';
-    '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_32p/49-fm3d_shimON_ch8_200mA/echo_10.21'; } ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/03-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/04-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/05-fm3d_SHIM1_ch1_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/06-fm3d_SHIM1_ch1_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/03-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/04-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/07-fm3d_SHIM1_ch2_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/08-fm3d_SHIM1_ch2_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/03-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/04-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/11-fm3d_SHIM1_ch3_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/12-fm3d_SHIM1_ch3_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/03-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/04-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/09-fm3d_SHIM1_ch3_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/10-fm3d_SHIM1_ch3_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/03-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/04-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/13-fm3d_SHIM1_ch5_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/14-fm3d_SHIM1_ch5_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/03-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/04-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/15-fm3d_SHIM1_ch6_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/16-fm3d_SHIM1_ch6_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/03-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/04-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/17-fm3d_SHIM1_ch7_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/18-fm3d_SHIM1_ch7_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/03-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/04-fm3d_baseline/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/19-fm3d_SHIM1_ch8_+1A/' ;
+    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_43p/20-fm3d_SHIM1_ch8_+1A/' ; } ;
 
-% 1st 4 directories correspond to the baseline shim 
-Params.dataLoadDirectories{1,1,1} = tmp{1} ;
-Params.dataLoadDirectories{2,1,1} = tmp{2} ;
-Params.dataLoadDirectories{1,2,1} = tmp{3} ;
-Params.dataLoadDirectories{2,2,1} = tmp{4} ;
-
-nImgPerCurrent = 4 ; % = 2 mag image + 2 phase
-
-disp( ['Preparing shim calibration...' ] )        
+Params.dataLoadDirectories = cell( Params.nEchoes, 2, Params.nCurrents, Params.nChannels ) ;
 
 for iChannel = 1 : Params.nChannels
+    for iCurrent = 1 : Params.nCurrents
+        for imgType = 1 : 2 % 1=mag, 2=phase
 
-    for iCurrent = 1 : Params.nCurrents 
-            
-            iImg = nImgPerCurrent*(Params.nCurrents*iChannel + iCurrent - 3 ) + 1 ;
-             
-            % mag
-            Params.dataLoadDirectories{ 1, 1, iCurrent, iChannel + 1} = tmp{ iImg } ;
-            Params.dataLoadDirectories{ 2, 1, iCurrent, iChannel + 1} = tmp{ iImg + 1 } ;
-            % phase
-            Params.dataLoadDirectories{ 1, 2, iCurrent, iChannel + 1} = tmp{ iImg + 2 } ;
-            Params.dataLoadDirectories{ 2, 2, iCurrent, iChannel + 1} = tmp{ iImg + 3 } ;
-    end
+        iDir = (iChannel-1)*(Params.nCurrents*2) + 1 ;
+
+        dicomSubDirs  = dir( [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo*/'] ) ;
+        nDicomSubDirs = length( dicomSubDirs ) ;
+        assert( nDicomSubDirs == 5 )
+
+        Params.dataLoadDirectories{ 1, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_1.68/' ] ;
+        Params.dataLoadDirectories{ 2, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_5.68/' ] ;
+        % Params.dataLoadDirectories{ 3, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_10.68/' ] ;
+        % Params.dataLoadDirectories{ 4, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_15.68/' ] ;
+        % Params.dataLoadDirectories{ 5, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_20.68/' ] ;
+
+        end
+    end 
 end
+
+Params.Filtering.isFiltering  = true ;
+Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
+voxelSize                     = Mag.getvoxelsize() ;
+Params.Filtering.filterRadius = voxelSize(3) ;
+
+Params.reliabilityMask = (Mag.img/max(Mag.img(:))) > 0.01 ; % region of reliable SNR for unwrapping
+
+
+Params.Extension.isExtending    = false ; % harmonic field extrapolation
+% Params.Extension.voxelSize      = voxelSize ;
+% Params.Extension.radius         = 8 ;
+% Params.Extension.expansionOrder = 2 ;
+
+Params.unwrapper = 'AbdulRahman_2007' ;        
+
+% % 1st 4 directories correspond to the baseline shim 
+% Params.dataLoadDirectories{1,1,1} = tmp{1} ;
+% Params.dataLoadDirectories{2,1,1} = tmp{2} ;
+% Params.dataLoadDirectories{1,2,1} = tmp{3} ;
+% Params.dataLoadDirectories{2,2,1} = tmp{4} ;
+%
+% nImgPerCurrent = 4 ; % = 2 mag image + 2 phase
+%
+% disp( ['Preparing shim calibration...' ] )        
+%
+% for iChannel = 1 : Params.nChannels
+%
+%     for iCurrent = 1 : Params.nCurrents 
+%             
+%             iImg = nImgPerCurrent*(Params.nCurrents*iChannel + iCurrent - 3 ) + 1 ;
+%              
+%             % mag
+%             Params.dataLoadDirectories{ 1, 1, iCurrent, iChannel + 1} = tmp{ iImg } ;
+%             Params.dataLoadDirectories{ 2, 1, iCurrent, iChannel + 1} = tmp{ iImg + 1 } ;
+%             % phase
+%             Params.dataLoadDirectories{ 1, 2, iCurrent, iChannel + 1} = tmp{ iImg + 2 } ;
+%             Params.dataLoadDirectories{ 2, 2, iCurrent, iChannel + 1} = tmp{ iImg + 3 } ;
+%     end
+% end
 
     % '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_30p/104-gre_fm_shimOFF_S67_DIS3D/echo_7.38/' ;
     % '/Users/ryan/Projects/Shimming/Acdc/20180616_Ismrm/data/acdc_30p/105-gre_fm_shimOFF_S68_DIS3D/echo_7.38/' ;
@@ -451,36 +458,36 @@ end
 %         Params.dataLoadDirectories{ iCurrent, 2, iChannel + 1} = tmp{ nImgPerCurrent*(Params.nCurrents*iChannel + iCurrent) -2 } ;
 %     end
 % end
-
-Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
-
-Params.Filtering.isFiltering  = false ;
-voxelSize                     = Mag.getvoxelsize() ;
-Params.Filtering.filterRadius = 2*voxelSize(1) ;
-
-mag = Mag.img ;
-
-disp(['Loading magnitude images to determine region of sufficient SNR for shim field assessment' ] )        
-
-for iChannel = 1 : Params.nChannels
-    for iCurrent = 1 : Params.nCurrents
-        disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
-        iImg = Params.nCurrents*iChannel + iCurrent - 1 ;
-        Tmp  = MaRdI( Params.dataLoadDirectories{ 1, 1, iCurrent, iChannel + 1 } ) ;
-        mag(:,:,:, iImg) = Tmp.img ;
-    end
-end
-
-mag = mean( mag, 4 ) ;
-Params.reliabilityMask = mag/max(mag(:)) > 0.01 ; % region of reliable SNR for unwrapping
-Params.reliabilityMask = shaver( Params.reliabilityMask, [3 3 1] ) ;
-
-Params.Extension.isExtending = false ; % harmonic field extrapolation 
-Params.Extension.voxelSize   = voxelSize ;
-Params.Extension.expansionOrder = 1 ;
-Params.Extension.radius     = 6 ;
-
-Params.unwrapper = 'AbdulRahman_2007' ;        
+%
+% Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
+%
+% Params.Filtering.isFiltering  = false ;
+% voxelSize                     = Mag.getvoxelsize() ;
+% Params.Filtering.filterRadius = 2*voxelSize(1) ;
+%
+% mag = Mag.img ;
+%
+% disp(['Loading magnitude images to determine region of sufficient SNR for shim field assessment' ] )        
+%
+% for iChannel = 1 : Params.nChannels
+%     for iCurrent = 1 : Params.nCurrents
+%         disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
+%         iImg = Params.nCurrents*iChannel + iCurrent - 1 ;
+%         Tmp  = MaRdI( Params.dataLoadDirectories{ 1, 1, iCurrent, iChannel + 1 } ) ;
+%         mag(:,:,:, iImg) = Tmp.img ;
+%     end
+% end
+%
+% mag = mean( mag, 4 ) ;
+% Params.reliabilityMask = mag/max(mag(:)) > 0.01 ; % region of reliable SNR for unwrapping
+% Params.reliabilityMask = shaver( Params.reliabilityMask, [3 3 1] ) ;
+%
+% Params.Extension.isExtending = false ; % harmonic field extrapolation 
+% Params.Extension.voxelSize   = voxelSize ;
+% Params.Extension.expansionOrder = 1 ;
+% Params.Extension.radius     = 6 ;
+%
+% Params.unwrapper = 'AbdulRahman_2007' ;        
 
 end
 % =========================================================================
