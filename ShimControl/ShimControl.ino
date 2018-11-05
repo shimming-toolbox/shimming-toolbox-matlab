@@ -68,10 +68,12 @@ uint16_t dacBuffer [ SHIM_NCHANNELS ] ; // same as currentsBuffer but converted 
 void setup() 
 {
   Serial.begin(115200);   //Baudrate of the serial communication : Maximum
-  delay(100);
+  delay(1000);
 
   Dac.init();
-  Dac.enableInternalRef(); 
+  delay(1000);
+  /* Dac.enableInternalRef();  */
+  delay(1000);
   Dac.powerDAC_Normal(B11111111); // Power up all channels normal
 
   adc1.setGain(GAIN_TWO); //+/- 2.048V  1 bit = 1mV
@@ -108,24 +110,28 @@ void loop()
       switch (incomingByte) 
       {
         
-        case 'a':
+        case 'a': // prints TRUE/FALSE \n 
           usersetandloadallshims(); 
           break;
         
-        case 'c':                 
+        case 'b': // prints TRUE/FALSE \n 
+          usersetandrampallshims(); 
+          break;
+        
+        case 'c':  // prints TRUE/FALSE \n for each shim channel               
           calibratedaccompensation();
           break;
         
-        case 'f': // read in channel index followed by channel current as float in units of amperes
-          userrampshimbychannelasfloat();
-          break;
-        
-        case 'h':
-          usergetsystemheartbeat(); 
-          break;
-        
-        case 'i':
+        case 'e': // prints TRUE/FALSE \n
           usersetandloadshimbychannel(); 
+          break;
+        
+        case 'f': // prints TRUE/FALSE \n
+          usersetandrampshimbychannelasfloat();
+          break;
+        
+        case 'h': // prints TRUE/FALSE \n
+          usergetsystemheartbeat(); 
           break;
         
         /* case 'm': */
@@ -138,24 +144,27 @@ void loop()
         /*   usergetprintmode(); */
         /*   break; */
 
-        case 'q':                
+        case 'q':  // prints 5-digit precision channel current [units: A] \n for each shim channel               
           usergetallchannelcurrents();
           break;
         
-        case 'r':                
+        case 'r': // prints TRUE/FALSE \n
           userrampdownallshims( ) ;
           break;
         
-        case 'v':                
+        case 's': // prints TRUE/FALSE \n
+          userresetallshims( ) ; // FOR DEBUGGING ONLY - otherwise use 'r' to ramp-down
+          break;
+        
+        case 'v':   // prints uint16_t channel voltage [units: mV] \n for each shim channel             
           usergetallchannelvoltages();
           break;
 
-        case 'u':                 
-          usergetcompensationcoefficients() ;
+        case 'u': // prints 5-digit precision DAC offset (float) \n  DAC gain \n for each shim channel             
+          usergetdaccompensationcoefficients() ;
           break;
         
-        case 'z':                // Reset the arduino
-          Serial.println("\n");
+        case 'z': // prints TRUE/FALSE \n 
           resetFunc();
           break;
 
@@ -479,12 +488,12 @@ void usergetsystemheartbeat( void )
     Serial.println( true ); 
 }
 
-void usergetcompensationcoefficients( void ) 
+void usergetdaccompensationcoefficients( void ) 
 {
     for ( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ ) 
     {
-        Serial.println( dacOffset[ iCh ] ); 
-        Serial.println( dacGain[ iCh ] ); 
+        Serial.println( dacOffset[ iCh ], 5 ); 
+        Serial.println( dacGain[ iCh ], 5 ); 
     }
 }
 
@@ -509,9 +518,40 @@ bool usersetandloadallshims( void )
 // where each consecutive 5 digits represents the channel's
 // shim current scaled to be between [0:65535]
 // 
-// Updates the shim buffer + DAC values upon completion
+// Updates the shim buffer + outputs DAC values upon completion
 //
 // Returns TRUE if successful
+
+    bool isReadSuccessful = false ;
+    isReadSuccessful = usersetallshims() ; 
+    loadallshims() ;
+    Serial.println(isReadSuccessful);  return isReadSuccessful;
+        
+}
+
+bool usersetandrampallshims( void ) 
+{
+// Reads sequentially from serial 5 digits X SHIM_NCHANNELS 
+// where each consecutive 5 digits represents the channel's
+// shim current scaled to be between [0:65535]
+// 
+// Updates the shim buffer and ramps current up over 1.0 s
+//
+// Returns TRUE if successful
+    bool isReadSuccessful = false ;
+    isReadSuccessful = usersetallshims() ; 
+    rampallshims() ;
+    Serial.println(isReadSuccessful);  return isReadSuccessful;
+        
+}
+
+bool usersetallshims( void ) 
+{
+// Reads sequentially from serial 5 digits X SHIM_NCHANNELS 
+// where each consecutive 5 digits represents the channel's
+// shim current scaled to be between [0:65535]
+// 
+// Updates shim buffer upon completion
 
     bool isCurrentReadSuccessful = false;
     uint16_t inputCurrents [ SHIM_NCHANNELS ] ;
@@ -529,11 +569,9 @@ bool usersetandloadallshims( void )
     for( uint8_t iCh = 0; iCh < SHIM_NCHANNELS; iCh++ )
     {
         setshimbufferbychannel( iCh, uint16toamps( inputCurrents[iCh] ) ) ;
-    }    
-    
-    loadallshims() ;
-    Serial.println(true);  return true;
-        
+    }   
+
+    return isCurrentReadSuccessful ; 
 }
 
 bool usersetandloadshimbychannel( void ) 
@@ -591,14 +629,15 @@ bool usersetandloadshimbychannel( void )
 }
 
     
-bool userrampshimbychannelasfloat( void ) 
+bool usersetandrampshimbychannelasfloat( void ) 
 {
-// This function takes significantly longer than usersetandloadshimbychannel() 
-// and produces the same result (setting and loading a single shim channel).
-// However, it may be more convenient for debugging:
+// This function takes significantly longer than usersetandloadshimbychannel()
+// and effectively produces the same result (setting the DAC buffer for a single shim
+// channel and ramping up to it over 1.0 s) However, it may be more convenient
+// for debugging:
 //
-// Rather than reading the channel current as a 5-digit scaled unsigned int, 
-// the input should be the channel index [0:SHIM_NCHANNELS-1] followed by the 
+// Rather than reading the channel current as a 5-digit scaled unsigned int,
+// the input should be the channel index [0:SHIM_NCHANNELS-1] followed by the
 // requested current, input as a single float in amperes.
 //
 // Returns TRUE if successful
