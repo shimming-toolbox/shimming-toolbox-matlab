@@ -10,12 +10,23 @@ duration = 15; % DURATION OF THE MEASUREMENT IN SECONDS
 s_cprobe = serial('/dev/cu.usbmodem4471891'); %cprobe 3.5\
 s_cprobe.Baudrate = 115200;
 
+DEFAULT_RESULTS_FOLDER_ROOT = '/Users/alfoi/Desktop/results_cprobe/';
+str_date = date;
+DEFAULT_RESULTS_FOLDER = strcat('/Users/alfoi/Desktop/results_cprobe/results_',str_date);
+
+if ~exist(DEFAULT_RESULTS_FOLDER_ROOT, 'dir')
+    mkdir(DEFAULT_RESULTS_FOLDER_ROOT)
+end
+
+if ~exist(DEFAULT_RESULTS_FOLDER, 'dir')
+    mkdir(DEFAULT_RESULTS_FOLDER)
+end
 exp_descr = inputdlg('Experiment_description: ');
-DEFAULT_CPROBELOGFILENAME   = ['./results/CProbeLog-' exp_descr{1} '.bin'] ;
-DEFAULT_PPROBELOGFILENAME   = ['./results/PProbeLog-' exp_descr{1} '.bin'] ;
-DEFAULT_SAMPLETIMESFILENAME   = ['./results/sampleTimes-' exp_descr{1} '.bin' ] ;
-DEFAULT_PLOTFILENAME   = ['./results/c_p_probes_plot-' exp_descr{1} '.png' ] ;
-DEFAULT_MATFILENAME = ['./results/variablesDump-' exp_descr{1} '.mat' ] ;
+DEFAULT_CPROBELOGFILENAME   = [DEFAULT_RESULTS_FOLDER '/CProbeLog-' exp_descr{1} '.bin'] ;
+DEFAULT_PPROBELOGFILENAME   = [DEFAULT_RESULTS_FOLDER '/PProbeLog-' exp_descr{1} '.bin'] ;
+DEFAULT_SAMPLETIMESFILENAME   = [DEFAULT_RESULTS_FOLDER '/sampleTimes-' exp_descr{1} '.bin' ] ;
+DEFAULT_PLOTFILENAME   = [DEFAULT_RESULTS_FOLDER '/c_p_probes_plot-' exp_descr{1} '.png' ] ;
+DEFAULT_MATFILENAME = [DEFAULT_RESULTS_FOLDER '/variablesDump-' exp_descr{1} '.mat' ] ;
 
 fopen(s_cprobe)
 
