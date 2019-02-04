@@ -3,11 +3,11 @@ close all;
 delete(instrfindall);
 
 %% --
-treshold_freq = 0.5;  % threshold value above/below the mean of previous time points
+treshold_freq = 100;  % threshold value above/below the mean of previous time points
 %% --
-duration = 15; % DURATION OF THE MEASUREMENT IN SECONDS
+duration = 900; % DURATION OF THE MEASUREMENT IN SECONDS
 
-s_cprobe = serial('/dev/cu.usbmodem4471891'); %cprobe 3.5\
+s_cprobe = serial('/dev/cu.usbmodem1538791'); %cprobe 3.5\
 s_cprobe.Baudrate = 115200;
 
 %DEFAULT_RESULTS_FOLDER_ROOT = '/Users/alfoi/Desktop/results_cprobe/';
@@ -33,11 +33,11 @@ DEFAULT_MATFILENAME = [DEFAULT_RESULTS_FOLDER '/variablesDump-' exp_descr{1} '.m
 fopen(s_cprobe)
 
 timepoint = 1;
-limit = duration / 0.1;
 figure
 
-while timepoint<limit
-    fprintf(s_cprobe,'a')
+FS = stoploop({'Stop cprobe'}) ; 
+
+while(~FS.Stop())
     buffer_data_cprobe = fscanf(s_cprobe,'%s');
     data_cprobe(timepoint) = str2num(buffer_data_cprobe)/100;
     if timepoint ~= 1
@@ -55,11 +55,7 @@ while timepoint<limit
     ylabel('Frequency [KHz]')
     drawnow
     
-    
-    timepoint = timepoint + 1;
-    pause(0.01)
-    
-    
+    timepoint = timepoint + 1;    
 end
 
 % %% Save freq trace

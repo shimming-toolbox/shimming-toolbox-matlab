@@ -6,19 +6,9 @@ void setup() {
 }
 
 
-void loop() 
-{
-  
-  char incomingByte;
-
-  if (Serial.available() > 0) 
-  {
-    incomingByte = Serial.read();
-  
-      switch (incomingByte) 
-      {
-        case 'a':
-          Serial.println(FreqCount.read());
-      }
+void loop() {
+  if (FreqCount.available()) {
+    unsigned long count = FreqCount.read();
+    Serial.println(count);
   }
 }
