@@ -109,32 +109,53 @@ if Shim.Params.isConfirmingDataLoadDir
     Shim.uiconfirmdataloaddir( ) ;
 end
 
-switch Shim.Params.shimSystem
-    
-    case 'Rriyan'
-        Shim.Opt = ShimOptRri( Shim.Params ) ;
-        Shim.Com = ShimComRri( ) ;
+if ~Params.isConnectingToShim
+    switch Shim.Params.shimSystem
+        
+        case 'Rriyan'
+            Shim.Opt = ShimOptRri( Shim.Params ) ;
 
-    case 'Greg'
-        Shim.Opt = ShimOpt_Greg( Shim.Params ) ;
-        Shim.Com = ShimCom_Greg( ) ;
-    
-    case 'UnfPrisma'
-        Shim.Opt = ShimOpt_IUGM_Prisma_fit( Shim.Params ) ;
-        Shim.Com = [] ;
-    
-    case 'Des' % i.e. shim design, a virtual shim system
-        Shim.Opt = ShimOpt_Des( Shim.Params ) ;
-        Shim.Com = [] ;
+        case 'Greg'
+            Shim.Opt = ShimOpt_Greg( Shim.Params ) ;
+        
+        case 'UnfPrisma'
+            Shim.Opt = ShimOpt_IUGM_Prisma_fit( Shim.Params ) ;
+        
+        case 'Des' % i.e. shim design, a virtual shim system
+            Shim.Opt = ShimOpt_Des( Shim.Params ) ;
 
-    otherwise
-        error([ Shim.Params.shimSystem 'is an invalid or unimplemented shim system. See HELP ShimUse().' ])
+        otherwise
+            error([ Shim.Params.shimSystem 'is an invalid or unimplemented shim system. See HELP ShimUse().' ])
 
+    end
+else
+    switch Shim.Params.shimSystem
+        
+        case 'Rriyan'
+            Shim.Opt = ShimOptRri( Shim.Params ) ;
+            Shim.Com = ShimComRri( ) ;
+
+        case 'Greg'
+            Shim.Opt = ShimOpt_Greg( Shim.Params ) ;
+            Shim.Com = ShimCom_Greg( ) ;
+        
+        case 'UnfPrisma'
+            Shim.Opt = ShimOpt_IUGM_Prisma_fit( Shim.Params ) ;
+            Shim.Com = [] ;
+        
+        case 'Des' % i.e. shim design, a virtual shim system
+            Shim.Opt = ShimOpt_Des( Shim.Params ) ;
+            Shim.Com = [] ;
+
+        otherwise
+            error([ Shim.Params.shimSystem 'is an invalid or unimplemented shim system. See HELP ShimUse().' ])
+
+    end
 end
 
-if ~Params.isDebugging ;
-    Shim.testshimconnection() ;
-end
+% if ~Params.isConnectingToShim ;
+%     Shim.testshimconnection() ;
+% end
 
 if Shim.Params.isLoggingCommands
     diary( [Shim.Params.dataLoadDir Shim.Params.commandLogFilename] ) ;
@@ -174,7 +195,7 @@ end
 function [] = acquiretrainingdata( Shim, iTrainingFrame )
 %ACQUIRETRAININGDATA  
 %
-% Wrapper to ProbeTracking.recordandplotrespiratorytrace( )
+% Wrapper to ProbeTracking.recordandplotphysiosignal( )
 % 
 % ACQUIRETRAININGDATA( Shim )
 
@@ -195,15 +216,19 @@ if nargin < 2
 end
 
 Params.physioSignalFilename = [Shim.Params.dataLoadDir datestr(now,30) '-physioSignal-Training' num2str(iTrainingFrame) '.bin'] ;
-Params.sampleTimesFilename      = [Shim.Params.dataLoadDir datestr(now,30) '-sampleTimes-Training' num2str(iTrainingFrame) '.bin'] ;
+Params.sampleTimesFilename  = [Shim.Params.dataLoadDir datestr(now,30) '-sampleTimes-Training' num2str(iTrainingFrame) '.bin'] ;
 
 % -------
 % begin physio tracking
-Shim.Opt.Tracker.recordandplotrespiratorytrace( Params ) ;
+if iTrainingFrame == 3
+    Shim.Opt.Tracker.calibratelimiting( Params ) ;
+else
+    Shim.Opt.Tracker.recordandplotphysiosignal( Params ) ;
+end
 
 Shim.Params.physioSignalFilenames{iTrainingFrame} = Params.physioSignalFilename ;
 
-Shim.Data.Aux.Tracker{iTrainingFrame} = Shim.Opt.Tracker.copyinert() ;
+Shim.Data.Aux.Tracker{iTrainingFrame} = Shim.Opt.Tracker.copy() ;
 
 
 % TODO 
@@ -400,7 +425,7 @@ for iFrame = 1 : Shim.Params.nTrainingFrames
         % ------
         % extract a single scalar
         Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p = ...
-            ProbeTracked.selectmedianmeasurement( Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p, nSamplesApnea, isUserSelectionEnabled ) ;
+            ProbeTracking.selectmedianmeasurement( Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p, nSamplesApnea, isUserSelectionEnabled ) ;
     end
     
 end
@@ -474,7 +499,7 @@ DEFAULT_PHYSIOSIGNALFILENAME = [ Params.dataSaveDir datestr(now,30) '-physioSign
 DEFAULT_SAMPLETIMESFILENAME  = [ Params.dataSaveDir datestr(now,30) '-sampleTimes.bin' ] ;
 DEFAULT_UPDATETIMESFILENAME  = [ Params.dataSaveDir datestr(now,30) '-updateTimes.bin' ] ;
 
-DEFAULT_RUNTIME                 = 5*60 ; % [units: s]
+DEFAULT_RUNTIME                 = 10*60 ; % [units: s]
 DEFAULT_EXTRAPOLATIONORDER      = 0 ;
 DEFAULT_EXTRAPOLATIONDELAY      = 0 ;
 
@@ -499,12 +524,12 @@ if  ~myisfield( Params, 'isForcingOverwrite' ) || isempty(Params.isForcingOverwr
     Params.isForcingOverwrite = DEFAULT_ISFORCINGOVERWRITE ;
 end
 
-if  ~myisfield( Params, 'measurementLogFilename' ) || isempty(Params.measurementLogFilename)
-    Params.measurementLogFilename = DEFAULT_MEASUREMENTLOGFILENAME ;
+if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
+    Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
 end
 
-[pathStr,name,ext] = fileparts( Params.measurementLogFilename ) ;
-Params.rawMeasurementLogFilename = [pathStr '/' name '_raw' ext] ;
+[pathStr,name,ext] = fileparts( Params.physioSignalFilename ) ;
+Params.rawPhysioSignalFilename = [pathStr '/' name '_raw' ext] ;
 
 if  ~myisfield( Params, 'sampleTimesFilename' ) || isempty(Params.sampleTimesFilename)
     Params.sampleTimesFilename  = DEFAULT_SAMPLETIMESFILENAME ; 
@@ -575,7 +600,10 @@ delay = ( Params.txDelay + Shim.Opt.Tracker.Specs.dt*(Params.nSamplesFilter-1)/2
 
 
 % ------- 
-Shim.Opt.Tracker.Data.p = [] ;
+Shim.Opt.Tracker.clearrecording() ;
+Shim.Opt.Tracker.Data.pRaw = 0;
+Shim.Opt.Tracker.Data.p    = 0;
+
 
 nSamples = Params.runTime / (Shim.Opt.Tracker.Specs.dt/1000) ;
 iSample  = 0 ; 
@@ -596,19 +624,17 @@ else
 
 end
 
-rawMeasurementLog    = [] ;
-Shim.Data.Tracker.p = [] ;
+phys =[] ;
 
 sampleTimes          = [] ; %
 updateTimes          = [] ; % when shim updates occur
 
-sampleIndices        = [] ;
 updateIndices        = [] ; % corresponding to when shim updates occur
 iUpdate              = 0 ;
 
 currentsNorm         = 0 ;
 
-
+currentsIssued       = zeros( Shim.Com.Specs.Amp.nChannels, nSamples ) ;
 
 if Params.isPlottingInRealTime
     
@@ -617,7 +643,7 @@ if Params.isPlottingInRealTime
     % ------- 
     % figure
     figureHandle = figure('NumberTitle','off',...
-        'Name','Sonde de respiration',...
+        'Name','Respiration',...
         'Color',[0 0 0],'Visible','off');
         
     % Set axes
@@ -643,6 +669,12 @@ if Params.isPlottingInRealTime
 
 end
 
+Params.isPlottingInRealTime = false;
+% -----
+display('RAMPING SHIM CURRENTS TO DC') 
+Shim.Com.setandrampallshims( Shim.Opt.Model.currents ) ;
+pause(1)
+Shim.Com.getallchanneloutputs
 
 % ------- 
 StopButton = stoploop({'Stop recording'}) ;
@@ -662,9 +694,8 @@ if isTracking
 
             iSample = iSample + 1 ;
             
-            sampleIndices(iSample)     = iSample ;
-            
-            rawMeasurementLog(iSample) = Shim.Opt.Tracker.getupdate() ;
+            Shim.Opt.Tracker.getupdate() ;
+            % rawPhysioSignal(iSample) = Shim.Opt.Tracker.getupdate() ;
 
         end
 
@@ -674,40 +705,47 @@ if isTracking
         
         updateTimes(iUpdate) = updatePeriod * iUpdate ; 
 
-        % lowpass + delay correction of respiratory signal  
-        if Params.isFilteringMeasurements  && ( iSample > Params.nSamplesFilter )
-                
-             % 0th order corr (weighted avg)
-             p = dot( Params.filterWeights(:,1), rawMeasurementLog( (iSample - Params.nSamplesFilter + 1) : iSample ) ) ;
+        % % lowpass + delay correction of respiratory signal  
+        % if Params.isFilteringMeasurements  && ( iSample > Params.nSamplesFilter )
+        %         
+        %      % 0th order corr (weighted avg)
+        %      p = dot( Params.filterWeights(:,1), rawPhysioSignal( (iSample - Params.nSamplesFilter + 1) : iSample ) ) ;
+        %
+        %      % if Params.isPredictingMeasurement
+        %      % 1st order corr
+        %      p = p + delay*dot( Params.filterWeights(:,2), rawPhysioSignal( (iSample - Params.nSamplesFilter + 1) : iSample ) ) ;
+        %      %end
+        %
+        %     Shim.Opt.Tracker.Data.p(iUpdate) = p ;
+        %
+        % else
 
-             % if Params.isPredictingMeasurement
-             % 1st order corr
-             p = p + delay*dot( Params.filterWeights(:,2), rawMeasurementLog( (iSample - Params.nSamplesFilter + 1) : iSample ) ) ;
-             %end
+            % Shim.Opt.Tracker.Data.p(iUpdate) = rawPhysioSignal(iSample) ;
 
-            Shim.Opt.Tracker.Data.p(iUpdate) = p ;
-
-        else
-
-            Shim.Opt.Tracker.Data.p(iUpdate) = rawMeasurementLog(iSample) ;
-
-        end
+        % end
         
-         if Params.isClipping
-             Shim.Opt.Tracker.Data.p(iUpdate) = clipvalue( Shim.Opt.Tracker.Data.p(iUpdate) ) ;
-         end
-
-        pS = Shim.Opt.Tracker.Data.p(iUpdate) - Shim.Params.pDc ; % debiased measurement
+         % if Params.isClipping
+         %     Shim.Opt.Tracker.Data.p(iUpdate) = clipvalue( Shim.Opt.Tracker.Data.p(iUpdate) ) ;
+         % end
+         phys(iUpdate) = mean( Shim.Opt.Tracker.Data.p(end-1:end) ) ; % avg 2 samples
+         pS            = phys(iUpdate) - Shim.Params.pDc ; % debiased measurement
+         % pS = Shim.Opt.Tracker.Data.p(end) - Shim.Params.pDc ; % debiased measurement
 
         currents = Shim.Opt.computerealtimeupdate( pS ) ;
+
         
         % currents = limitcurrents( currents ) ;
+        
+        Shim.Com.setandloadallshims( currents ) ;
+        
         currentsNorm = norm(currents) 
-        
-        Shim.Com.setandloadallshims( currents ) 
-        
+       
+        % currentsIssued(:, iUpdate ) = currents ;
+
         if Params.isPlottingInRealTime
-            set(plotHandle,'YData',Shim.Opt.Tracker.Data.p,'XData',updateTimes);
+            set(plotHandle,'YData',phys,'XData',updateTimes);
+            % set(plotHandle,'YData',Shim.Opt.Tracker.Data.p);
+            % set(plotHandle,'YData',Shim.Opt.Tracker.Data.p,'XData',updateTimes);
         end
 
     end
@@ -715,17 +753,17 @@ if isTracking
     Shim.Opt.Tracker.stoptracking() ;
     Shim.Com.resetallshims() ;
 
-    sampleTimes = (Shim.Opt.Tracker.Specs.dt/1000)*sampleIndices ;
+    sampleTimes = (Shim.Opt.Tracker.Specs.dt/1000)*ones(size(Shim.Opt.Tracker.Data.p)) ;
 
     % ------- 
     if Params.isSavingData
-        measurementLogFid = fopen( Params.measurementLogFilename, 'w+' ) ;
-        fwrite( measurementLogFid, Shim.Opt.Tracker.Data.p, 'double' ) ;
-        fclose( measurementLogFid );
+        physioSignalFid = fopen( Params.physioSignalFilename, 'w+' ) ;
+        fwrite( physioSignalFid, Shim.Opt.Tracker.Data.p, 'double' ) ;
+        fclose( physioSignalFid );
         
-        measurementLogFid = fopen( Params.rawMeasurementLogFilename, 'w+' ) ;
-        fwrite( measurementLogFid, rawMeasurementLog, 'double' ) ;
-        fclose( measurementLogFid );
+        physioSignalFid = fopen( Params.rawPhysioSignalFilename, 'w+' ) ;
+        fwrite( physioSignalFid, Shim.Opt.Tracker.Data.pRaw, 'double' ) ;
+        fclose( physioSignalFid );
 
         sampleTimesFid = fopen( Params.sampleTimesFilename, 'w+' ) ;
         fwrite( sampleTimesFid, sampleTimes, 'double' ) ;
@@ -734,6 +772,8 @@ if isTracking
         updateTimesFid = fopen( Params.updateTimesFilename, 'w+' ) ;
         fwrite( updateTimesFid, updateTimes, 'double' ) ;
         fclose( updateTimesFid );
+        
+        save( [Params.dataSaveDir datestr(now,30) '-currentsIssued'], currentsIssued ) ;
     end
 
 end
@@ -829,9 +869,9 @@ function [ Params ] = assigndefaultparameters( Params )
 %   and the Siemens default is to only save the inter-echo phase difference:
 % DEFAULT_ISGREPHASEDIFFERENCE = true ;
 %
-% DEFAULT_ISDEBUGGING = false ; 
+% DEFAULT_ISCONNECTINGTOSHIM = true ; 
 
-DEFAULT_ISDEBUGGING = false ; 
+DEFAULT_ISCONNECTINGTOSHIM = true ; 
 
 DEFAULT_ISCONFIRMINGDATALOADDIR = true ; 
 
@@ -847,8 +887,8 @@ DEFAULT_NTRAININGFRAMES      = 2 ; % training time-points (e.g. inspired + expir
 DEFAULT_ISGREPHASEDIFFERENCE = true ; % phase images are inter-echo phase difference images
 DEFAULT_NECHOES              = 2 ;
 
-if ~myisfield( Params, 'isDebugging' ) || isempty( Params.isDebugging ) 
-   Params.isDebugging = DEFAULT_ISDEBUGGING ;
+if ~myisfield( Params, 'isConnectingToShim' ) || isempty( Params.isConnectingToShim ) 
+   Params.isConnectingToShim = DEFAULT_ISCONNECTINGTOSHIM ;
 end
 
 if ~myisfield( Params, 'isConfirmingDataLoadDir' ) || isempty( Params.isConfirmingDataLoadDir ) 
