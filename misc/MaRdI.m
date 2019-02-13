@@ -1242,7 +1242,7 @@ end
 function [mask, weights] = segmentspinalcanal_s( Params )
 %SEGMENTSPINALCANAL_S
 % 
-% segment T2* multiecho data using the Spinal Cord Toolbox (must be installed + in path)
+% segment T2* multiecho data using the Spinal Cord Toolbox
 %
 % [ mask, weights ] = SEGMENTSPINALCANAL_S( Params )
 %
@@ -1251,7 +1251,8 @@ function [mask, weights] = segmentspinalcanal_s( Params )
 %   .dataLoadDir 
 %       DICOM folder
 %   
-%   .dataSaveDir 
+%   .dataSaveDir
+%       [default = './gre_seg/'] 
 %
 %   .isUsingPropsegCsf
 %       [default = false]
@@ -1264,7 +1265,7 @@ function [mask, weights] = segmentspinalcanal_s( Params )
 % SEGMENTSPINALCANAL_S
 %   is the static form of MaRdI.segmentspinalcanal( Img, Params )
 %
-%   I (RT) was hoping Matlab would allow the 2 identically named methods (as in c)
+%   I (RT) was hoping Matlab would allow the 2 identically named methods (as in C)
 %   given that the static form takes only 1 arg, and the other form requires 2...
 %
 %   --> either rectify this if pos. or change the method names or another alt.
@@ -1330,7 +1331,7 @@ system( ['mv ' Params.tmpSaveDir '*.nii.gz ' Params.tmpSaveDir 't2s_allEchoes.ni
 system( ['sct_maths -i ' Params.tmpSaveDir 't2s_allEchoes.nii.gz -mean t -o ' Params.tmpSaveDir 't2s.nii.gz'] ) ;
 
 % get centerline 
-system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2s.nii.gz -c t2s -o ' Params.tmpSaveDir 't2s_centerline'] ) ;
+system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2s.nii.gz -c t2 -o ' Params.tmpSaveDir 't2s_centerline'] ) ;
 
 system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p centerline,' ...
     Params.tmpSaveDir 't2s_centerline.nii.gz -size ' ...
