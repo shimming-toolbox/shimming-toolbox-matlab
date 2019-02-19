@@ -443,30 +443,52 @@ if ( Shim.Params.nTrainingFrames > 1 ) && ~isempty( Shim.Data.Aux.Tracker{ 1, 1,
 else
     error('Free breathing measurements not available')
 end
+    
+% -------
+% derive t2star reliability weights:
+t2sWeights = zeros( [ Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) Shim.Params.nTrainingFrames ] ) ;
+% t2sMasks: false wherever the t2sWeights are clearly unreliable (i.e. Mag(TE2) >= Mag(TE1) )
+t2sMasks   = false( [ Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) Shim.Params.nTrainingFrames ] ) ;
+
+for iFrame = 1 : Shim.Params.nTrainingFrames 
+    
+    t2sWeights(:,:,:, iFrame) = Shim.Opt.derivedataweights( ...
+        { Shim.Data.Img{ 1, 1, iFrame }  ; Shim.Data.Img{ 2, 1, iFrame } }, 5 ) ;
+
+    t2sMasks(:,:,:, iFrame) = t2sWeights(:,:,:, iFrame) ~= 0 ;
+
+end
+
+% averaging
+t2sWeights = sum( t2sMasks .* t2sWeights, 4 ) ./ sum( t2sMasks, 4 ) ;
+
+% filtering
+t2sWeights( ~( sum( t2sMasks, 4 ) ) ) = NaN ; % exclude from medfilt3( )
+t2sWeights = medfilt3( t2sWeights, [3 3 1] ) ; 
+assert( ~any( isnan( t2sWeights(:) ) ), 'Mapped t2sWeights include NaN values...' ) ;
+
+% -------
+% call SCT to segment spinal canal
 
 if Shim.Params.isAutoSegmenting == true
     
     Shim.Params.cordVoi     = true( Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) ) ;
-    Shim.Params.dataWeights = zeros( Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) ) ;
+    Shim.Params.dataWeights = ones( Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) ) ;
 
-    % call spinal cord toolbox 
-    for iFrame = 1 : 1 % Shim.Params.nTrainingFrames TODO : make it faster ? takes too long with multiple training frames
+    for iFrame = 1 : Shim.Params.nTrainingFrames 
 
         TmpParams.dataSaveDir       = [ Shim.Params.dataLoadDir ] ;
         TmpParams.isUsingPropsegCsf = true ;
         
+        % call spinal cord toolbox 
         [cordVoi, sctWeights] = Shim.Data.Img{ 1, 1, iFrame }.segmentspinalcanal( TmpParams ) ;
         
-        % retain the intersection with previous VOI:
+        % retain the intersection with previous iteration:
         Shim.Params.cordVoi = Shim.Params.cordVoi & cordVoi ;
         
-        t2sWeights = Shim.Opt.derivedataweights( ...
-            { Shim.Data.Img{ 1, 1, iFrame }  ; Shim.Data.Img{ 2, 1, iFrame } }, 5, Shim.Params.cordVoi ) ;
-
-        Shim.Params.dataWeights = Shim.Params.dataWeights + sctWeights + t2sWeights ;
+        Shim.Params.dataWeights = Shim.Params.dataWeights .* sctWeights  ;
     end
-   
-    % averaging
+    
     Shim.Params.dataWeights = Shim.Params.dataWeights/Shim.Params.nTrainingFrames ;
 
 end
