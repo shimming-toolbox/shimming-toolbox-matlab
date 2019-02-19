@@ -23,6 +23,7 @@ First designed for use with the 24-channel spine shim (Topfer R, et al., MRM,
 
 ## Getting started
 
+## Class definitions
 
 Series of classes pertaining to shimming:
 
