@@ -1,7 +1,11 @@
 # realtime_shimming
 
 - [Overview](#overview)
-
+- [Dependencies](#dependencies)
+- [Getting started](#getting-started)
+- [Class definitions](#class-definitions)
+- [Contributors](#contributors)
+- [License](#license)
 
 ## Overview
 
@@ -9,19 +13,19 @@ This library consists of programs to perform shimming (static and real-time).
 First designed for use with the 24-channel spine shim (Topfer R, et al., MRM,
 2018. https://doi.org/10.1002/mrm.27089)
 
-## Dependencies
+## Installation
 
+Before running this software you will need to install the following dependencies:
 - Matlab R2015A
   - Optimization toolbox
   - Image processing toolbox
 - [SCT v 4.0.0](https://github.com/neuropoly/spinalcordtoolbox)
 
-## Installation
-
-- Download (or `git clone`) this repository
-
+Then, download (or `git clone`) this repository, open Matlab, and add this folder (with sub-folders) to the Matlab Path.
 
 ## Getting started
+
+
 
 ## Class definitions
 
