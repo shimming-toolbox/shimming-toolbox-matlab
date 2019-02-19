@@ -50,19 +50,7 @@ Series of classes pertaining to shimming:
 For the documentation, in the Matlab command prompt type:
 	doc [class name]
 
-## Notes
-
-When contributing to the library, for maintainability, please adhere to the
-Matlab programming guidelines outlined by Richard Johnson:
-https://www.mathworks.com/matlabcentral/fileexchange/2529-matlab-programming-style-guidelines
-
-For general information on OO-programming in Matlab:
-http://www.cs.ubc.ca/~murphyk/Software/matlabTutorial/html/objectOriented.html
-
-All classes are * handle * as opposed to * value * classes.
-For more info on this distinction:
-https://www.mathworks.com/help/matlab/matlab_oop/comparing-handle-and-value-classes.html  
-
+If you would like to register a new shim system, create a new folder Shim_MyNewShim, and use the .m classes provided in the folder **Shim_Template/**.
 
 ## Contributors
 
