@@ -1,6 +1,7 @@
 # How to contribute
 
 * [Introduction](#introduction)
+* [Programming guidelines](#programming-guidelines)
 * [Fixing a bug](#fixing-a-bug)
 * [Adding a new feature](#adding-a-new-feature)
 * [Commit changes to your branch](#commit-changes-to-your-branch)
@@ -17,6 +18,19 @@ If your are new to git or github, the following articles may help you:
 * See [Fork A Repo](http://help.github.com/forking/) for an introduction to forking a repository.
 * See [Creating branches](https://help.github.com/articles/creating-and-deleting-branches-within-your-repository/) for an introduction on branching within GitHub.
 * See [Refining patches using git](https://github.com/erlang/otp/wiki/Refining-patches-using-git) for an introduction to cleaning up git branches.
+
+# Programming guidelines
+
+When contributing to the library, for maintainability, please adhere to the
+Matlab programming guidelines outlined by Richard Johnson:
+https://www.mathworks.com/matlabcentral/fileexchange/2529-matlab-programming-style-guidelines
+
+For general information on OO-programming in Matlab:
+http://www.cs.ubc.ca/~murphyk/Software/matlabTutorial/html/objectOriented.html
+
+All classes are * handle * as opposed to * value * classes.
+For more info on this distinction:
+https://www.mathworks.com/help/matlab/matlab_oop/comparing-handle-and-value-classes.html  
 
 # Fixing a bug
 
@@ -62,7 +76,7 @@ Here are some tips to help the review go smoothly and quickly.
 1. Keep it short. Keep the changes less then 50 lines.
 2. Focus on committing 1 logical change at a time.
 3. Write a verbose commit message. [Detailed explanation of a good commit message](https://github.com/erlang/otp/wiki/writing-good-commit-messages)
-4. Correct any code style suggested by an analyser on your changes. [Matlab Code Checker](https://www.mathworks.com/help/fixedpoint/ug/using-the-matlab-code-analyzer-to-check-code-interactively-at-design-time.html). 
+4. Correct any code style suggested by an analyser on your changes. [Matlab Code Checker](https://www.mathworks.com/help/fixedpoint/ug/using-the-matlab-code-analyzer-to-check-code-interactively-at-design-time.html).
 
 ## Commit message
 
@@ -108,7 +122,7 @@ Solves #1020
 # Submit a pull request
 
 ### Title
-The title should be short (50 chars or less), and should explicitly summarize the purpose of the PR. 
+The title should be short (50 chars or less), and should explicitly summarize the purpose of the PR.
 
 ### Labels
 To help prioritize the request, add labels that describe the type and impact of the change. A change can have multiple types if it is appropriate but would have only 1 impact label. Such as `bug documentation fix:patch`.
@@ -116,7 +130,7 @@ See [label definitions](https://github.com/neuropoly/realtime_shimming/labels) o
 
 TODO: ADD AN EXAMPLE WITH LINK TO PR
 
-# Code Review 
+# Code Review
 
 [What is code review?](https://help.github.com/articles/about-pull-request-reviews/)
 
