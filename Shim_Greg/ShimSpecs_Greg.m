@@ -39,7 +39,7 @@ classdef ShimSpecs_Greg < ShimSpecs
 %    ShimSpecs_Greg is a ShimSpecs subclass
 %
 % =========================================================================
-% Updated::20180821::ryan.topfer@polymtl.ca
+% Updated::20181105::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
@@ -72,7 +72,7 @@ Shim.Com.byteOrder   = 'bigEndian' ;
 %
 % UNTESTED
 Shim.Com.txRxDelay       = 0.005 ; % [units: s]
-Shim.Com.updatePeriod    = 0.05 ;
+Shim.Com.updatePeriod    = 0.1 ;
 
 Shim.Amp.nChannels       = 8 ;  
 Shim.Amp.nActiveChannels = 8 ;
@@ -88,13 +88,6 @@ Shim.Adc.mVPerAdcCount = 2 ;
 Shim.Dac.resolution       = 8 ; % [bits]
 Shim.Dac.referenceVoltage = 1250 ; % [units: mV]
 Shim.Dac.maximum          = 26214 ; 
-
-% TODO 
-%   should fall under property Shim.Com.Dac ?
-
-%Calibration coefficients to transform Voltages to Amps
-Shim.Com.feedbackcalibrationcoeffx = [0.65909, 0.65, 0.6591, 0.6499, 0.6545, 0.6454, 0.6637, 0.6409]; 
-Shim.Com.feedbackcalibrationcoeffy = [25.456, -9.088, 5.456, 25.456, 30.91, 7.272, -19.09, 34.546]; 
 
 
 end

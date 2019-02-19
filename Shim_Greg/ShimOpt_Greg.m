@@ -127,7 +127,8 @@ function  [ Params ] = assigndefaultparameters( Params )
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
 % DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Acdc/Calibration/data/ShimReferenceMaps_Acdc_20180606.mat';
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_Greg_20181103';
+% DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_Greg_20181103';
+DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_Greg_20190201' ;
 DEFAULT_PROBESPECS              = [] ;
 
 DEFAULT_INSTITUTIONNAME = 'IUGM' ;
@@ -174,7 +175,7 @@ function Params = declarecalibrationparameters( Params )
 
 Params.nChannels  = 8 ;
 Params.nCurrents  = 2 ;
-Params.nEchoes    = 2 ; % nEchoes = 1 for phase *difference* images
+Params.nEchoes    = 4 ; % nEchoes = 1 for phase *difference* images
 
 Params.currents = [0 1.0; %ch1, [units: A]
                    0 1.0; %
@@ -235,17 +236,18 @@ for iChannel = 1 : Params.nChannels
         nDicomSubDirs = length( dicomSubDirs ) ;
         assert( nDicomSubDirs == 5 )
 
-        Params.dataLoadDirectories{ 1, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_1.68/' ] ;
-        Params.dataLoadDirectories{ 2, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_5.68/' ] ;
-        % Params.dataLoadDirectories{ 3, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_10.68/' ] ;
-        % Params.dataLoadDirectories{ 4, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_15.68/' ] ;
-        % Params.dataLoadDirectories{ 5, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_20.68/' ] ;
+        % Params.dataLoadDirectories{ 1, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_1.68/' ] ;
+        Params.dataLoadDirectories{ 1, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_5.68/' ] ;
+        Params.dataLoadDirectories{ 2, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_10.68/' ] ;
+        Params.dataLoadDirectories{ 3, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_15.68/' ] ;
+        Params.dataLoadDirectories{ 4, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_20.68/' ] ;
 
         end
     end 
 end
 
-Params.Filtering.isFiltering  = true ;
+Params.Filtering.isFiltering  = false ;
+% Params.Filtering.isFiltering  = true ;
 Mag                           = MaRdI( Params.dataLoadDirectories{1} ) ;
 voxelSize                     = Mag.getvoxelsize() ;
 Params.Filtering.filterRadius = voxelSize(3) ;

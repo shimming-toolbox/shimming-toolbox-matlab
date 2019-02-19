@@ -44,58 +44,58 @@ Shim.Data.input  = '' ;
 Shim.Params.nBytesToRead     = [] ; % depends on cmd sent to system
 Shim.Params.nSendAttemptsMax = 5; % # communication attempts before error
 
+Shim.opencomport() ;
+
+isAckReceived = Shim.getsystemheartbeat() ;
+
+if isAckReceived
+    isCalibrationSuccessful = Shim.calibratedac() ;
+    if ~isCalibrationSuccessful
+        warning('DAC calibration unsuccessful. Check power supply is ON and redo Shim.calibratedac().' ) ; 
+    else
+        display('DAC calibration successful. Ready to issue shim currents');
+    end
+else
+    warning('System unresponsive');
+end
+
 end
 % =========================================================================
 function [isAckReceived] = getsystemheartbeat( Shim ) ;
 %GETSYSTEMHEARTBEAT
 
-dbstop in ShimCom_Greg at 53
-Shims.Params.nBytesToRead = 1 ;   
+Shim.Params.nBytesToRead = 1 ;   
+Shim.Data.output = Shim.Cmd.getSystemHeartbeat ;
 
+Shim.sendcmd( ) ;
 
+isAckReceived = logical( str2num( fgetl( Shim.ComPort ) ) ) 
 
-% [Shims, isSendOk] = Shims.sendcmd( Shim.Cmd.resetAllShims ) ;
-%
 % if isSendOk
-%     Shims.isackreceived() ;
+%     Shim.isackreceived() ;
 % end
 
 end
 % =========================================================================
-function [] = setandloadshim( Shim, channel, current )  ;
+function [] = setandloadshim( Shim, iCh, current )  ;
 %SETANDLOADSHIM
 %
 % Set shim current (in units of Amps) for single channel 
 % 
 % [] = SETANDLOADSHIM( Shims, channelIndex, current ) 
 
-% % TODO
-% % temp. fix: scaling to mA
-% current = current*1000;
-%
-% calibrationVal = ( current - Shim.Specs.Com.feedbackcalibrationcoeffy(channel) )/ Shim.Specs.Com.feedbackcalibrationcoeffx(channel) ;
-%
-% % Variable used to convert currents into DAC value-------------------------
-%
-%   preampresistance = 0.22;
-%   DACmaxvalue      = 26214;
-%   
-% %Conversion----------------------------------------------------------------
-%
-%   DACcurrent = num2str((( Shim.Specs.Dac.referenceVoltage - calibrationVal * 0.001 * preampresistance) * DACmaxvalue));
-%   Channel=num2str(channel);
-%   
-%   
-%   command=strcat(Shim.Cmd.updateOneChannel,Channel,'_',DACcurrent);
-%
-% fprintf(Shim.ComPort,'%s',command,'sync');  
+Shim.Params.nBytesToRead = 1 ;   
 
-% dbstop in setandloadshim at 99
-% [currentLB, currentHB] = Shims.splitint( Shims.ampstodac( currents ) ) ;    
-%     
-% Shims.Data.output(iByteOut) = currentHB ;
-% Shims.Data.output(iByteOut) = currentLB ; 
+assert( ( round(iCh) == iCh ) & ( iCh > 0 ) & ( iCh <= Shim.Specs.Amp.nChannels ), ...
+    ['Channel index must be an integer between 1 and ' num2str( Shim.Specs.Amp.nChannels)] ) ;
 
+Shim.Data.output        = Shim.Cmd.setAndLoadShimByChannel ;
+Shim.Data.output(end+1) = num2str( iCh - 1 ) ; % Arduino uses 0-based indexing
+Shim.Data.output = [Shim.Data.output Shim.currenttostring( current )] ;
+Shim.Data.output
+Shim.sendcmd() ;
+
+isSet = logical( str2num( fgetl( Shim.ComPort ) ) ) 
 
 end
 % =========================================================================
@@ -106,16 +106,45 @@ function [] = setandloadallshims( Shim, currents )
 %
 % Update all channels with currents (8-element vector w/units in A)
 
-% TODO
-% temp. fix: scaling to mA
+Shim.Params.nBytesToRead = 1 ;   
 
+assert( length(currents) == Shim.Specs.Amp.nChannels, ...
+    'Vector of currents must possess an entry for each shim channel.'  ) ;
 
-% command = strcat('o',num2str(currentsDac(1)),num2str(currentsDac(2)),num2str(currentsDac(3)),num2str(currentsDac(4)),...
-%           num2str(currentsDac(5)),num2str(currentsDac(6)),num2str(currentsDac(7)),num2str(currentsDac(8)));
+Shim.Data.output = Shim.Cmd.setAndLoadAllShims ;
+
+for iCh = 1 : Shim.Specs.Amp.nChannels
+    Shim.Data.output = [ Shim.Data.output Shim.currenttostring( currents(iCh) ) ] ;
+end
+
+Shim.sendcmd() ;
+
+isSet = logical( str2num( fgetl( Shim.ComPort ) ) ) ;
+
+end
+% =========================================================================
+function [] = setandrampallshims( Shim, currents )
+%SETANDRAMPALLSHIMS
+% 
+% [] = SETANDRAMPALLSHIMS( Shim, currents ) 
 %
-% Shim.sendcmd( command ) ;
-%
-% fscanf(Shim.ComPort,'%s');
+% Update all channels with currents (8-element vector w/units in A) by ramping 
+% current up over 1.0 s
+
+Shim.Params.nBytesToRead = 1 ;   
+
+assert( length(currents) == Shim.Specs.Amp.nChannels, ...
+    'Vector of currents must possess an entry for each shim channel.'  ) ;
+
+Shim.Data.output = Shim.Cmd.setAndRampAllShims ;
+
+for iCh = 1 : Shim.Specs.Amp.nChannels
+    Shim.Data.output = [ Shim.Data.output Shim.currenttostring( currents(iCh) ) ] ;
+end
+
+Shim.sendcmd() ;
+
+isSet = logical( str2num( fgetl( Shim.ComPort ) ) ) 
 
 end
 % =========================================================================
@@ -124,8 +153,15 @@ function [] = resetallshims( Shim )
 %
 %   Shim currents reset to 0 A
 %
-Shims.Params.nBytesToRead = 1 ;   
+Shim.Params.nBytesToRead = 1 ;   
 
+Shim.Data.output = Shim.Cmd.resetAllShims ;
+
+Shim.sendcmd( ) ;
+
+isReset = logical( str2num( fgetl( Shim.ComPort ) ) ) 
+
+assert( isReset, 'Msg send fail' )
 
 % [Shims, isSendOk] = Shims.sendcmd( Shim.Cmd.resetAllShims ) ;
 %
@@ -146,19 +182,18 @@ end
 
 if strcmp( Shim.ComPort.Status, 'open' )
     return;
+else
+    fopen( Shim.ComPort );
+    display( 'Opening ComPort & waiting for Arduino response byte...' )
+
+    % Arduino should output a single char upon initialization
+    inByte = logical( str2num( fgetl( Shim.ComPort ) ) ) ;
+
+    if ~inByte
+        warning('System unresponsive. Check connections.') ;
+        fclose( Shim.ComPort ) ;
+    end
 end
-
-fopen( Shim.ComPort );
-pause(5);
-
-% Arduino should output a single char upon initialization
-inByte = [];
-
-while( Shim.ComPort.BytesAvailable > 0 )
-     inByte = str2num( fgetl( Shim.ComPort ) ) ;
-end
-
-assert( inByte == 1 ) ;
 
 end
 % =========================================================================
@@ -168,23 +203,17 @@ function [] = closecomport( Shim )
 % Close serial communication port 
 
 fclose(Shim.ComPort);
-delete(Shim.ComPort);
-clear Shim.ComPort;
 
 end
 % =========================================================================
-function [ChannelOutput] = getchanneloutput( Shim , ~, Channel )
+function [ChannelOutput] = getchanneloutput( Shim , ~, iChannel )
 %GETCHANNELOUTPUT
-% 
-%   Querry and display a current feedback for one channel
+%
+% [ChannelOutput] = getchanneloutput( Shim , [], iChannel )
  
-%Command to querry the channel feedback------------------------------------
-command = strcat(Shim.Cmd.getChannelFeedback,Channel);
-
-fprintf(Shim.ComPort,'%s',command,'sync');
-
-% Read the Feedback from the arduino---------------------------------------
-ChannelOutput=fscanf(Shim.ComPort,'%s');
+ChannelOutputs = Shim.getallchanneloutputs() ;
+ChannelOutput.current = ChannelOutputs.current( iChannel ) ;
+ChannelOutput.voltage = ChannelOutputs.voltage( iChannel ) ;
 
 end
 % =========================================================================
@@ -195,28 +224,41 @@ function [ChannelOutputs] = getallchanneloutputs( Shim )
 % 
 % ChannelOutputs has fields
 %
-%   .current [amperes]
+%   .current [units: A]
+%   .voltage [units: mV]
 
-ChannelOutputs.current  = zeros( 1, Shim.Specs.Amp.nChannels ) ;
-ChannelOutputs.voltages = zeros( 1, Shim.Specs.Amp.nChannels ) ;
+ChannelOutputs.current = zeros( 1, Shim.Specs.Amp.nChannels ) ;
+ChannelOutputs.voltage = zeros( 1, Shim.Specs.Amp.nChannels ) ;
 
-Shims.Params.nBytesToRead = Shim.Specs.Amp.nChannels ;
+Shim.Params.nBytesToRead = Shim.Specs.Amp.nChannels ;   
 
-% Shim.sendcmd( Shim.Cmd.getAllChannelCurrents ) ;
-%
+Shim.Data.output = Shim.Cmd.getAllChannelCurrents ;
+
+Shim.sendcmd( ) ;
+
 % for iCh = 1 : Shim.Specs.Amp.nChannels
-%     ChannelOutputs.current(iCh) = str2double( fscanf( Shim.ComPort,'%s' ) ); 
+%     ChannelOutputs.current(iCh) = Shim.Data.input(iCh) ; 
 % end
 %
-% Shim.sendcmd( Shim.Cmd.getAllChannelVoltages ) ;
+% Shim.Data.input = '' ;
 %
-% for iCh = 1 : Shim.Specs.Amp.nChannels
-%     ChannelOutputs.voltage(iCh) = str2double( fscanf( Shim.ComPort,'%s' ) ); 
-% end
+% nBytesToRead *ignoring \t and \n !
+for iCh = 1 : Shim.Specs.Amp.nChannels
+    ChannelOutputs.current(iCh) = str2double( fgetl( Shim.ComPort ) ) ;
+end
+
+assert( ~isempty( ChannelOutputs.current(1) ), 'Msg send fail' )
+
+Shim.Data.output = Shim.Cmd.getAllChannelVoltages ;
+Shim.sendcmd( ) ;
+
+for iCh = 1 : Shim.Specs.Amp.nChannels
+    ChannelOutputs.voltage(iCh) = str2num( fgetl( Shim.ComPort ) ) ; 
+end
 
 end
 % =========================================================================
-function [Shims, isSendOk] = sendcmd( Shim, command )
+function [isSendOk] = sendcmd( Shim, command )
 %SENDCMD 
 % 
 %   Transmits command from client to shim microcontroller 
@@ -224,45 +266,67 @@ function [Shims, isSendOk] = sendcmd( Shim, command )
 isSendOk  = false ;
 
 if strcmp( Shim.ComPort.Status, 'closed' ) ;
-    fopen( Shim.ComPort ) ;
+    Shim.opencomport();
 end 
-    
-fprintf( Shim.ComPort, '%s', command, 'sync' ) ;
-    
+
+fwrite( Shim.ComPort, Shim.Data.output, 'char' ) ;
+pause( Shim.Specs.Com.txRxDelay ) ;
+
+% assert( Shim.ComPort.BytesAvailable > 0, 'System unresponsive' ) ; %  Arduino must have issued at least 1 char in response
+% Shim.Data.input = '' ;
+%
+% % nBytesToRead *ignoring \t and \n !
+% for iByte = 1 : Shim.Params.nBytesToRead
+%     Shim.Data.input(iByte) = str2num( fgetl( Shim.ComPort ) ) ;
+% end
+%
+% if ~isempty( Shim.Data.input )
+%     isSendOk = true;
+% end
+%
+% assert( isSendOk, 'Msg send fail' ) ;    
+
 end
 % =========================================================================
-function [dacCorrections]= calibratedac( Shim)
+function [isCalibrationSuccesful, isChannelCalibrationSuccesful] = calibratedac( Shim )
 %CALIBRATEDAC 
 
 % Arduino prints TRUE/FALSE for each channel according to the success of its calibration 
-Shims.Params.nBytesToRead = Shim.Specs.Amp.nChannels ; 
+Shim.Params.nBytesToRead = Shim.Specs.Amp.nChannels ; 
 
-dacCorrections = [] ;
+isCalibrationSuccesful = zeros( Shim.Params.nBytesToRead, 1 ) ;
 
-% if strcmp( Shim.ComPort.Status, 'closed' ) ;
-%     fopen( Shim.ComPort ) ;
-% end 
-%     
-% fprintf( Shim.ComPort,'%s', Shim.Cmd.calibrateDacCurrent,'sync' ) ;
+Shim.Data.output = Shim.Cmd.calibrateDac ;
+Shim.sendcmd( ) ;
+
+% read Arduino response
+for iByte = 1 : Shim.Params.nBytesToRead 
+    isCalibrationSuccesful(iByte) = str2num( fgetl( Shim.ComPort ) ) ; 
+end
+
+% result per channel
+isChannelCalibrationSuccesful = isCalibrationSuccesful 
+
+% overall result (true if each channel succesful)
+isCalibrationSuccesful = all( isCalibrationSuccesful ) 
+
+end
+% =========================================================================
+function [current] = currenttostring( Shim, current )
+%CURRENTTOSTRING 
 %
-% calibrationvalues = [] ;
-% ncalibrationpoint = 5 ; %Number of calibration points to calculate coefficient
-% calibrationvalues = zeros(ncalibrationpoint,8);
-% display('Calibration in process, please wait')
-% pause(41);
-%
-% % Read Feedback from the arduino-------------------------------------------
-% for j=1:(Shim.Specs.Amp.nChannels)
-%     for i=1:(ncalibrationpoint)  
-%         a = fscanf(Shim.ComPort,'%s');
-%         display(a);
-%         calibrationvalues(i,j) = str2double(a);
-%     end
-% end
-%
-% Shim.resetallshims() ;
-%
-% display(calibrationvalues);
+% Scale current (float in amperes) to uint16, convert to string, and if the resulting length is < 5,
+% pad with leading '0':
+
+assert( numel(current) == 1, '1 channel at a time...' ) ;
+
+% shift current to be >=0... then multiply by scaling factor
+current = num2str( uint16( ( current + Shim.Specs.Amp.maxCurrentPerChannel(1) ) ...
+    *65535/( 2*Shim.Specs.Amp.maxCurrentPerChannel(1) ) ) ) ;
+
+for i0 = numel(current)+1 : 5
+    current = ['0' current] ;
+end
 
 end
 % =========================================================================
@@ -271,28 +335,6 @@ end
 % =========================================================================
 % =========================================================================
 methods(Access = private)
-% =========================================================================
-function [current] = currenttostring( Shim, current )
-%CURRENTTOSTRING 
-%
-% Scale current (float in amperes) to uint16, convert to string, and if the resulting length is < 5,
-% pad with leading '0':
-%
-% e.g.
-%
-%
-
-% shift current to be >=0... then multiply by scaling factor
-current = string( uint16( ( current + Shim.Specs.Amp.maxCurrentPerChannel(1) ) ...
-    *65535/( 2*Shim.Specs.Amp.maxCurrentPerChannel(1) ) ) ) ;
-
-assert( numel(current)<=5 )
-
-for i0 = numel(current) : 5
-    current = ['0' current] ;
-end
-
-end
 % =========================================================================
 end
 % =========================================================================
@@ -311,12 +353,15 @@ function [Cmd] = getcommands( )
 % System commands (as strings)---------------------------------------------
 
 Cmd.setAndLoadAllShims    = 'a';
+Cmd.setAndRampAllShims    = 'b';
 
 Cmd.calibrateDac          = 'c';
 
+Cmd.setAndLoadShimByChannel = 'e';
+% Cmd.setAndRampShimByChannel   = 'f';
+
 Cmd.getSystemHeartbeat    = 'h'; 
 
-Cmd.setAndLoadByChannel   = 'i';
 
 Cmd.getAllChannelCurrents  = 'q'; 
 
@@ -342,8 +387,8 @@ warning( 'Serial port device name may change depending on the host computer.' )
 if ismac
    % portName = '/dev/cu.usbserial' ;          % USB to serial adapter
     portName = '/dev/tty.usbserial' ;          % USB to serial adapter
-    % portName = '/dev/tty.usbmodem14101' ;
-    % portName = '/dev/tty.usbmodem14201' ;
+    % portName = '/dev/tty.usbmodem14101' ; % direct USB to Arduino
+    % portName = '/dev/tty.usbmodem14201' ; % direct USB to Arduino
 elseif isunix
     portName = '/dev/ttyUSB0' ;   
 elseif ispc
