@@ -207,7 +207,8 @@ function [p] = getupdate( Aux )
 
 assert( strcmp( Aux.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
 
-Aux.Data.pRaw(end+1) = fscanf( Aux.ComPort, '%u', [1 1] );
+tmp = fscanf( Aux.ComPort, '%u', [1 1] ) ;
+Aux.Data.pRaw(end+1) = tmp(end) ;
 
 if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
         && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )

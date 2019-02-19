@@ -8,7 +8,7 @@
 // ========================================================================= 
 
 int pressurePin         = A5 ; // pressure sensor
-unsigned long dwellTime = 10 ; // delay between samples [units: ms]
+unsigned long dwellTime = 50 ; // delay between samples [units: ms]
 
 void setup()
 {
@@ -20,6 +20,7 @@ void loop()
 {
   unsigned int p = analogRead( pressurePin ) ; // read the input pin
   Serial.println( p, DEC ) ;
-  delay( dwellTime ) ; // Matlab has dwellTime ms to read the serial port
-  Serial.flush() ; // clear the (now outdated) measurement
+  delay( dwellTime ) ;  
+// RT commented out 2019-01-18:
+  /* Serial.flush() ; // wait for transmission before continuing */
 }
