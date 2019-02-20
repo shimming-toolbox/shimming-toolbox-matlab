@@ -12,7 +12,6 @@ classdef MaRdI < matlab.mixin.SetGet
 % Usage
 %
 % Img = MaRdI( imgPath )
-% Img = MaRdI( imgPath, Params )
 % 
 % where imgPath is the path to a single .dcm image OR a directory containing
 % the .dcm or .IMA images.
@@ -84,29 +83,31 @@ if nargin == 1
 
         Img.Hdr = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(1).name] ) ;
 
-        Img.Hdr.NumberOfSlices = uint16( length(listOfImages) ) ; 
-        
-        for sliceIndex = 1 : Img.Hdr.NumberOfSlices
+        for sliceIndex = 1 : length(listOfImages) 
             Img.img(:,:,sliceIndex) = double( dicomread( [ imgDir '/' listOfImages(sliceIndex).name] ) );
         end
         
         Params = [] ;
 
-        HdrLastSlice = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(Img.Hdr.NumberOfSlices).name] ) ;
+        HdrLastSlice = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(length(listOfImages)).name] ) ;
         
         if HdrLastSlice.SliceLocation == Img.Hdr.SliceLocation
+            % loaded images are a time series
+            % 4th-dimension will refer to time:
             
             if ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
-                
+               
                 Params.isNormalizingMagnitude = false ;        
                 Img = reshapemosaic( Img ) ;
 
             else
-                % loaded images presumed to be a single-slice time-series:
-                % as with MOSAIC case, 4th-dimension will refer to time:
+                warning('loaded images presumed to be a single-slice time-series')
+                Img.Hdr.NumberOfSlices = uint16( 1 ) ; 
                 Img.img = permute( Img.img, [1 2 4 3] ) ;
             end
-    
+        
+        else
+            Img.Hdr.NumberOfSlices = uint16( length(listOfImages) ) ; 
         end
 
         Img = Img.scaleimgtophysical( Params ) ;   
