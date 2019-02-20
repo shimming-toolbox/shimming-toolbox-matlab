@@ -283,7 +283,7 @@ if ~Params.isUndoing
 
 
     elseif ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) ) % is raw SIEMENS phase
-    
+        
         DEFAULT_RESCALEINTERCEPT = -(2^12) ;
         DEFAULT_RESCALESLOPE     = 2 ;
         
@@ -528,7 +528,7 @@ function Phase = unwrapphase( Phase, Mag, Options )
 %       See HELP PRELUDE for description of Options 
 %   
 %    .......................
-%    To call the Abdul-Rahman unwrapper [default if nargin == 1] 
+%    To call the Abdul-Rahman unwrapper [default if ( nargin == 1) && size(Phase.img,3) > 1] 
 % 
 %    Options.unwrapper = 'AbdulRahman_2007'
 %
@@ -540,11 +540,11 @@ function Phase = unwrapphase( Phase, Mag, Options )
 %       6623-6635, 2007.
 %
 %    .......................
+
+% TODO 
 %
-% NOTE
-%
-%   Both FSL and the Abdul-Rahman method require installed binaries. For simplicity, consider
-%   removing these options.
+%   Both FSL and the Abdul-Rahman method require installed binaries. For
+%   simplicity, consider removing these options.
 assert( strcmp( Phase.Hdr.PixelComponentPhysicalUnits, '0000H' ), 'SCALEPHASE2RAD() before unwrapping.' ) ;
 
 DEFAULT_UNWRAPPER = 'Sunwrap' ;
@@ -552,13 +552,14 @@ DEFAULT_THRESHOLD = 0.0 ;
 
 Options.dummy     = [];
 
-if nargin < 2
+if nargin < 2 && ( size( Phase.img, 3 ) > 1 )
     
     Options.unwrapper = 'AbdulRahman_2007' ;    
 
     assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
         'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
-
+else
+    error('See help MaRdI.unwrapphase()') ;
 end
 
 if nargin == 2 || ~myisfield( Options, 'unwrapper') || isempty(Options.unwrapper)
@@ -569,33 +570,40 @@ if ~myisfield( Options, 'threshold') || isempty(Options.threshold)
     Options.threshold = DEFAULT_THRESHOLD ;
 end
 
-isPhaseBalanced = all( Phase.img(logical(Phase.Hdr.MaskingImage)) >= -pi ) ...
-                & all( Phase.img(logical(Phase.Hdr.MaskingImage)) <= pi ) ;
 
-switch Options.unwrapper
+nVolumes = (Phase.Hdr.MrProt.lRepetitions + 1) ;
+assert( nVolumes == size( Phase.img, 4 ) ) ;
 
-    case 'AbdulRahman_2007'
-        
-        assert( isPhaseBalanced, 'Wrapped input phase must be between [-pi,pi]');
-        
-        Phase.img = unwrap3d( Phase.img, logical(Phase.Hdr.MaskingImage), Options ) ;
+for iVolume = 1 : nVolumes
+    
+    display(['Unwrapping volume ' num2str(iVolume) ' of ' num2str(nVolumes) ] ) ;    
+    
+    switch Options.unwrapper
 
-    case 'FslPrelude'
+        case 'AbdulRahman_2007'
+            
+            Phase.img(:,:,:, iVolume) = unwrap3d( Phase.img(:,:,:, iVolume), logical(Phase.Hdr.MaskingImage(:,:,:,iVolume)), Options ) ;
 
-        if myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage)
-            Options.mask = single( Phase.Hdr.MaskingImage ) ;
-        end
-        
-        Options.voxelSize = Phase.getvoxelsize() ;   
+        case 'FslPrelude'
 
-        Phase.img = prelude( Phase.img, Mag.img, Options ) ;
+            if myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage)
+                Options.mask = single( Phase.Hdr.MaskingImage(:,:,:,iVolume) ) ;
+            end
+            
+            Options.voxelSize = Phase.getvoxelsize() ;   
 
-    case 'Sunwrap'
+            Phase.img(:,:,:, iVolume) = prelude( Phase.img(:,:,:, iVolume), Mag.img(:,:,:, iVolume), Options ) ;
 
-        Phase.img = sunwrap( ( Mag.img/max(Mag.img(:)) ) .* exp( 1i* Phase.img ), Options.threshold ) ;
+        case 'Sunwrap'
+            
+            iMag      = Mag.img(:,:,:,iVolume) ;
+            iMag      = iMag./max(iMag(:)) ;
+            Phase.img(:,:,:, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:, iVolume) ), Options.threshold ) ;
 
-    otherwise
-        error('Unrecognized "Options.unwrapper" input') ;
+        otherwise
+            error('Unrecognized "Options.unwrapper" input') ;
+    end
+
 end
 
 Phase.img = double( Phase.img ) ;
