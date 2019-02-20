@@ -2,15 +2,11 @@ clear all;
 close all;
 delete(instrfindall);
 
-%% --
-treshold_freq = 100;  % threshold value above/below the mean of previous time points
-%% --
-duration = 900; % DURATION OF THE MEASUREMENT IN SECONDS
+%% Initalize communication and create folder structure
 port_teensy = ls ('/dev/cu.usbmodem*');
 
-s_cprobe = serial(strcat(port_teensy)) %cprobe 3.5\
-%s_cprobe = serial('/dev/tty.usbmodem15387901')
-s_cprobe.Baudrate = 115200
+s_cprobe = serial(strcat(port_teensy));
+s_cprobe.Baudrate = 115200;
 
 DEFAULT_RESULTS_FOLDER_ROOT = '~/Desktop/results_cprobe/';
 
@@ -37,39 +33,48 @@ fopen(s_cprobe)
 timepoint = 1;
 
 FS = stoploop({'Stop cprobe'}) ;
+%% No of measurements before the actual polyfit will begin
 smooth_window=5;
 
+%% Data acquisition until stop button is pushed
+figure(1)
 while(~FS.Stop())
     
     buffer_data_cprobe = fscanf(s_cprobe,'%s');
     time_data(timepoint) = timepoint * 0.1;
     data_cprobe(timepoint) = str2num(buffer_data_cprobe)/100;
-    if timepoint ~= 1
-        if data_cprobe(timepoint) > data_cprobe(timepoint-1) + treshold_freq || data_cprobe(timepoint) < data_cprobe(timepoint-1) - treshold_freq
-            data_cprobe(timepoint) = data_cprobe(timepoint-1);
-        end
-    end
-    
-    if timepoint >= 5
-        data_cprobe_filtered(timepoint) = mean(data_cprobe((timepoint-smooth_window+1):timepoint))
-        figure(1)
-        subplot(3,1,1)
-        plot(time_data(smooth_window:timepoint),data_cprobe_filtered(smooth_window:timepoint),'r');
-        subplot(3,1,2)
+   
+    if timepoint >= smooth_window
+        
+        subplot(2,1,1)
+        % Polyfit 4th degree to get rid of DC
+        p = polyfit(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint),4);
+        y = polyval(p,time_data(smooth_window:timepoint));
+        plot(time_data(smooth_window:timepoint),y,'r');
+        hold on
+        title('Legend: normal signal(blue), polyfit 4 (red)')
         plot(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint),'b');
-        grid on
-        title('cprobe')
         xlabel('Time [s]')
         ylabel('Frequency [KHz]')
-        subplot(3,1,3)
-        plot(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint)-data_cprobe_filtered(smooth_window:timepoint),'b');
+        grid on
+        hold off
         drawnow
-    end   
+        
+        subplot(2,1,2)
+        % Filtered signal (signal - polyfit 4)
+        data_cprobe_filtered = data_cprobe(smooth_window:timepoint) - y
+        plot(time_data(smooth_window:timepoint), data_cprobe_filtered, 'k');
+        title('signal - polyfit 4')
+        xlabel('Time [s]')
+        ylabel('Frequency [KHz]')
+        grid on 
+        
+    end
     
     timepoint = timepoint + 1;
 end
 
-% %% Save freq trace
+%% Save freq trace
 cprobeLogFid = fopen( DEFAULT_CPROBELOGFILENAME, 'w+' ) ;
 fwrite( cprobeLogFid, data_cprobe, 'double' ) ;
 fclose( cprobeLogFid );
