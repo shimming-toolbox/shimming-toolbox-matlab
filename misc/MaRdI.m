@@ -42,7 +42,7 @@ classdef MaRdI < matlab.mixin.SetGet
 % etc.
 %
 % =========================================================================
-% Updated::20181010::ryan.topfer@polymtl.ca
+% Updated::20190220::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -92,11 +92,21 @@ if nargin == 1
         
         Params = [] ;
 
-        if ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
+        HdrLastSlice = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(Img.Hdr.NumberOfSlices).name] ) ;
+        
+        if HdrLastSlice.SliceLocation == Img.Hdr.SliceLocation
             
-            Params.isNormalizingMagnitude = false ;        
-            Img = reshapemosaic( Img ) ;
+            if ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
+                
+                Params.isNormalizingMagnitude = false ;        
+                Img = reshapemosaic( Img ) ;
 
+            else
+                % loaded images presumed to be a single-slice time-series:
+                % as with MOSAIC case, 4th-dimension will refer to time:
+                Img.img = permute( Img.img, [1 2 4 3] ) ;
+            end
+    
         end
 
         Img = Img.scaleimgtophysical( Params ) ;   
@@ -104,13 +114,13 @@ if nargin == 1
         if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
             Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
         end
-        
-        % % Temp. fix for determining voxel positions
+       
+        % % Temp. fix for determining voxel positions in 3d slice-stack
         % % TODO: determine voxel positions on an image-by-image basis (and, if necessary, reorder the slices!)
         % % load Hdr of last image in directory
         r = Img.Hdr.ImageOrientationPatient(4:6) ; 
         c = Img.Hdr.ImageOrientationPatient(1:3) ; 
-
+        
         % estimate positions based on the 1st loaded image in the directory:
         % 1. using
         Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;  
@@ -121,11 +131,10 @@ if nargin == 1
         [X2,Y2,Z2] = Img.getvoxelpositions() ; % estimate positions based on the 1st loaded image in the directory. 
        
         % the actual position corresponding to the slice direction can be increasing or decreasing with slice/image number
-        HdrLastSlice = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(Img.Hdr.NumberOfSlices).name] ) ;
-       
+        
         % which estimate is closer? 1 or 2? 
-        if norm( HdrLastSlice.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) < ...
-                norm( HdrLastSlice.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) ;    
+        if norm( HdrLastSlice.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) <= ...
+                norm( HdrLastSlice.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) 
             % if true, then 1. corresponds to the correct orientation
             Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;
         end
