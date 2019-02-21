@@ -45,6 +45,9 @@ if nargin < 2 || isempty(rawPhase) || isempty(mask)
     error('Function requires at least 2 input arguments.')
 end
 
+assert( all( rawPhase(logical(mask)) >= -pi ) & all( rawPhase(logical(mask)) <= pi), ...
+    'Wrapped input phase must be between [-pi,pi]' );
+
 if nargin == 2
     Options.dummy = [] ;
 end

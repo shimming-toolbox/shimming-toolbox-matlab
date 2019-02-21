@@ -12,7 +12,6 @@ classdef MaRdI < matlab.mixin.SetGet
 % Usage
 %
 % Img = MaRdI( imgPath )
-% Img = MaRdI( imgPath, Params )
 % 
 % where imgPath is the path to a single .dcm image OR a directory containing
 % the .dcm or .IMA images.
@@ -42,7 +41,7 @@ classdef MaRdI < matlab.mixin.SetGet
 % etc.
 %
 % =========================================================================
-% Updated::20181010::ryan.topfer@polymtl.ca
+% Updated::20190220::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -84,19 +83,31 @@ if nargin == 1
 
         Img.Hdr = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(1).name] ) ;
 
-        Img.Hdr.NumberOfSlices = uint16( length(listOfImages) ) ; 
-        
-        for sliceIndex = 1 : Img.Hdr.NumberOfSlices
+        for sliceIndex = 1 : length(listOfImages) 
             Img.img(:,:,sliceIndex) = double( dicomread( [ imgDir '/' listOfImages(sliceIndex).name] ) );
         end
         
         Params = [] ;
 
-        if ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
+        HdrLastSlice = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(length(listOfImages)).name] ) ;
+        
+        if HdrLastSlice.SliceLocation == Img.Hdr.SliceLocation
+            % loaded images are a time series
+            % 4th-dimension will refer to time:
             
-            Params.isNormalizingMagnitude = false ;        
-            Img = reshapemosaic( Img ) ;
+            if ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
+               
+                Params.isNormalizingMagnitude = false ;        
+                Img = reshapemosaic( Img ) ;
 
+            else
+                warning('loaded images presumed to be a single-slice time-series')
+                Img.Hdr.NumberOfSlices = uint16( 1 ) ; 
+                Img.img = permute( Img.img, [1 2 4 3] ) ;
+            end
+        
+        else
+            Img.Hdr.NumberOfSlices = uint16( length(listOfImages) ) ; 
         end
 
         Img = Img.scaleimgtophysical( Params ) ;   
@@ -104,13 +115,13 @@ if nargin == 1
         if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
             Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
         end
-        
-        % % Temp. fix for determining voxel positions
+       
+        % % Temp. fix for determining voxel positions in 3d slice-stack
         % % TODO: determine voxel positions on an image-by-image basis (and, if necessary, reorder the slices!)
         % % load Hdr of last image in directory
         r = Img.Hdr.ImageOrientationPatient(4:6) ; 
         c = Img.Hdr.ImageOrientationPatient(1:3) ; 
-
+        
         % estimate positions based on the 1st loaded image in the directory:
         % 1. using
         Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;  
@@ -121,11 +132,10 @@ if nargin == 1
         [X2,Y2,Z2] = Img.getvoxelpositions() ; % estimate positions based on the 1st loaded image in the directory. 
        
         % the actual position corresponding to the slice direction can be increasing or decreasing with slice/image number
-        HdrLastSlice = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(Img.Hdr.NumberOfSlices).name] ) ;
-       
+        
         % which estimate is closer? 1 or 2? 
-        if norm( HdrLastSlice.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) < ...
-                norm( HdrLastSlice.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) ;    
+        if norm( HdrLastSlice.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) <= ...
+                norm( HdrLastSlice.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) 
             % if true, then 1. corresponds to the correct orientation
             Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;
         end
@@ -273,7 +283,7 @@ if ~Params.isUndoing
 
 
     elseif ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) ) % is raw SIEMENS phase
-    
+        
         DEFAULT_RESCALEINTERCEPT = -(2^12) ;
         DEFAULT_RESCALESLOPE     = 2 ;
         
@@ -518,7 +528,7 @@ function Phase = unwrapphase( Phase, Mag, Options )
 %       See HELP PRELUDE for description of Options 
 %   
 %    .......................
-%    To call the Abdul-Rahman unwrapper [default if nargin == 1] 
+%    To call the Abdul-Rahman unwrapper [default if ( nargin == 1) && size(Phase.img,3) > 1] 
 % 
 %    Options.unwrapper = 'AbdulRahman_2007'
 %
@@ -530,11 +540,11 @@ function Phase = unwrapphase( Phase, Mag, Options )
 %       6623-6635, 2007.
 %
 %    .......................
+
+% TODO 
 %
-% NOTE
-%
-%   Both FSL and the Abdul-Rahman method require installed binaries. For simplicity, consider
-%   removing these options.
+%   Both FSL and the Abdul-Rahman method require installed binaries. For
+%   simplicity, consider removing these options.
 assert( strcmp( Phase.Hdr.PixelComponentPhysicalUnits, '0000H' ), 'SCALEPHASE2RAD() before unwrapping.' ) ;
 
 DEFAULT_UNWRAPPER = 'Sunwrap' ;
@@ -542,13 +552,14 @@ DEFAULT_THRESHOLD = 0.0 ;
 
 Options.dummy     = [];
 
-if nargin < 2
+if nargin < 2 && ( size( Phase.img, 3 ) > 1 )
     
     Options.unwrapper = 'AbdulRahman_2007' ;    
 
     assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
         'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
-
+else
+    error('See help MaRdI.unwrapphase()') ;
 end
 
 if nargin == 2 || ~myisfield( Options, 'unwrapper') || isempty(Options.unwrapper)
@@ -559,33 +570,40 @@ if ~myisfield( Options, 'threshold') || isempty(Options.threshold)
     Options.threshold = DEFAULT_THRESHOLD ;
 end
 
-isPhaseBalanced = all( Phase.img(logical(Phase.Hdr.MaskingImage)) >= -pi ) ...
-                & all( Phase.img(logical(Phase.Hdr.MaskingImage)) <= pi ) ;
 
-switch Options.unwrapper
+nVolumes = (Phase.Hdr.MrProt.lRepetitions + 1) ;
+assert( nVolumes == size( Phase.img, 4 ) ) ;
 
-    case 'AbdulRahman_2007'
-        
-        assert( isPhaseBalanced, 'Wrapped input phase must be between [-pi,pi]');
-        
-        Phase.img = unwrap3d( Phase.img, logical(Phase.Hdr.MaskingImage), Options ) ;
+for iVolume = 1 : nVolumes
+    
+    display(['Unwrapping volume ' num2str(iVolume) ' of ' num2str(nVolumes) ] ) ;    
+    
+    switch Options.unwrapper
 
-    case 'FslPrelude'
+        case 'AbdulRahman_2007'
+            
+            Phase.img(:,:,:, iVolume) = unwrap3d( Phase.img(:,:,:, iVolume), logical(Phase.Hdr.MaskingImage(:,:,:,iVolume)), Options ) ;
 
-        if myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage)
-            Options.mask = single( Phase.Hdr.MaskingImage ) ;
-        end
-        
-        Options.voxelSize = Phase.getvoxelsize() ;   
+        case 'FslPrelude'
 
-        Phase.img = prelude( Phase.img, Mag.img, Options ) ;
+            if myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage)
+                Options.mask = single( Phase.Hdr.MaskingImage(:,:,:,iVolume) ) ;
+            end
+            
+            Options.voxelSize = Phase.getvoxelsize() ;   
 
-    case 'Sunwrap'
+            Phase.img(:,:,:, iVolume) = prelude( Phase.img(:,:,:, iVolume), Mag.img(:,:,:, iVolume), Options ) ;
 
-        Phase.img = sunwrap( ( Mag.img/max(Mag.img(:)) ) .* exp( 1i* Phase.img ), Options.threshold ) ;
+        case 'Sunwrap'
+            
+            iMag      = Mag.img(:,:,:,iVolume) ;
+            iMag      = iMag./max(iMag(:)) ;
+            Phase.img(:,:,:, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:, iVolume) ), Options.threshold ) ;
 
-    otherwise
-        error('Unrecognized "Options.unwrapper" input') ;
+        otherwise
+            error('Unrecognized "Options.unwrapper" input') ;
+    end
+
 end
 
 Phase.img = double( Phase.img ) ;

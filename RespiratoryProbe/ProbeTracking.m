@@ -20,16 +20,7 @@ classdef ProbeTracking < matlab.mixin.SetGet
 %
 %
 % =========================================================================
-% Updated::20181101::ryan.topfer@polymtl.ca
-% =========================================================================
-
-% *** TODO 
-%
-% ..... 
-%
-%   check/assert ComPort is in fact open before attempting read
-%   (issue is that strcmp( ComPort.status, 'closed' ) is fairly slow (~ 3ms)
-%   compared to the 1/10ms sample rate of the probe.      
+% Updated::20190220::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties   
@@ -579,7 +570,7 @@ function [ComPort, AuxSpecs] = declareprobe( AuxSpecs )
 %           portName = '/dev/ttyS100'
 
 DEFAULT_ARDUINOPERIOD = 50 ; % [units: ms] 
-DEFAULT_TEENSYPERIOD  = 50 ; % [units: ms] 
+DEFAULT_TEENSYPERIOD  = 100 ; % [units: ms] 
 DEFAULT_BAUDRATE      = 115200 ;
 
 DEFAULT_CLIPLIMITS    = [-Inf Inf] ; % [units: probe signal] 
