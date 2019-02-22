@@ -572,7 +572,12 @@ if ~myisfield( Options, 'threshold') || isempty(Options.threshold)
 end
 
 
-nVolumes = (Phase.Hdr.MrProt.lRepetitions + 1) ;
+if myisfield( Phase.Hdr.MrProt, 'lRepetitions' ) 
+    nVolumes = (Phase.Hdr.MrProt.lRepetitions + 1) ;
+else
+    nVolumes = 1;
+end
+
 assert( nVolumes == size( Phase.img, 4 ) ) ;
 
 for iVolume = 1 : nVolumes
