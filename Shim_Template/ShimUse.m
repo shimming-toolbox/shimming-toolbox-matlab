@@ -1023,12 +1023,12 @@ function [] = writeadjvalidatebat( outputDir, shimValues )
 assert( length(shimValues) == 8 )
 
 if exist( outputDir ) ~= 7
-    warning(['Output directory ' outputDir ' does not exist. Creating it.');
+    warning(['Output directory ' outputDir ' does not exist. Creating it.']);
     mkdir( outputDir );
 end
 
 cmd = 'AdjValidate -shim -set -mp %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f \n';
-fid = fopen([ pwd '/adjshim_' datestr(now,30) '.bat' ],'w') ;
+fid = fopen([ outputDir '/adjshim_' datestr(now,30) '.bat' ],'w') ;
 fprintf(fid, cmd, shimValues);
 fclose(fid);
 
