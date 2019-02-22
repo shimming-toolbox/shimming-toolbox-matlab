@@ -88,7 +88,7 @@ if nargin == 1
         end
         
         Params = [] ;
-
+        
         HdrLastSlice = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(length(listOfImages)).name] ) ;
         
         if HdrLastSlice.SliceLocation == Img.Hdr.SliceLocation
@@ -552,14 +552,15 @@ DEFAULT_THRESHOLD = 0.0 ;
 
 Options.dummy     = [];
 
-if nargin < 2 && ( size( Phase.img, 3 ) > 1 )
-    
-    Options.unwrapper = 'AbdulRahman_2007' ;    
+if nargin < 2 
+    if ( size( Phase.img, 3 ) > 1 )
+        Options.unwrapper = 'AbdulRahman_2007' ;    
 
-    assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
-        'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
-else
-    error('See help MaRdI.unwrapphase()') ;
+        assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
+            'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
+    else
+        error('See help MaRdI.unwrapphase()') ;
+    end
 end
 
 if nargin == 2 || ~myisfield( Options, 'unwrapper') || isempty(Options.unwrapper)

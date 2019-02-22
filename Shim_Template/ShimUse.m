@@ -863,7 +863,7 @@ function [] = uiconfirmdataloaddir( Shim )
 display('Select primary DATA folder.')
 uiBoxTitle = ['Select primary DATA folder.'] ;
 
-Shim.Params.dataLoadDir  = [ uigetdir( Shim.Params.dataLoadDir, uiBoxTitle ) '/']; 
+Shim.Params.dataLoadDir = [ uigetdir( Shim.Params.dataLoadDir, uiBoxTitle ) '/']; 
 
 end
 % =========================================================================
@@ -1003,7 +1003,38 @@ else
 end
 
 end
-% % =========================================================================
+% =========================================================================
+function [] = writeadjvalidatebat( outputDir, shimValues )
+%WRITEADJVALIDATEBAT
+%
+% [] = WRITEADJVALIDATEBAT( outputDir, shimValues )
+% 
+% Accepts a 8-element vector of shimValues in multipole units and writes
+% a batch file to the outputDir to run the Siemens AdjValidate command for
+% updating the gradient + 2nd order shim settings.
+%    
+% shimValues(1:3) are the x,y, and z gradient terms [units : micro-T/m]
+% shimValues(4:8) are the 2nd order shim terms [units : micro-T/m^2]
+%
+
+%TODO
+%   Move the method to ShimCom_IUGM_Prisma_fit() 
+
+assert( length(shimValues) == 8 )
+
+if exist( outputDir ) ~= 7
+    warning(['Output directory ' outputDir ' does not exist. Creating it.');
+    mkdir( outputDir );
+end
+
+cmd = 'AdjValidate -shim -set -mp %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f \n';
+fid = fopen([ pwd '/adjshim_' datestr(now,30) '.bat' ],'w') ;
+fprintf(fid, cmd, shimValues);
+fclose(fid);
+
+end
+% =========================================================================
+% =========================================================================
 % function [] = listcommands( option )
 % %LISTCOMMANDS
 % %
