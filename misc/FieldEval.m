@@ -807,12 +807,12 @@ Extras = [] ;
 % define spatial support for unwrapping
 if ~myisfield( Params, 'mask' ) || isempty( Params.mask )
 
-    Params.mask = true( ImgArray{1,1}.getgridsize ) ;
+    Params.mask = true( size( ImgArray{1,1}.img ) ) ;
 
     for iEcho = 1 : nEchoes 
 
         Params.mask = Params.mask .* ...
-            ( ImgArray{ iEcho, 1 }.img ./ max( ImgArray{ iEcho, 1 }.img(:) ) > Params.threshold ) ;
+            ( ImgArray{ iEcho, 1 }.img ./ max( ImgArray{ iEcho, 1 }.img(:) ) >= Params.threshold ) ;
 
     end
 
@@ -820,28 +820,37 @@ end
 
 Params.mask = logical( Params.mask ) ;
 
-if nEchoes == 1 % 2 echoes acquired but only 1 input (phase *difference* image)
-   
-    assert( myisfield( ImgArray{ 1, 2}.Hdr.MrProt, 'alTE') && numel( ImgArray{ 1, 2}.Hdr.MrProt.alTE ) >= 2, ...
-       'Expected Siemens FM phase difference image with at least 2 TEs specified in the DICOM header.' )
+% -------
+if ImgArray{ 1, 2}.Hdr.MrProt.lContrasts == 1 % single echo phase image
+    % in this case only, PhaseDiff refers to the difference between t=TE and t=0
+    PhaseDiff = ImgArray{ 1, 2 }.copy() ; 
     
-    PhaseDiff = ImgArray{ 1, 2 }.copy() ;
-
-    PhaseDiff.Hdr.EchoTime = ... 
-        ( ImgArray{ 1, 2 }.Hdr.MrProt.alTE(2) - ImgArray{ 1, 2 }.Hdr.MrProt.alTE(1) )/1000 ; % [units : ms]
-
 else
 
-    % -------
-    % phase difference image via complex division of first 2 echoes
-    PhaseDiff      = ImgArray{ 1, 2}.copy() ;
+    if nEchoes == 1 % 2 echoes acquired but only 1 input (phase *difference* image)
+       
+        assert( myisfield( ImgArray{ 1, 2}.Hdr.MrProt, 'alTE') && numel( ImgArray{ 1, 2}.Hdr.MrProt.alTE ) >= 2, ...
+           'Expected Siemens phase difference image with at least 2 TEs specified in the DICOM header.' )
+        
+        PhaseDiff = ImgArray{ 1, 2 }.copy() ;
 
-    img            = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
-    img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(i*ImgArray{ 2, 2 }.img) ;
+        PhaseDiff.Hdr.EchoTime = ... 
+            ( ImgArray{ 1, 2 }.Hdr.MrProt.alTE(2) - ImgArray{ 1, 2 }.Hdr.MrProt.alTE(1) )/1000 ; % [units : ms]
 
-    PhaseDiff.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
+    else
 
-    PhaseDiff.Hdr.EchoTime = ImgArray{ 2, 2 }.Hdr.EchoTime - ImgArray{ 1, 2 }.Hdr.EchoTime ; % [units : ms]
+        % -------
+        % phase difference image via complex division of first 2 echoes
+        PhaseDiff      = ImgArray{ 1, 2}.copy() ;
+
+        img            = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
+        img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(i*ImgArray{ 2, 2 }.img) ;
+
+        PhaseDiff.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
+
+        PhaseDiff.Hdr.EchoTime = ImgArray{ 2, 2 }.Hdr.EchoTime - ImgArray{ 1, 2 }.Hdr.EchoTime ; % [units : ms]
+    end
+
 end
 
 PhaseDiff.Hdr.MaskingImage = logical( Params.mask ) & ~isnan( PhaseDiff.img ) ;
@@ -852,7 +861,6 @@ PhaseDiff = PhaseDiff.unwrapphase( ImgArray{1,1}, Params ) ;
 
 PhaseDiffInRad = PhaseDiff.copy() ; % PhaseDiffInRad.img : [units: rad]
 
-% double echo estimate:
 PhaseDiff.scalephasetofrequency( ) ; % PhaseDiff.img : [units: Hz]
 Field     = FieldEval( PhaseDiff ) ;
 
