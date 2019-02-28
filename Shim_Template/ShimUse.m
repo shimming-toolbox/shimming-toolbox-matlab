@@ -283,6 +283,8 @@ function [imgDirectories] = loadtrainingdata( Shim, imgDirectories )
 % imgDirectories is a 2-column cell array containing the paths to the DICOM
 % containing folders of the GRE training data 
 %
+
+% TODO update documentation
 % e.g. 
 %   For dual-echo GRE_FIELD_MAPPING, 2 rows, 2 columns : 
 %
@@ -298,78 +300,89 @@ function [imgDirectories] = loadtrainingdata( Shim, imgDirectories )
 % If imgDirectories is not provided, LOADTRAININGDATA() calls uigetdir() and
 % the user selects the directories manually.
 
-if nargin < 2 || isempty( imgDirectories )
+if nargin == 2 && ~isempty( imgDirectories )
     
-    isManualSelection = true ;
-
-    if Shim.Params.isGrePhaseDifference && ( Shim.Params.nEchoes == 2 )
-        imgDirectories = cell( 1, 2, Shim.Params.nTrainingFrames ) ;
-    else
-        error('Unimplemented feature')
-        imgDirectories = cell( Shim.Params.nEchoes, 2, Shim.Params.nTrainingFrames ) ;
-    end
-else
     assert( ( size( imgDirectories, 3 ) == Shim.Params.nTrainingFrames ) ...
             & size( imgDirectories, 2 ) == 2 ) ;
+
+    for iFrame = 1 : Shim.Params.nTrainingFrames
+        for iImg = 1 : 2 
+            if ~isempty( imgDirectories{ 1, iImg, iFrame } )
+                
+                nDicomSubDirs = size( imgDirectories( :, iImg, iFrame ), 1 ) ;
+                
+                for iDicomSubDir = 1 : nDicomSubDirs
+                    if ~isempty( imgDirectories{ iDicomSubDir, iImg, iFrame } )
+                        Shim.Data.Img{ iDicomSubDir, iImg, iFrame }  = MaRdI( imgDirectories{ iDicomSubDir, iImg, iFrame } ) ;
+                    end
+                end
+            end
+        end
+    end
+    return;
 end
 
-% check for expected number of echo subdirectories
-errMsg = [ 'Did not find the expected number of echo_* subfolders. Check .Params.nEchoes is correct'] ;
+% else, manually select the directories using GUI
+imgDirectories = cell( 1, 2, Shim.Params.nTrainingFrames ) ;
+imgType        = { 'MAGNITUDE' ; 'PHASE' } ;
+
+errMsg         = [ 'Did not find the expected number of echo_* subfolders. Ensure the chosen directory and Shim.Params.trainingType are correct.'] ;
 
 for iFrame = 1 : Shim.Params.nTrainingFrames
 
     for iImg = 1 : 2 
 
-        if iImg == 1
-            imgType = 'MAGNITUDE' ;
-        elseif iImg == 2
-            imgType = 'PHASE' ;
+        if strcmp( Shim.Params.trainingMode, 'free breathing' ) && ( iFrame == 2 )
+            uiBoxTitle = ['Select the ' imgType{iImg} ' training data folder containing the DICOM images.' ...
+                    ' (gre_field_mapping training data set ' num2str(iFrame) ' of ' num2str(Shim.Params.nTrainingFrames) ')'] ;
+
+        else
+            uiBoxTitle = ['Select the ' imgType{iImg} ' training data parent folder containing the echo_* DICOM subfolders.' ...
+                    ' (gre_field_mapping training data set ' num2str(iFrame) ' of ' num2str(Shim.Params.nTrainingFrames) ')'] ;
         end
+        
+        ShimUse.customdisplay(uiBoxTitle) ;
+        
+        parentDir     = [ uigetdir( Shim.Params.dataLoadDir, uiBoxTitle ) '/']; 
 
-        if ~isempty( imgDirectories{ 1, iImg, iFrame } )
-            
-            nDicomSubDirs = size( imgDirectories( :, iImg, iFrame ), 1 ) ;
-            
-            for iDicomSubDir = 1 : nDicomSubDirs
-                if ~isempty( imgDirectories{ iDicomSubDir, iImg, iFrame } )
-                    Shim.Data.Img{ iDicomSubDir, iImg, iFrame }  = MaRdI( imgDirectories{ iDicomSubDir, iImg, iFrame } ) ;
-                end
-            
-            end
+        if ~parentDir % user cancelled
+            return;
+        end
+        
+        dicomSubDirs  = dir( [parentDir 'echo*/'] ) ;
+        nDicomSubDirs = length( dicomSubDirs ) ;
+        
+        if nDicomSubDirs == 0 
+            assert( strcmp( Shim.Params.trainingMode, 'free breathing' ) && (iFrame == 2), errMsg ) ;
 
-        else % User prompt via GUI 
-            uiBoxTitle = ['Select the ' imgType ' training data parent folder containing the echo_* DICOM subfolders.' ...
-                ' (gre_field_mapping training data set ' num2str(iFrame) ' of ' num2str(Shim.Params.nTrainingFrames) ')'] ;
-            
-            ShimUse.customdisplay(uiBoxTitle) ;
-            
-            parentDir     = [ uigetdir( Shim.Params.dataLoadDir, uiBoxTitle ) '/']; 
-            if ~parentDir % user cancelled
-                return;
-            end
-            dicomSubDirs  = dir( [parentDir 'echo*/'] ) ;
-            nDicomSubDirs = length( dicomSubDirs ) ;
-             
-            switch imgType % check for expected number of echo subdirectories
-                case 'MAGNITUDE'
-                    assert( nDicomSubDirs == Shim.Params.nEchoes, errMsg ) ;
-                case 'PHASE'
-                    if Shim.Params.isGrePhaseDifference
-                        assert( ( nDicomSubDirs + 1 ) == Shim.Params.nEchoes, errMsg ) ;
-                    else
-                        assert( nDicomSubDirs == Shim.Params.nEchoes, errMsg ) ;
-                    end
-            end
-            
-            % load the images 
+            imgDirectories{ 1, iImg, iFrame } = parentDir ;
+            Shim.Data.Img{ 1, iImg, iFrame }  = MaRdI( parentDir ) ;
+
+        else
             for iDicomSubDir = 1 : nDicomSubDirs
+       
                 imgDirectories{ iDicomSubDir, iImg, iFrame } = [ parentDir dicomSubDirs(iDicomSubDir).name '/' ] ;
                 Shim.Data.Img{ iDicomSubDir, iImg, iFrame }  = MaRdI( imgDirectories{ iDicomSubDir, iImg, iFrame } ) ;
+            
+                switch imgType{iImg} % check for expected number of echo subdirectories
+                    
+                    case 'MAGNITUDE'
+                        assert( nDicomSubDirs == Shim.Data.Img{ 1, iImg, iFrame }.Hdr.MrProt.lContrasts, errMsg ) ;
+                    case 'PHASE'
+                        % if phase subdirectories are phase difference images,
+                        % then there will be one fewer subdir than the number
+                        % of echoes (contrasts).  if the subdirectories are the
+                        % phase images themselves, then the number of
+                        % subdirectories == nEchoes.  therefore, this assertion
+                        % is generic:
+                        assert( ( nDicomSubDirs + 1) >= Shim.Data.Img{ 1, iImg, iFrame }.Hdr.MrProt.lContrasts, errMsg ) ;
+                end
             end 
         end
 
     end
 end 
+    
 
 end
 % =========================================================================
@@ -885,11 +898,10 @@ function [ Params ] = assigndefaultparameters( Params )
 %
 % Re: 'Training' protocol :
 % 
-% DEFAULT_NECHOES = 2 ; 
-%   Current protocol consists of 2 gre_field_mapping acquisitions, hence:
+% DEFAULT_TRAININGMODE = 'breath-hold' ; vs. 'free breathing'
+%    
 % DEFAULT_NTRAININGFRAMES = 2 ; % training time-points (e.g. inspired + expired field maps = 2 frames)
 %   and the Siemens default is to only save the inter-echo phase difference:
-% DEFAULT_ISGREPHASEDIFFERENCE = true ;
 %
 % DEFAULT_ISCONNECTINGTOSHIM = true ; 
 
@@ -905,9 +917,8 @@ DEFAULT_ISLOGGINGCOMMANDS  = true ;
 DEFAULT_COMMANDLOGFILENAME = ['commandLog_' datestr(now,30)] ;
 
 % Re: 'Training' protocol
+DEFAULT_TRAININGMODE         = 'breath-hold' ;
 DEFAULT_NTRAININGFRAMES      = 2 ; % training time-points (e.g. inspired + expired field maps = 2 frames)
-DEFAULT_ISGREPHASEDIFFERENCE = true ; % phase images are inter-echo phase difference images
-DEFAULT_NECHOES              = 2 ;
 
 if ~myisfield( Params, 'isConnectingToShim' ) || isempty( Params.isConnectingToShim ) 
    Params.isConnectingToShim = DEFAULT_ISCONNECTINGTOSHIM ;
@@ -933,16 +944,12 @@ if ~myisfield( Params, 'shimSystem' ) || isempty( Params.shimSystem )
    Params.shimSystem = DEFAULT_SHIMSYSTEM ;
 end
 
+if ~myisfield( Params, 'trainingMode' ) || isempty( Params.trainingMode ) 
+   Params.trainingMode = DEFAULT_TRAININGMODE ;
+end
+
 if ~myisfield( Params, 'nTrainingFrames' ) || isempty( Params.nTrainingFrames ) 
    Params.nTrainingFrames = DEFAULT_NTRAININGFRAMES ;
-end
-
-if ~myisfield( Params, 'isGrePhaseDifference' ) || isempty( Params.isGrePhaseDifference ) 
-   Params.isGrePhaseDifference = DEFAULT_ISGREPHASEDIFFERENCE ;
-end
-
-if ~myisfield( Params, 'nEchoes' ) || isempty( Params.nEchoes ) 
-   Params.nEchoes = DEFAULT_NECHOES ;
 end
 
 
