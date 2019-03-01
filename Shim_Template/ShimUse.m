@@ -281,24 +281,20 @@ function [imgDirectories] = loadtrainingdata( Shim, imgDirectories )
 % imgDirectories = LOADTRAININGDATA( Shim, imgDirectories ) 
 %
 % imgDirectories is a 2-column cell array containing the paths to the DICOM
-% containing folders of the GRE training data 
+% containing folders of the GRE training data. The 3rd dimension corresponds to
+% the index of the training data acquisition
 %
-
-% TODO update documentation
+% If imgDirectories is not provided, LOADTRAININGDATA() calls uigetdir() and
+% the user selects the directories manually.
+%
 % e.g. 
 %   For dual-echo GRE_FIELD_MAPPING, 2 rows, 2 columns : 
 %
 %   { MAG_DIRECTORY(1st echo) } { PHASE_DIRECTORY(difference) } 
 %   { MAG_DIRECTORY(2nd echo) } { [] } 
-% 
-% The 3rd dimension corresponds to the index of the training data acquisition
 %
-% e.g.  
 %   imgDirectories{:,:,1} --> gre_field_mapping-INSPIRED  
 %   imgDirectories{:,:,2} --> gre_field_mapping-EXPIRED 
-%
-% If imgDirectories is not provided, LOADTRAININGDATA() calls uigetdir() and
-% the user selects the directories manually.
 
 if nargin == 2 && ~isempty( imgDirectories )
     
@@ -326,7 +322,7 @@ end
 imgDirectories = cell( 1, 2, Shim.Params.nTrainingFrames ) ;
 imgType        = { 'MAGNITUDE' ; 'PHASE' } ;
 
-errMsg         = [ 'Did not find the expected number of echo_* subfolders. Ensure the chosen directory and Shim.Params.trainingType are correct.'] ;
+errMsg         = [ 'Did not find the expected number of echo_* subfolders. Ensure the chosen directory and Shim.Params.trainingMode are correct.'] ;
 
 for iFrame = 1 : Shim.Params.nTrainingFrames
 
