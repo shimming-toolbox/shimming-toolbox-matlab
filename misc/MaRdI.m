@@ -391,6 +391,78 @@ Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
 
 end
 % =========================================================================
+function [] = filter( Img, weights, Params )
+%FILTER
+%
+% 3D low-pass (weighted or unweighted) or median filtering.
+% Wraps to smooth3() or medfilt3() accordingly.
+%
+% [] = FILTER( Img )
+% [] = FILTER( Img, weights )
+% [] = FILTER( Img, weights, Params )
+%
+% Img 
+%   the MaRdI-type image volume.
+%
+% weights
+%   an array of data weights (>=0) to penalize (for smooth3) or exclude (for
+%   medfilt3()) identifiable outliers.  Dimensions of weights must be the
+%   same as the image volume (i.e. Img.getgridsize() )
+%
+% Params
+%   an optional struct for which the following Params.fields are supported
+%
+%   .kernelSize
+%       in number of voxels
+%       default = [3 3 3] 
+%
+%   .method
+%       'gaussian' OR 'box' OR 'median'
+%       default = 'gaussian'
+%
+% 
+% TODO
+%   Add support for 2d (single slice) images 
+
+DEFAULT_KERNELSIZE = [3 3 3] ;
+DEFAULT_METHOD     = 'gaussian' ;
+
+if nargin < 3 || isempty(Params)
+    Params.dummy = [] ;
+end
+
+if ~myisfield( Params, 'kernelSize' ) || isempty( Params.kernelSize )
+    Params.kernelSize = DEFAULT_KERNELSIZE ;
+end
+
+if ~myisfield( Params, 'method' ) || isempty( Params.method )
+    Params.method = DEFAULT_METHOD ;
+end
+
+if nargin < 2 || isempty( weights )
+    weights = ones( Img.getgridsize() ) ;
+else
+    assert( all( size(weights) == Img.getgridsize() ), ...
+        'weights and image volume must possess the same dimensions, i.e. Img.getgridsize()' ) ;
+end
+
+switch Params.method
+
+    case 'median'
+
+        Img.img( ~weights ) = NaN ; % medfilt3() will ignore these values
+        Img.img = medfilt3( Img.img, Params.kernelSize ) ; 
+        Img.img( ~weights ) = 0 ;
+    
+    otherwise
+        
+        weightsSmoothed = smooth3( weights, Params.method, Params.kernelSize ) ;
+        Img.img = smooth3( weights .* Img.img, Params.method, Params.kernelSize ) ./ weightsSmoothed ; 
+
+end
+
+end
+% =========================================================================
 function Img = zeropad( Img, padSize, padDirection )
 %ZEROPAD
 % Img = ZEROPAD( Img, padSize, padDirection )
