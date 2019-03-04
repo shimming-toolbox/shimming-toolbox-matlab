@@ -679,53 +679,15 @@ function [Field, Extras] = mapfield( Img, Params, ObjectiveImg )
 %   ignored) 
 %       [default: 0.01] 
 %
-%   .isFilteringField 
-%       Applies harmonic ('RESHARP', i.e. low-pass) filtering & returns filtered field map.
-%       [default: false]
-%   
-%   .filteringMask
-%       binary array indicating local ROI to retain + RESHARP filter 
-%       [default: uses the region retained after unwrapping, which may generally be = Params.mask)
-%
 %   .unwrapper
 %       'Sunwrap' [default], calls SUNWRAP( ) (Maier, et al. MRM 2015)
 %       'AbdulRahman_2007' , calls unwrap3d( ), which wraps to the Abdul-Rahman binary
 %       'FslPrelude', calls prelude( ), which wraps to FSL-prelude 
 
-% TODO 
-%
-% ...Untested features
-%
-% ObjectiveImg --- a MaRdI-type object *example* image (e.g. EPI volume!) 
-% that, most importantly, has its voxels positioned precisely where the field
-% information/shim is desired. That is, if a spherical harmonic fitting of
-% the field is performed (see below) then the fitted-field will be interpolated
-% at the voxel positions from ObjectiveImg. 
-%
-% What is the immediate purpose of this? To enabled gapped/partial gre_field_map
-% acquisitions in order to reduce the acquisition time for real-time shim training
-% i.e. these generally involve the subject holding their breath, so, for
-% feasibility + patient comfort, the acquisitions should be as brief as
-% possible.
-%
-%   .isFittingSphericalHarmonics 
-%       Fits field map to spherical harmonic basis set & returns the fitted field map.
-%       See doc FieldEval.extractharmonicfield() for relevant Params.
-%       [default: false]
-%
-%   .ordersToGenerate
-%       Orders of SH incorporated into fitting 
-%       [default: [0:1:8]]
 
-DEFAULT_ISCORRECTINGPHASEOFFSET        = true ; % deprecated
-DEFAULT_ISUNWRAPPINGECHOESINDIVIDUALLY = false ; % deprecated
-DEFAULT_ISFILTERINGFIELD               = false ;
 DEFAULT_THRESHOLD                      = 0.01 ;
-
-DEFAULT_ISFITTINGSPHERICALHARMONICS    = false ;
-DEFAULT_ORDERSTOGENERATE               = [0:8] ;
-
 DEFAULT_UNWRAPPER                      = 'Sunwrap' ; % 'AbdulRahman_2007' ;
+
 DEFAULT_ECHOINDICES                    = [ 1 2 ] ;
 
 assert( (nargin >= 1) && ~isempty( Img ) ) ;
@@ -734,29 +696,10 @@ if nargin == 1
     Params.dummy = [];
 end
 
-if ~myisfield( Params, 'isCorrectingPhaseOffset' ) || isempty( Params.isCorrectingPhaseOffset ) 
-    Params.isCorrectingPhaseOffset = DEFAULT_ISCORRECTINGPHASEOFFSET ;
-end
-
-if ~myisfield( Params, 'isUnwrappingEchoesIndividually' ) || isempty( Params.isUnwrappingEchoesIndividually ) 
-    Params.isUnwrappingEchoesIndividually = DEFAULT_ISUNWRAPPINGECHOESINDIVIDUALLY ;
-end
-
-if ~myisfield( Params, 'isFilteringField' ) || isempty( Params.isFilteringField ) 
-    Params.isFilteringField = DEFAULT_ISFILTERINGFIELD ;
-end
-
 if ~myisfield( Params, 'threshold' ) || isempty( Params.threshold ) 
     Params.threshold = DEFAULT_THRESHOLD ;
 end
 
-if ~myisfield( Params, 'isFittingSphericalHarmonics' ) || isempty( Params.isFittingSphericalHarmonics ) 
-    Params.isFittingSphericalHarmonics = DEFAULT_ISFITTINGSPHERICALHARMONICS ;
-end
-
-if ~myisfield( Params, 'ordersToGenerate' ) || isempty( Params.ordersToGenerate ) 
-    Params.ordersToGenerate = DEFAULT_ORDERSTOGENERATE ;
-end
 
 if ~myisfield( Params, 'unwrapper' ) || isempty( Params.unwrapper ) 
     Params.unwrapper = DEFAULT_UNWRAPPER ;
@@ -769,7 +712,12 @@ end
 if isa( Img, 'cell' ) ;
     
     ImgArray = Img ;
-    nEchoes  = size( ImgArray, 1 ) ;
+    nEchoes  = 0 ;
+    for iPhase = 1 : size( Img, 1 ) 
+        if ~isempty( Img{ iPhase, 2 } )
+            nEchoes = nEchoes + 1 ;
+        end
+    end
 
 elseif ischar( Img )
     
@@ -864,9 +812,8 @@ PhaseDiffInRad = PhaseDiff.copy() ; % PhaseDiffInRad.img : [units: rad]
 PhaseDiff.scalephasetofrequency( ) ; % PhaseDiff.img : [units: Hz]
 Field     = FieldEval( PhaseDiff ) ;
 
-dbstop in FieldEval at 981
 if nEchoes > 2
-
+    error('TODO: field-fitting over multiple echoes');
     % approx filter (smoothing kernel) diameter in mm:
     filterDiameter = 11 ;
     
@@ -1199,127 +1146,7 @@ if nEchoes > 2
 
 end
 
-if Params.isFilteringField
-
-    if myisfield( Params, 'filteringMask' ) && ~isempty( Params.filteringMask )
-        
-        % intersection of unwrapped region with desired local region
-        Field.Hdr.MaskingImage = logical(Field.Hdr.MaskingImage) & logical(Params.filteringMask) ;    
-
-    end
-
-    Extras.fieldUnfiltered = Field.img ;
-
-    Field.img( ~Field.Hdr.MaskingImage ) = NaN ; % medfilt3() will ignore these values
-    Field.img = medfilt3( Field.img, round( Field.getvoxelsize()./Params.filterRadius ) ) ; 
-    Field.img( ~Field.Hdr.MaskingImage ) = 0 ;
-    
-end
-
 Field.Hdr.SeriesDescription = [ 'B0Field_measured_' Field.Hdr.SeriesDescription  ] ;
-
-if Params.isFittingSphericalHarmonics % UNTESTED
-    % -------
-    % fit spherical harmonic basis set to input Field 
-
-    % generates basis set, with field positions same as those of input Field 
-    Shims = ShimOptSHarmonics( Params, Field ) ;
-
-    % calculate fitting coefficients ('currents')
-    Shims = Shims.optimizeshimcurrents( Params ) ;
-    
-    Extras.FieldResidual = Field.img + Shims.Model.field ;
-
-    Field.img = -Shims.Model.field ;
-    
-    if (nargin == 3) & ~isempty( ObjectiveImg )
-        % Interpolate the field @ VoxelPositions
-        %
-        % Main purpose: to enable gapped slices in the field map acquisitions
-        % for real-time shim training --- by reducing nSlices, acq. time is
-        % reduced, & therefore, the necessary duration of the breath hold.
-
-        [X0, Y0, Z0] = Field.getvoxelpositions( ) ; % original
-        [X, Y, Z]    = ObjectiveImg.getvoxelpositions( ) ; % final
-
-        % recalculate the set of harmonics at the given voxel positions      
-        basisFields = ShimOptSHarmonics.generatebasisfields( Params.ordersToGenerate, X, Y, Z ) ;
-        
-        % scale each harmonic by the fitted 'currents' (coefficients)
-        for iHarmonic = 1 : size( basisFields, 4 ) 
-            basisFields(:,:,:, iHarmonic) = Shims.Model.currents(iHarmonic) * basisFields(:,:,:, iHarmonic) ;
-        end
-        
-        Field.img = sum( -basisFields, 4 ) ;
-        
-
-        disp( ['Interpolating phase/field mask...' ]) ;
-            
-        Field.Hdr.MaskingImage = griddata( X0, Y0, Z0, Field.Hdr.MaskingImage, X, Y, Z, 'nearest' ) ;
-
-        % if new positions are outside the range of the original, 
-        % interp3/griddata replaces array entries with NaN
-        Field.Hdr.MaskingImage( isnan( Field.Hdr.MaskingImage ) ) = 0 ; 
-
-        % -------
-        % Update Hdr 
-        %
-        % Note: the Hdr could probably simply be copied from ObjectiveImg but recalculating the entries 
-        % is more general ('extensible') should the future user not have a
-        % fully-formed 'ObjectiveImg' set of dicoms, but merely the target
-        % voxel positions [X,Y,Z]
-        % 
-        % That said, the way SliceLocation is updated below may not always be correct.
-        % (borrowed from MaRdI.resliceimg() )
-        
-        Field.Hdr.ImagePositionPatient( 1 ) = X(1) ; 
-        Field.Hdr.ImagePositionPatient( 2 ) = Y(1) ;
-        Field.Hdr.ImagePositionPatient( 3 ) = Z(1) ;
-
-        %-------
-        % Rows 
-        Field.Hdr.Rows = size(Field.img, 1) ;
-
-        dx = X(2,1,1) - X(1,1,1) ;
-        dy = Y(2,1,1) - Y(1,1,1) ;
-        dz = Z(2,1,1) - Z(1,1,1) ;  
-
-        % vertical (row) spacing
-        Field.Hdr.PixelSpacing(1) = ( dx^2 + dy^2 + dz^2 )^0.5 ; 
-
-        % column direction cosine (expressing angle btw column direction and X,Y,Z axes)
-        Field.Hdr.ImageOrientationPatient(4) = dx/Field.Hdr.PixelSpacing(1) ;
-        Field.Hdr.ImageOrientationPatient(5) = dy/Field.Hdr.PixelSpacing(1) ;
-        Field.Hdr.ImageOrientationPatient(6) = dz/Field.Hdr.PixelSpacing(1) ;
-
-        %-------
-        % Columns 
-        Field.Hdr.Columns = size(Field.img, 2) ;       
-
-        dx = X(1,2,1) - X(1,1,1) ;
-        dy = Y(1,2,1) - Y(1,1,1) ;
-        dz = Z(1,2,1) - Z(1,1,1) ;  
-
-        % horizontal (column) spacing
-        Field.Hdr.PixelSpacing(2) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
-
-        % row direction cosine (expressing angle btw column direction and X,Y,Z axes)
-        Field.Hdr.ImageOrientationPatient(1) = dx/Field.Hdr.PixelSpacing(2) ;
-        Field.Hdr.ImageOrientationPatient(2) = dy/Field.Hdr.PixelSpacing(2) ;
-        Field.Hdr.ImageOrientationPatient(3) = dz/Field.Hdr.PixelSpacing(2) ;
-
-        %-------
-        % Slices
-        Field.Hdr.NumberOfSlices       = size(Field.img, 3) ;
-        Field.Hdr.SpacingBetweenSlices = ( (X(1,1,2) - X(1,1,1))^2 + ...
-                                           (Y(1,1,2) - Y(1,1,1))^2 + ...
-                                           (Z(1,1,2) - Z(1,1,1))^2 ) ^(0.5) ;
-
-        [~, ~, sHat] = Field.getdirectioncosines( ) ;  
-        Field.Hdr.SliceLocation = dot( Field.Hdr.ImagePositionPatient, sHat ) ;
-    end
-
-end
 
 end
 % =========================================================================
