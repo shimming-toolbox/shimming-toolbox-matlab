@@ -10,8 +10,8 @@
 ## Overview
 
 This library consists of programs to perform shimming (static and real-time).
-First designed for use with the 24-channel spine shim (Topfer R, et al., MRM,
-2018. https://doi.org/10.1002/mrm.27089)
+First designed for use with the 24-channel spine shim ([Topfer R, et al., MRM,
+2018](https://doi.org/10.1002/mrm.27089)).
 
 ## Installation
 
