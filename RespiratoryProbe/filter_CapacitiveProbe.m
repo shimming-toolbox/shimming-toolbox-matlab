@@ -1,50 +1,47 @@
 %% IMPORTANT
 %Add folders & subfolders to the path the realtime_shimming cloned repo
 
-%%
-clc; clear all;close all;
-load('/Users/augil/Documents/results_08-Mar-2019/variablesDump-test.mat');
-
-%load('/Users/alfoi/Desktop/work/poly_fit_investigation/results_15-Feb-2019/variablesDump-thomas_base.mat');
-
-%Load frequency measurement file *.mat
 % uigetfile;
 
-n_samples_before_start_fitting = 300;
+function get_probe_signal()
+    clc; clear all; close all;
+    load('../test/capacitive_probe_phantom.mat');
+    n_samples_before_start_fitting = 300;
 
-deg_poly = 3;
-preliminary_fit = 1;
+    deg_poly = 3;
+    preliminary_fit = 1;
 
-timepoint = 1;
-FS = stoploop({'Stop cprobe'}) ;
-while(~FS.Stop())
-    
-    % define signal from time 1 to time timepoint
-    filtered_signal = data_cprobe(1:timepoint);
-    
-    % Wait a number of samples before fitting
-    if timepoint > n_samples_before_start_fitting
-        
-        % preliminary fit before we know the number of periods
-        if preliminary_fit
-            filtered_signal = update_fit(filtered_signal, 1, 1)
+    timepoint = 1;
+    FS = stoploop({'Stop cprobe'}) ;
+    while(~FS.Stop())
+
+        % define signal from time 1 to time timepoint
+        filtered_signal = data_cprobe(1:timepoint);
+
+        % Wait a number of samples before fitting
+        if timepoint > n_samples_before_start_fitting
+
+            % preliminary fit before we know the number of periods
+            if preliminary_fit
+                filtered_signal = update_fit(filtered_signal, 1, 1)
+            end
+
+            % Search for values that pass thru 0 with ascending slope
+            if sign(filtered_signal(timepoint) * filtered_signal(timepoint - 1)) == -1 && filtered_signal(timepoint) > filtered_signal(timepoint - 1)
+
+                % Get signal with complete periods
+                x_start = get_complete_periods(filtered_signal);
+
+                % Update fit
+                filtered_signal = update_fit(filtered_signal, x_start, deg_poly);
+
+                % stop preliminary fit, because now we will only fit at
+                % complete periods
+                preliminary_fit = 0
+            end
         end
-        
-        % Search for values that pass thru 0 with ascending slope
-        if sign(filtered_signal(timepoint) * filtered_signal(timepoint - 1)) == -1 && filtered_signal(timepoint) > filtered_signal(timepoint - 1)
-            
-            % Get signal with complete periods
-            x_start = get_complete_periods(filtered_signal);
-            
-            % Update fit
-            filtered_signal = update_fit(filtered_signal, x_start, deg_poly);
-            
-            % stop preliminary fit, because now we will only fit at
-            % complete periods
-            preliminary_fit = 0
-        end
+        timepoint = timepoint + 1;
     end
-    timepoint = timepoint + 1;
 end
 
 
@@ -67,6 +64,7 @@ function signal_out = update_fit(signal_in, x_start, deg_poly)
     ylabel('Frequency [KHz]')
     grid on    
 end
+
 
 function x_start = get_complete_periods(signal_in)
     % this function will output a signal with complete periods (assuming
