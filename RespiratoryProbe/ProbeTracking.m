@@ -20,7 +20,7 @@ classdef ProbeTracking < matlab.mixin.SetGet
 %
 %
 % =========================================================================
-% Updated::20190220::ryan.topfer@polymtl.ca
+% Updated::20190318::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties   
@@ -200,6 +200,14 @@ assert( strcmp( Aux.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
 
 tmp = fscanf( Aux.ComPort, '%u', [1 1] ) ;
 Aux.Data.pRaw(end+1) = tmp(end) ;
+tmp 
+% %% No of measurements before the actual polyfit will begin
+% smooth_window = 5; % place in declare probe Params
+% timepoint     = length( Aux.Data.pRaw );
+%
+% time_data(timepoint) = timepoint * 0.1;
+% p = polyfit(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint),4);
+% y = polyval(p,time_data(smooth_window:timepoint));
 
 if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
         && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
@@ -512,6 +520,9 @@ while ( iSample < nSamples ) && ~StopButton.Stop()
             Aux2.getupdate() ;
         end
 
+        Aux1.writetofilebuffer( ) ;
+        Aux1.readfromfilebuffer( ) 
+
     end
 
     if Params.isPlottingInRealTime
@@ -538,6 +549,39 @@ end
 
 % =========================================================================
 % =========================================================================
+
+% =========================================================================
+% =========================================================================
+methods( Access =  private)
+% =========================================================================
+function [p] = readfromfilebuffer( Aux )
+%READFROMFILEBUFFER
+
+% Wait until the first byte is not zero.
+while Aux.Specs.m.Data(1) == 0
+    pause(0.01);
+end
+
+% The first byte contains the length of the message.
+p = char(Aux.Specs.m.Data(2:1+double(Aux.Specs.m.Data(1))))' ;
+   
+end
+% =========================================================================
+function [] = writetofilebuffer( Aux )
+%WRITETOFILEBUFFER
+
+Aux.Specs.m.Data(1) = 0 ; % indicates writing process is ongoing
+
+str   = num2str(Aux.Data.p(end)) ;
+nChar = length(str);
+
+% Update the file via the memory map.
+Aux.Specs.m.Data(2:(1+nChar)) = str ;
+Aux.Specs.m.Data(1)           = nChar ; % indicates writing completed
+   
+end
+% =========================================================================
+end
 
 % =========================================================================
 % =========================================================================
@@ -571,9 +615,10 @@ function [ComPort, AuxSpecs] = declareprobe( AuxSpecs )
 
 DEFAULT_ARDUINOPERIOD = 50 ; % [units: ms] 
 DEFAULT_TEENSYPERIOD  = 100 ; % [units: ms] 
-DEFAULT_BAUDRATE      = 115200 ;
 
+DEFAULT_BAUDRATE      = 115200 ;
 DEFAULT_CLIPLIMITS    = [-Inf Inf] ; % [units: probe signal] 
+DEFAULT_PROBETYPE     = 'pressure' ; 
 
 if nargin < 1 || isempty(AuxSpecs)
     ShimUse.customdisplay('Default parameters will be used:')
@@ -589,7 +634,9 @@ if ~myisfield( AuxSpecs, 'clipLimits' ) || isempty(AuxSpecs.clipLimits) ...
     AuxSpecs.clipLimits = DEFAULT_CLIPLIMITS ;
 end
 
-isPressureProbe = true; % assume initially the connected device is the arduino pressure sensor
+if ~myisfield( AuxSpecs, 'probeType' ) || isempty(AuxSpecs.probeType) ...
+    AuxSpecs.probeType = DEFAULT_PROBETYPE ;
+end
 
 % -------------------------------------------------------------------------
 % check and/or assign serial port
@@ -610,7 +657,7 @@ if  myisfield( AuxSpecs, 'portName' ) && ~isempty(AuxSpecs.portName)
             isPortDetected = true ;
             isAssigningSerialPort = true ;
             if strcmp( AuxSpecs.portName, '/dev/tty.usbmodem4471890' )
-                isPressureProbe = false; % this is the teensy capacitive probe
+                AuxSpecs.probeType = 'capacitive' ;
             end
        end
     end
@@ -647,9 +694,9 @@ if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
             switch listOfDevices(1).name
             
                 case 'tty.usbmodem4471890'
-                    isPressureProbe = false ; % this is the capacitive probe
+                    AuxSpecs.probeType = 'capacitive' ;
                 otherwise
-                   isPressureProbe  = true ; % NOT necessarily true!! 
+                    AuxSpecs.probeType = 'pressure' ;
             end
         else
             warning('Ambiguous device identifier. Consider entering portName as argument. See HELP.');
@@ -657,7 +704,7 @@ if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
             for iD = 1 : length( listOfDevices ) 
                 if strcmp( listOfDevices(iD).name, 'tty.usbmodem4471890' ) ; % teensy 3.5 on RT macbook pro
                     isAssigningSerialPort = true ;
-                    isPressureProbe       = false ; % this is the capacitive probe
+                    AuxSpecs.probeType    = 'capacitive' ;
                     AuxSpecs.portName     = ['/dev/' listOfDevices(iD).name ] ;
                 end
             end
@@ -701,15 +748,36 @@ else
     ComPort = [] ;
 end
 
-if isPressureProbe 
-    ShimUse.customdisplay( ['\n----- Pressure probe -----\n'] );
-    AuxSpecs.dt = DEFAULT_ARDUINOPERIOD ; % [units: ms]
-else
-    ShimUse.customdisplay( ['\n----- Capacitive probe -----\n'] );
-    AuxSpecs.dt = DEFAULT_TEENSYPERIOD ; 
+switch AuxSpecs.probeType
+    case 'pressure'
+        ShimUse.customdisplay( ['\n----- Pressure probe -----\n'] );
+        AuxSpecs.dt = DEFAULT_ARDUINOPERIOD ; % [units: ms]
+    case 'capacitive'
+        ShimUse.customdisplay( ['\n----- Capacitive probe -----\n'] );
+        AuxSpecs.dt = DEFAULT_TEENSYPERIOD ; 
 end
 
 ShimUse.customdisplay( [ 'Sampling frequency = ' num2str(1000/AuxSpecs.dt) ' Hz'] )
+
+% --------
+% TEST MEMMAPFILE
+filename = fullfile( '~/', 'probeRec.dat');
+ 
+% Create the communications file if it is not already there.
+if ~exist(filename, 'file')
+    [f, msg] = fopen(filename, 'w');
+    if f ~= -1
+        fwrite(f, zeros(1,256), 'uint8');
+        fclose(f);
+    else
+        error('MATLAB:demo:send:cannotOpenFile', ...
+              'Cannot open file "%s": %s.', filename, msg);
+    end
+end
+ 
+% Memory map the file.
+AuxSpecs.m = memmapfile(filename, 'Writable', true, 'Format', 'uint8');
+
 
 end
 % =========================================================================
