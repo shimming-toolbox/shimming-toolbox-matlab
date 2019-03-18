@@ -51,6 +51,8 @@ end
 Aux.Data.p    = []; % may be filtered & limited
 Aux.Data.pRaw = []; % raw measurement
 
+Aux.recordandplotphysiosignal();
+
 end    
 % =========================================================================
 function [AuxCopy] = copy( Aux )
@@ -191,34 +193,41 @@ end
 function [p] = getupdate( Aux )
 %GETUPDATE 
 %
-% Reads a single (16-bit) measurement (p) in from open com port and 
-% returns p as the typecasted double.
-%
 % p = GETUPDATE( Aux )
-
-assert( strcmp( Aux.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
-
-tmp = fscanf( Aux.ComPort, '%u', [1 1] ) ;
-Aux.Data.pRaw(end+1) = tmp(end) ;
-tmp 
-% %% No of measurements before the actual polyfit will begin
-% smooth_window = 5; % place in declare probe Params
-% timepoint     = length( Aux.Data.pRaw );
 %
-% time_data(timepoint) = timepoint * 0.1;
-% p = polyfit(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint),4);
-% y = polyval(p,time_data(smooth_window:timepoint));
+% Reads a single (16-bit) measurement (p) and returns p as the typecasted double.
+%
+% p is either read from the open com port, or from the temp file buffer.
 
-if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
-        && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
+if Aux.Specs.isBackgroundRecording
+    
+    assert( strcmp( Aux.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
 
-    Aux.Data.p(end+1) = Aux.Data.pRaw(end) ;
+    tmp = fscanf( Aux.ComPort, '%u', [1 1] ) ;
+    Aux.Data.pRaw(end+1) = tmp(end) ;
+    % %% No of measurements before the actual polyfit will begin
+    % smooth_window = 5; % place in declare probe Params
+    % timepoint     = length( Aux.Data.pRaw );
+    %
+    % time_data(timepoint) = timepoint * 0.1;
+    % p = polyfit(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint),4);
+    % y = polyval(p,time_data(smooth_window:timepoint));
+
+    if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
+            && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
+
+        Aux.Data.p(end+1) = Aux.Data.pRaw(end) ;
+    else
+        % replace with most recent unclipped/undistorted sample:
+        Aux.Data.p(end+1) = Aux.Data.p(end) ;
+    end
+
+    p = Aux.Data.p(end) ;
+
+    Aux.writetofilebuffer( p ) ;
 else
-    % replace with most recent unclipped/undistorted sample:
-    Aux.Data.p(end+1) = Aux.Data.p(end) ;
+    p = Aux.readfromfilebuffer( ) 
 end
-
-p = Aux.Data.p(end) ;
 
 end  
 % =========================================================================
@@ -296,9 +305,6 @@ end
 if  ~myisfield( Params, 'sampleTimesFilename' ) || isempty(Params.sampleTimesFilename)
     Params.sampleTimesFilename  = DEFAULT_SAMPLETIMESFILENAME ; 
 end
-
-msg = input( ['\n Press [Enter] to begin recording pressure log.\n'], 's' );
-assert( isempty(msg), 'Cancelled calibration.')
 
 % ------- 
 isUserSatisfied = false ;
@@ -449,6 +455,10 @@ end
 
 assert(isTracking, 'Could not begin tracking. Check device connection.')
 
+display('');
+display('Recording probe measurements...');
+display('');
+
 if Params.isPlottingInRealTime
 
     % ------- 
@@ -520,9 +530,6 @@ while ( iSample < nSamples ) && ~StopButton.Stop()
             Aux2.getupdate() ;
         end
 
-        Aux1.writetofilebuffer( ) ;
-        Aux1.readfromfilebuffer( ) 
-
     end
 
     if Params.isPlottingInRealTime
@@ -557,27 +564,34 @@ methods( Access =  private)
 function [p] = readfromfilebuffer( Aux )
 %READFROMFILEBUFFER
 
-% Wait until the first byte is not zero.
-while Aux.Specs.m.Data(1) == 0
+% The second byte in m contains the length of the message.
+
+% The first byte is reserved for possible START/STOP signal (not implemented)
+
+% Wait until the second byte is not zero.
+while Aux.Specs.m.Data(2) == 0
     pause(0.01);
 end
 
-% The first byte contains the length of the message.
-p = char(Aux.Specs.m.Data(2:1+double(Aux.Specs.m.Data(1))))' ;
+% The second byte contains the length of the message.
+p = char(Aux.Specs.m.Data(3:2+double(Aux.Specs.m.Data(2))))' ;
    
 end
 % =========================================================================
-function [] = writetofilebuffer( Aux )
+function [] = writetofilebuffer( Aux, p )
 %WRITETOFILEBUFFER
 
-Aux.Specs.m.Data(1) = 0 ; % indicates writing process is ongoing
+% The first byte is reserved for possible START/STOP signal (not implemented)
 
-str   = num2str(Aux.Data.p(end)) ;
+% The second byte in m contains the length of the message.
+Aux.Specs.m.Data(2) = 0 ; % indicates writing process is ongoing
+
+str   = num2str( p ) ;
 nChar = length(str);
 
 % Update the file via the memory map.
-Aux.Specs.m.Data(2:(1+nChar)) = str ;
-Aux.Specs.m.Data(1)           = nChar ; % indicates writing completed
+Aux.Specs.m.Data(3:(2+nChar)) = str ;
+Aux.Specs.m.Data(2)           = nChar ; % indicates writing completed
    
 end
 % =========================================================================
@@ -767,7 +781,7 @@ filename = fullfile( '~/', 'probeRec.dat');
 if ~exist(filename, 'file')
     [f, msg] = fopen(filename, 'w');
     if f ~= -1
-        fwrite(f, zeros(1,256), 'uint8');
+        fwrite(f, zeros(1, 8), 'uint8');
         fclose(f);
     else
         error('MATLAB:demo:send:cannotOpenFile', ...
@@ -778,6 +792,7 @@ end
 % Memory map the file.
 AuxSpecs.m = memmapfile(filename, 'Writable', true, 'Format', 'uint8');
 
+AuxSpecs.isBackgroundRecording = true;
 
 end
 % =========================================================================
