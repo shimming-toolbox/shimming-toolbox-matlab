@@ -34,24 +34,33 @@ end
 % =========================================================================
 methods
 % =========================================================================
-function Aux = ProbeTracking( Specs )
+function Aux = ProbeTracking( Params )
 %PROBE - ProbeTracking  
+
+Aux.Data.p    = []; % may be filtered & limited
+Aux.Data.pRaw = []; % raw measurement
 
 if nargin < 1
     Specs = [] ;
+
+elseif isstruct( Params )
+    Specs = Params ;
+
+elseif ischar( Params )
+    filename = Params ;
+    load( filename ) ;
+    Aux.beginrecordingdaemon() ; % runs continuously in background
+    return;
 end
 
 if myisfield( Specs, 'state' ) && strcmp( Specs.state, 'inert' )
     Aux.ComPort = [] ;
     Aux.Specs   = Specs ;
 else
-    [Aux.ComPort, Aux.Specs] = ProbeTracking.declareprobe( Specs ) ;
+    [ Aux.ComPort, Aux.Specs ] = ProbeTracking.declareprobe( Specs ) ;
+    Aux.createbufferfile() ;
+    Aux.createrecordingdaemon() ;
 end
-
-Aux.Data.p    = []; % may be filtered & limited
-Aux.Data.pRaw = []; % raw measurement
-
-Aux.recordandplotphysiosignal();
 
 end    
 % =========================================================================
@@ -113,23 +122,22 @@ function [isTracking] = begintracking( Aux )
 %
 % Returns TRUE if successful
 
-isTracking = false;
-
-maxCommunicationAttempts = 3; 
-
 fopen(Aux.ComPort);
-
-iAttempt = 1 ;
 disp('Connecting to respiratory probe...')
 
-while(~isTracking && iAttempt <= maxCommunicationAttempts )
+iAttempt    = 1 ;
+maxAttempts = 3 ; 
+
+isTracking  = false ;
+
+while( ~isTracking && iAttempt <= maxAttempts )
 
     disp(['Attempt #' num2str(iAttempt)]);    
    
     firstWord = fscanf( Aux.ComPort, '%u') ;
     
     if( ~isempty(firstWord) && isnumeric(firstWord) )  
-        isTracking = true;
+        isTracking = true ;
     end
     
     iAttempt = iAttempt + 1;
@@ -183,53 +191,76 @@ function [] = clearrecording( Aux )
 %
 % [] = CLEARRECORDING( Aux )
 %
-% Empties Aux.Data.p and Aux.Data.pRaw  
+% Empties Aux.Data.t, Aux.Data.p, and  Aux.Data.pRaw  
 
-Aux.Data.p = [] ;
+Aux.Data.t    = [] ;
+Aux.Data.p    = [] ;
 Aux.Data.pRaw = [] ;
 
 end
 % =========================================================================
-function [p] = getupdate( Aux )
+function [p,t] = getupdate( Aux )
 %GETUPDATE 
 %
-% p = GETUPDATE( Aux )
+% [p,t] = GETUPDATE( Aux )
 %
 % Reads a single (16-bit) measurement (p) and returns p as the typecasted double.
+% t is the sample time in units of milliseconds.
 %
 % p is either read from the open com port, or from the temp file buffer.
 
-if Aux.Specs.isBackgroundRecording
+t = 0;
+
+switch Aux.Specs.readSource
+    case 'ComPort' 
+        
+        assert( strcmp( Aux.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
+
+        tmp = fscanf( Aux.ComPort, '%u', [1 1] ) ;
+        Aux.Data.pRaw(end+1) = tmp(end) ;
+        % %% No of measurements before the actual polyfit will begin
+        % smooth_window = 5; % place in declare probe Params
+        % timepoint     = length( Aux.Data.pRaw );
+        %
+        % time_data(timepoint) = timepoint * 0.1;
+        % p = polyfit(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint),4);
+        % y = polyval(p,time_data(smooth_window:timepoint));
+
+        if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
+                && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
+
+            Aux.Data.p(end+1) = Aux.Data.pRaw(end) ;
+        else
+            % replace with most recent unclipped/undistorted sample:
+            Aux.Data.p(end+1) = Aux.Data.p(end) ;
+        end
+
+        p = Aux.Data.p(end) ;
     
-    assert( strcmp( Aux.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
-
-    tmp = fscanf( Aux.ComPort, '%u', [1 1] ) ;
-    Aux.Data.pRaw(end+1) = tmp(end) ;
-    % %% No of measurements before the actual polyfit will begin
-    % smooth_window = 5; % place in declare probe Params
-    % timepoint     = length( Aux.Data.pRaw );
-    %
-    % time_data(timepoint) = timepoint * 0.1;
-    % p = polyfit(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint),4);
-    % y = polyval(p,time_data(smooth_window:timepoint));
-
-    if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
-            && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
-
-        Aux.Data.p(end+1) = Aux.Data.pRaw(end) ;
-    else
-        % replace with most recent unclipped/undistorted sample:
-        Aux.Data.p(end+1) = Aux.Data.p(end) ;
-    end
-
-    p = Aux.Data.p(end) ;
-
-    Aux.writetofilebuffer( p ) ;
-else
-    p = Aux.readfromfilebuffer( ) 
+    case 'fileBuffer'
+        [p, t] = Aux.getupdatefromfilebuffer( ) ;
 end
 
 end  
+% =========================================================================
+function [p,t] = getupdatefromfilebuffer( Aux )
+%GETUPDATEFROMFILEBUFFER
+
+[p, t] = Aux.readfromfilebuffer( ) ;
+
+Aux.Data.p(end+1) = p ;
+Aux.Data.t(end+1) = t ;
+
+end
+% =========================================================================
+function [] = killrecordingdaemon( Aux )
+%KILLRECORDINGDAEMON
+%
+% Sends STOP byte to file buffer
+
+Aux.Specs.Buffer.Data(1) = 0 ; 
+
+end
 % =========================================================================
 function [physioSignal, sampleTimes] = recordandplotphysiosignal( Aux1, Params, Aux2 ) 
 %RECORDANDPLOTPHYSIO    
@@ -372,20 +403,13 @@ end
 
 % ------- 
 if Params.isSavingData
-    
-    physioSignalFid = fopen( Params.physioSignalFilename, 'w+' ) ;
-    fwrite( physioSignalFid, Aux1.Data.p, 'double' ) ;
-    fclose( physioSignalFid );
+
+    Aux1.saverecording( Params.physioSignalFilename )
     
     if isDualTracking
-        physioSignalFid = fopen( [ Params.physioSignalFilename '-2' ], 'w+' ) ;
-        fwrite( physioSignalFid, Aux2.Data.p, 'double' ) ;
-        fclose( physioSignalFid );
+        Aux2.saverecording( [ Params.physioSignalFilename '-2' ] )
     end
 
-    sampleTimesFid = fopen( Params.sampleTimesFilename, 'w+' ) ;
-    fwrite( sampleTimesFid, sampleTimes, 'double' ) ;
-    fclose( sampleTimesFid );
 end
 
 end
@@ -395,20 +419,7 @@ function [] = recordphysiosignal( Aux1, Params, Aux2 )
 %
 % Continuously tracks respiratory probe.
 %
-% [] = TRACKPROBE( Aux1, Params )
-% [] = TRACKPROBE( Aux1, Params, Aux2 )
-%
-% Params
-%   .runTime
-%       [default : 30 s]
-%
-%   .isPlottingInRealTime
-%       [default : true ]
-%
-%   .refreshRate  
-%       Rate at which the real-time display refreshes. 
-%       Problems may arise if this is too fast!
-%       [default : 4 Hz ]
+% [] = TRACKPROBE( Aux, Params )
 
 DEFAULT_RUNTIME              = 60 ; % [units : s]
 DEFAULT_ISPLOTTINGINREALTIME = true ;
@@ -430,12 +441,6 @@ if  ~myisfield( Params, 'refreshRate' ) || isempty(Params.refreshRate)
     Params.refreshRate = DEFAULT_REFRESHRATE ;
 end
 
-if nargin == 3 
-   isDualTracking = true ;  
-else
-    isDualTracking = false ;
-end
-    
 % ------- 
 StopButton     = stoploop({'Stop recording'}) ;
 Aux1.clearrecording() ;
@@ -444,20 +449,9 @@ sampleIndices  = [] ;
 
 nSamples = Params.runTime / (Aux1.Specs.dt/1000) ;
 iSample  = 0 ; 
+sampleTimes = [] ;
+% t = 0 ; % sample time [units: ms]
 
-isTracking = Aux1.begintracking() ;
-
-if isDualTracking
-    Aux2.clearrecording() ;
-    isTracking2 = Aux2.begintracking() ;
-    isTracking  = isTracking & isTracking2 
-end
-
-assert(isTracking, 'Could not begin tracking. Check device connection.')
-
-display('');
-display('Recording probe measurements...');
-display('');
 
 if Params.isPlottingInRealTime
 
@@ -477,39 +471,21 @@ if Params.isPlottingInRealTime
 
     hold on;
     
-    % if ~isDualTracking    
         plotHandle = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
             
         xlim(axesHandle,[0 nSamples]);
             
         title('Respiration Aux','FontSize',15,'Color',[1 1 0]);
-        xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
         ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-    % else
-    %     dbstop in ProbeTracking at 480
-    %     subplot(211)
-    %     plotHandle1 = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
-    %         
-    %     xlim(axesHandle,[0 nSamples]);
-    %         
-    %     title('Respiration Aux 1','FontSize',15,'Color',[1 1 0]);
-    %     xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-    %     ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-    %     
-    %     subplot(212)
-    %     plotHandle2 = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
-    %         
-    %     xlim(axesHandle,[0 nSamples]);
-    %         
-    %     title('Respiration Aux 2','FontSize',15,'Color',[1 1 0]);
-    %     xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-    %     ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+        xlabel('Time [ms]','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+        % xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
     
-    % end
-    drawnow limitrate; 
+        drawnow limitrate; 
     set(figureHandle,'Visible','on');
 
 end
+
+display('Reading probe measurements...');
 
 % for real-time plotting, updating @the same rate as the samples
 % (e.g. 100 Hz) poses a problem (computer can't seem to keep up with the incoming samples).
@@ -523,34 +499,43 @@ while ( iSample < nSamples ) && ~StopButton.Stop()
     for iSamplesBetweenRefresh = 1 : nSamplesBetweenRefresh 
         
         iSample = iSample + 1 ;
-        Aux1.getupdate() ;
+        [p,t] = Aux1.getupdate() ;
         sampleIndices(end+1) = iSample ;
-        
-        if isDualTracking
-            Aux2.getupdate() ;
-        end
+        sampleTimes(end+1) = t ;
 
     end
 
     if Params.isPlottingInRealTime
-        % if ~isDualTracking
+            % set(plotHandle,'YData',Aux1.Data.p,'XData',sampleTimes);
             set(plotHandle,'YData',Aux1.Data.p,'XData',sampleIndices);
-        % else
-        %     set(plotHandle1,'YData',Aux1.Data.p,'XData',sampleIndices);
-        %     set(plotHandle2,'YData',Aux2.Data.p,'XData',sampleIndices);
-        % end
     end
 
 end
 
 Aux1.stoptracking();
-if isDualTracking
-    Aux2.stoptracking();
-end
 
 StopButton.Clear() ;
 
 end
+% =========================================================================
+function [] = saverecording( Aux, logFilename )
+%SAVERECORDING
+%
+%   SAVERECORDING( Aux )
+%   SAVERECORDING( Aux, logFilename )
+
+if  nargin < 2 || ~ischar( logFilename ) 
+    logFilename = ['./' datestr( now, 30 ) '-physioSignal.txt' ] ;
+end
+
+fid = fopen( logFilename, 'w') ;
+fprintf( fid, '%d  %d\n', [uint32(Aux.Data.t); int16(Aux.Data.p)] ) ;
+fclose(fid) ;
+
+end
+% =========================================================================
+
+% =========================================================================
 % =========================================================================
 end
 
@@ -561,40 +546,212 @@ end
 % =========================================================================
 methods( Access =  private)
 % =========================================================================
-function [p] = readfromfilebuffer( Aux )
+function [] = createbufferfile( Aux )
+%CREATEBUFFERFILE
+% 
+% [] = CREATEBUFFERFILE( Aux )
+% 
+% Creates buffer file to which a daemon process writes, while a second,
+% user-controlled process, reads. 
+%
+% The file is saved in the Matlab-defined tempdir() under
+% 'capacitive_probe.buffer.dat' or 'pressure_probe_buffer.dat' depending on the
+% case.
+%
+% The file is memory-mapped using memmapfile() with the return argument
+% assigned to Aux.Specs.Buffer
+%
+% BYTE SIGNIFICANCE:
+% The file is 24 bytes (char) in length and structured as following:
+%
+% [1] : STOP RECORDING FLAG 
+% [2] : PAUSE READ/WRITE FLAG 
+% [3] : nBytes sample time
+% [4] : nBytes sample value
+% [5:(4+[3])] : sample time [units: ms]
+% [(5+[3]):4+[3]+[4])] : sample value [A.U.]
+
+% Create or overwrite the file: 
+filename = fullfile( tempdir, [ Aux.Specs.probeType '_probe_buffer.dat'] ) ;
+[f, msg] = fopen(filename, 'w') ;
+
+if f ~= -1
+    fwrite(f, [1 1 zeros(1,22)], 'uint8') ; 
+    fclose(f) ;
+else
+    error('MATLAB:demo:send:cannotOpenFile', ...
+          'Cannot open file "%s": %s.', filename, msg) ;
+end
+ 
+% Memory map the file.
+Aux.Specs.Buffer = memmapfile(filename, 'Writable', true, 'Format', 'uint8') ;
+
+end
+% =========================================================================
+function [p,t] = readfromfilebuffer( Aux )
 %READFROMFILEBUFFER
+%
+% BYTE SIGNIFICANCE:
+%
+% [1] : STOP RECORDING FLAG 
+% [2] : PAUSE READ/WRITE FLAG 
+% [3] : nBytes sample time
+% [4] : nBytes sample value
+% [5:(4+[3])] : sample time [units: ms]
+% [(5+[3]):4+[3]+[4])] : sample value [A.U.]
 
-% The second byte in m contains the length of the message.
+% time-out condition occurs if no new measurement is registered after MAX_DWELL
+DWELL_TIME  = 0.01 ; % [units: s]
+MAX_DWELL   = 5 ;  
+totalDwell  = 0 ;
 
-% The first byte is reserved for possible START/STOP signal (not implemented)
-
-% Wait until the second byte is not zero.
-while Aux.Specs.m.Data(2) == 0
-    pause(0.01);
+% Wait until bytes [3] and [4] are non-zero (indicating a new measurement)
+while (~Aux.Specs.Buffer.Data(3)) & (~Aux.Specs.Buffer.Data(4)) & (totalDwell < MAX_DWELL)
+    pause( DWELL_TIME ) ;
+    totalDwell = totalDwell + DWELL_TIME ; 
 end
 
-% The second byte contains the length of the message.
-p = char(Aux.Specs.m.Data(3:2+double(Aux.Specs.m.Data(2))))' ;
-   
+% [2] -> 0 : freeze values from overwrite
+Aux.Specs.Buffer.Data(2) = 0 ;
+
+if ( totalDwell >= MAX_DWELL )
+    warning('Time-out occured before a new value was read. Returning previous measurement.')
+    p = Aux.Data.p(end) ;
+    t = Aux.Data.t(end) ;
+    return;
+end
+
+% read sample time [units: ms]
+t = str2double( char(Aux.Specs.Buffer.Data( 5:(4+double(Aux.Specs.Buffer.Data(3))) ))' ) ;
+
+% byte index of the sample value most-significant digit 
+iP1 = 5 + double(Aux.Specs.Buffer.Data(3)) ;
+
+% read sample value [units: A.U.]
+p = str2double( char( Aux.Specs.Buffer.Data( iP1:(iP1-1+double(Aux.Specs.Buffer.Data(4)) )))') ;
+
+% indicates to next call to read() that the latest measurement has already been read
+Aux.Specs.Buffer.Data(3) = 0 ;
+Aux.Specs.Buffer.Data(4) = 0 ;
+
+% [2] -> 1 : unfreeze and continue recording 
+Aux.Specs.Buffer.Data(2) = 1 ;
+ 
 end
 % =========================================================================
-function [] = writetofilebuffer( Aux, p )
+function [] = writetofilebuffer( Aux, p, t )
 %WRITETOFILEBUFFER
+%
+% BYTE SIGNIFICANCE:
+%
+% [1] : STOP RECORDING FLAG 
+% [2] : PAUSE READ/WRITE FLAG 
+% [3] : nBytes sample time
+% [4] : nBytes sample value
+% [5:(4+[3])] : sample time [units: ms]
+% [(5+[3]):4+[3]+[4])] : sample value [A.U.]
 
-% The first byte is reserved for possible START/STOP signal (not implemented)
+DWELL_TIME  = 0.01 ; % [units: s]
 
-% The second byte in m contains the length of the message.
-Aux.Specs.m.Data(2) = 0 ; % indicates writing process is ongoing
+% Wait until BYTE[2] == 1 (presence of 0 indicates file is being read)
+while Aux.Specs.Buffer.Data(2) ~= 1
+    pause( DWELL_TIME ) ;
+end
 
-str   = num2str( p ) ;
-nChar = length(str);
+t_str   = num2str( t ) ;
+t_nChar = length( t_str ) ;
 
-% Update the file via the memory map.
-Aux.Specs.m.Data(3:(2+nChar)) = str ;
-Aux.Specs.m.Data(2)           = nChar ; % indicates writing completed
+p_str   = num2str( p ) ;
+p_nChar = length( p_str ) ;
+
+% ------
+% write sample time [units: ms]
+Aux.Specs.Buffer.Data(5:(4+t_nChar)) = t_str ;
+
+% ------
+% write sample value [units: AU] 
+
+% byte index of the sample value most-significant digit 
+iP1 = 5 + t_nChar ;
+Aux.Specs.Buffer.Data(iP1:(iP1-1+p_nChar)) = p_str ;
+
+% 
+Aux.Specs.Buffer.Data(3) = t_nChar ; 
+Aux.Specs.Buffer.Data(4) = p_nChar ; 
    
 end
 % =========================================================================
+function [] = createrecordingdaemon( Aux )
+%CREATERECORDINGDAEMON
+% 
+% CREATERECORDINDAEMON( Aux )
+%
+% Save the instantiated Aux object, and launch a background (daemon) Matlab session
+% to load the object and begin background recording.
+
+% The daemon session reads directly from the USB (Com) port while the user
+% session reads from a file buffer.
+Aux.Specs.readSource = 'ComPort' ;
+
+pathToAuxObject = [ tempdir 'Aux' ] ;
+save( pathToAuxObject, 'Aux' ) ;
+
+tmpDir = pwd ;
+cd( '~/' ) ; % change to home folder so Matlab runs startup.m (defines path)
+cmd = sprintf( '%s', 'matlab -r " ProbeTracking( ''', pathToAuxObject, ''' );" &') ;
+unix( cmd ) ;
+pause(5) ;
+cd( tmpDir ) ;
+
+Aux.Specs.readSource = 'fileBuffer' ;
+
+end
+% =========================================================================
+function [] = beginrecordingdaemon( Aux )
+%BEGINRECORDINGDAEMON
+% 
+% BEGINRECORDINDAEMON( Aux )
+
+% if  nargin < 2 || ~ischar( logFilename ) 
+%     logFilename = ['./' datestr( now, 30 ) '-physioSignal.txt' ] ;
+% end
+
+Aux.clearrecording() ;
+
+t = 0 ; % sample time [units: ms]
+
+% sample index
+iSample  = 0 ; 
+
+isTracking = Aux.begintracking() ;
+
+assert( isTracking, 'Could not begin tracking. Check device connection.')
+
+fprintf('\n\n Recording from probe...\n\n');
+
+tic;
+while Aux.Specs.Buffer.Data(1) 
+    
+    p = Aux.getupdate() ;
+    Aux.Data.t(end+1) = 1000*toc;
+    iSample = iSample + 1 ;
+    % t = iSample*Aux.Specs.dt ; % sample time [units: ms]
+    Aux.writetofilebuffer( p, Aux.Data.t(end) ) ;
+    
+end
+
+Aux.stoptracking() ;
+
+Aux.saverecording( ) ;
+
+% ------
+% close serial port, delete object, and quit matlab session 
+Aux.delete() ;
+quit ;
+
+end
+% =========================================================================
+
 end
 
 % =========================================================================
@@ -642,7 +799,6 @@ end
 if ~myisfield( AuxSpecs, 'baudRate' ) || isempty(AuxSpecs.baudRate) ...
     AuxSpecs.baudRate = DEFAULT_BAUDRATE ;
 end
-
 
 if ~myisfield( AuxSpecs, 'clipLimits' ) || isempty(AuxSpecs.clipLimits) ...
     AuxSpecs.clipLimits = DEFAULT_CLIPLIMITS ;
@@ -743,21 +899,8 @@ if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
     end
 end
 
-if  ~myisfield( AuxSpecs, 'dt' ) || isempty(AuxSpecs.dt) ...
-    || (AuxSpecs.dt < MIN_ARDUINOPERIOD) 
-
-        AuxSpecs.dt = DEFAULT_ARDUINOPERIOD ;
-else
-    
-    skipSampleFactor = round( AuxSpecs.dt / MIN_ARDUINOPERIOD ) ;
-    AuxSpecs.dt = skipSampleFactor * MIN_ARDUINOPERIOD ;
-
-end
-
-
 if isAssigningSerialPort
     ComPort = serial( AuxSpecs.portName, 'BaudRate',  AuxSpecs.baudRate ) ;
-
 else
     ComPort = [] ;
 end
@@ -772,27 +915,6 @@ switch AuxSpecs.probeType
 end
 
 ShimUse.customdisplay( [ 'Sampling frequency = ' num2str(1000/AuxSpecs.dt) ' Hz'] )
-
-% --------
-% TEST MEMMAPFILE
-filename = fullfile( '~/', 'probeRec.dat');
- 
-% Create the communications file if it is not already there.
-if ~exist(filename, 'file')
-    [f, msg] = fopen(filename, 'w');
-    if f ~= -1
-        fwrite(f, zeros(1, 8), 'uint8');
-        fclose(f);
-    else
-        error('MATLAB:demo:send:cannotOpenFile', ...
-              'Cannot open file "%s": %s.', filename, msg);
-    end
-end
- 
-% Memory map the file.
-AuxSpecs.m = memmapfile(filename, 'Writable', true, 'Format', 'uint8');
-
-AuxSpecs.isBackgroundRecording = true;
 
 end
 % =========================================================================
@@ -810,11 +932,20 @@ if nargin < 1
 
 else
     if nargin >= 1
-        measurementLogFid = fopen( measurementLogFilename, 'r' ) ;
-        measurementLog    = fread( measurementLogFid, inf, 'double' ) ;
-        fclose( measurementLogFid );
-    end
+        [~,~,ext] = fileparts( measurementLogFilename ) ;
 
+        if strcmp( ext, '.txt' )
+            X = load( measurementLogFilename ) ;
+            sampleTimes    = X(:,1) ;
+            measurementLog = X(:,2) ;
+            return;
+        else % saved as binary
+            measurementLogFid = fopen( measurementLogFilename, 'r' ) ;
+            measurementLog    = fread( measurementLogFid, inf, 'double' ) ;
+            fclose( measurementLogFid );
+        end
+    end
+    
     if nargin == 2 
         sampleTimesFid = fopen( sampleTimesFilename, 'r' ) ;
         sampleTimes    = fread( sampleTimesFid, inf, 'double' ) ;
@@ -1026,8 +1157,7 @@ while ~isUserSatisfied
 end
 
 end
-% =========================================================================
-
+% =========================================================================1
 % =========================================================================
 
 end
