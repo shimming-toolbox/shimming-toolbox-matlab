@@ -672,7 +672,7 @@ for iVolume = 1 : nVolumes
 
             Phase.img(:,:,:, iVolume) = prelude( Phase.img(:,:,:, iVolume), Mag.img(:,:,:, iVolume), Options ) ;
 
-        case 'Sunwrap'
+        case {'Sunwrap', 'sunwrap'}
             
             iMag      = Mag.img(:,:,:,iVolume) ;
             iMag      = iMag./max(iMag(:)) ;
