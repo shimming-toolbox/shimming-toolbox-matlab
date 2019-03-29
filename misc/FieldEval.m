@@ -769,9 +769,56 @@ end
 Params.mask = logical( Params.mask ) ;
 
 % -------
-if ImgArray{ 1, 2}.Hdr.MrProt.lContrasts == 1 % single echo phase image
-    % in this case only, PhaseDiff refers to the difference between t=TE and t=0
-    PhaseDiff = ImgArray{ 1, 2 }.copy() ; 
+if ImgArray{ 1, 2}.Hdr.MrProt.lContrasts == 1 
+    
+    if nEchoes == 1 % single echo phase image
+        % in this case only, PhaseDiff refers to the difference between t=TE and t=0
+        PhaseDiff = ImgArray{ 1, 2 }.copy() ; 
+    else % echoes acquired using separate excitations
+        %TODO:implement check/assertion that the echoes were indeed acquired using separate excitations 
+        
+        % correct for possible frequency difference between excitations using f0_Tx of 1st TE as reference
+        f0_1 = ImgArray{1,2}.Hdr.ImagingFrequency*1E6 ; % [units: Hz]
+
+        for iEcho = 2 : nEchoes
+            
+            delta_f0 = ImgArray{iEcho, 2}.Hdr.ImagingFrequency*1E6 - f0_1 ;
+            
+            if ( delta_f0 ~= 0 )
+                warning('Modifying the MaRdI inputs...')
+                % TODO: work-around that doesn't modify the inputs in this way
+                ImgArray{ iEcho, 2 }.img = ImgArray{ iEcho, 2 }.img + 2*pi*delta_f0*ImgArray{ iEcho, 2 }.Hdr.EchoTime/1000 ;
+                ImgArray{ iEcho, 2 }.Hdr.ImagingFrequency = ImgArray{1,2}.Hdr.ImagingFrequency ; 
+            end 
+
+        end
+
+        PhaseDiff      = ImgArray{ 1, 2}.copy() ;
+
+        img            = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
+        img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(i*ImgArray{ 2, 2 }.img) ;
+
+        PhaseDiff.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
+
+        PhaseDiff.Hdr.EchoTime = ImgArray{ 2, 2 }.Hdr.EchoTime - ImgArray{ 1, 2 }.Hdr.EchoTime ; % [units : ms]
+        % Cornell Complex fitting...        
+        M  = zeros( [ImgArray{1,1}.getgridsize() nEchoes] ) ;
+        TE = zeros( nEchoes, 1 ) ;
+
+        for iEcho = 1 : nEchoes
+            M( :,:,:, iEcho ) = ImgArray{ iEcho, 1}.img .* exp(i*-ImgArray{ iEcho, 2}.img) ;
+            TE(iEcho) = ImgArray{iEcho,1}.Hdr.EchoTime/1000 ;
+        end
+
+        [p1, dp1, relres, p0, iter]=Fit_ppm_complex_TE(M,TE);
+
+        P1 = ImgArray{1,2}.copy() ;
+        P1.img = p1 ;
+        P1.Hdr.EchoTime = TE(2) - TE(1) ;
+        Field3 = P1.copy() ;
+        Field3.scalephasetofrequency() ;
+        nii((p1/(1000*(TE(2)-TE(1)))/(2*pi)));
+    end
     
 else
 
@@ -789,12 +836,12 @@ else
 
         % -------
         % phase difference image via complex division of first 2 echoes
-        PhaseDiff      = ImgArray{ 1, 2}.copy() ;
+        PhaseDiff       = ImgArray{ 1, 2}.copy() ;
 
-        img            = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
-        img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(i*ImgArray{ 2, 2 }.img) ;
+        img             = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
+        img(:,:,:,:,2)  = ImgArray{ 2, 1 }.img .* exp(i*ImgArray{ 2, 2 }.img) ;
 
-        PhaseDiff.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
+        PhaseDiff.img   = angle( img(:,:,:,:,2) ./ img(:,:,:,:,1) ) ;
 
         PhaseDiff.Hdr.EchoTime = ImgArray{ 2, 2 }.Hdr.EchoTime - ImgArray{ 1, 2 }.Hdr.EchoTime ; % [units : ms]
     end
@@ -812,18 +859,19 @@ PhaseDiffInRad = PhaseDiff.copy() ; % PhaseDiffInRad.img : [units: rad]
 PhaseDiff.scalephasetofrequency( ) ; % PhaseDiff.img : [units: Hz]
 Field     = FieldEval( PhaseDiff ) ;
 
+% dbstop in FieldEval at 998
+
 if nEchoes > 2
-    error('TODO: field-fitting over multiple echoes');
+    % error('TODO: field-fitting over multiple echoes');
     % approx filter (smoothing kernel) diameter in mm:
     filterDiameter = 11 ;
     
     % filter size in number of voxels 
-    Params.filterSize = round( filterDiameter ./ ImgArray{ 1, 1 }.getvoxelsize() ) ;
+    Params.kernelSize = round( filterDiameter ./ ImgArray{ 1, 1 }.getvoxelsize() ) ;
     % if size is an even number of voxels along any dimension, increment up:
-    evenDims = ~logical( mod( Params.filterSize, 2 ) ) ;
-    Params.filterSize( evenDims ) = Params.filterSize( evenDims ) + ones( [ 1 nnz( evenDims ) ] ) ; 
-
-    % Params.filterSize = [15 15 7] ;
+    evenDims = ~logical( mod( Params.kernelSize, 2 ) ) ;
+    Params.kernelSize( evenDims ) = Params.kernelSize( evenDims ) + ones( [ 1 nnz( evenDims ) ] ) ; 
+    Params.method     = 'gaussian' ; 
 
     % Unwrap later echoes using the phase difference/TE estimate from the 1st 2
     % echoes, assuming a linear model of phase evolution with TE
@@ -846,10 +894,7 @@ if nEchoes > 2
 
     % -----
     % Filter phase diff estimate before estimating offset + later phases:
-    tmp1 = ImgArray{2,1}.img .* PhaseDiffInRad.img ;
-    tmp2 = smooth3( ImgArray{2,1}.img, 'box', Params.filterSize ) ;
-    tmp3 = smooth3( tmp1, 'box', Params.filterSize ) ;
-    PhaseDiffInRad.img = tmp3./tmp2 ;
+    PhaseDiffInRad.filter( ImgArray{2,1}.img, Params ) ;
     
     PhaseOffset     = PhaseDiffInRad.copy() ;
     
@@ -860,10 +905,8 @@ if nEchoes > 2
 
     % -----
     % lowpass filter unwrapped phase offset before correction of individual echoes:
-    tmp1 = ImgArray{2,1}.img .* PhaseOffset.img ;
-    tmp2 = smooth3( ImgArray{2,1}.img, 'box', Params.filterSize ) ;
-    tmp3 = smooth3( tmp1, 'box', Params.filterSize ) ;
-    PhaseOffset.img= tmp3./tmp2 ;
+    PhaseOffsetC = PhaseOffset.copy() ;
+    PhaseOffset.filter( ImgArray{2,1}.img, Params ) ;
 
     % -----
     % Perform correction and unwrap phases :
@@ -881,13 +924,9 @@ if nEchoes > 2
 
     end
     
-
     % -----
     % Correct for temporal wraps between echoes (assuming phase offset = 0):
-    
     PhaseCorrectedTE = cell( nEchoes, 1 ) ;
-
-    clear tmp2;
     
     for iEcho = 1 : nEchoes 
 
@@ -910,8 +949,6 @@ if nEchoes > 2
 
     for iEcho = 1 : nEchoes
      mag = mag + ( ImgArray{ iEcho, 1 }.img ).^2 ;
-     % mag = mag + ( ImgArray{ iEcho, 1 }.img .* exp(i*ImgArray{ iEcho, 2 }.img ) ) .^2 ;
-     % mag(:,:,:,iEcho) =ImgArray{ iEcho, 1 }.img ;
     end
 
     mag = sqrt( mag ) ;  
@@ -927,20 +964,37 @@ if nEchoes > 2
      den = den + ( TE(iEcho)* ImgArray{ iEcho, 1 }.img ) .^2 ;
     end
 
-    dPhasedt = num./den ;    
+    PhaseDiffAvg     = PhaseTE{1}.copy() ;
+    PhaseDiffAvg.img = num./den ;
+    PhaseDiffAvg.Hdr.EchoTime = 1 ; % [units: ms]
+    PhaseDiffAvg.scalephasetofrequency( ) ; % scales to Hz
 
-    tmp11 = mag .* dPhasedt ;
-    tmp12 = smooth3( mag, 'box', Params.filterSize ) ;
-    tmp13 = smooth3( tmp11, 'box', Params.filterSize ) ;
-    tmp14 = tmp13./tmp12 ;
-    nii(dPhasedt - tmp14);
+    Field2     = FieldEval( PhaseDiffAvg ) ;
+    
+    Nii.filename = './Field1' ;
+    nii(mask.*Field.img, Nii);
+    
+    Nii.filename = './Field2' ;
+    nii(mask.*Field2.img, Nii);
+    
+    Nii.filename = './Field3' ;
+    nii(mask.*Field3.img, Nii);
+
+    
+    % dPhasedt = num./den ;    
+
+    % tmp11 = mag .* dPhasedt ;
+    % tmp12 = smooth3( mag, 'gaussian', Params.filterSize ) ;
+    % tmp13 = smooth3( tmp11, 'gaussian', Params.filterSize ) ;
+    % tmp14 = tmp13./tmp12 ;
+    % nii(dPhasedt - tmp14);
     
     % Fit PhaseCorrectedTE to TE
     %
     mask = Params.mask ;
 
     for iEcho = 1 : nEchoes 
-        mask = mask & ( PhaseCorrectedTE{iEcho}.img ~=0 ) & ( ImgArray{iEcho,1}.img ~=0 );
+        mask = mask & ( PhaseTE{iEcho}.img ~=0 ) & ( ImgArray{iEcho,1}.img ~=0 );
     end
 
     nVoxelsVoi = nnz( mask ) ;
