@@ -854,6 +854,23 @@ PhaseDiff.Hdr.MaskingImage = logical( Params.mask ) & ~isnan( PhaseDiff.img ) ;
 % 3d path-based unwrapping
 PhaseDiff = PhaseDiff.unwrapphase( ImgArray{1,1}, Params ) ;
 
+% if time series, correct for potential 2pi wraps between time points:
+nImg = size( PhaseDiff.img, 4 ) ;
+
+if nImg > 1
+    
+    phaseEstimate = median( PhaseDiff.img, 4, 'omitnan' ) ;
+
+    % Wherever the absolute deviation from median exceeds pi,
+    % correct the measurement by adding the appropriate pi-multiple:
+    
+    for iImg = 1 : nImg
+        dPhase         = phaseEstimate - PhaseDiff.img( :,:,:, iImg )  ;
+        n              = ( abs(dPhase) > pi ) .* round( dPhase/pi ) ;
+        PhaseDiff.img( :,:,:, iImg ) = PhaseDiff.img(:,:,:, iImg ) + n*pi ;
+    end
+end
+
 PhaseDiffInRad = PhaseDiff.copy() ; % PhaseDiffInRad.img : [units: rad]
 
 PhaseDiff.scalephasetofrequency( ) ; % PhaseDiff.img : [units: Hz]
