@@ -22,11 +22,13 @@ if ~exist(DEFAULT_RESULTS_FOLDER, 'dir')
 end
 exp_descr = inputdlg('Experiment_description: ');
 
-DEFAULT_CPROBELOGFILENAME   = [DEFAULT_RESULTS_FOLDER '/CProbeLog-' exp_descr{1} '.bin'] ;
-DEFAULT_PPROBELOGFILENAME   = [DEFAULT_RESULTS_FOLDER '/PProbeLog-' exp_descr{1} '.bin'] ;
-DEFAULT_SAMPLETIMESFILENAME   = [DEFAULT_RESULTS_FOLDER '/sampleTimes-' exp_descr{1} '.bin' ] ;
-DEFAULT_PLOTFILENAME   = [DEFAULT_RESULTS_FOLDER '/c_p_probes_plot-' exp_descr{1} '.png' ] ;
-DEFAULT_MATFILENAME = [DEFAULT_RESULTS_FOLDER '/variablesDump-' exp_descr{1} '.mat' ] ;
+dt=datestr(now,'yyyymmdd_HH-MM-SSAM');
+
+DEFAULT_CPROBELOGFILENAME   = [DEFAULT_RESULTS_FOLDER '/' dt '_CProbeLog_' exp_descr{1} '.bin'] ;
+DEFAULT_PPROBELOGFILENAME   = [DEFAULT_RESULTS_FOLDER '/' dt '_PProbeLog_' exp_descr{1} '.bin'] ;
+DEFAULT_SAMPLETIMESFILENAME   = [DEFAULT_RESULTS_FOLDER '/' dt '_SampleTimes_' exp_descr{1} '.bin' ] ;
+DEFAULT_PLOTFILENAME   = [DEFAULT_RESULTS_FOLDER '/' dt '_CPprobesPlot_' exp_descr{1} '.png' ] ;
+DEFAULT_MATFILENAME = [DEFAULT_RESULTS_FOLDER '/' dt '_VariablesDump_' exp_descr{1} '.mat' ] ;
 
 fopen(s_cprobe)
 
@@ -52,7 +54,7 @@ while(~FS.Stop())
         y = polyval(p,time_data(smooth_window:timepoint));
         plot(time_data(smooth_window:timepoint),y,'r');
         hold on
-        title('Legend: normal signal(blue), polyfit 4 (red)')
+        title('Legend: normal signal(blue), polyfit 4 (red)');
         plot(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint),'b');
         xlabel('Time [s]')
         ylabel('Frequency [KHz]')
@@ -62,7 +64,7 @@ while(~FS.Stop())
         
         subplot(2,1,2)
         % Filtered signal (signal - polyfit 4)
-        data_cprobe_filtered = data_cprobe(smooth_window:timepoint) - y
+        data_cprobe_filtered = data_cprobe(smooth_window:timepoint) - y;
         plot(time_data(smooth_window:timepoint), data_cprobe_filtered, 'k');
         title('signal - polyfit 4')
         xlabel('Time [s]')
