@@ -41,7 +41,7 @@ classdef MaRdI < matlab.mixin.SetGet
 % etc.
 %
 % =========================================================================
-% Updated::20190220::ryan.topfer@polymtl.ca
+% Updated::20190325::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -82,9 +82,11 @@ if nargin == 1
         assert( length(listOfImages) ~= 0, 'No .dcm or .IMA files found in given directory' ) ;
 
         Img.Hdr = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(1).name] ) ;
+        Img.Hdr.Original = cell( length(listOfImages), 1 ) ;
 
-        for sliceIndex = 1 : length(listOfImages) 
-            Img.img(:,:,sliceIndex) = double( dicomread( [ imgDir '/' listOfImages(sliceIndex).name] ) );
+        for iSlice = 1 : length(listOfImages) 
+            Img.img(:,:,iSlice) = double( dicomread( [ imgDir '/' listOfImages(iSlice).name] ) );
+            Img.Hdr.Original{ iSlice } = dicominfo( [ imgDir '/' listOfImages(iSlice).name] ) ;
         end
         
         Params = [] ;
@@ -689,6 +691,27 @@ Phase.img = double( Phase.img ) ;
 % update header
 Img.Hdr.ImageType         = 'DERIVED\SECONDARY' ; 
 Img.Hdr.SeriesDescription = ['phase_unwrapped_' Options.unwrapper ] ; 
+
+end
+% =========================================================================
+function [t] = getacquisitiontime( Img ) 
+% GETACQUISITIONTIME
+% 
+% t = GETACQUISITIONTIME( Img )
+%
+% Returns the value of AcquisitionTime from the Siemens DICOM header as a
+% double in units of seconds. t is a vector if Img is a time series
+% acquisition, in which case, t - t(1) yields the time elapsed since the first
+% acquisition. 
+
+% number of acquistions 
+nAcq = size( Img.img, 4 ) ; 
+t    = zeros( nAcq , 1 ) ;
+
+for iAcq = 1 : nAcq 
+    t_iAcq  = Img.Hdr.Original{iAcq}.AcquisitionTime ;
+    t(iAcq) = str2double( t_iAcq(1:2) )*60*60 + str2double( t_iAcq(3:4) )*60 + str2double( t_iAcq(5:end) ) ;
+end
 
 end
 % =========================================================================
