@@ -5,7 +5,7 @@ classdef ProbeTracking < matlab.mixin.SetGet
 %
 %   Aux contains fields
 %           
-%       .ComPort    
+%       .Source    
 %
 %       .Data 
 %
@@ -15,18 +15,15 @@ classdef ProbeTracking < matlab.mixin.SetGet
 %
 %   Description
 %
-%
 % =========================================================================
 %
-%
 % =========================================================================
-% Updated::20190318::ryan.topfer@polymtl.ca
+% Updated::20190402::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties   
-    ComPort ;
+    Source ;
     Data ;
-    Params ;
     Specs ; % state = {active, inactive, inert, void}
 end
 
@@ -34,32 +31,41 @@ end
 % =========================================================================
 methods
 % =========================================================================
-function Aux = ProbeTracking( Params )
+function Aux = ProbeTracking( varargin )
 %PROBE - ProbeTracking  
 
 Aux.Data.p    = []; % may be filtered & limited
 Aux.Data.pRaw = []; % raw measurement
 
-if nargin < 1
+if nargin < 1 || isempty( varargin{1} )
     Specs = [] ;
 
-elseif isstruct( Params )
-    Specs = Params ;
+elseif isstruct( varargin{1} )
+    Specs = varargin{1} ;
 
-elseif ischar( Params )
-    filename = Params ;
+elseif ischar( varargin{1} )
+% Non-urgent TODO:
+%   This form of ProbeTracking() initialization/construction is not to
+%   be called by a user, but rather, from the ProbeTracking() constructor
+%   itself, making it better suited as a 'private' constructor. Apparently
+%   Matlab does not permit this. There is a work-around described here:
+%   https://stackoverflow.com/questions/29671482/private-constructor-in-matlab-oop
+    filename = varargin{1} ;
     load( filename ) ;
     Aux.beginrecordingdaemon() ; % runs continuously in background
     return;
 end
 
 if myisfield( Specs, 'state' ) && strcmp( Specs.state, 'inert' )
-    Aux.ComPort = [] ;
+    Aux.Source = [] ;
     Aux.Specs   = Specs ;
 else
-    [ Aux.ComPort, Aux.Specs ] = ProbeTracking.declareprobe( Specs ) ;
-    Aux.createbufferfile() ;
-    Aux.createrecordingdaemon() ;
+    [ Aux.Source, Aux.Specs ] = ProbeTracking.declareprobe( Specs ) ;
+    
+    if ~isempty( Aux.Source )
+        Aux.createbufferfile() ;
+        Aux.createrecordingdaemon() ;
+    end
 end
 
 end    
@@ -76,10 +82,6 @@ AuxCopy = ProbeTracking( Specs ) ; % or just allow that constructor to accept Pr
 
 AuxCopy.Data = Aux.Data ;
 
-if myisfield( Aux, 'Params' )
-    AuxCopy.Params = Aux.Params ;
-end
-
 end
 % =========================================================================
 function [] = delete( Aux )
@@ -88,7 +90,7 @@ function [] = delete( Aux )
 % 
 % Destructor. Calls Aux.deletecomport( ) 
 
-if myisfield( Aux, 'ComPort' ) && ~isempty( Aux.ComPort ) 
+if myisfield( Aux, 'Source' ) && ~isempty( Aux.Source ) 
     Aux.deletecomport();
 end
 
@@ -103,12 +105,12 @@ function [Aux] = deletecomport( Aux )
 % 
 % Proper way to close + delete the serial port object
 
-if myisfield( Aux, 'ComPort' ) && ~isempty( Aux.ComPort ) 
-    fclose( Aux.ComPort ) ;
-    delete( Aux.ComPort ) ;
-    clear Aux.ComPort  ;
+if myisfield( Aux, 'Source' ) && ~isempty( Aux.Source ) 
+    fclose( Aux.Source ) ;
+    delete( Aux.Source ) ;
+    clear Aux.Source  ;
 else
-    disp('Failed to delete .ComPort - it does not exist.');
+    disp('Failed to delete .Source - it does not exist.');
 end
 
 end
@@ -118,11 +120,11 @@ function [isTracking] = begintracking( Aux )
 %
 % [isTracking] = BEGINTRACKING( Aux )
 %
-% Opens Aux.ComPort 
+% Opens Aux.Source 
 %
 % Returns TRUE if successful
 
-fopen(Aux.ComPort);
+fopen(Aux.Source);
 disp('Connecting to respiratory probe...')
 
 iAttempt    = 1 ;
@@ -134,7 +136,7 @@ while( ~isTracking && iAttempt <= maxAttempts )
 
     disp(['Attempt #' num2str(iAttempt)]);    
    
-    firstWord = fscanf( Aux.ComPort, '%u') ;
+    firstWord = fscanf( Aux.Source, '%u') ;
     
     if( ~isempty(firstWord) && isnumeric(firstWord) )  
         isTracking = true ;
@@ -148,7 +150,7 @@ if isTracking
     disp('Communication successful. Reading in from serial port...')
 else
     Aux.stoptracking() ;
-    error('Communication to respiratory probe failed. Closing Aux.ComPort.')
+    error('Communication to respiratory probe failed. Closing Aux.Source.')
 end
 
 end
@@ -180,9 +182,9 @@ function [] = stoptracking( Aux )
 %
 % [] = STOPTRACKING( Aux )
 %
-% fclose( Aux.ComPort )
+% fclose( Aux.Source )
 
-fclose( Aux.ComPort ) ;
+fclose( Aux.Source ) ;
 
 end
 % =========================================================================
@@ -212,11 +214,11 @@ function [p,t] = getupdate( Aux )
 t = 0;
 
 switch Aux.Specs.readSource
-    case 'ComPort' 
+    case 'Source' 
         
-        assert( strcmp( Aux.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
+        assert( strcmp( Aux.Source.Status, 'open' ), 'Error: Serial port is closed.' );
 
-        tmp = fscanf( Aux.ComPort, '%u', [1 1] ) ;
+        tmp = fscanf( Aux.Source, '%u', [1 1] ) ;
         Aux.Data.pRaw(end+1) = tmp(end) ;
         % %% No of measurements before the actual polyfit will begin
         % smooth_window = 5; % place in declare probe Params
@@ -288,12 +290,9 @@ function [physioSignal, sampleTimes] = recordandplotphysiosignal( Aux1, Params, 
 %   .physioSignalFilename
 %       default = ['./' datestr(now,30) '-physioSignal.bin' ] ; 
 %
-%   .sampleTimesFilename
-%       default = ['./' datestr(now,30) '-sampleTimes.bin' ] ;
-%
 %   .runTime 
 %       Total sampling time in seconds.
-%       default = 30
+%       default = 60
 %
 %   .isPlottingInRealTime
 %       [default : true ]
@@ -303,10 +302,10 @@ function [physioSignal, sampleTimes] = recordandplotphysiosignal( Aux1, Params, 
 %       Problems may arise if this is too fast!
 %       [default : 4 Hz ]
 
-assert( strcmp( Aux1.ComPort.Status, 'closed' ), 'Error: Serial port is open/in use.' );
+assert( strcmp( Aux1.Source.Status, 'closed' ), 'Error: Serial port is open/in use.' );
 
 if nargin == 3
-    assert( strcmp( Aux2.ComPort.Status, 'closed' ), 'Error: Serial port is open/in use.' );
+    assert( strcmp( Aux2.Source.Status, 'closed' ), 'Error: Serial port is open/in use.' );
     isDualTracking = true ;
 else
     isDualTracking = false ;
@@ -315,7 +314,6 @@ end
 DEFAULT_ISSAVINGDATA          = true ;
 DEFAULT_ISFORCINGOVERWRITE    = false ;
 DEFAULT_PHYSIOSIGNALFILENAME  = ['./' datestr(now,30) '-physioSignal.bin' ] ;
-DEFAULT_SAMPLETIMESFILENAME   = ['./' datestr(now,30) '-sampleTimes.bin' ] ;
 
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;
@@ -331,10 +329,6 @@ end
 
 if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
     Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
-end
-
-if  ~myisfield( Params, 'sampleTimesFilename' ) || isempty(Params.sampleTimesFilename)
-    Params.sampleTimesFilename  = DEFAULT_SAMPLETIMESFILENAME ; 
 end
 
 % ------- 
@@ -451,7 +445,6 @@ nSamples = Params.runTime / (Aux1.Specs.dt/1000) ;
 iSample  = 0 ; 
 sampleTimes = [] ;
 % t = 0 ; % sample time [units: ms]
-
 
 if Params.isPlottingInRealTime
 
@@ -691,7 +684,7 @@ function [] = createrecordingdaemon( Aux )
 
 % The daemon session reads directly from the USB (Com) port while the user
 % session reads from a file buffer.
-Aux.Specs.readSource = 'ComPort' ;
+Aux.Specs.readSource = 'Source' ;
 
 pathToAuxObject = [ tempdir 'Aux' ] ;
 save( pathToAuxObject, 'Aux' ) ;
@@ -758,10 +751,10 @@ end
 % =========================================================================
 methods(Static)
 % =========================================================================
-function [ComPort, AuxSpecs] = declareprobe( AuxSpecs )
+function [Source, AuxSpecs] = declareprobe( AuxSpecs )
 %DECLAREPROBE Declares serial object for probe 
 % 
-% [ComPort,AuxSpecs] = declareprobe( AuxSpecs )
+% [Source,AuxSpecs] = declareprobe( AuxSpecs )
 %
 
 % AuxSpecs can have the following fields 
@@ -810,7 +803,7 @@ end
 
 % -------------------------------------------------------------------------
 % check and/or assign serial port
-ComPort = [] ; 
+Source = [] ; 
 isAssigningSerialPort = false ;
 
 
@@ -900,9 +893,10 @@ if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
 end
 
 if isAssigningSerialPort
-    ComPort = serial( AuxSpecs.portName, 'BaudRate',  AuxSpecs.baudRate ) ;
+    Source = serial( AuxSpecs.portName, 'BaudRate',  AuxSpecs.baudRate ) ;
 else
-    ComPort = [] ;
+    Source = [] ;
+    AuxSpecs.state = 'inert' ;
 end
 
 switch AuxSpecs.probeType
