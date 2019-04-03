@@ -876,7 +876,6 @@ PhaseDiffInRad = PhaseDiff.copy() ; % PhaseDiffInRad.img : [units: rad]
 PhaseDiff.scalephasetofrequency( ) ; % PhaseDiff.img : [units: Hz]
 Field     = FieldEval( PhaseDiff ) ;
 
-% dbstop in FieldEval at 998
 
 if nEchoes > 2
     % error('TODO: field-fitting over multiple echoes');

@@ -58,7 +58,7 @@ end
 
 if myisfield( Specs, 'state' ) && strcmp( Specs.state, 'inert' )
     Aux.Source = [] ;
-    Aux.Specs   = Specs ;
+    Aux.Specs  = Specs ;
 else
     [ Aux.Source, Aux.Specs ] = ProbeTracking.declareprobe( Specs ) ;
     
@@ -105,7 +105,7 @@ function [Aux] = deletecomport( Aux )
 % 
 % Proper way to close + delete the serial port object
 
-if myisfield( Aux, 'Source' ) && ~isempty( Aux.Source ) 
+if myisfield( Aux, 'Source' ) && isa( Aux.Source, 'serial' )
     fclose( Aux.Source ) ;
     delete( Aux.Source ) ;
     clear Aux.Source  ;
@@ -124,12 +124,12 @@ function [isTracking] = begintracking( Aux )
 %
 % Returns TRUE if successful
 
-fopen(Aux.Source);
+assert( myisfield( Aux, 'Source' ) && isa( Aux.Source, 'serial' ) ) ;
+fopen( Aux.Source ) ;
 disp('Connecting to respiratory probe...')
 
 iAttempt    = 1 ;
 maxAttempts = 3 ; 
-
 isTracking  = false ;
 
 while( ~isTracking && iAttempt <= maxAttempts )
@@ -213,34 +213,32 @@ function [p,t] = getupdate( Aux )
 
 t = 0;
 
-switch Aux.Specs.readSource
-    case 'Source' 
-        
-        assert( strcmp( Aux.Source.Status, 'open' ), 'Error: Serial port is closed.' );
+if isa( Aux.Source, 'serial' ) 
+    assert( strcmp( Aux.Source.Status, 'open' ), 'Error: Serial port is closed.' );
 
-        tmp = fscanf( Aux.Source, '%u', [1 1] ) ;
-        Aux.Data.pRaw(end+1) = tmp(end) ;
-        % %% No of measurements before the actual polyfit will begin
-        % smooth_window = 5; % place in declare probe Params
-        % timepoint     = length( Aux.Data.pRaw );
-        %
-        % time_data(timepoint) = timepoint * 0.1;
-        % p = polyfit(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint),4);
-        % y = polyval(p,time_data(smooth_window:timepoint));
+    tmp = fscanf( Aux.Source, '%u', [1 1] ) ;
+    Aux.Data.pRaw(end+1) = tmp(end) ;
+    % %% No of measurements before the actual polyfit will begin
+    % smooth_window = 5; % place in declare probe Params
+    % timepoint     = length( Aux.Data.pRaw );
+    %
+    % time_data(timepoint) = timepoint * 0.1;
+    % p = polyfit(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint),4);
+    % y = polyval(p,time_data(smooth_window:timepoint));
 
-        if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
-                && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
+    if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
+            && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
 
-            Aux.Data.p(end+1) = Aux.Data.pRaw(end) ;
-        else
-            % replace with most recent unclipped/undistorted sample:
-            Aux.Data.p(end+1) = Aux.Data.p(end) ;
-        end
+        Aux.Data.p(end+1) = Aux.Data.pRaw(end) ;
+    else
+        % replace with most recent unclipped/undistorted sample:
+        Aux.Data.p(end+1) = Aux.Data.p(end) ;
+    end
 
-        p = Aux.Data.p(end) ;
-    
-    case 'fileBuffer'
-        [p, t] = Aux.getupdatefromfilebuffer( ) ;
+    p = Aux.Data.p(end) ;
+
+elseif ischar( Aux.Source ) 
+    [p, t] = Aux.getupdatefromfilebuffer( ) ;
 end
 
 end  
@@ -577,7 +575,7 @@ else
 end
  
 % Memory map the file.
-Aux.Specs.Buffer = memmapfile(filename, 'Writable', true, 'Format', 'uint8') ;
+Aux.Specs.Buffer = memmapfile( filename, 'Writable', true, 'Format', 'uint8' ) ;
 
 end
 % =========================================================================
@@ -684,7 +682,6 @@ function [] = createrecordingdaemon( Aux )
 
 % The daemon session reads directly from the USB (Com) port while the user
 % session reads from a file buffer.
-Aux.Specs.readSource = 'Source' ;
 
 pathToAuxObject = [ tempdir 'Aux' ] ;
 save( pathToAuxObject, 'Aux' ) ;
@@ -696,7 +693,7 @@ unix( cmd ) ;
 pause(5) ;
 cd( tmpDir ) ;
 
-Aux.Specs.readSource = 'fileBuffer' ;
+Aux.Source = 'fileBuffer' ;
 
 end
 % =========================================================================
