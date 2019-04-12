@@ -1256,13 +1256,13 @@ function [Field] = modelfield( Fields, Params )
 %    pEx = -1 ;
 %    such that Field.img as defined ^ becomes the avg. of the 2 input Fields
 
-DEFAULT_MAXABSFIELD        = 500 ;
+DEFAULT_MAXABSFIELD        = 600 ;
 DEFAULT_MAXFIELDDIFFERENCE = 150 ;
 
 if nargin < 1
-    error('Function requires at least 1 input (linear cell array of FieldEval-type objects)');
+    error('Function requires at least 1 input (e.g. linear cell array of FieldEval-type objects)') ;
 elseif nargin == 1
-    Params.pDc = 0 ; % output Field.img will refer to the Zero field offset
+    Params.dummy = [] ;
 end
 
 if ~myisfield( Params, 'maxAbsField' ) || isempty( Params.maxAbsField ) 
@@ -1273,67 +1273,141 @@ if ~myisfield( Params, 'maxFieldDifference' ) || isempty( Params.maxFieldDiffere
     Params.maxFieldDifference = DEFAULT_MAXFIELDDIFFERENCE ;
 end
 
-FieldInspired = Fields{1} ;
-FieldExpired  = Fields{2} ;
+if iscell( Fields )
+    % if difference in Larmor frequency >= 1 Hz, issue an error:
+    assert( abs( 1000*double( Fields{1}.Hdr.ImagingFrequency - Fields{2}.Hdr.ImagingFrequency ) ) < 1.0, ... 
+        'Expected the 2 given field maps to have been acquired at the same Larmor frequency. Unimplemented feature.' )
 
-% if difference in Larmor frequency >= 1 Hz, issue an error:
-assert( abs( 1000*double( FieldInspired.Hdr.ImagingFrequency - FieldExpired.Hdr.ImagingFrequency ) ) < 1.0, ... 
-    'Expected the 2 given field maps to have been acquired at the same Larmor frequency. Unimplemented feature.' )
+    if ~isempty( Fields{1}.Aux.Tracker.Data.p ) 
+        assert( isscalar( Fields{1}.Aux.Tracker.Data.p), ...
+            'Expected single scalar value for Fields{1}.Aux.Data.p' ) ;
 
-if ~isempty( FieldInspired.Aux.Tracker.Data.p ) 
-    assert( isscalar( FieldInspired.Aux.Tracker.Data.p), ...
-        'Expected single scalar value for FieldInspired.Aux.Data.p' ) ;
+        pIn = Fields{1}.Aux.Tracker.Data.p ;
+    else 
+        pIn = 1 ;
+    end
 
-    pIn = FieldInspired.Aux.Tracker.Data.p ;
-else 
-    pIn = 1 ;
+    if ~isempty( Fields{2}.Aux.Tracker.Data.p ) 
+        assert( isscalar( Fields{2}.Aux.Tracker.Data.p), ...
+            'Expected single scalar value for Fields{2}.Aux.Data.p' ) ;
+
+        pEx = Fields{2}.Aux.Tracker.Data.p ;
+    else 
+        pEx = -1 ;
+    end
+
+    if ~myisfield( Params, 'pBreathing' ) || isempty( Params.pBreathing ) 
+        Params.pBreathing = [ pIn pEx ] ;
+    end
+
+    pDc            = median( Params.pBreathing ) ;
+    pShiftTraining = pIn - pEx ;
+
+    Field     = Fields{1}.copy() ; 
+    Riro      = Fields{1}.copy() ; 
+    FieldZero = Fields{1}.copy() ; 
+
+    FieldZero.img                = ( pIn*Fields{2}.img - pEx*Fields{1}.img )/(pShiftTraining) ;
+    FieldZero.Aux.Tracker.Data.p = 0 ;
+    Field.Model.Zero             = FieldZero ;
+    % no way of knowing what values might be reasonable for this 'Zero' field, so
+    % there is no call to .getvaliditymask()
+
+    Riro.img                = Fields{1}.img - Fields{2}.img ;
+    Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
+    % The training fields themselves (e.g. inspired/expired breath-holds) might not
+    % be representative of the typical field shift if it's defined for any
+    % given phase of the respiratory cycle as the deviation from the expected
+    % (mean/DC) value.
+    %
+    % Scale the shift by the RMS pressure deviation observed during regular breathing:
+    pShiftRms = rms( Params.pBreathing - pDc ) ;
+
+    Riro.img  = ( pShiftRms/pShiftTraining ) * Riro.img ;
+    Riro.Aux.Tracker.Data.p = pShiftRms ;
+
+    Field.Model.Riro = Riro ;
+
+    Field.img                = pDc*(Field.Model.Riro.img/pShiftRms) + Field.Model.Zero.img ;
+    Field.Aux.Tracker.Data.p = pDc ;
+
+    Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
+
+elseif isa( Fields, 'FieldEval' )
+    % fit Fields.img time series (along 4th dimension) to tracker time series
+
+    nAcq    = size( Fields.img, 4 ) ;
+    assert( nAcq == length( Fields.Aux.Tracker.Data.p ), 'Expected a single tracker measurement for each image' )
+
+    nVoxels = prod( Fields.getgridsize() ) ;
+    I       = speye( nVoxels, nVoxels ) ;
+    
+    % linear operator: A
+    A       = [ I Fields.Aux.Tracker.Data.p(1)*I ] ;
+    
+    % solution vector: Bt
+    Bt      = squeeze( Fields.img( :, :, :, 1) ) ;
+    Bt      = Bt(:) ;
+
+    for iT = 2 : nAcq 
+        disp( [ num2str(100*iT/nAcq, 3) '%'])
+        
+        A    = [ A ; I Fields.Aux.Tracker.Data.p(iT)*I ] ;
+        
+        tmpB = squeeze( Fields.img( :, :, :, iT) ) ;
+        Bt   = [ Bt ; tmpB(:) ] ;
+    end
+
+    Bt(isnan(Bt)) = 0;
+
+    % isRegularizing = false ; % possible TODO: add option?
+    %     % lamda(1): regularization parameter for the static field component
+    %     % lamda(2): " " for the RIRO component
+    %     lamda = [0 0];
+    %
+    % if isRegularizing
+    % A0 = A;
+    %     % construct masking/truncation operator M to limit the fit to 
+    %     % voxels within the reliable region of the image (i.e. region of sufficient SNR)
+    %     nVoxelsVoi = nnz( Fields.Hdr.MaskingImage(:,:,:,1) ) ;
+    %     indicesVoi = find( Fields.Hdr.MaskingImage(:,:,:,1)~= 0 ) ;
+    %     Mvoi = sparse( [1:nVoxelsVoi], indicesVoi, ones([nVoxelsVoi 1]), nVoxelsVoi, nVoxels ) ;
+    %     
+    %     [Dx, Dy, Dz] = createdifferenceoperators( Fields.getgridsize(), Fields.getvoxelsize(), 2) ;
+    %
+    %     L = Dx + Dy + Dz ;
+    %
+    %     R  = [lamda(1)*Mvoi*L sparse( size(Mvoi*L,1),size(Mvoi*L,2) ) ; 
+    %           sparse( size(Mvoi*L,1),size(Mvoi*L,2) ) lamda(2)*Mvoi*L ] ; 
+    %
+    %     A  = [A; R] ;
+    %     Bt = [Bt ; zeros(2*nVoxelsVoi, 1 ) ] ;
+    % end
+
+    % Params for conjugate-gradient optimization
+    CgParams.tolerance     = 1E-4 ;
+    CgParams.maxIterations = 500 ;    
+    CgParams.isDisplayingProgress = true ;    
+
+    x = cgls( A'*A, ... % least squares operator
+              A'*Bt, ... % effective solution vector
+              zeros( [2*nVoxels 1] ) , ... % % initial 'guess' solution vector
+              CgParams ) ;
+    
+    Field                    = Fields.copy() ; 
+    Field.img                = reshape( x(1:nVoxels), Fields.getgridsize() ) ;
+    Field.Hdr.MaskingImage    = ~( (Field.img==0) & (-Field.img==0) ) ; 
+    Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
+    Field.Aux.Tracker.Data.p = 0 ; % ?
+
+    Riro                    = Fields.copy() ; 
+    Riro.img                = reshape( x(nVoxels+1:end), Fields.getgridsize() ) ;
+    Riro.Hdr.MaskingImage   = ~( (Riro.img==0) & (-Riro.img==0) ) ; 
+    Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
+    Riro.Aux.Tracker.Data.p = 1 ; % ?
+    Field.Model.Riro        = Riro ;
+
 end
-
-if ~isempty( FieldExpired.Aux.Tracker.Data.p ) 
-    assert( isscalar( FieldExpired.Aux.Tracker.Data.p), ...
-        'Expected single scalar value for FieldExpired.Aux.Data.p' ) ;
-
-    pEx = FieldExpired.Aux.Tracker.Data.p ;
-else 
-    pEx = -1 ;
-end
-
-if ~myisfield( Params, 'pBreathing' ) || isempty( Params.pBreathing ) 
-    Params.pBreathing = [ pIn pEx ] ;
-end
-
-pDc            = median( Params.pBreathing ) ;
-pShiftTraining = pIn - pEx ;
-
-Field     = FieldInspired.copy() ; 
-Riro      = FieldInspired.copy() ; 
-FieldZero = FieldInspired.copy() ; 
-
-FieldZero.img                = ( pIn*FieldExpired.img - pEx*FieldInspired.img )/(pShiftTraining) ;
-FieldZero.Aux.Tracker.Data.p = 0 ;
-Field.Model.Zero             = FieldZero ;
-% no way of knowing what values might be reasonable for this 'Zero' field, so
-% there is no call to .getvaliditymask()
-
-Riro.img                = FieldInspired.img - FieldExpired.img ;
-Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
-% The training fields themselves (e.g. inspired/expired breath-holds) might not
-% be representative of the typical field shift if it's defined for any
-% given phase of the respiratory cycle as the deviation from the expected
-% (mean/DC) value.
-%
-% Scale the shift by the RMS pressure deviation observed during regular breathing:
-pShiftRms = rms( Params.pBreathing - pDc ) ;
-
-Riro.img  = ( pShiftRms/pShiftTraining ) * Riro.img ;
-Riro.Aux.Tracker.Data.p = pShiftRms ;
-
-Field.Model.Riro = Riro ;
-
-Field.img                = pDc*(Field.Model.Riro.img/pShiftRms) + Field.Model.Zero.img ;
-Field.Aux.Tracker.Data.p = pDc ;
-
-Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
 
 end
 % =========================================================================
