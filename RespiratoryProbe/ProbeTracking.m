@@ -36,6 +36,7 @@ function Aux = ProbeTracking( varargin )
 
 Aux.Data.p    = []; % may be filtered & limited
 Aux.Data.pRaw = []; % raw measurement
+Aux.Data.t    = []; % measurement time [units: ms]
 
 if nargin < 1 || isempty( varargin{1} )
     Specs = [] ;
@@ -123,6 +124,8 @@ function [isTracking] = begintracking( Aux )
 % Opens Aux.Source 
 %
 % Returns TRUE if successful
+
+% error('introduce tracking check for non-daemon session')
 
 assert( myisfield( Aux, 'Source' ) && isa( Aux.Source, 'serial' ) ) ;
 fopen( Aux.Source ) ;
@@ -218,6 +221,10 @@ if isa( Aux.Source, 'serial' )
 
     tmp = fscanf( Aux.Source, '%u', [1 1] ) ;
     Aux.Data.pRaw(end+1) = tmp(end) ;
+
+%
+    % Aux.Data.p(end+1) = Aux.detrend() ;
+%
     % %% No of measurements before the actual polyfit will begin
     % smooth_window = 5; % place in declare probe Params
     % timepoint     = length( Aux.Data.pRaw );
@@ -286,7 +293,7 @@ function [physioSignal, sampleTimes] = recordandplotphysiosignal( Aux1, Params, 
 %       default = false
 %
 %   .physioSignalFilename
-%       default = ['./' datestr(now,30) '-physioSignal.bin' ] ; 
+%       default = ['./' datestr(now,30) '-physioSignal.txt' ] ; 
 %
 %   .runTime 
 %       Total sampling time in seconds.
@@ -300,7 +307,7 @@ function [physioSignal, sampleTimes] = recordandplotphysiosignal( Aux1, Params, 
 %       Problems may arise if this is too fast!
 %       [default : 4 Hz ]
 
-assert( strcmp( Aux1.Source.Status, 'closed' ), 'Error: Serial port is open/in use.' );
+% assert( strcmp( Aux1.Source.Status, 'closed' ), 'Error: Serial port is open/in use.' );
 
 if nargin == 3
     assert( strcmp( Aux2.Source.Status, 'closed' ), 'Error: Serial port is open/in use.' );
@@ -311,7 +318,7 @@ end
 
 DEFAULT_ISSAVINGDATA          = true ;
 DEFAULT_ISFORCINGOVERWRITE    = false ;
-DEFAULT_PHYSIOSIGNALFILENAME  = ['./' datestr(now,30) '-physioSignal.bin' ] ;
+DEFAULT_PHYSIOSIGNALFILENAME  = ['./' datestr(now,30) '-physioSignal.txt' ] ;
 
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;
@@ -342,15 +349,12 @@ while ~isUserSatisfied
         Aux2.clearrecording() ;
         Aux1.recordphysiosignal( Params, Aux2 ) ;
     end
-    
-    physioSignal = Aux1.Data.p ;    
-    sampleTimes = (Aux1.Specs.dt/1000)*[0:(numel(Aux1.Data.p)-1)] ;
    
     % ------- 
     fprintf(['\n ----- \n Plotting physio recording for user verification... \n']) ;
     figure ;
     if ~isDualTracking
-        plot( sampleTimes, Aux1.Data.p, '+' ) ;
+        plot( Aux1.Data.t/1000, Aux1.Data.p, '+' ) ;
 
         if Params.isSavingData
             title( Params.physioSignalFilename ) ;
@@ -362,7 +366,7 @@ while ~isUserSatisfied
         ylabel('Amplitude (AU)');
     else
         subplot(211)
-        plot( sampleTimes, Aux1.Data.p, '+' ) ;
+        plot( Aux1.Data.t/1000, Aux1.Data.p, '+' ) ;
 
         if Params.isSavingData
             title( Params.physioSignalFilename ) ;
@@ -374,7 +378,7 @@ while ~isUserSatisfied
         ylabel('Amplitude (AU)');
         
         subplot(212)
-        plot( sampleTimes, Aux2.Data.p, '+' ) ;
+        plot( Aux1.Data.t/1000, Aux2.Data.p, '+' ) ;
 
         if Params.isSavingData
             title( [Params.physioSignalFilename '-2'] ) ;
@@ -413,7 +417,7 @@ function [] = recordphysiosignal( Aux1, Params, Aux2 )
 %
 % [] = TRACKPROBE( Aux, Params )
 
-DEFAULT_RUNTIME              = 60 ; % [units : s]
+DEFAULT_RUNTIME              = 15*60 ; % [units : s]
 DEFAULT_ISPLOTTINGINREALTIME = true ;
 DEFAULT_REFRESHRATE          = 4 ; % [units : Hz]
 
@@ -506,6 +510,17 @@ end
 Aux1.stoptracking();
 
 StopButton.Clear() ;
+
+% % ------- 
+% if Params.isSavingData
+%
+%     Aux1.saverecording( Params.physioSignalFilename )
+%     
+%     if isDualTracking
+%         Aux2.saverecording( [ Params.physioSignalFilename '-2' ] )
+%     end
+%
+% end
 
 end
 % =========================================================================
@@ -919,7 +934,7 @@ function [measurementLog, sampleTimes] = loadmeasurementlog( measurementLogFilen
 % [measurementLog, sampleTimes] = LOADMEASUREMENTLOG( measurementLogFilename, sampleTimesFilename )
 
 if nargin < 1
-    error( 'Insufficient arguments. Must provide full path to measurement log .bin file.' ) ;
+    error( 'Insufficient arguments. Must provide full path to measurement log file.' ) ;
 
 else
     if nargin >= 1

@@ -61,7 +61,7 @@ classdef ShimUse < matlab.mixin.SetGet
 %    ShimUse
 %
 % =========================================================================
-% Updated::20181030::ryan.topfer@polymtl.ca
+% Updated::20190402::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -109,7 +109,7 @@ if Shim.Params.isConfirmingDataLoadDir
     Shim.uiconfirmdataloaddir( ) ;
 end
 
-if ~Params.isConnectingToShim
+if ~Shim.Params.isConnectingToShim
     switch Shim.Params.shimSystem
         
         case 'Rriyan'
@@ -215,8 +215,7 @@ if nargin < 2
 
 end
 
-Params.physioSignalFilename = [Shim.Params.dataLoadDir datestr(now,30) '-physioSignal-Training' num2str(iTrainingFrame) '.bin'] ;
-Params.sampleTimesFilename  = [Shim.Params.dataLoadDir datestr(now,30) '-sampleTimes-Training' num2str(iTrainingFrame) '.bin'] ;
+Params.physioSignalFilename = [Shim.Params.dataLoadDir datestr(now,30) '-physioSignal-Training' num2str(iTrainingFrame) '.txt'] ;
 
 % -------
 % begin physio tracking
@@ -265,7 +264,7 @@ function [] = loadandprocesstrainingdata( Shim, imgDirectories )
 %   Shim.loadtrainingdata( ) 
 %   Shim.processtrainingdata( )
 
-if nargin == 1 || isempty( imgDirectories )
+if nargin == 1 
     imgDirectories = [];
 end
 
@@ -328,18 +327,20 @@ for iFrame = 1 : Shim.Params.nTrainingFrames
 
     for iImg = 1 : 2 
 
-        if strcmp( Shim.Params.trainingMode, 'free breathing' ) && ( iFrame == 2 )
-            uiBoxTitle = ['Select the ' imgType{iImg} ' training data folder containing the DICOM images.' ...
+        % if strcmp( Shim.Params.trainingMode, 'free breathing' ) && ( iFrame == 1 )
+        %     uiBoxTitle = ['Select the ' imgType{iImg} ' training data folder containing the DICOM images.' ...
+        %             ' (gre_field_mapping training data set ' num2str(iFrame) ' of ' num2str(Shim.Params.nTrainingFrames) ')'] ;
+        %
+        % else
+            % uiBoxTitle = ['Select the ' imgType{iImg} ' training data parent folder containing the echo_* DICOM subfolders.' ...
+            %         ' (gre_field_mapping training data set ' num2str(iFrame) ' of ' num2str(Shim.Params.nTrainingFrames) ')'] ;
+        % end
+        uiBoxTitle = ['Select the ' imgType{iImg} ' training data parent folder containing the echo_* DICOM subfolders.' ...
                     ' (gre_field_mapping training data set ' num2str(iFrame) ' of ' num2str(Shim.Params.nTrainingFrames) ')'] ;
-
-        else
-            uiBoxTitle = ['Select the ' imgType{iImg} ' training data parent folder containing the echo_* DICOM subfolders.' ...
-                    ' (gre_field_mapping training data set ' num2str(iFrame) ' of ' num2str(Shim.Params.nTrainingFrames) ')'] ;
-        end
         
         ShimUse.customdisplay(uiBoxTitle) ;
         
-        parentDir     = [ uigetdir( Shim.Params.dataLoadDir, uiBoxTitle ) '/']; 
+        parentDir  = [ uigetdir( Shim.Params.dataLoadDir, uiBoxTitle ) '/']; 
 
         if ~parentDir % user cancelled
             return;
@@ -349,10 +350,11 @@ for iFrame = 1 : Shim.Params.nTrainingFrames
         nDicomSubDirs = length( dicomSubDirs ) ;
         
         if nDicomSubDirs == 0 
-            assert( strcmp( Shim.Params.trainingMode, 'free breathing' ) && (iFrame == 2), errMsg ) ;
-
-            imgDirectories{ 1, iImg, iFrame } = parentDir ;
-            Shim.Data.Img{ 1, iImg, iFrame }  = MaRdI( parentDir ) ;
+            error( errMsg ) ;
+            % assert( strcmp( Shim.Params.trainingMode, 'free breathing' ) && (iFrame == 2), errMsg ) ;
+            %
+            % imgDirectories{ 1, iImg, iFrame } = parentDir ;
+            % Shim.Data.Img{ 1, iImg, iFrame }  = MaRdI( parentDir ) ;
 
         else
             for iDicomSubDir = 1 : nDicomSubDirs
@@ -382,6 +384,126 @@ end
 
 end
 % =========================================================================
+function [] = associatetrackerdata( iFrame )
+%ASSOCIATETRACKERDATA
+
+Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker = [] ;
+Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker = Shim.Data.Aux.Tracker{ 1, 1, iFrame }.copy() ;
+
+% number of acquisitions
+nAcq = size( Shim.Data.Img{ 1, 3, iFrame }, 4 ) ;
+
+if  nAcq == 1
+    % This is a single field map -- assumed to correspond to a single tracker measurement:
+
+    % number of samples corresponding to breath-hold
+    % (enables auto-estimation of the time window corresponding to the breath-hold):
+    nSamplesApnea = (1000*Shim.Data.Img{1,1,iFrame}.Hdr.MrProt.lTotalScanTimeSec)/Shim.Opt.Tracker.Specs.dt ;
+
+    % extract a single scalar
+    Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p = ...
+        ProbeTracking.selectmedianmeasurement( Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p, nSamplesApnea ) ;
+
+else
+    % ------
+    % Correct for system delays before associating tracker measurements
+    Field = Shim.Data.Img{ 1, 3, iFrame } ;
+
+    tAcq = Field.getacquisitiontime() ;
+    tAcq = tAcq - tAcq(1) ;
+
+    % time between images 
+    dtAcq = median( diff( tAcq ) ) ;
+
+    pt      = Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.p ;
+    tGlobal = Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.t ;
+
+    % time interval between respiratory samples:
+    dt = 0.001*round( ( tGlobal(end) - tGlobal(1) )/length(tGlobal) ) ; % [units: s]
+
+    tGlobal = 0.001*tGlobal ; % convert to [units: s]
+    
+    gridSize = Field.getgridsize() ;
+    
+    % ------
+    % bandpass filter images?
+    frequencyCutoff = [ 0 0.6 ] ;
+
+    for iRow = 1 : gridSize(1) 
+        for iColumn = 1 : gridSize(2)  
+            for iSlice = 1 : gridSize(3)
+            Field.img( iRow, iColumn, 1, : ) = ...
+                bpfilt( squeeze( Field.img(iRow, iColumn, iSlice,:) ), frequencyCutoff(1), frequencyCutoff(2), 1/dtAcq, false ) ;
+            end
+        end
+    end
+        
+    % ------
+    % interpolate field across time to match the interval of the physio recording 
+    tImg = [ 0: dt : tAcq(end) ]' ;
+
+    imgInterp = zeros( [ gridSize length(tImg) ] ) ;
+
+    for iRow = 1 : gridSize(1) 
+        for iColumn = 1 : gridSize(2)  
+            for iSlice = 1 : gridSize(3)
+                imgInterp( iRow, iColumn, iSlice, : ) = interp1( tAcq, squeeze( Field.img( iRow, iColumn, iSlice, :) ), tImg, 'linear' ) ; 
+            end
+        end
+    end
+    
+    % Assume the entire dB0(tImg) series occurs somewhere within the tGlobal window.
+    % given that we assign tImg(1) = 0, 
+    % the delay time (tImg' = tGlobal' - t_delay) is necessarily positive, 
+    % and less than max(tGlobal) - max(tImg)
+
+    maxLag = round(( max( tGlobal ) - max( tImg ) )/dt) ;
+
+    T_delay = zeros( gridSize ) ;
+    C       = zeros( [gridSize 6806] ) ;
+
+    % ------
+    % X-corr
+    for iRow = 1 : Field.Hdr.Rows 
+        disp(num2str(100*iRow/Field.Hdr.Rows))
+        for iColumn = 1 : Field.Hdr.Columns  
+            % if validityMask( iRow, iColumn )
+
+                [c, lags] = xcorr( pt, imgInterp(iRow,iColumn,:), maxLag ) ;
+
+                % truncate to positive delay times
+                c    = c( lags >=0 ) ;
+                lags = lags( lags >=0 ) ;
+                
+                [maxC, iMax] = max(abs(c)) ;
+                t_xcorr = dt*lags ;
+                t_delay = t_xcorr( iMax ) ;
+
+                C(iRow, iColumn, :) = c ;
+                T_delay(iRow, iColumn) = t_delay ;
+            % end
+        end
+    end
+
+    % the median should be more robust than the average for determining the delay
+    % once noise + uncorrelated voxels are taken into consideration
+    t_medianDelay = median( T_delay( Field.Hdr.MaskingImage(:,:,1) ) ) 
+
+
+    [~,iT] = min( abs( tGlobal - t_medianDelay ) ) ;
+
+    % Finally, interpolate pt to the acquired image times:
+    tp = tGlobal( iT:iT+length(tInterp)-1 ) -tGlobal(iT) ;
+
+    Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.p = interp1( tp, pt( iT:iT+length(tInterp)-1 ), tAcq, 'linear' ) ;
+    Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.t = tAcq ;
+    
+    % TODO: Implement manual delay adjustment in case automatic method fails
+    
+end
+
+end
+% =========================================================================
 function [] = processtrainingdata( Shim )
 %PROCESSTRAININGDATA  
 %
@@ -405,13 +527,6 @@ function [] = processtrainingdata( Shim )
 % Shim.Data.Img{1,3,iFrame}.Aux.Tracker.Data.p
 Shim.Data.Img(1,3,:) = cell(1,1) ; % 3rd column for field maps
 
-if ~myisfield( Shim.Params, 'isUserSelectionEnabled' ) || isempty( Shim.Params.isUserSelectionEnabled )
-    isUserSelectionEnabled = true ; % default
-else
-    assert( islogical( Shim.Params.isUserSelectionEnabled ) ) ;
-    isUserSelectionEnabled = Shim.Params.isUserSelectionEnabled ;
-end
-
 for iFrame = 1 : Shim.Params.nTrainingFrames
 
     ImgArray         = cell( 1, 2 ) ;
@@ -421,20 +536,9 @@ for iFrame = 1 : Shim.Params.nTrainingFrames
     % -------
     Shim.Data.Img{ 1, 3, iFrame } = FieldEval.mapfield( ImgArray, Shim.Params ) ;
 
-    % link field measurements to appropriate tracker values 
+    % associate field measurements to tracker values 
     if ~isempty( Shim.Data.Aux.Tracker{ 1, 1, iFrame } )
-        Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker = [] ;
-        Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker = Shim.Data.Aux.Tracker{ 1, 1, iFrame }.copy() ;
-
-        % duration of breath-hold in number of samples 
-        % (enables auto-estimation of the period corresponding to the breath-hold from
-        % the complete physio log)
-        nSamplesApnea = (1000*Shim.Data.Img{1,1,iFrame}.Hdr.MrProt.lTotalScanTimeSec)/Shim.Opt.Tracker.Specs.dt ;
-        
-        % ------
-        % extract a single scalar
-        Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p = ...
-            ProbeTracking.selectmedianmeasurement( Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p, nSamplesApnea, isUserSelectionEnabled ) ;
+        Shim.associatetrackerdata( iFrame ) ;
     end
     
 end
@@ -452,29 +556,29 @@ if ( Shim.Params.nTrainingFrames > 1 ) && ~isempty( Shim.Data.Aux.Tracker{ 1, 1,
 else
     error('Free breathing measurements not available')
 end
-    
+
 % -------
 % derive t2star reliability weights:
-t2sWeights = zeros( [ Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) Shim.Params.nTrainingFrames ] ) ;
-% t2sMasks: false wherever the t2sWeights are clearly unreliable (i.e. Mag(TE2) >= Mag(TE1) )
+Shim.Params.t2sWeights = zeros( [ Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) Shim.Params.nTrainingFrames ] ) ;
+% t2sMasks: false wherever the Shim.Params.t2sWeights are clearly unreliable (i.e. Mag(TE2) >= Mag(TE1) )
 t2sMasks   = false( [ Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) Shim.Params.nTrainingFrames ] ) ;
 
 for iFrame = 1 : Shim.Params.nTrainingFrames 
     
-    t2sWeights(:,:,:, iFrame) = Shim.Opt.derivedataweights( ...
+    Shim.Params.t2sWeights(:,:,:, iFrame) = Shim.Opt.derivedataweights( ...
         { Shim.Data.Img{ 1, 1, iFrame }  ; Shim.Data.Img{ 2, 1, iFrame } }, 5 ) ;
 
-    t2sMasks(:,:,:, iFrame) = t2sWeights(:,:,:, iFrame) ~= 0 ;
+    t2sMasks(:,:,:, iFrame) = Shim.Params.t2sWeights(:,:,:, iFrame) ~= 0 ;
 
 end
 
 % averaging
-t2sWeights = sum( t2sMasks .* t2sWeights, 4 ) ./ sum( t2sMasks, 4 ) ;
+Shim.Params.t2sWeights = sum( t2sMasks .* Shim.Params.t2sWeights, 4 ) ./ sum( t2sMasks, 4 ) ;
 
 % filtering
-t2sWeights( ~( sum( t2sMasks, 4 ) ) ) = NaN ; % exclude from medfilt3( )
-t2sWeights = medfilt3( t2sWeights, [3 3 1] ) ; 
-assert( ~any( isnan( t2sWeights(:) ) ), 'Mapped t2sWeights include NaN values...' ) ;
+Shim.Params.t2sWeights( ~( sum( t2sMasks, 4 ) ) ) = NaN ; % exclude from medfilt3( )
+Shim.Params.t2sWeights = medfilt3( Shim.Params.t2sWeights, [3 3 1] ) ; 
+Shim.Params.t2sWeights( isnan( Shim.Params.t2sWeights ) ) = 0 ;
 
 % -------
 % call SCT to segment spinal canal
