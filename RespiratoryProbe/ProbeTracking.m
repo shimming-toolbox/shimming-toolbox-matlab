@@ -187,7 +187,9 @@ function [] = stoptracking( Aux )
 %
 % fclose( Aux.Source )
 
-fclose( Aux.Source ) ;
+if ~strcmp( Aux.Source, 'fileBuffer' ) 
+    fclose( Aux.Source ) ;
+end
 
 end
 % =========================================================================
@@ -766,20 +768,9 @@ methods(Static)
 function [Source, AuxSpecs] = declareprobe( AuxSpecs )
 %DECLAREPROBE Declares serial object for probe 
 % 
-% [Source,AuxSpecs] = declareprobe( AuxSpecs )
+% [Source, AuxSpecs] = declareprobe( AuxSpecs )
 %
-
 % AuxSpecs can have the following fields 
-%  
-% NOTE 
-%   these are not really optional/configurable... TODO: remove deprecated/false 'options'
-%
-% .dt
-%   Interval between samples [units: ms]
-%   Should be a positive multiple of the minimum period of 10 ms.
-% 
-% .baudRate
-%   default : 115200
 %
 % .portName 
 %   Address of the probe-associated serial port within file system
@@ -789,57 +780,39 @@ function [Source, AuxSpecs] = declareprobe( AuxSpecs )
 %       elseif isunix
 %           portName = '/dev/ttyS100'
 
+% NOTE 
+%   System specs are hardcoded into the probe microcontroller. 
+%
+%   TODO: rather than hardcode the values here as well, there should be 
+%   a parameter file specifying values for baudrate and sampling period.
 DEFAULT_ARDUINOPERIOD = 50 ; % [units: ms] 
 DEFAULT_TEENSYPERIOD  = 100 ; % [units: ms] 
-
 DEFAULT_BAUDRATE      = 115200 ;
-DEFAULT_CLIPLIMITS    = [-Inf Inf] ; % [units: probe signal] 
-DEFAULT_PROBETYPE     = 'pressure' ; 
 
-if nargin < 1 || isempty(AuxSpecs)
-    ShimUse.customdisplay('Default parameters will be used:')
+if nargin < 1 || isempty( AuxSpecs )
     AuxSpecs.dummy = [] ;
 end
 
-if ~myisfield( AuxSpecs, 'baudRate' ) || isempty(AuxSpecs.baudRate) ...
-    AuxSpecs.baudRate = DEFAULT_BAUDRATE ;
-end
+AuxSpecs.clipLimits = [-Inf Inf] ; % [units: probe signal] 
 
-if ~myisfield( AuxSpecs, 'clipLimits' ) || isempty(AuxSpecs.clipLimits) ...
-    AuxSpecs.clipLimits = DEFAULT_CLIPLIMITS ;
-end
-
-if ~myisfield( AuxSpecs, 'probeType' ) || isempty(AuxSpecs.probeType) ...
-    AuxSpecs.probeType = DEFAULT_PROBETYPE ;
-end
-
-% -------------------------------------------------------------------------
-% check and/or assign serial port
-Source = [] ; 
-isAssigningSerialPort = false ;
-
+% ------- 
+% Check for device 
+isDeviceFound = false ;
 
 if  myisfield( AuxSpecs, 'portName' ) && ~isempty(AuxSpecs.portName)
    
-    [fileDir,portname,fileExtension] = fileparts( AuxSpecs.portName ) ;
+    [fileDir,portname, fileExtension] = fileparts( AuxSpecs.portName ) ;
     
     listOfDevices = dir( fileDir ) ;
-
-    isPortDetected = false ;
     
     for iFile = 1 : length(listOfDevices)-1
         if strcmp( [fileDir '/' listOfDevices(iFile).name fileExtension], AuxSpecs.portName )
-            isPortDetected = true ;
-            isAssigningSerialPort = true ;
-            if strcmp( AuxSpecs.portName, '/dev/tty.usbmodem4471890' )
-                AuxSpecs.probeType = 'capacitive' ;
-            end
+            isDeviceFound = true ;
        end
     end
 
-    if ~isPortDetected    
-        disp(['Warning: Given port name (' AuxSpecs.portName ' ) not found. ' ...
-            'Checking default port names.']) ;
+    if ~isDeviceFound    
+        disp(['Warning: Given port name [ ' AuxSpecs.portName ' ] not found. Checking default port names.']) ;
         AuxSpecs.portName = [] ;
     end
 end
@@ -847,48 +820,22 @@ end
 if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
 
     if ismac
-        % For some reason this doesn't work...
-        % -------
-        % if exist( '/dev/tty.usbmodem1411', 'file' ) ; % my macbook's left USB port
-        %   AuxSpecs.portName = '/dev/tty.usbmodem1411';
-        % elseif exist( '/dev/tty.usbmodem1421', 'file' ) ;
-        %     AuxSpecs.portName = '/dev/tty.usbmodem1421' ; % my macbook's right USB port
-        % else
-        %     error(['Device file not found. ' ...
-        %         'Is the microcontroller connected?']) ; 
-        % ------
+        
         listOfDevices = dir( '/dev/tty.usbmodem*' ) ;
 
-        if isempty(listOfDevices) 
+        if length(listOfDevices) == 0
             warning( 'Device file not found. Check USB device is connected.' ) ;
         elseif length(listOfDevices) == 1
-            
-            isAssigningSerialPort = true ;
-            AuxSpecs.portName     = ['/dev/' listOfDevices(1).name ] ;
-            
-            switch listOfDevices(1).name
-            
-                case 'tty.usbmodem4471890'
-                    AuxSpecs.probeType = 'capacitive' ;
-                otherwise
-                    AuxSpecs.probeType = 'pressure' ;
-            end
+            isDeviceFound     = true ;
+            AuxSpecs.portName = ['/dev/' listOfDevices(1).name ] ;
         else
-            warning('Ambiguous device identifier. Consider entering portName as argument. See HELP.');
-            
-            for iD = 1 : length( listOfDevices ) 
-                if strcmp( listOfDevices(iD).name, 'tty.usbmodem4471890' ) ; % teensy 3.5 on RT macbook pro
-                    isAssigningSerialPort = true ;
-                    AuxSpecs.probeType    = 'capacitive' ;
-                    AuxSpecs.portName     = ['/dev/' listOfDevices(iD).name ] ;
-                end
-            end
+            warning('Ambiguous device identifier. Consider entering portName as argument. See HELP.') ;
         end
 
     elseif isunix
         % if exist('/dev/ttyS100', 'file')  
-            warning('ProbeTracking.declareprobe() assumes a serial port address/name that may be invalid!')
             AuxSpecs.portName = '/dev/ttyS100' ;
+            warning( [ 'ProbeTracking.declareprobe() currently assumes a device address of ' AuxSpecs.portName ' which may be invalid!' ] ) ;
         % % else
         %     errorMsg = ['Device file ( ' portName ' ) not found.'  ...
         %     'Is the microcontroller connected?' ...
@@ -904,20 +851,32 @@ if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
     end
 end
 
-if isAssigningSerialPort
+if isDeviceFound
+    
+    % Check device type 
+    % NOTE : names probably need to change computer-to-computer!
+    switch AuxSpecs.portName 
+        case { 'tty.usbmodem4471890','tty.usbmodem4873120' } 
+            AuxSpecs.probeType = 'capacitive' ;
+        case { 'tty.usbmodem14101','tty.usbmodem14201' } 
+            AuxSpecs.probeType = 'pressure' ;
+    end
+
+    switch AuxSpecs.probeType
+        case 'pressure'
+            ShimUse.customdisplay( ['\n----- Pressure probe -----\n'] );
+            AuxSpecs.dt       = DEFAULT_ARDUINOPERIOD ; % [units: ms]
+            AuxSpecs.baudRate = DEFAULT_BAUDRATE ; % [units: ms]
+        case 'capacitive'
+            ShimUse.customdisplay( ['\n----- Capacitive probe -----\n'] );
+            AuxSpecs.dt       = DEFAULT_TEENSYPERIOD ; 
+            AuxSpecs.baudRate = DEFAULT_BAUDRATE ; % [units: ms]
+    end
+    
     Source = serial( AuxSpecs.portName, 'BaudRate',  AuxSpecs.baudRate ) ;
 else
     Source = [] ;
     AuxSpecs.state = 'inert' ;
-end
-
-switch AuxSpecs.probeType
-    case 'pressure'
-        ShimUse.customdisplay( ['\n----- Pressure probe -----\n'] );
-        AuxSpecs.dt = DEFAULT_ARDUINOPERIOD ; % [units: ms]
-    case 'capacitive'
-        ShimUse.customdisplay( ['\n----- Capacitive probe -----\n'] );
-        AuxSpecs.dt = DEFAULT_TEENSYPERIOD ; 
 end
 
 ShimUse.customdisplay( [ 'Sampling frequency = ' num2str(1000/AuxSpecs.dt) ' Hz'] )
