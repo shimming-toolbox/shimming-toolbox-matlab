@@ -91,7 +91,7 @@ function [] = delete( Aux )
 % 
 % Destructor. Calls Aux.deletecomport( ) 
 
-if myisfield( Aux, 'Source' ) && ~isempty( Aux.Source ) 
+if myisfield( Aux, 'Source' ) && ~isempty( Aux.Source ) && ~strcmp( Aux.Source, 'fileBuffer' )
     Aux.deletecomport();
 end
 
@@ -290,16 +290,12 @@ function [physioSignal, sampleTimes] = recordandplotphysiosignal( Aux1, Params, 
 %   .isSavingData
 %       default = true
 %
-%   .isForcingOverwrite 
-%       Will overwrite the log files if they already exist. 
-%       default = false
-%
 %   .physioSignalFilename
 %       default = ['./' datestr(now,30) '-physioSignal.txt' ] ; 
 %
 %   .runTime 
 %       Total sampling time in seconds.
-%       default = 60
+%       default = 15*60
 %
 %   .isPlottingInRealTime
 %       [default : true ]
@@ -319,7 +315,6 @@ else
 end
 
 DEFAULT_ISSAVINGDATA          = true ;
-DEFAULT_ISFORCINGOVERWRITE    = false ;
 DEFAULT_PHYSIOSIGNALFILENAME  = ['./' datestr(now,30) '-physioSignal.txt' ] ;
 
 if  nargin < 2 || isempty(Params)
@@ -328,10 +323,6 @@ end
  
 if  ~myisfield( Params, 'isSavingData' ) || isempty(Params.isSavingData)
     Params.isSavingData = DEFAULT_ISSAVINGDATA ;
-end
-
-if  ~myisfield( Params, 'isForcingOverwrite' ) || isempty(Params.isForcingOverwrite)
-    Params.isForcingOverwrite = DEFAULT_ISFORCINGOVERWRITE ;
 end
 
 if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
@@ -419,12 +410,22 @@ function [] = recordphysiosignal( Aux1, Params, Aux2 )
 %
 % [] = TRACKPROBE( Aux, Params )
 
-DEFAULT_RUNTIME              = 15*60 ; % [units : s]
-DEFAULT_ISPLOTTINGINREALTIME = true ;
-DEFAULT_REFRESHRATE          = 4 ; % [units : Hz]
+DEFAULT_ISSAVINGDATA          = true ;
+DEFAULT_PHYSIOSIGNALFILENAME  = ['./' datestr(now,30) '-physioSignal.txt' ] ;
+DEFAULT_RUNTIME               = 15*60 ; % [units : s]
+DEFAULT_ISPLOTTINGINREALTIME  = true ;
+DEFAULT_REFRESHRATE           = 4 ; % [units : Hz]
 
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;
+end
+
+if  ~myisfield( Params, 'isSavingData' ) || isempty(Params.isSavingData)
+    Params.isSavingData = DEFAULT_ISSAVINGDATA ;
+end
+
+if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
+    Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
 end
 
 if  ~myisfield( Params, 'runTime' ) || isempty(Params.runTime)
@@ -438,7 +439,7 @@ end
 if  ~myisfield( Params, 'refreshRate' ) || isempty(Params.refreshRate)
     Params.refreshRate = DEFAULT_REFRESHRATE ;
 end
-
+ 
 % ------- 
 StopButton     = stoploop({'Stop recording'}) ;
 Aux1.clearrecording() ;
@@ -468,16 +469,16 @@ if Params.isPlottingInRealTime
 
     hold on;
     
-        plotHandle = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
-            
-        xlim(axesHandle,[0 nSamples]);
-            
-        title('Respiration Aux','FontSize',15,'Color',[1 1 0]);
-        ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-        xlabel('Time [ms]','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-        % xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-    
-        drawnow limitrate; 
+    plotHandle = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
+        
+    xlim(axesHandle,[0 nSamples]);
+        
+    title('Respiration Aux','FontSize',15,'Color',[1 1 0]);
+    ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+    % xlabel('Time [ms]','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+    xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+
+    drawnow limitrate; 
     set(figureHandle,'Visible','on');
 
 end
@@ -513,16 +514,16 @@ Aux1.stoptracking();
 
 StopButton.Clear() ;
 
-% % ------- 
-% if Params.isSavingData
-%
-%     Aux1.saverecording( Params.physioSignalFilename )
-%     
-%     if isDualTracking
-%         Aux2.saverecording( [ Params.physioSignalFilename '-2' ] )
-%     end
-%
-% end
+% ------- 
+if Params.isSavingData
+
+    Aux1.saverecording( Params.physioSignalFilename )
+
+    % if isDualTracking
+    %     Aux2.saverecording( [ Params.physioSignalFilename '-2' ] )
+    % end
+
+end
 
 end
 % =========================================================================
@@ -856,9 +857,9 @@ if isDeviceFound
     % Check device type 
     % NOTE : names probably need to change computer-to-computer!
     switch AuxSpecs.portName 
-        case { 'tty.usbmodem4471890','tty.usbmodem4873120' } 
+        case { '/dev/tty.usbmodem4471890','/dev/tty.usbmodem4873120' } 
             AuxSpecs.probeType = 'capacitive' ;
-        case { 'tty.usbmodem14101','tty.usbmodem14201' } 
+        case { '/dev/tty.usbmodem14101','/dev/tty.usbmodem14201' } 
             AuxSpecs.probeType = 'pressure' ;
     end
 
