@@ -18,7 +18,7 @@ classdef ProbeTracking < matlab.mixin.SetGet
 % =========================================================================
 %
 % =========================================================================
-% Updated::20190402::ryan.topfer@polymtl.ca
+% Updated::20190425::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties   
@@ -224,30 +224,34 @@ if isa( Aux.Source, 'serial' )
     tmp = fscanf( Aux.Source, '%u', [1 1] ) ;
     Aux.Data.pRaw(end+1) = tmp(end) ;
 
-%
-    % Aux.Data.p(end+1) = Aux.detrend() ;
-%
-    % %% No of measurements before the actual polyfit will begin
-    % smooth_window = 5; % place in declare probe Params
-    % timepoint     = length( Aux.Data.pRaw );
+    p = correctdrift( Aux.Data.pRaw ) ;
+
+    % if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
+    %         && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
     %
-    % time_data(timepoint) = timepoint * 0.1;
-    % p = polyfit(time_data(smooth_window:timepoint),data_cprobe(smooth_window:timepoint),4);
-    % y = polyval(p,time_data(smooth_window:timepoint));
-
-    if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
-            && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
-
-        Aux.Data.p(end+1) = Aux.Data.pRaw(end) ;
-    else
-        % replace with most recent unclipped/undistorted sample:
-        Aux.Data.p(end+1) = Aux.Data.p(end) ;
-    end
+    %     Aux.Data.p(end+1) = Aux.Data.pRaw(end) ;
+    % else
+    %     % replace with most recent unclipped/undistorted sample:
+    %     Aux.Data.p(end+1) = Aux.Data.p(end) ;
+    % end
 
     p = Aux.Data.p(end) ;
 
 elseif ischar( Aux.Source ) 
     [p, t] = Aux.getupdatefromfilebuffer( ) ;
+end
+
+function [p] = correctdrift( pRaw )
+
+    if length( pRaw ) > 3000
+        pRaw = pRaw((end-3000):end) ;
+    end
+        
+    t = [0:length(pRaw)-1] ;
+
+    y = polyfit( t, pRaw, 2 ) ;
+    p = polyval( y, t ) ;
+
 end
 
 end  
@@ -611,7 +615,7 @@ function [p,t] = readfromfilebuffer( Aux )
 
 % time-out condition occurs if no new measurement is registered after MAX_DWELL
 DWELL_TIME  = 0.01 ; % [units: s]
-MAX_DWELL   = 5 ;  
+MAX_DWELL   = 3*Aux.Specs.dt/1000 ;  
 totalDwell  = 0 ;
 
 % Wait until bytes [3] and [4] are non-zero (indicating a new measurement)
@@ -620,10 +624,10 @@ while (~Aux.Specs.Buffer.Data(3)) & (~Aux.Specs.Buffer.Data(4)) & (totalDwell < 
     totalDwell = totalDwell + DWELL_TIME ; 
 end
 
-% [2] -> 0 : freeze values from overwrite
-Aux.Specs.Buffer.Data(2) = 0 ;
-
-if ( totalDwell >= MAX_DWELL )
+if ( totalDwell < MAX_DWELL )
+    % [2] -> 0 : freeze values from overwrite
+    Aux.Specs.Buffer.Data(2) = 0 ;
+else
     warning('Time-out occured before a new value was read. Returning previous measurement.')
     p = Aux.Data.p(end) ;
     t = Aux.Data.t(end) ;
@@ -660,11 +664,26 @@ function [] = writetofilebuffer( Aux, p, t )
 % [5:(4+[3])] : sample time [units: ms]
 % [(5+[3]):4+[3]+[4])] : sample value [A.U.]
 
+% NOTE: The writing dwell time is 2x that of the reading dwell time.
+% Reason being that occasionally when the two are equal, the wrong value is
+% read from the file, indicating both read/write processes are occuring at the
+% same time. TODO: consider less ad hoc fix?
 DWELL_TIME  = 0.01 ; % [units: s]
 
+% time-out condition occurs if no new measurement is registered after MAX_DWELL
+% i.e. do not wait longer than the sampling period to write to file; return and cont. sampling
+MAX_DWELL   = Aux.Specs.dt/1000 ;  
+totalDwell  = 0 ;
+
+pause( DWELL_TIME )
 % Wait until BYTE[2] == 1 (presence of 0 indicates file is being read)
-while Aux.Specs.Buffer.Data(2) ~= 1
+while ( Aux.Specs.Buffer.Data(2) ~= 1 ) & ( totalDwell < MAX_DWELL )
     pause( DWELL_TIME ) ;
+    totalDwell = totalDwell + DWELL_TIME ; 
+end
+
+if ( totalDwell >= MAX_DWELL )
+    return ;
 end
 
 t_str   = num2str( t ) ;
@@ -684,7 +703,7 @@ Aux.Specs.Buffer.Data(5:(4+t_nChar)) = t_str ;
 iP1 = 5 + t_nChar ;
 Aux.Specs.Buffer.Data(iP1:(iP1-1+p_nChar)) = p_str ;
 
-% 
+ 
 Aux.Specs.Buffer.Data(3) = t_nChar ; 
 Aux.Specs.Buffer.Data(4) = p_nChar ; 
    
@@ -825,7 +844,7 @@ if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
         listOfDevices = dir( '/dev/tty.usbmodem*' ) ;
 
         if length(listOfDevices) == 0
-            warning( 'Device file not found. Check USB device is connected.' ) ;
+            warning( 'Respiratory Probe: Device file not found. Check USB device is connected.' ) ;
         elseif length(listOfDevices) == 1
             isDeviceFound     = true ;
             AuxSpecs.portName = ['/dev/' listOfDevices(1).name ] ;
@@ -875,12 +894,12 @@ if isDeviceFound
     end
     
     Source = serial( AuxSpecs.portName, 'BaudRate',  AuxSpecs.baudRate ) ;
+
+    ShimUse.customdisplay( [ 'Sampling frequency = ' num2str(1000/AuxSpecs.dt) ' Hz'] )
 else
     Source = [] ;
     AuxSpecs.state = 'inert' ;
 end
-
-ShimUse.customdisplay( [ 'Sampling frequency = ' num2str(1000/AuxSpecs.dt) ' Hz'] )
 
 end
 % =========================================================================
