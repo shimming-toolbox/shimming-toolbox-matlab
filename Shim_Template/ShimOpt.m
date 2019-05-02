@@ -1724,20 +1724,16 @@ function [ img, Hdr ] = mapdbdi( Params )
 img = [] ;
 Hdr = [] ;
 
-Mag         = MaRdI( Params.dataLoadDirectories{1} ) ;
-dBdIRaw     = zeros( [Mag.getgridsize Params.nChannels] ) ;
+Mag   = MaRdI( Params.dataLoadDirectories{1} ) ;
+dBdI  = zeros( [ Mag.getgridsize Params.nChannels ] ) ;
+masks = zeros( [ Mag.getgridsize Params.nEchoes Params.nChannels ] ) ;
 
-Params.mask = Params.reliabilityMask ;
-dbstop in ShimOpt at 1732
 for iChannel = 1 : Params.nChannels 
     
     disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
     
-    % fieldMaps = zeros( [ Mag.getgridsize Params.nCurrents] ) ;
     TE        = zeros( Params.nEchoes, 1 ) ;
     fieldMaps = zeros( [ Mag.getgridsize Params.nEchoes ] ) ;
-    TEweights = zeros( [ Mag.getgridsize Params.nEchoes ] ) ;
-    weights   = zeros( [ Mag.getgridsize Params.nEchoes ] ) ;
         
     Img = cell( Params.nEchoes, 2, Params.nCurrents ) ;
 
@@ -1775,7 +1771,6 @@ for iChannel = 1 : Params.nChannels
         Phase.img = angle( Img{ iEcho, 1, 2 }.img .*exp(i*Img{ iEcho, 2, 2 }.img) ...
             .* conj( Img{ iEcho, 1, 1 }.img .*exp(i*Img{ iEcho, 2, 1 }.img) ) ) ;
         
-        Params.threshold = 0.01 ;
         Phase.Hdr.MaskingImage = Mag.img > Params.threshold ;
 
         Phase.unwrapphase( Mag, Params ) ; 
@@ -1783,195 +1778,29 @@ for iChannel = 1 : Params.nChannels
         Field.scalephasetofrequency() ;
 
         % convert to Hz/A
-        Field.img = Field.img/(Params.currents( iChannel, 2) - Params.currents( iChannel, 1) ) ;
+        Field.img = Field.img/( Params.currents( iChannel, 2) - Params.currents( iChannel, 1) ) ;
+        
+        % smoothing: [3x3x3] magnitude-weighted Gaussian filtering
+        Field.filter( Mag.img ) ; 
         
         fieldMaps( :,:,:, iEcho ) = Field.img ;
-        
-        weights( :,:,:, iEcho )   =  ...
-            ( 1 - abs( Img{ iEcho, 1, 1 }.img - Img{ iEcho, 1, 2 }.img )./( Img{ iEcho, 1, 1 }.img + Img{ iEcho, 1, 2 }.img ) ) ;
-       
-        weights( :,:,:, iEcho ) = shaver( weights( :, :, :, iEcho ) > 0.9, [1 1 1] ) ;
-         
-        weightsTE( :,:,:, iEcho )   = TE(iEcho) * weights( :, :, :, iEcho ) ;
-    end 
-    
-    dBdIRaw(:,:,:, iChannel) = sum( weightsTE .* fieldMaps, 4 ) ./ sum( weightsTE, 4 ) ;
 
-    % Field.img = dBdIRaw(:,:,:, iChannel) ; 
-    % Params.ordersToGenerate = [1:7] ;
-    % ShimsSh = ShimOpt_SphericalHarmonics( Params, Field ) ;
-    %
-    % ShimsSh.Aux = ShimOpt_IUGM_Prisma_fit( ) ; % Params input??
-    %
-    % Params.isRealtimeShimming  = false;
-    % Params.mediaSaveDir        = [ './testShimSh' ] ;
-    %
-    % Params.activeStaticChannelsMask   = logical( [ 1 true(1,63) false(1,8) ]' ) ;
-    % Params.activeDynamicChannelsMask  = logical( [ false(1,72) ]' ) ;
-    %
-    % ShimsSh.setshimvolumeofinterest( Phase.Hdr.MaskingImage ) ;
-    % ShimsSh.optimizeshimcurrents( Params  ) ;
-    
-    % % Field shift (relative to Larmor)
-    % [Field, Extras] = FieldEval.mapfield( ImgArray, Params ) ;
-    %
-    % % % Absolute field shift:
-    % % Field.img = Field.img + Field.Hdr.ImagingFrequency*1E6 ; 
-    %
-    % Field.Hdr.MaskingImage = Field.Hdr.MaskingImage & Params.mask ;
-    %
-    % Params.mask = Field.Hdr.MaskingImage ;
-    %
-    % fieldMaps( :,:,:, iCurrent ) = Field.img ;
-    
-    % dBdIRaw(:,:,:, iChannel) = mapdbdi_singlechannel( fieldMaps, Params.currents(iChannel,:), Params.mask, Params ) ;  
+        % use 1st echoes for field estimate: if later echoes are >= 50 Hz...
+        masks( :,:,:, iEcho, iChannel ) = Field.Hdr.MaskingImage & ( fieldMaps( :,:,:, iEcho ) ~= 0 ) & ( abs( fieldMaps(:,:,:, iEcho ) - fieldMaps(:,:,:, 1) ) < 50 ) ;
+        
+    end 
+
+    fieldMaps( ~masks(:,:,:,:,iChannel) ) = NaN ; 
+    dBdI(:,:,:, iChannel)  = median( fieldMaps, 4, 'omitnan' ) ;
 
 end 
 
-dBdIRaw( isnan(dBdIRaw) ) = 0 ;
-dBdIRaw( isinf(dBdIRaw) ) = 0 ;
-% dBdIRaw( abs(dBdIRaw) == 0 ) = NaN ;
-% dBdIFiltered = zeros( size( dBdIRaw ) ) ;
-%
-% for iChannel = 1 : Params.nChannels 
-%     dBdIFiltered(:,:,:,iChannel) = smooth3( dBdIRaw(:,:,:,iChannel), 'box', [3 3 1] ) ;
-% end
+dBdI( ( isnan(dBdI) | isinf(dBdI) ) ) = 0 ;
 
-Hdr.MaskingImage = (sum(abs(dBdIRaw),4))~=0 ; % extended spatial support
-    
-% disp(['Extrapolating fields ...']) ;
-% disp(['Channel 1 of ' num2str(Params.nChannels) ] ) ;
-%
-% gridSizeImg = Field.getgridsize()  ;
-% maskFov     = ones( gridSizeImg )  ; % extended spatial support
-%
-% % Params.Extension.isExtending    = false ; % harmonic field extrapolation
-% Params.Extension.voxelSize      = Field.getvoxelsize() ;
-% Params.Extension.radius         = 10 ;
-% Params.Extension.expansionOrder = 1 ;
-%
-% fieldMaps = dBdIFiltered ;
-% fieldMaps( isnan( fieldMaps ) ) = 0 ;
-%
-% [ ~, A, M ] = extendharmonicfield( fieldMaps(:,:,:, 1) , maskFov, isnan(dBdIFiltered(:,:,:, 1)), Params.Extension ) ;
-%
-% for iChannel = 1 : Params.nChannels 
-%     disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] ) ;
-%
-%     reducedField         = Hdr.MaskingImage .* img(:,:,:, iChannel) ;
-%     extendedField        = reshape( M'*A*reducedField(:), gridSizeImg ) ;
-%     img(:,:,:, iChannel) = extendedField + reducedField ;
-% end
+Hdr = Field.Hdr ;
+Hdr.MaskingImage = sum( sum( masks, 4 )>0, 5 ) == Params.nChannels ; % spatial support
 
-
-% -------
-% filter the dB/dI maps
-if Params.Filtering.isFiltering
-
-    disp(['Filtering dB/dI maps...'] )
-    Params.filterRadius = Params.Filtering.filterRadius ;
-
-    dBdIFiltered = zeros( size( dBdIRaw ) ) ;
-
-    Tmp = Field.copy();
-    Tmp.Hdr.MaskingImage = shaver( Params.mask, 1 ) ;
-
-    for iChannel = 1 : Params.nChannels 
-
-        disp(['iChannel ' num2str(iChannel)] )
-
-        tmp = dBdIRaw(:,:,:, iChannel) ;
-        tmp( ~Tmp.Hdr.MaskingImage ) = NaN ; % exclude from medfilt3( )
-        tmp = medfilt3( tmp, [3 3 3] ) ;
-        % tmp = medfilt3( tmp, round( Field.getvoxelsize()./Params.Filtering.filterRadius ) ) ;
-        % tmp( ~Tmp.Hdr.MaskingImage ) = 0 ;
-
-        dBdIFiltered(:,:,:,iChannel) = tmp ;
-
-    end
-
-    Hdr = Field.Hdr ;
-    Hdr.MaskingImage = Tmp.Hdr.MaskingImage ;
-    img = dBdIFiltered ;
-
-    % -------
-    % Extrapolate the dB/dI maps (EXPERIMENTAL)
-    if Params.Extension.isExtending
-
-        disp(['Extrapolating fields ...']) ;
-        disp(['Channel 1 of ' num2str(Params.nChannels) ] ) ;
-
-        gridSizeImg = size( Params.mask ) ;
-        maskFov     = ones( gridSizeImg )  ; % extended spatial support
-
-        [ ~, A, M ] = extendharmonicfield( img(:,:,:, 1) , maskFov, Hdr.MaskingImage, Params.Extension ) ;
-
-        for iChannel = 1 : Params.nChannels 
-            disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] ) ;
-
-            reducedField         = Hdr.MaskingImage .* img(:,:,:, iChannel) ;
-            extendedField        = reshape( M'*A*reducedField(:), gridSizeImg ) ;
-            img(:,:,:, iChannel) = extendedField + reducedField ;
-        end
-
-        Hdr.MaskingImage = (sum(abs(img),4))~=0 ; % extended spatial support
-
-    end
-
-else
-    Hdr = Field.Hdr ;
-    img = dBdIRaw ;
-end
-
-function dBdI = mapdbdi_singlechannel( fieldMaps, currents, mask, Params )
-%MAPDBDI
-% 
-% Maps single channel dB/dI (change in field per unit current [Hz/A])  
-% 
-% dBdI = MAPDBDI( fields, currents, mask, Params ) 
-% 
-% fieldMaps
-%   field maps to be fitted to current
-% 
-% currents
-%   test currents 
-% 
-% mask
-%   binary mask indicating voi over which dB/dI is to be calculated
-%
-% if # fieldMaps == # curents == 2
-%   dBdI = mask .* diff(fieldMaps)/diff(currents);
-% else
-%   performs linear fitting.
-%
-% Params has fields...
-
-ShimUse.customdisplay('Fitting dB/dI...' )
-
-Params.isDisplayingProgress = true;
-
-dBdI  = [] ; % change in field per change in shim current
-
-nCurrents       = length( currents ) ; 
-nInputFieldMaps = size( fieldMaps, 4 ) ;
-
-assert( nCurrents == nInputFieldMaps )
-
-if nInputFieldMaps == 2
-
-    dB   = fieldMaps(:,:,:, 2) - fieldMaps(:,:,:, 1) ;
-    dI   = currents(2) - currents(1) ;
-    dBdI = mask .* (dB/dI) ;
-
-else
-    
-    error('Unimplemented feature');
-    % FitResults = ShimCal.fitfieldtocurrent( fieldMaps, currents, mask, Params ) ;
-    % dBdI = FitResults.dBdI ;
-end
-
-
-end
+img = dBdI .* repmat( Hdr.MaskingImage, [1 1 1 Params.nChannels] ) ;
 
 end
 % =========================================================================
