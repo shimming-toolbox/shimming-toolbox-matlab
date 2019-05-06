@@ -445,7 +445,7 @@ function [] = interpolatetoimggrid( Shim, Field )
 
 % -------
 % check if voxel positions already happen to coincide. if they do, don't interpolate (time consuming).
-if any( size(X) ~= size(X0) ) || any( X0(:) ~= X(:) ) || any( Y0(:) ~= Y(:) ) || any( Z0(:) ~= Z(:) )
+if ( numel(size(X)) ~= numel(size(X0)) ) || any( size(X) ~= size(X0) ) || any( X0(:) ~= X(:) ) || any( Y0(:) ~= Y(:) ) || any( Z0(:) ~= Z(:) )
     Shim.resliceimg( X, Y, Z ) ;
 else
     % voxel positions already coincide, i.e.

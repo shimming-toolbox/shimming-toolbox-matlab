@@ -41,7 +41,7 @@ classdef MaRdI < matlab.mixin.SetGet
 % etc.
 %
 % =========================================================================
-% Updated::20190325::ryan.topfer@polymtl.ca
+% Updated::20190507::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -84,9 +84,9 @@ if nargin == 1
         Img.Hdr = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(1).name] ) ;
         Img.Hdr.Original = cell( length(listOfImages), 1 ) ;
 
-        for iSlice = 1 : length(listOfImages) 
-            Img.img(:,:,iSlice) = double( dicomread( [ imgDir '/' listOfImages(iSlice).name] ) );
-            Img.Hdr.Original{ iSlice } = dicominfo( [ imgDir '/' listOfImages(iSlice).name] ) ;
+        for iImg = 1 : length(listOfImages) 
+            Img.img(:,:,iImg) = double( dicomread( [ imgDir '/' listOfImages(iImg).name ] ) );
+            Img.Hdr.Original{ iImg } = dicominfo( [ imgDir '/' listOfImages(iImg).name ] ) ;
         end
         
         Params = [] ;
@@ -106,6 +106,18 @@ if nargin == 1
                 warning('loaded images presumed to be a single-slice time-series')
                 Img.Hdr.NumberOfSlices = uint16( 1 ) ; 
                 Img.img = permute( Img.img, [1 2 4 3] ) ;
+                % QUICK FIX for misordered data: reorder according to acquisition number
+                % TODO: Hdr should become a cell containing all the original dicom headers
+                for iImg = 1 : size( Img.img, 4 )
+                   iAcq(iImg) = double( Img.Hdr.Original{iImg}.AcquisitionNumber );
+                end
+                [~,iAcq] = sort(iAcq) ;
+                Img.img = Img.img(:,:,:,iAcq) ;
+                Tmp = cell( size( Img.Hdr.Original ) ) ;
+                for iImg = 1 : size( Img.img, 4 ) 
+                    Tmp{iImg} = Img.Hdr.Original{iAcq(iImg)} ;
+                end
+                Img.Hdr.Original = Tmp ;
             end
         
         else
@@ -976,7 +988,14 @@ nImgStacks = size(Img.img, 4) ;
 
 [X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
 
-imgInterpolated  = zeros( [ size(X_1) nImgStacks ] ) ;
+if length( size(X_1) ) == 2 
+    % interpolating volume down to a single slice:
+    gridSizeInterpolated = [ size(X_1) 1 nImgStacks ] ;
+elseif length( size(X_1) ) == 3
+    gridSizeInterpolated = [ size(X_1) nImgStacks ] ;
+end
+
+imgInterpolated  = zeros( gridSizeInterpolated ) ;
 
 img0 = Img.img( :,:,:, 1 ) ;
 
@@ -984,24 +1003,33 @@ tic
 
 if isFormingInterpolant 
     disp( ['Forming interpolant (may take ~1 min)...']) ;
-    F    = scatteredInterpolant( [X_0(:) Y_0(:) Z_0(:)], img0(:), interpolationMethod, 'none' ) ;
+    F    = scatteredInterpolant( [X_0(:) Y_0(:) Z_0(:)], img0(:), interpolationMethod, 'none'  ) ;
 end
 
 img1 = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
-imgInterpolated(:,:,:, 1 ) = reshape( img1, size(X_1) ) ;
+
+if length( size(X_1) ) == 2
+    imgInterpolated(:,:,1, 1 ) = reshape( img1, [ size(X_1) 1] ) ;
+elseif length( size(X_1) ) == 3
+    imgInterpolated(:,:,:, 1 ) = reshape( img1, size(X_1) ) ;
+end
+
 
 for iImgStack = 2 : nImgStacks     
     disp( ['Reslicing image stack...' num2str(iImgStack) ' of ' num2str(nImgStacks) ]) ;
     
     % replace samples with those of the next img stack 
     img0     = Img.img(:,:,:, iImgStack ) ;
+
     F.Values = img0(:) ;
    
     img1  = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
-    imgInterpolated(:,:,:, iImgStack ) = reshape( img1, size(X_1) ) ;
-   
-    % imgInterpolated(:,:,:,iImgStack) = ...
-    %     griddata( X_0, Y_0, Z_0, Img.img(:,:,:,iImgStack), X_1, Y_1, Z_1, interpolationMethod ) ;
+    
+    if length( size(X_1) ) == 2
+        imgInterpolated(:,:,1, iImgStack ) = reshape( img1, [ size(X_1) 1] ) ;
+    elseif length( size(X_1) ) == 3
+        imgInterpolated(:,:,:, iImgStack ) = reshape( img1, size(X_1) ) ;
+    end
 
 end
 
@@ -1588,31 +1616,30 @@ for iImage = 1 : nImages
     
     % Create directories for each series
     if ~exist( [ sortedDicomDir seriesDir ], 'dir' )
-        
         mkdir( [ sortedDicomDir seriesDir ] );
-    
     end
     
     echoDir = [ sortedDicomDir seriesDir 'echo_' num2str( Hdr.EchoTime, 3 ) ] ;
          
     if ~exist( echoDir, 'dir' )
-        
         mkdir( echoDir ) ;
-    
     end
     
     iSlice   = Hdr.Img.ProtocolSliceNumber + 1 ;
     sliceStr = num2str( iSlice ) ;
 
+    acqStr   = num2str( Hdr.AcquisitionNumber ) ;
+
     for ord = 3 : -1 : 1
         if iSlice < 10^ord
             sliceStr = [ '0' sliceStr ] ;
+             acqStr  = [ '0' acqStr ] ;
         end
     end
 
     [~, ~, ext]    = fileparts( Hdr.Filename ) ;
     sortedFilename = fullfile( echoDir, strcat( Hdr.PatientName.FamilyName, '-', ...
-                Hdr.Img.ImaCoilString, '-', sliceStr, ext ) ) ;
+                Hdr.Img.ImaCoilString, '-', sliceStr, '-', acqStr, ext ) ) ;
     
     if isCopying
         copyfile( Hdr.Filename, sortedFilename{1} ) ;
