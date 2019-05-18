@@ -69,10 +69,10 @@ if myisfield( Specs, 'state' ) && strcmp( Specs.state, 'inert' )
 else
     [ Aux.Source, Aux.Specs ] = ProbeTracking.declareprobe( Specs ) ;
     
-    Aux.createlogfile() ;
-    Aux.createrecordingdaemon() ;
-    % if ~isempty( Aux.Source )
-    % end
+    if ~strcmp( Aux.Specs.state, 'inert' )    
+        Aux.createlogfile() ;
+        Aux.createrecordingdaemon() ;
+    end
 end
 
 end    
@@ -279,16 +279,9 @@ function [p] = processupdate( Aux )
 %
 % [p] = PROCESSRECORDING( Aux )
 
-
-if length( Aux.Data.pRaw ) > 3000
-    pRaw = Aux.Data.pRaw((end-3000):end) ;
-else
-    pRaw = Aux.Data.pRaw ;
-end
-
 % % limiting
 % if length( Aux.Data.pRaw ) > 100
-%     
+%
 %     pMean = mean( Aux.Data.pRaw(end-100:end) ) ;
 %     pStd  = std( Aux.Data.pRaw(end-100:end) ) ;
 %
@@ -296,26 +289,29 @@ end
 %
 % end
 
-nSamples = length(pRaw) ;
-t        = [0:nSamples-1] ;
-
 switch Aux.Specs.probeType
     case 'capacitive'
+        pRaw      = Aux.Data.pRaw ;
+      nSamples    = length(pRaw) ;
+      t           = Aux.Specs.dt*[0:nSamples-1] ;
+      nSamplesMin = 5 ;
 
-        p = detrend( pRaw ) ;
-        % nSamplesMin = 13 ;
-        %
-        % if nSamples < nSamplesMin 
-            % p = detrend( pRaw, 'constant' ) ;
-        % else 
-        %     tmp = filtfilt( Aux.Specs.Filter.Lowpass.Coefficients.numerator, ...
-        %        Aux.Specs.Filter.Lowpass.Coefficients.denominator, pRaw ) ;     
-        %       y = polyfit( t, tmp, 1 ) ;
-        %       p = pRaw - polyval( y, t ) ;
-        % end
+      if nSamples < nSamplesMin
+          p = detrend( pRaw, 'constant' ) ;
+      else
+          y = polyfit( t, pRaw, 4 ) ;
+          p = pRaw - polyval( y, t ) ;
+      end
 
     case 'pressure'
-      p = detrend( pRaw, 'constant' ) ;
+        % local windowing
+        if length( Aux.Data.pRaw ) > 3000
+            pRaw = Aux.Data.pRaw((end-3000):end) ;
+        else
+            pRaw = Aux.Data.pRaw ;
+        end
+      
+        p = detrend( pRaw, 'constant' ) ;
 end
         
 end
@@ -340,7 +336,7 @@ function [] = recordandplotphysiosignal( Aux, Params )
 % See HELP ProbeTracking.recordphysiosignal() for accepted Parameters
 
 DEFAULT_ISSAVINGDATA          = true ;
-DEFAULT_PHYSIOSIGNALFILENAME  = [] ; % ProbeTracking.saverecording() will name it
+% DEFAULT_PHYSIOSIGNALFILENAME  = [] ; % ProbeTracking.saverecording() will name it
 
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;
@@ -354,9 +350,9 @@ else
     Params.isSavingData = false ; 
 end
 
-if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
-    Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
-end
+% if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
+%     Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
+% end
 
 % ------- 
 isUserSatisfied = false ;
@@ -419,7 +415,7 @@ function [] = recordphysiosignal( Aux1, Params, Aux2 )
 %       [default : 4 Hz ]
 
 DEFAULT_ISSAVINGDATA          = true ;
-DEFAULT_PHYSIOSIGNALFILENAME  = [] ; % ProbeTracking.saverecording() will name it
+% DEFAULT_PHYSIOSIGNALFILENAME  = [] ; % ProbeTracking.saverecording() will name it
 DEFAULT_RUNTIME               = 15*60 ; % [units : s]
 DEFAULT_ISPLOTTINGINREALTIME  = true ;
 DEFAULT_REFRESHRATE           = 4 ; % [units : Hz]
@@ -432,9 +428,9 @@ if  ~myisfield( Params, 'isSavingData' ) || isempty(Params.isSavingData)
     Params.isSavingData = DEFAULT_ISSAVINGDATA ;
 end
 
-if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
-    Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
-end
+% if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
+%     Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
+% end
 
 if  ~myisfield( Params, 'runTime' ) || isempty(Params.runTime)
     Params.runTime = DEFAULT_RUNTIME ;
@@ -524,7 +520,7 @@ StopButton.Clear() ;
 % ------- 
 if Params.isSavingData
 
-    Aux1.saverecording( Params.physioSignalFilename )
+    Aux1.saverecording(  )
 
     % if isDualTracking
     %     Aux2.saverecording( [ Params.physioSignalFilename '-2' ] )
@@ -802,6 +798,8 @@ if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
 end
 
 if isDeviceFound
+    
+    AuxSpecs.state = 'active' ;
     
     % Check device type 
     % NOTE : names probably need to change computer-to-computer!
