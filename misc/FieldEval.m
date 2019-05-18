@@ -1335,31 +1335,37 @@ if iscell( Fields )
 
 elseif isa( Fields, 'FieldEval' )
     % fit Fields.img time series (along 4th dimension) to tracker time series
-
     nAcq    = size( Fields.img, 4 ) ;
     assert( nAcq == length( Fields.Aux.Tracker.Data.p ), 'Expected a single tracker measurement for each image' )
 
+    mask = ( sum( Fields.Hdr.MaskingImage, 4 ) == nAcq ) ;
+    
     nVoxels = prod( Fields.getgridsize() ) ;
-    I       = speye( nVoxels, nVoxels ) ;
+    nVoxelsVoi = nnz(mask) ;
+    % I       = speye( nVoxels, nVoxels ) ;
+    I       = speye( nVoxelsVoi, nVoxelsVoi ) ;
     
     % linear operator: A
     A       = [ I Fields.Aux.Tracker.Data.p(1)*I ] ;
     
     % solution vector: Bt
-    Bt      = squeeze( Fields.img( :, :, :, 1) ) ;
-    Bt      = Bt(:) ;
+    Bt  = Fields.img( :, :, :, 1) ;
+    Bt  = Bt( mask ) ;
+    % Bt      = squeeze( Fields.img( :, :, :, 1) ) ;
+    % Bt      = Bt(:) ;
 
     for iT = 2 : nAcq 
         disp( [ num2str(100*iT/nAcq, 3) '%'])
         
         A    = [ A ; I Fields.Aux.Tracker.Data.p(iT)*I ] ;
         
-        tmpB = squeeze( Fields.img( :, :, :, iT) ) ;
+        tmpB = Fields.img( :, :, :, iT) ;
+        tmpB = tmpB( mask ) ;
+        % tmpB = squeeze( Fields.img( :, :, :, iT) ) ;
         Bt   = [ Bt ; tmpB(:) ] ;
     end
-
     Bt(isnan(Bt)) = 0;
-
+    
     % isRegularizing = false ; % possible TODO: add option?
     %     % lamda(1): regularization parameter for the static field component
     %     % lamda(2): " " for the RIRO component
@@ -1391,20 +1397,26 @@ elseif isa( Fields, 'FieldEval' )
 
     x = cgls( A'*A, ... % least squares operator
               A'*Bt, ... % effective solution vector
-              zeros( [2*nVoxels 1] ) , ... % % initial 'guess' solution vector
+              zeros( [2*nVoxelsVoi 1] ) , ... % % initial 'guess' solution vector
               CgParams ) ;
     
     Field                    = Fields.copy() ; 
-    Field.img                = reshape( x(1:nVoxels), Fields.getgridsize() ) ;
-    Field.Hdr.MaskingImage    = ~( (Field.img==0) & (-Field.img==0) ) ; 
+    Field.img                = Field.img(:,:,:,1) ;
+    Field.img( mask )        = x(1:nVoxelsVoi) ;
+    Field.img( ~mask )       = 0 ;
+    Field.Hdr.MaskingImage   = mask ; 
     Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
-    Field.Aux.Tracker.Data.p = 0 ; % ?
+    Field.Aux.Tracker.Data.p = 0 ; 
 
     Riro                    = Fields.copy() ; 
-    Riro.img                = reshape( x(nVoxels+1:end), Fields.getgridsize() ) ;
-    Riro.Hdr.MaskingImage   = ~( (Riro.img==0) & (-Riro.img==0) ) ; 
+    Riro.img                = Riro.img(:,:,:,1) ;
+    % scale RIRO by RMSE of physio signal
+    pShiftRms               = rms( Fields.Aux.Tracker.Data.p - mean(Fields.Aux.Tracker.Data.p) ) ;
+    Riro.img( mask )        = pShiftRms .* x(nVoxelsVoi+1:end) ;
+    Riro.img( ~mask )       = 0 ;
+    Riro.Hdr.MaskingImage   = mask ; 
     Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
-    Riro.Aux.Tracker.Data.p = 1 ; % ?
+    Riro.Aux.Tracker.Data.p = pShiftRms ; 
     Field.Model.Riro        = Riro ;
 
 end
