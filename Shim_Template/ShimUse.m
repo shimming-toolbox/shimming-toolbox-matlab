@@ -7,61 +7,9 @@ classdef ShimUse < matlab.mixin.SetGet
 % 
 % ShimUse is a high-level user interface to operate the shim system. 
 %
-% .......
-%   
-% Usage
-%
-% Shim = ShimUse( Params )
-% 
-% Params
-%   
-%   .shimSystem 
-%       'Greg' or 'Rri' [default]
-%
-%   .pathToShimReferenceMaps
-%   
-%   .TrackerSpecs
-%       .dt
-%
-%
-%   Shim contains fields
-%
-%       .Com
-%           Object of type ShimCom
-%
-%       .Opt
-%           Object of type ShimOpt
-%
-%       .Data
-%           .Img
-%
-%               A cell array of MaRdI-type image data objects used for shim
-%               training (i.e. these are the GRE images): 
-%               Rows correspond to echo number
-%               1st column = Magnitude  
-%               2nd column = Phase (e.g. inter-echo difference) 
-%               
-%               3rd dimension corresponds to "frame" (e.g.  .Data{:,:,1} may be
-%               the "inspired" data, and .Data{:,:,2} the "expired"
-%               acquisition.) 
-%
 %
 % =========================================================================
-% Notes 
-% 
-% Part of series of classes pertaining to shimming:
-%
-%    Tracking
-%    ShimCal
-%    ShimCom
-%    ShimEval
-%    ShimOpt
-%    ShimSpecs
-%    ShimTest 
-%    ShimUse
-%
-% =========================================================================
-% Updated::20190402::ryan.topfer@polymtl.ca
+% Updated::20190505::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -104,6 +52,14 @@ if nargin < 1
 end
 
 Shim.Params = ShimUse.assigndefaultparameters( Params ) ;
+
+switch Shim.Params.trainingMode
+    case 'breath-hold'
+        % to record (in this order): (1) normal breathing; (2) breath-hold insp; (3) breath-hold exp
+        Shim.Data.Aux.Tracker = cell( 1, 1, Shim.Params.nTrainingSeries + 1 ) ; 
+    case 'free breathing'
+        Shim.Data.Aux.Tracker = cell( 1, 1, Shim.Params.nTrainingSeries ) ; 
+end
 
 if Shim.Params.isConfirmingDataLoadDir
     Shim.uiconfirmdataloaddir( ) ;
@@ -156,16 +112,15 @@ end
 % if ~Params.isConnectingToShim ;
 %     Shim.testshimconnection() ;
 % end
-
-if Shim.Params.isLoggingCommands
-    diary( [Shim.Params.dataLoadDir Shim.Params.commandLogFilename] ) ;
-end
-
-Shim.Data.Aux.Tracker = cell( 1, 1, Shim.Params.nTrainingFrames + 1 ) ; % to record (in this order): (1) normal breathing; (2) breath-hold insp; (3) breath-hold exp
-
-if strcmp( Shim.Params.uiMode, 'isGui' ) 
-    ShimGui( Shim ) ;
-end
+%
+% if Shim.Params.isLoggingCommands
+%     diary( [Shim.Params.dataLoadDir Shim.Params.commandLogFilename] ) ;
+% end
+%
+%
+% if strcmp( Shim.Params.uiMode, 'isGui' ) 
+%     ShimGui( Shim ) ;
+% end
 
 end
 % =========================================================================
@@ -199,31 +154,36 @@ function [] = acquiretrainingdata( Shim, iTrainingFrame )
 % 
 % ACQUIRETRAININGDATA( Shim )
 
-
 Params.isSavingData        = true;
 Params.isForcingOverwrite  = true ;
 Params.runTime             = 5*60 ; % [units: s], max runTime = 5 min.
 
-if nargin < 2
+switch Shim.Params.trainingMode
+    case 'breath-hold'
+        if nargin < 2
 
-    iTrainingFrame = ...
-        input( ['Enter number corresponding to training acquisition/recording type: (1) Inspired breath-hold; (2) Expired breath-hold; (3) Breathing. \n'] ) ;
+            iTrainingFrame = ...
+            input( ['Enter number corresponding to training acquisition/recording type: (1) Inspired breath-hold; (2) Expired breath-hold; (3) Breathing. \n'] ) ;
 
-    if isempty(iTrainingFrame)
-        iTrainingFrame = 3;
-    end
+            if isempty(iTrainingFrame)
+                iTrainingFrame = 3 ;
+            end
+        end
+        
+    case 'free breathing'
+        iTrainingFrame = 1 ;
 
 end
 
-Params.physioSignalFilename = [Shim.Params.dataLoadDir datestr(now,30) '-physioSignal-Training' num2str(iTrainingFrame) '.txt'] ;
+Params.physioSignalFilename = [ Shim.Params.dataLoadDir datestr(now,30) '-physioSignal-Training' num2str(iTrainingFrame) ] ;
 
 % -------
 % begin physio tracking
-if iTrainingFrame == 3
-    Shim.Opt.Tracker.calibratelimiting( Params ) ;
-else
+% if iTrainingFrame == 3
+%     Shim.Opt.Tracker.calibratelimiting( Params ) ;
+% else
     Shim.Opt.Tracker.recordandplotphysiosignal( Params ) ;
-end
+% end
 
 Shim.Params.physioSignalFilenames{iTrainingFrame} = Params.physioSignalFilename ;
 
@@ -245,11 +205,11 @@ function [Fields] = getprocessedfieldmaps( Shim )
 
 assert( size( Shim.Data.Img, 2 ) == 3 ) ;
 
-Fields = cell(Shim.Params.nTrainingFrames, 1) ; 
+Fields = cell(Shim.Params.nTrainingSeries, 1) ; 
 
-for iFrame = 1 : Shim.Params.nTrainingFrames
+for iSeries = 1 : Shim.Params.nTrainingSeries
  
-    Fields{iFrame} = Shim.Data.Img{1, 3, iFrame} ;
+    Fields{iSeries} = Shim.Data.Img{1, 3, iSeries} ;
 
 end
 
@@ -297,18 +257,18 @@ function [imgDirectories] = loadtrainingdata( Shim, imgDirectories )
 
 if nargin == 2 && ~isempty( imgDirectories )
     
-    assert( ( size( imgDirectories, 3 ) == Shim.Params.nTrainingFrames ) ...
+    assert( ( size( imgDirectories, 3 ) == Shim.Params.nTrainingSeries ) ...
             & size( imgDirectories, 2 ) == 2 ) ;
 
-    for iFrame = 1 : Shim.Params.nTrainingFrames
+    for iSeries = 1 : Shim.Params.nTrainingSeries
         for iImg = 1 : 2 
-            if ~isempty( imgDirectories{ 1, iImg, iFrame } )
+            if ~isempty( imgDirectories{ 1, iImg, iSeries } )
                 
-                nDicomSubDirs = size( imgDirectories( :, iImg, iFrame ), 1 ) ;
+                nDicomSubDirs = size( imgDirectories( :, iImg, iSeries ), 1 ) ;
                 
                 for iDicomSubDir = 1 : nDicomSubDirs
-                    if ~isempty( imgDirectories{ iDicomSubDir, iImg, iFrame } )
-                        Shim.Data.Img{ iDicomSubDir, iImg, iFrame }  = MaRdI( imgDirectories{ iDicomSubDir, iImg, iFrame } ) ;
+                    if ~isempty( imgDirectories{ iDicomSubDir, iImg, iSeries } )
+                        Shim.Data.Img{ iDicomSubDir, iImg, iSeries }  = MaRdI( imgDirectories{ iDicomSubDir, iImg, iSeries } ) ;
                     end
                 end
             end
@@ -318,25 +278,25 @@ if nargin == 2 && ~isempty( imgDirectories )
 end
 
 % else, manually select the directories using GUI
-imgDirectories = cell( 1, 2, Shim.Params.nTrainingFrames ) ;
+imgDirectories = cell( 1, 2, Shim.Params.nTrainingSeries ) ;
 imgType        = { 'MAGNITUDE' ; 'PHASE' } ;
 
 errMsg         = [ 'Did not find the expected number of echo_* subfolders. Ensure the chosen directory and Shim.Params.trainingMode are correct.'] ;
 
-for iFrame = 1 : Shim.Params.nTrainingFrames
+for iSeries = 1 : Shim.Params.nTrainingSeries
 
     for iImg = 1 : 2 
 
-        % if strcmp( Shim.Params.trainingMode, 'free breathing' ) && ( iFrame == 1 )
+        % if strcmp( Shim.Params.trainingMode, 'free breathing' ) && ( iSeries == 1 )
         %     uiBoxTitle = ['Select the ' imgType{iImg} ' training data folder containing the DICOM images.' ...
-        %             ' (gre_field_mapping training data set ' num2str(iFrame) ' of ' num2str(Shim.Params.nTrainingFrames) ')'] ;
+        %             ' (gre_field_mapping training data set ' num2str(iSeries) ' of ' num2str(Shim.Params.nTrainingSeries) ')'] ;
         %
         % else
             % uiBoxTitle = ['Select the ' imgType{iImg} ' training data parent folder containing the echo_* DICOM subfolders.' ...
-            %         ' (gre_field_mapping training data set ' num2str(iFrame) ' of ' num2str(Shim.Params.nTrainingFrames) ')'] ;
+            %         ' (gre_field_mapping training data set ' num2str(iSeries) ' of ' num2str(Shim.Params.nTrainingSeries) ')'] ;
         % end
         uiBoxTitle = ['Select the ' imgType{iImg} ' training data parent folder containing the echo_* DICOM subfolders.' ...
-                    ' (gre_field_mapping training data set ' num2str(iFrame) ' of ' num2str(Shim.Params.nTrainingFrames) ')'] ;
+                    ' (gre_field_mapping training data set ' num2str(iSeries) ' of ' num2str(Shim.Params.nTrainingSeries) ')'] ;
         
         ShimUse.customdisplay(uiBoxTitle) ;
         
@@ -351,21 +311,21 @@ for iFrame = 1 : Shim.Params.nTrainingFrames
         
         if nDicomSubDirs == 0 
             error( errMsg ) ;
-            % assert( strcmp( Shim.Params.trainingMode, 'free breathing' ) && (iFrame == 2), errMsg ) ;
+            % assert( strcmp( Shim.Params.trainingMode, 'free breathing' ) && (iSeries == 2), errMsg ) ;
             %
-            % imgDirectories{ 1, iImg, iFrame } = parentDir ;
-            % Shim.Data.Img{ 1, iImg, iFrame }  = MaRdI( parentDir ) ;
+            % imgDirectories{ 1, iImg, iSeries } = parentDir ;
+            % Shim.Data.Img{ 1, iImg, iSeries }  = MaRdI( parentDir ) ;
 
         else
             for iDicomSubDir = 1 : nDicomSubDirs
        
-                imgDirectories{ iDicomSubDir, iImg, iFrame } = [ parentDir dicomSubDirs(iDicomSubDir).name '/' ] ;
-                Shim.Data.Img{ iDicomSubDir, iImg, iFrame }  = MaRdI( imgDirectories{ iDicomSubDir, iImg, iFrame } ) ;
+                imgDirectories{ iDicomSubDir, iImg, iSeries } = [ parentDir dicomSubDirs(iDicomSubDir).name '/' ] ;
+                Shim.Data.Img{ iDicomSubDir, iImg, iSeries }  = MaRdI( imgDirectories{ iDicomSubDir, iImg, iSeries } ) ;
             
                 switch imgType{iImg} % check for expected number of echo subdirectories
                     
                     case 'MAGNITUDE'
-                        assert( nDicomSubDirs == Shim.Data.Img{ 1, iImg, iFrame }.Hdr.MrProt.lContrasts, errMsg ) ;
+                        assert( nDicomSubDirs == Shim.Data.Img{ 1, iImg, iSeries }.Hdr.MrProt.lContrasts, errMsg ) ;
                     case 'PHASE'
                         % if phase subdirectories are phase difference images,
                         % then there will be one fewer subdir than the number
@@ -373,7 +333,7 @@ for iFrame = 1 : Shim.Params.nTrainingFrames
                         % phase images themselves, then the number of
                         % subdirectories == nEchoes.  therefore, this assertion
                         % is generic:
-                        assert( ( nDicomSubDirs + 1) >= Shim.Data.Img{ 1, iImg, iFrame }.Hdr.MrProt.lContrasts, errMsg ) ;
+                        assert( ( nDicomSubDirs + 1) >= Shim.Data.Img{ 1, iImg, iSeries }.Hdr.MrProt.lContrasts, errMsg ) ;
                 end
             end 
         end
@@ -384,30 +344,30 @@ end
 
 end
 % =========================================================================
-function [] = associatetrackerdata( iFrame )
+function [] = associatetrackerdata( Shim, iSeries )
 %ASSOCIATETRACKERDATA
 
-Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker = [] ;
-Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker = Shim.Data.Aux.Tracker{ 1, 1, iFrame }.copy() ;
+Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker = [] ;
+Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker = Shim.Data.Aux.Tracker{ iSeries }.copy() ;
 
 % number of acquisitions
-nAcq = size( Shim.Data.Img{ 1, 3, iFrame }, 4 ) ;
+nAcq = size( Shim.Data.Img{ 1, 3, iSeries }.img, 4 ) ;
 
 if  nAcq == 1
     % This is a single field map -- assumed to correspond to a single tracker measurement:
 
     % number of samples corresponding to breath-hold
     % (enables auto-estimation of the time window corresponding to the breath-hold):
-    nSamplesApnea = (1000*Shim.Data.Img{1,1,iFrame}.Hdr.MrProt.lTotalScanTimeSec)/Shim.Opt.Tracker.Specs.dt ;
+    nSamplesApnea = (1000*Shim.Data.Img{1,1,iSeries}.Hdr.MrProt.lTotalScanTimeSec)/Shim.Opt.Tracker.Specs.dt ;
 
     % extract a single scalar
-    Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p = ...
-        ProbeTracking.selectmedianmeasurement( Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.Data.p, nSamplesApnea ) ;
+    Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p = ...
+        ProbeTracking.selectmedianmeasurement( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p, nSamplesApnea ) ;
 
 else
     % ------
     % Correct for system delays before associating tracker measurements
-    Field = Shim.Data.Img{ 1, 3, iFrame } ;
+    Field = Shim.Data.Img{ 1, 3, iSeries } ;
 
     tAcq = Field.getacquisitiontime() ;
     tAcq = tAcq - tAcq(1) ;
@@ -415,8 +375,8 @@ else
     % time between images 
     dtAcq = median( diff( tAcq ) ) ;
 
-    pt      = Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.p ;
-    tGlobal = Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.t ;
+    pt      = Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ;
+    tGlobal = Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.t ;
 
     % time interval between respiratory samples:
     dt = 0.001*round( ( tGlobal(end) - tGlobal(1) )/length(tGlobal) ) ; % [units: s]
@@ -425,49 +385,53 @@ else
     
     gridSize = Field.getgridsize() ;
     
-    % ------
-    % bandpass filter images?
-    frequencyCutoff = [ 0 0.6 ] ;
-
-    for iRow = 1 : gridSize(1) 
-        for iColumn = 1 : gridSize(2)  
-            for iSlice = 1 : gridSize(3)
-            Field.img( iRow, iColumn, 1, : ) = ...
-                bpfilt( squeeze( Field.img(iRow, iColumn, iSlice,:) ), frequencyCutoff(1), frequencyCutoff(2), 1/dtAcq, false ) ;
-            end
-        end
-    end
+    % % ------
+    % % bandpass filter images?
+    % 
+    % frequencyCutoff = [ 0 0.6 ] ;
+    %
+    % for iRow = 1 : gridSize(1) 
+    %     for iColumn = 1 : gridSize(2)  
+    %         for iSlice = 1 : gridSize(3)
+    %         Field.img( iRow, iColumn, 1, : ) = ...
+    %             bpfilt( squeeze( Field.img(iRow, iColumn, iSlice,:) ), frequencyCutoff(1), frequencyCutoff(2), 1/dtAcq, false ) ;
+    %         end
+    %     end
+    % end
         
     % ------
-    % interpolate field across time to match the interval of the physio recording 
-    tImg = [ 0: dt : tAcq(end) ]' ;
+    % Interpolate field across time to match the interval of the physio recording 
+    tInterp = [ 0: dt : tAcq(end) ]' ;
 
-    imgInterp = zeros( [ gridSize length(tImg) ] ) ;
+    imgInterp = zeros( [ gridSize length(tInterp) ] ) ;
 
     for iRow = 1 : gridSize(1) 
         for iColumn = 1 : gridSize(2)  
             for iSlice = 1 : gridSize(3)
-                imgInterp( iRow, iColumn, iSlice, : ) = interp1( tAcq, squeeze( Field.img( iRow, iColumn, iSlice, :) ), tImg, 'linear' ) ; 
+                imgInterp( iRow, iColumn, iSlice, : ) = interp1( tAcq, squeeze( Field.img( iRow, iColumn, iSlice, :) ), tInterp, 'linear' ) ; 
             end
         end
     end
     
-    % Assume the entire dB0(tImg) series occurs somewhere within the tGlobal window.
-    % given that we assign tImg(1) = 0, 
-    % the delay time (tImg' = tGlobal' - t_delay) is necessarily positive, 
-    % and less than max(tGlobal) - max(tImg)
+    % Assume the entire dB0(tInterp) series occurs somewhere within the tGlobal window.
+    % given that we assign tInterp(1) = 0, 
+    % the delay time (tInterp' = tGlobal' - t_delay) is necessarily positive, 
+    % and less than max(tGlobal) - max(tInterp)
 
-    maxLag = round(( max( tGlobal ) - max( tImg ) )/dt) ;
+    maxLag = round(( max( tGlobal ) - max( tInterp ) )/dt) ;
 
-    T_delay = zeros( gridSize ) ;
-    C       = zeros( [gridSize 6806] ) ;
+    T_delay = nan( gridSize ) ;
+    C       = zeros( [gridSize 1] ) ;
+    
+    % reliable region:
+    mask  = ( sum( Field.Hdr.MaskingImage, 4 ) == nAcq ) ;
 
+    ShimUse.customdisplay( 'Estimating probe-to-image delay...')
     % ------
     % X-corr
     for iRow = 1 : Field.Hdr.Rows 
-        disp(num2str(100*iRow/Field.Hdr.Rows))
         for iColumn = 1 : Field.Hdr.Columns  
-            % if validityMask( iRow, iColumn )
+             if mask( iRow, iColumn )
 
                 [c, lags] = xcorr( pt, imgInterp(iRow,iColumn,:), maxLag ) ;
 
@@ -479,27 +443,99 @@ else
                 t_xcorr = dt*lags ;
                 t_delay = t_xcorr( iMax ) ;
 
-                C(iRow, iColumn, :) = c ;
+                C(iRow, iColumn, 1, 1:length(c)) = c ;
                 T_delay(iRow, iColumn) = t_delay ;
-            % end
+            end
         end
     end
 
     % the median should be more robust than the average for determining the delay
     % once noise + uncorrelated voxels are taken into consideration
-    t_medianDelay = median( T_delay( Field.Hdr.MaskingImage(:,:,1) ) ) 
+    t_medianDelay = median( T_delay( mask ) ) ;
 
+    ShimUse.customdisplay( ['Estimated delay: ' num2str( t_medianDelay )] ) ;
+        
+    response = input(['Is the current estimate satisfactory? ' ...
+            '0 to manually specify delay; 1 (or enter) to accept & continue: ']) ;
 
-    [~,iT] = min( abs( tGlobal - t_medianDelay ) ) ;
+    if ~response
+        
+        figure
+        imagesc( mask .* median( imgInterp, 4 ) ) ;
+        title('Median field') ;
+        ShimUse.customdisplay( 'Choose a voxel to plot its field time-course: ' ) ;
+
+        isVoxelInReliableRegion = false ;
+
+        while ~isVoxelInReliableRegion
+            iRow = input( ['Enter the voxel image row: ' ] ) 
+            iCol = input( ['Enter the voxel image column: ' ] )
+            
+            isVoxelInReliableRegion = mask( iRow, iCol ) ;
+            
+            if ~isVoxelInReliableRegion
+                ShimUse.customdisplay( 'Selected voxel lies outside the reliable region. Choose again' ) ;
+            end
+        end
+        
+        figure; 
+        subplot(121); plot( tGlobal, pt ); 
+        xlabel('Time (s)') ; ylabel('Amplitude (a.u.)') ; 
+        title('Physio signal') ;
+        
+        subplot(122); plot( tInterp, squeeze(imgInterp(iRow,iCol,:)) ) ;
+        xlabel('Time (s)') ; ylabel('Field (Hz)') ; 
+        title(['Field at voxel [' num2str(iRow) ',' num2str(iCol) ']' ]) ;
+
+        isDelayValid = false ;
+        while ~isDelayValid
+            t_delay = input(['Enter the delay (between 0-' num2str(maxLag) ' s) in units of seconds: '] ) 
+            
+            isDelayValid = ( t_delay >= 0 ) & ( t_delay <= maxLag ) ;
+            
+            if ~isDelayValid
+                ShimUse.customdisplay( 'Given delay exceeds the expected range. Choose again' ) ;
+            end
+        end 
+    else
+        t_delay = t_medianDelay ;
+    end
+
+    %  % % figure; subplot(121); plot( squeeze( Field.img(50,40,1,:) ) ); subplot(122); plot( Field.Aux.Tracker.Data.p )
+    %  % figure; subplot(121); plot( tGlobal, pt ); subplot(122); plot( tAcq, squeeze( Field.img(50,30,:)) )
+    %  figure; subplot(121); plot( tGlobal, pt ); subplot(122); plot( tAcq, squeeze( Field.img(50,40,:)) )
+    %  hold on; plot( tInterp, squeeze(imgInterp(50,40,:)) )
+    %  % figure; subplot(121); plot( tGlobal, pt ); subplot(122); plot( tAcq, squeeze( Field.img(40,40,:)) )
+    %  % figure; subplot(121); plot( tGlobal, pt ); subplot(122); plot( tAcq, squeeze( Field.img(30,40,:)) )
+    %
+    %  meanMag = repmat(mean(Shim.Data.Img{1,1,1}.img,4) ,[1 1 1 200]) ;
+    %  stdMag  = repmat(std(Shim.Data.Img{1,1,1}.img,[],4) ,[1 1 1 200]) ;
+    % zScore = ( Shim.Data.Img{1,1,1}.img - meanMag ) ./ stdMag ;
+    % zMask = ( sum( abs(zScore) < 1, 4 ) >=199 ) ;    
+    %
+    % t_medianDelay = median( T_delay( mask & zMask ) ) 
+
+    [~,iT] = min( abs( tGlobal - t_delay ) ) ;
 
     % Finally, interpolate pt to the acquired image times:
     tp = tGlobal( iT:iT+length(tInterp)-1 ) -tGlobal(iT) ;
 
-    Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.p = interp1( tp, pt( iT:iT+length(tInterp)-1 ), tAcq, 'linear' ) ;
-    Shim.Data.Img{ 1, 3, iFrame }.Aux.Tracker.t = tAcq ;
+    % NOTE: tp(end) can be slightly < tAcq(end)  
+    % Using 'extrap' to avoid an interpolated p terminating with NaN's
+    Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p = interp1( tp, pt( iT:iT+length(tInterp)-1 ), tAcq, 'linear', 'extrap' ) ;
+    Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.t = tAcq ;
+
+    if any( isnan(Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p) )
+        warning('Interpolated probe recording contains nonnumeric values. Check inputs. (E.g. Shim.Data.Img{ }: Entries should be ordered by acquisition time)' ) ;
+    end
+
+    % used in nonlinear shim optimization:
+    Shim.Params.pMax     = max( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ) ;
+    Shim.Params.pMin     = min( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ) ;
     
-    % TODO: Implement manual delay adjustment in case automatic method fails
-    
+    % for posterity (might be useful?):
+    Shim.Params.imgDelay = t_delay ;    
+
 end
 
 end
@@ -514,9 +550,9 @@ function [] = processtrainingdata( Shim )
 %   Columns [1 | 2 | 3] = [MAG | PHASE | FIELD]
 %
 % If the corresponding [respiratory] tracker measurements for a given training
-% frame (iFrame) are available in:
+% frame (iSeries) are available in:
 % 
-% Shim.Data.Aux.Tracker{ iFrame } 
+% Shim.Data.Aux.Tracker{ iSeries } 
 % 
 % then the user is prompted to extract the median (most representative) value
 % corresponding to the actual breath-hold (generally the full recording extends
@@ -524,51 +560,59 @@ function [] = processtrainingdata( Shim )
 %
 % This scalar value is then entered in: 
 %
-% Shim.Data.Img{1,3,iFrame}.Aux.Tracker.Data.p
+% Shim.Data.Img{1,3,iSeries}.Aux.Tracker.Data.p
+
 Shim.Data.Img(1,3,:) = cell(1,1) ; % 3rd column for field maps
 
-for iFrame = 1 : Shim.Params.nTrainingFrames
+for iSeries = 1 : Shim.Params.nTrainingSeries
 
     ImgArray         = cell( 1, 2 ) ;
-    ImgArray{ 1, 1 } = Shim.Data.Img{ 1, 1, iFrame } ; % mag
-    ImgArray{ 1, 2 } = Shim.Data.Img{ 1, 2, iFrame } ; % phase
+    ImgArray{ 1, 1 } = Shim.Data.Img{ 1, 1, iSeries } ; % mag
+    ImgArray{ 1, 2 } = Shim.Data.Img{ 1, 2, iSeries } ; % phase
  
     % -------
-    Shim.Data.Img{ 1, 3, iFrame } = FieldEval.mapfield( ImgArray, Shim.Params ) ;
+    Shim.Data.Img{ 1, 3, iSeries } = FieldEval.mapfield( ImgArray, Shim.Params ) ;
 
     % associate field measurements to tracker values 
-    if ~isempty( Shim.Data.Aux.Tracker{ 1, 1, iFrame } )
-        Shim.associatetrackerdata( iFrame ) ;
+    if ~isempty( Shim.Data.Aux.Tracker{ 1, 1, iSeries } )
+        Shim.associatetrackerdata( iSeries ) ;
     end
     
 end
 
-if ( Shim.Params.nTrainingFrames > 1 ) && ~isempty( Shim.Data.Aux.Tracker{ 1, 1, Shim.Params.nTrainingFrames + 1 } )
-   
-    % this is assumed to be a free breathing recording
-    % i.e. trainingFrame 1 = inspired; 2 = expired.
-    Shim.Params.pBreathing = Shim.Data.Aux.Tracker{ 1,1, Shim.Params.nTrainingFrames + 1 }.Data.p ;
+switch Shim.Params.trainingMode
+    case 'free breathing'
+        % Shim.Opt.setoriginalfield( FieldEval.modelfield( Shim.Data.Img{1,3,1}, Shim.Params ) ) ;
+        return;
+    
+    case 'breath-hold'
+        if ~isempty( Shim.Data.Aux.Tracker{ 1, 1, Shim.Params.nTrainingSeries + 1 } )
+           
+            % this is assumed to be a free breathing recording
+            % i.e. trainingFrame 1 = inspired; 2 = expired.
+            Shim.Params.pBreathing = Shim.Data.Aux.Tracker{ 1,1, Shim.Params.nTrainingSeries + 1 }.Data.p ;
 
-    Shim.Params.pDc  = median( Shim.Params.pBreathing ) ;
-    % TODO extract min + max amplitudes across ALL recordings instead?
-    Shim.Params.pMin = min( Shim.Params.pBreathing ) ;
-    Shim.Params.pMax = max( Shim.Params.pBreathing ) ;
-else
-    error('Free breathing measurements not available')
+            Shim.Params.pDc  = median( Shim.Params.pBreathing ) ;
+            % TODO extract min + max amplitudes across ALL recordings instead?
+            Shim.Params.pMin = min( Shim.Params.pBreathing ) ;
+            Shim.Params.pMax = max( Shim.Params.pBreathing ) ;
+        else
+            error('Free breathing measurements not available')
+        end
 end
 
 % -------
 % derive t2star reliability weights:
-Shim.Params.t2sWeights = zeros( [ Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) Shim.Params.nTrainingFrames ] ) ;
+Shim.Params.t2sWeights = zeros( [ Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) Shim.Params.nTrainingSeries ] ) ;
 % t2sMasks: false wherever the Shim.Params.t2sWeights are clearly unreliable (i.e. Mag(TE2) >= Mag(TE1) )
-t2sMasks   = false( [ Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) Shim.Params.nTrainingFrames ] ) ;
+t2sMasks   = false( [ Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) Shim.Params.nTrainingSeries ] ) ;
 
-for iFrame = 1 : Shim.Params.nTrainingFrames 
+for iSeries = 1 : Shim.Params.nTrainingSeries 
     
-    Shim.Params.t2sWeights(:,:,:, iFrame) = Shim.Opt.derivedataweights( ...
-        { Shim.Data.Img{ 1, 1, iFrame }  ; Shim.Data.Img{ 2, 1, iFrame } }, 5 ) ;
+    Shim.Params.t2sWeights(:,:,:, iSeries) = Shim.Opt.derivedataweights( ...
+        { Shim.Data.Img{ 1, 1, iSeries }  ; Shim.Data.Img{ 2, 1, iSeries } }, 5 ) ;
 
-    t2sMasks(:,:,:, iFrame) = Shim.Params.t2sWeights(:,:,:, iFrame) ~= 0 ;
+    t2sMasks(:,:,:, iSeries) = Shim.Params.t2sWeights(:,:,:, iSeries) ~= 0 ;
 
 end
 
@@ -588,13 +632,13 @@ if Shim.Params.isAutoSegmenting == true
     Shim.Params.cordVoi     = true( Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) ) ;
     Shim.Params.dataWeights = ones( Shim.Data.Img{ 1, 1 , 1}.getgridsize( ) ) ;
 
-    for iFrame = 1 : Shim.Params.nTrainingFrames 
+    for iSeries = 1 : Shim.Params.nTrainingSeries 
 
         TmpParams.dataSaveDir       = [ Shim.Params.dataLoadDir ] ;
         TmpParams.isUsingPropsegCsf = true ;
         
         % call spinal cord toolbox 
-        [cordVoi, sctWeights] = Shim.Data.Img{ 1, 1, iFrame }.segmentspinalcanal( TmpParams ) ;
+        [cordVoi, sctWeights] = Shim.Data.Img{ 1, 1, iSeries }.segmentspinalcanal( TmpParams ) ;
         
         % retain the intersection with previous iteration:
         Shim.Params.cordVoi = Shim.Params.cordVoi & cordVoi ;
@@ -602,7 +646,7 @@ if Shim.Params.isAutoSegmenting == true
         Shim.Params.dataWeights = Shim.Params.dataWeights .* sctWeights  ;
     end
     
-    Shim.Params.dataWeights = Shim.Params.dataWeights/Shim.Params.nTrainingFrames ;
+    Shim.Params.dataWeights = Shim.Params.dataWeights/Shim.Params.nTrainingSeries ;
 
 end
 
@@ -630,20 +674,15 @@ end
 DEFAULT_ISSAVINGDATA            = true ;
 DEFAULT_ISFORCINGOVERWRITE      = false ;
 
-DEFAULT_PHYSIOSIGNALFILENAME = [ Params.dataSaveDir datestr(now,30) '-physioSignal.bin' ] ;
-DEFAULT_SAMPLETIMESFILENAME  = [ Params.dataSaveDir datestr(now,30) '-sampleTimes.bin' ] ;
-DEFAULT_UPDATETIMESFILENAME  = [ Params.dataSaveDir datestr(now,30) '-updateTimes.bin' ] ;
+DEFAULT_PHYSIOSIGNALFILENAME = [ Params.dataSaveDir datestr(now,30) '-physioSignal-RTShimming' ] ;
+DEFAULT_SAMPLETIMESFILENAME  = [ Params.dataSaveDir datestr(now,30) '-sampleTimes' ] ;
+DEFAULT_UPDATETIMESFILENAME  = [ Params.dataSaveDir datestr(now,30) '-updateTimes' ] ;
 
 DEFAULT_RUNTIME                 = 10*60 ; % [units: s]
-DEFAULT_EXTRAPOLATIONORDER      = 0 ;
-DEFAULT_EXTRAPOLATIONDELAY      = 0 ;
 
-DEFAULT_ISFILTERINGMEASUREMENTS = true ; % Tracker measurements
 DEFAULT_ISPLOTTINGINREALTIME    = true ;
 
 DEFAULT_ISCLIPPING              = true ;
-DEFAULT_MINCLIPTHRESHOLD        = 1 ;
-DEFAULT_MAXCLIPTHRESHOLD        = 1000 ;
 
 DEFAULT_TXDELAY                 = 100 ; % [units: ms]
 
@@ -678,14 +717,6 @@ if  ~myisfield( Params, 'runTime' ) || isempty(Params.runTime)
     Params.runTime = DEFAULT_RUNTIME ;
 end
 
-if  ~myisfield( Params, 'extrapolationOrder' ) || isempty(Params.extrapolationOrder)
-    Params.extrapolationOrder  = DEFAULT_EXTRAPOLATIONORDER ; 
-end
-
-if  ~myisfield( Params, 'extrapolationDelay' ) || isempty(Params.extrapolationDelay)
-    Params.extrapolationDelay  = DEFAULT_EXTRAPOLATIONDELAY ; 
-end
-
 if  ~myisfield( Params, 'isPlottingInRealTime' ) || isempty(Params.isPlottingInRealTime)
     Params.isPlottingInRealTime  = DEFAULT_ISPLOTTINGINREALTIME ; 
 end
@@ -698,47 +729,16 @@ if  ~myisfield( Params, 'minCurrents' ) || isempty(Params.minCurrents)
     Params.minCurrents  = -ones( Shim.Com.Specs.Amp.nActiveChannels, 1) ; 
 end
 
-if  ~myisfield( Params, 'isFilteringMeasurements' ) || isempty(Params.isFilteringMeasurements)
-    Params.isFilteringMeasurements  = DEFAULT_ISFILTERINGMEASUREMENTS ; 
-end
-
 if  ~myisfield( Params, 'isClipping' ) || isempty(Params.isClipping)
     Params.isClipping  = DEFAULT_ISCLIPPING ; 
-end
-
-if  ~myisfield( Params, 'minClipThreshold' ) || isempty(Params.minClipThreshold)
-    Params.minClipThreshold  = Shim.Params.pMin ; % DEFAULT_MINCLIPTHRESHOLD ; 
-end
-
-if  ~myisfield( Params, 'maxClipThreshold' ) || isempty(Params.maxClipThreshold)
-    Params.maxClipThreshold  = Shim.Params.pMax ; % DEFAULT_MAXCLIPTHRESHOLD ; 
 end
 
 if  ~myisfield( Params, 'txDelay' ) || isempty(Params.txDelay)
     Params.txDelay = DEFAULT_TXDELAY ;
 end
 
-if ~myisfield( Shim.Params, 'pDc' ) || isempty( Shim.Params.pDc )
-    error('Requires the DC offset of the respiratory signal: Shim.Params.pDc')
-end
-
-
-Params.nSamplesFilter  = 5 ; % Window length -> 5 samples * 10 ms/sample = 50 ms
-Params.nSamplesHalfWindow = (Params.nSamplesFilter + 1)/2 - 1 ; 
-
-Params.correctionOrder = 1;  % linear correction
-
-[~,Params.filterWeights] = sgolay(Params.correctionOrder, Params.nSamplesFilter);   % Calculate S-G coefficients
-
-% delay = tx/transmission delay plus the time shift involved from the filter
-delay = ( Params.txDelay + Shim.Opt.Tracker.Specs.dt*(Params.nSamplesFilter-1)/2)/1000 ; % [units: s]
-
-
 % ------- 
 Shim.Opt.Tracker.clearrecording() ;
-Shim.Opt.Tracker.Data.pRaw = 0;
-Shim.Opt.Tracker.Data.p    = 0;
-
 
 nSamples = Params.runTime / (Shim.Opt.Tracker.Specs.dt/1000) ;
 iSample  = 0 ; 
@@ -759,8 +759,6 @@ else
 
 end
 
-phys =[] ;
-
 sampleTimes          = [] ; %
 updateTimes          = [] ; % when shim updates occur
 
@@ -768,8 +766,7 @@ updateIndices        = [] ; % corresponding to when shim updates occur
 iUpdate              = 0 ;
 
 currentsNorm         = 0 ;
-
-currentsIssued       = zeros( Shim.Com.Specs.Amp.nChannels, nSamples ) ;
+currentsIssued       = zeros( Shim.Com.Specs.Amp.nChannels, 1 ) ;
 
 if Params.isPlottingInRealTime
     
@@ -793,9 +790,7 @@ if Params.isPlottingInRealTime
         
     plotHandle = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
         
-    xlim(axesHandle,[0 Params.runTime]);
-        
-    title('Respiration Tracker','FontSize',15,'Color',[1 1 0]);
+    title('Physio signal','FontSize',15,'Color',[1 1 0]);
     xlabel('Time (s)','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
     ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
 
@@ -804,7 +799,7 @@ if Params.isPlottingInRealTime
 
 end
 
-Params.isPlottingInRealTime = false;
+Params.isPlottingInRealTime = true;
 % -----
 display('RAMPING SHIM CURRENTS TO DC') 
 Shim.Com.setandrampallshims( Shim.Opt.Model.currents ) ;
@@ -814,7 +809,7 @@ Shim.Com.getallchanneloutputs
 % ------- 
 StopButton = stoploop({'Stop recording'}) ;
 
-isTracking = Shim.Opt.Tracker.begintracking(); 
+isTracking = Shim.Opt.Tracker.beginrecording(); 
 
 if isTracking
 
@@ -828,107 +823,47 @@ if isTracking
         for iSamplesBetweenUpdates = 1 : nSamplesBetweenUpdates 
 
             iSample = iSample + 1 ;
-            
             Shim.Opt.Tracker.getupdate() ;
-            % rawPhysioSignal(iSample) = Shim.Opt.Tracker.getupdate() ;
 
         end
 
-        iUpdate = iUpdate + 1;        
-
+        iUpdate                = iUpdate + 1;
         updateIndices(iUpdate) = iUpdate ;
-        
-        updateTimes(iUpdate) = updatePeriod * iUpdate ; 
+        updateTimes(iUpdate)   = updatePeriod * iUpdate ;
 
-        % % lowpass + delay correction of respiratory signal  
-        % if Params.isFilteringMeasurements  && ( iSample > Params.nSamplesFilter )
-        %         
-        %      % 0th order corr (weighted avg)
-        %      p = dot( Params.filterWeights(:,1), rawPhysioSignal( (iSample - Params.nSamplesFilter + 1) : iSample ) ) ;
-        %
-        %      % if Params.isPredictingMeasurement
-        %      % 1st order corr
-        %      p = p + delay*dot( Params.filterWeights(:,2), rawPhysioSignal( (iSample - Params.nSamplesFilter + 1) : iSample ) ) ;
-        %      %end
-        %
-        %     Shim.Opt.Tracker.Data.p(iUpdate) = p ;
-        %
-        % else
-
-            % Shim.Opt.Tracker.Data.p(iUpdate) = rawPhysioSignal(iSample) ;
-
-        % end
-        
-         % if Params.isClipping
-         %     Shim.Opt.Tracker.Data.p(iUpdate) = clipvalue( Shim.Opt.Tracker.Data.p(iUpdate) ) ;
-         % end
-         phys(iUpdate) = mean( Shim.Opt.Tracker.Data.p(end-1:end) ) ; % avg 2 samples
-         pS            = phys(iUpdate) - Shim.Params.pDc ; % debiased measurement
-         % pS = Shim.Opt.Tracker.Data.p(end) - Shim.Params.pDc ; % debiased measurement
-
-        currents = Shim.Opt.computerealtimeupdate( pS ) ;
-
+        currents = Shim.Opt.computerealtimeupdate( Shim.Opt.Tracker.Data.p(end) ) ;
         
         % currents = limitcurrents( currents ) ;
         
         Shim.Com.setandloadallshims( currents ) ;
         
-        currentsNorm = norm(currents) 
+        currentsIssued(:, iUpdate ) = currents ;
        
-        % currentsIssued(:, iUpdate ) = currents ;
-
+        currentsNorm(iUpdate) = norm(currents) ;
+        
         if Params.isPlottingInRealTime
-            set(plotHandle,'YData',phys,'XData',updateTimes);
-            % set(plotHandle,'YData',Shim.Opt.Tracker.Data.p);
-            % set(plotHandle,'YData',Shim.Opt.Tracker.Data.p,'XData',updateTimes);
+            % set(plotHandle,'YData',Shim.Opt.Tracker.Data.p,'XData',Shim.Opt.Tracker.Data.t);
+            set(plotHandle,'XData',updateTimes, 'YData', currentsNorm);
         end
 
     end
 
-    Shim.Opt.Tracker.stoptracking() ;
+    Shim.Opt.Tracker.stoprecording() ;
     Shim.Com.resetallshims() ;
 
     sampleTimes = (Shim.Opt.Tracker.Specs.dt/1000)*ones(size(Shim.Opt.Tracker.Data.p)) ;
 
     % ------- 
     if Params.isSavingData
-        physioSignalFid = fopen( Params.physioSignalFilename, 'w+' ) ;
-        fwrite( physioSignalFid, Shim.Opt.Tracker.Data.p, 'double' ) ;
-        fclose( physioSignalFid );
-        
-        physioSignalFid = fopen( Params.rawPhysioSignalFilename, 'w+' ) ;
-        fwrite( physioSignalFid, Shim.Opt.Tracker.Data.pRaw, 'double' ) ;
-        fclose( physioSignalFid );
-
-        sampleTimesFid = fopen( Params.sampleTimesFilename, 'w+' ) ;
-        fwrite( sampleTimesFid, sampleTimes, 'double' ) ;
-        fclose( sampleTimesFid );
-        
-        updateTimesFid = fopen( Params.updateTimesFilename, 'w+' ) ;
-        fwrite( updateTimesFid, updateTimes, 'double' ) ;
-        fclose( updateTimesFid );
-        
-        save( [Params.dataSaveDir datestr(now,30) '-currentsIssued'], currentsIssued ) ;
+        baseFilename = [ Params.dataSaveDir datestr(now,30) '-physioSignal-RTShimming' ] ;
+        p = Shim.Opt.Tracker.Data.p ;
+        t = Shim.Opt.Tracker.Data.t ;
+        save( baseFilename, 'currentsIssued', 'updateTimes', 'p', 't' )
     end
 
 end
 
 StopButton.Clear() ;
-
-
-
-function p = clipvalue( p )
-%CLIPVALUE
-% 
-% pClipped = CLIPVALUE( p )
-
-if p < Params.minClipThreshold
-    p = Params.minClipThreshold ;
-elseif p > Params.maxClipThreshold ;
-    p = Params.maxClipThreshold ;
-end
-
-end
 
 % function currents = limitcurrents( currents )
 % %limitcurrents
@@ -998,10 +933,7 @@ function [ Params ] = assigndefaultparameters( Params )
 %
 % Re: 'Training' protocol :
 % 
-% DEFAULT_TRAININGMODE = 'breath-hold' ; vs. 'free breathing'
-%    
-% DEFAULT_NTRAININGFRAMES = 2 ; % training time-points (e.g. inspired + expired field maps = 2 frames)
-%   and the Siemens default is to only save the inter-echo phase difference:
+% DEFAULT_TRAININGMODE = ['breath-hold'] ; vs. 'free breathing'
 %
 % DEFAULT_ISCONNECTINGTOSHIM = true ; 
 
@@ -1013,12 +945,11 @@ DEFAULT_UIMODE      = 'isCmdLine' ;% vs. 'isGui'
 
 DEFAULT_SHIMSYSTEM  = 'Rriyan' ; 
 
-DEFAULT_ISLOGGINGCOMMANDS  = true ; 
+DEFAULT_ISLOGGINGCOMMANDS  = false ; 
 DEFAULT_COMMANDLOGFILENAME = ['commandLog_' datestr(now,30)] ;
 
 % Re: 'Training' protocol
 DEFAULT_TRAININGMODE         = 'breath-hold' ;
-DEFAULT_NTRAININGFRAMES      = 2 ; % training time-points (e.g. inspired + expired field maps = 2 frames)
 
 if ~myisfield( Params, 'isConnectingToShim' ) || isempty( Params.isConnectingToShim ) 
    Params.isConnectingToShim = DEFAULT_ISCONNECTINGTOSHIM ;
@@ -1048,11 +979,17 @@ if ~myisfield( Params, 'trainingMode' ) || isempty( Params.trainingMode )
    Params.trainingMode = DEFAULT_TRAININGMODE ;
 end
 
-if ~myisfield( Params, 'nTrainingFrames' ) || isempty( Params.nTrainingFrames ) 
-   Params.nTrainingFrames = DEFAULT_NTRAININGFRAMES ;
+switch Params.trainingMode
+    case 'breath-hold' 
+    % training time-points (2 series: inspired + expired field maps)
+        Params.nTrainingSeries = 2 ;
+        % not sure if these are needed anymore:
+        Params.Inspired        = [] ; 
+        Params.Expired         = [] ;
+
+    case 'free breathing'
+        Params.nTrainingSeries = 1 ;
 end
-
-
 
 end
 % =========================================================================
