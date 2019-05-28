@@ -153,7 +153,7 @@ if  ~myisfield( Params, 'tolerance' ) || isempty(Params.tolerance)
     Params.tolerance = DEFAULT_TOLERANCE ;
 end
 
-voxelSize  = Field.getvoxelsize() ;
+voxelSize  = Field.getvoxelspacing() ;
 mask = Field.Hdr.MaskingImage ;
 
 % make spherical/ellipsoidal convolution kernel (ker)
@@ -268,7 +268,7 @@ end
 
 voi = logical( voi ) ;
 
-Stats.volume    = nnz( voi ) .* prod( 0.1*Field.getvoxelsize() )  ; % [units: cm^3]
+Stats.volume    = nnz( voi ) .* prod( 0.1*Field.getvoxelspacing() )  ; % [units: cm^3]
 Stats.mean      = mean( Field.img( voi ) ) ;
 Stats.median    = median( Field.img( voi ) ) ;
 Stats.std       = std( Field.img( voi ) ) ;
@@ -883,7 +883,7 @@ if nEchoes > 2
     filterDiameter = 11 ;
     
     % filter size in number of voxels 
-    Params.kernelSize = round( filterDiameter ./ ImgArray{ 1, 1 }.getvoxelsize() ) ;
+    Params.kernelSize = round( filterDiameter ./ ImgArray{ 1, 1 }.getvoxelspacing() ) ;
     % if size is an even number of voxels along any dimension, increment up:
     evenDims = ~logical( mod( Params.kernelSize, 2 ) ) ;
     Params.kernelSize( evenDims ) = Params.kernelSize( evenDims ) + ones( [ 1 nnz( evenDims ) ] ) ; 
@@ -1136,7 +1136,7 @@ if nEchoes > 2
     % e.g use unweighted solution as starting guess for weighted:
     %
 
-    [Dx,Dy,Dz] = createdifferenceoperators( ImgArray{1,1}.getgridsize(), ImgArray{1,1}.getvoxelsize, 2 ) ;
+    [Dx,Dy,Dz] = createdifferenceoperators( ImgArray{1,1}.getgridsize(), ImgArray{1,1}.getvoxelspacing, 2 ) ;
 
     L = Dx + Dy + Dz ;
     
@@ -1379,7 +1379,7 @@ elseif isa( Fields, 'FieldEval' )
     %     indicesVoi = find( Fields.Hdr.MaskingImage(:,:,:,1)~= 0 ) ;
     %     Mvoi = sparse( [1:nVoxelsVoi], indicesVoi, ones([nVoxelsVoi 1]), nVoxelsVoi, nVoxels ) ;
     %     
-    %     [Dx, Dy, Dz] = createdifferenceoperators( Fields.getgridsize(), Fields.getvoxelsize(), 2) ;
+    %     [Dx, Dy, Dz] = createdifferenceoperators( Fields.getgridsize(), Fields.getvoxelspacing(), 2) ;
     %
     %     L = Dx + Dy + Dz ;
     %
