@@ -481,7 +481,6 @@ if ~isempty( Shim.Aux )
     Shim.Aux.setoriginalfield( Shim.Field ) ;
 end
 
-
 end
 % =========================================================================
 function [] = setshimmedfield( Shim, Field )
@@ -1471,8 +1470,8 @@ if Params.isSavingResultsTable
 
         filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction' ] ;
         PredictedShimmedRiro.assessfielddistribution( Params.assessmentVoi, filename ) ;
-
-        Params.scaling      = [ -20 20 ] ;
+       
+        Params.scaling      = [ -dp dp ]/3 ;
         Params.filename     = [Params.mediaSaveDir '/riro_s' num2str(Params.imgSlice)] ;
         MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*Shim.Field.Model.Riro.img(:,:,Params.imgSlice), Params ) ;
 
@@ -1826,10 +1825,6 @@ function  [ Params ] = assigndefaultparameters( Params )
 DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
 DEFAULT_TRACKERSPECS            = [] ;
 
-DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
-
-DEFAULT_SHIMMODE            = 'static' ;
-
 DEFAULT_INSTITUTIONNAME = 'IUGM' ;
 DEFAULT_STATIONNAME     = 'MRC35049' ;
 
@@ -1839,14 +1834,6 @@ end
 
 if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
    Params.TrackerSpecs = DEFAULT_TRACKERSPECS ;
-end
-
-if ~myisfield( Params, 'isInterpolatingReferenceMaps' ) || isempty(Params.isInterpolatingReferenceMaps)
-   Params.isInterpolatingReferenceMaps = DEFAULT_ISINTERPOLATINGREFERENCEMAPS ;
-end
-
-if ~myisfield( Params, 'shimMode' ) || isempty(Params.shimMode)
-   Params.shimMode = DEFAULT_SHIMMODE ;
 end
 
 if ~myisfield( Params, 'InstitutionName' ) || isempty(Params.InstitutionName)
