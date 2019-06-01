@@ -22,7 +22,7 @@ classdef MaRdI < matlab.mixin.SetGet
 %       Array of images (3D if there are multiple DICOMs in directory)
 %
 %   .Hdr
-%       Header of the first DICOM file read by dir( imgPath )
+%       DICOM header 
 %       
 %   .Aux
 %       Aux-objects: auxiliary measurements (e.g. PMU/respiratory probe tracking)
@@ -112,15 +112,21 @@ if nargin == 1
             nVolumes = SpecialHdr.MrProt.lRepetitions + 1 ;
         end
         
-        % containers for the few terms varying between dicoms:
+        % containers for a few terms varying between dicoms:
         sliceLocations = zeros( nImages, 1 ) ; % [units: mm]
         echoTimes      = zeros( nImages, 1 ) ; % [units: ms]
 
         % Image headers, not yet organized:
         RawHdrs        = cell( nImages, 1 ) ; 
         
+       % Read all the image headers and structure the MaRdI object accordingly:
+       %
+       % NOTE: It may well be possible to determine all the necessary info from
+       % the complete Siemens header (e.g. SpecialHdr) of a single image;
+       % practically, however, the following is easier since the header
+       % information is abstrusely defined for some sequences.
         for iImg = 1 : nImages
-            % Basic Hdr read using dicominfo() : parse-siemens-shadow() takes much longer
+            % using dicominfo() here as parse-siemens-shadow() takes much longer
             RawHdrs{ iImg }      = dicominfo( imgList{iImg} ) ;
 
             sliceLocations(iImg) = RawHdrs{ iImg }.SliceLocation ;
@@ -157,10 +163,6 @@ if nargin == 1
             
         Img.rescaleimg() ;
 
-        if strcmp( SpecialHdr.SequenceName, '*fm2d2' ) && ~isempty( strfind( SpecialHdr.ImageType, '\P\' ) )
-            Img.Hdr.EchoTime = echoTimes(2) - echoTimes(1) ;
-        end
-        
         Img.Hdr.NumberOfSlices = size( Img.img, 3 ) ; 
 
         if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
@@ -559,30 +561,30 @@ end
 assert( nVolumes == size( Phase.img, 5 ) ) ;
 
 for iVolume = 1 : nVolumes
-    
+
     display(['Unwrapping volume ' num2str(iVolume) ' of ' num2str(nVolumes) ] ) ;    
-    
+
     switch Options.unwrapper
 
         case 'AbdulRahman_2007'
             
-            Phase.img(:,:,:,:, iVolume) = unwrap3d( Phase.img(:,:,:,:, iVolume), logical(Phase.Hdr.MaskingImage(:,:,:,:, iVolume)), Options ) ;
+            Phase.img(:,:,:,1, iVolume) = unwrap3d( Phase.img(:,:,:,1, iVolume), logical(Phase.Hdr.MaskingImage(:,:,:,1, iVolume)), Options ) ;
 
         case 'FslPrelude'
 
             if myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage)
-                Options.mask = single( Phase.Hdr.MaskingImage(:,:,:,iVolume) ) ;
+                Options.mask = single( Phase.Hdr.MaskingImage(:,:,:,1,iVolume) ) ;
             end
             
             Options.voxelSize = Phase.getvoxelspacing() ;   
 
-            Phase.img(:,:,:,:, iVolume) = prelude( Phase.img(:,:,:,:, iVolume), Mag.img(:,:,:,:, iVolume), Options ) ;
+            Phase.img(:,:,:,1, iVolume) = prelude( Phase.img(:,:,:,1, iVolume), Mag.img(:,:,:,1, iVolume), Options ) ;
 
         case {'Sunwrap', 'sunwrap'}
             
-            iMag      = Mag.img(:,:,:,iVolume) ;
+            iMag      = Mag.img(:,:,:,1,iVolume) ;
             iMag      = iMag./max(iMag(:)) ;
-            Phase.img(:,:,:,:, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,:,iVolume) ), Options.threshold ) ;
+            Phase.img(:,:,:,1, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,1,iVolume) ), Options.threshold ) ;
 
         otherwise
             error('Unrecognized "Options.unwrapper" input') ;
@@ -626,6 +628,29 @@ for iSlice = 1 : nSlices
         t(iSlice, iVolume) = str2double( t_iAcq(1:2) )*60*60 + str2double( t_iAcq(3:4) )*60 + str2double( t_iAcq(5:end) ) ;
     end
 end
+
+end
+% =========================================================================
+function [echoTime] = echotime( Img, iEcho ) 
+%ECHOTIME
+% 
+% TE = ECHOTIME( Img )
+% TE = ECHOTIME( Img, iEcho )
+%
+% Returns vector of echo times in units of ms.
+% If 2nd argument (echo index iEcho) is provided, ECHOTIME returns the TE of
+% the corresponding echo.
+
+if nargin == 1
+    if strcmp( Img.Hdr.SequenceName, '*fm2d2' ) && ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) )
+        echoTime = ( Img.Hdr.MrProt.alTE(2) - Img.Hdr.MrProt.alTE(1) )/1000  ;
+    else
+        nEchoes  = size( Img.img, 4 ) ;
+        echoTime = Img.Hdr.MrProt.alTE(1:nEchoes)/1000 ;
+    end
+else
+    echoTime = Img.Hdr.MrProt.alTE(iEcho)/1000 ;
+end 
 
 end
 % =========================================================================
@@ -763,8 +788,7 @@ Y1 = RS(2,1)*iRows + RS(2,2)*iColumns + RS(2,3)*iSlices;
 Z1 = RS(3,1)*iRows + RS(3,2)*iColumns + RS(3,3)*iSlices;
 
 %-------
-% TRANSLATE w.r.t. origin 
-% (i.e. location of 1st element: .img(1,1,1))
+% TRANSLATE w.r.t. origin (i.e. location of 1st element: .img(1,1,1))
 X = Img.Hdr.ImagePositionPatient(1) + X1 ; 
 Y = Img.Hdr.ImagePositionPatient(2) + Y1 ; 
 Z = Img.Hdr.ImagePositionPatient(3) + Z1 ; 
@@ -856,7 +880,6 @@ function [F] = resliceimg( Img, X_1, Y_1, Z_1, varargin )
 %   
 %   Optional interpolationMethod is a string supported by the scatteredInterpolant constructor.
 %   F is the object of type 'scatteredInterpolant' used for interpolation.
-
 
 DEFAULT_INTERPOLATIONMETHOD  = 'linear' ;
 DEFAULT_ISFORMINGINTERPOLANT = true ;
@@ -998,8 +1021,6 @@ end
 [rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 
 Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
-% Img.Hdr.SliceLocation = dot( [X_1(1) Y_1(1) Z_1(1)],  ... 
-%     cross( Img.Hdr.ImageOrientationPatient(1:3), Img.Hdr.ImageOrientationPatient(4:6) ) ) ;
 
 end
 % =========================================================================
@@ -1307,8 +1328,9 @@ function [] = setslicenormalvector( Img )
 %
 % For determining voxel positions in 3d slice-stack
 
-% TODO: determine voxel positions on an image-by-image basis (and, if necessary, reorder the slices?)
-% or use the Siemens header to order based on ascending/descending acquisition?
+% TODO: Determine voxel positions on an image-by-image basis (and, if
+% necessary, reorder the slices?) or use the Siemens header to order based on
+% ascending/descending acquisition?
     
 r = Img.Hdr.ImageOrientationPatient(4:6) ; 
 c = Img.Hdr.ImageOrientationPatient(1:3) ; 
@@ -1322,9 +1344,8 @@ Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;
 Img.Hdr.Img.SliceNormalVector = cross( r, c ) ;  
 [X2,Y2,Z2] = Img.getvoxelpositions() ; % estimate positions based on the 1st loaded image in the directory. 
 
-% the actual position corresponding to the slice direction can be increasing or decreasing with slice/image number
-
-% which estimate is closer? 1 or 2? 
+% Actual position corresponding to the slice direction can be increasing or
+% decreasing with slice/image number. So, which estimate is closer: 1 or 2? 
 if norm( Img.Hdrs{end,1,1}.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) < ...
         norm( Img.Hdrs{end,1,1}.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) 
     % if true, then 1. corresponds to the correct orientation
@@ -1366,8 +1387,6 @@ if nEchoSubdirs > 0
         ListiSubdir = finddcmorima( [imgDir ListSubdirs(iEcho).name] ) ;
         assert( length(ListiSubdir) == nImgPerEcho, 'Each echo subdirectory should contain the same number of images' ) ; 
 
-        % List( (end+1):(end+length(ListiSubdir)) ) = ListiSubdir ;
-        
         for iImg = 1 : nImgPerEcho
             list{ (iEcho-1)*nImgPerEcho + iImg} = [ imgDir ListSubdirs(iEcho).name '/' ListiSubdir(iImg).name ] ;
         end
@@ -1382,7 +1401,6 @@ else
         list{iImg} = [ imgDir List(iImg).name ] ;
     end
 end
-
 
 
 function List = finddcmorima( imgDir ) 
@@ -1566,7 +1584,7 @@ weights = weights/max(weights(:)) ;
 
 end
 % =========================================================================
-function [ Hdr ] = dicominfosiemens( filename  )
+function [ Hdr ] = dicominfosiemens( filename )
 %DICOMINFOSIEMENS
 %
 % Hdr = DICOMINFOSIEMENS
@@ -1889,8 +1907,6 @@ end
 end
 % =========================================================================
 % =========================================================================
-
-
 
 
 end
