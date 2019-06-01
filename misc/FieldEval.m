@@ -55,6 +55,7 @@ if nargin ~= 0
         % convert MaRdI-type Img object to FieldEval
         Field.img = Img.img ;
         Field.Hdr = Img.Hdr ;
+        Field.Hdrs = Img.Hdrs ;
         Field.Aux = Img.Aux ;
     
     elseif ischar( Img ) 
@@ -213,14 +214,6 @@ end
 
 end
 % =========================================================================
-% =========================================================================
-function Field = histogramfield( Field )
-%HISTOGRAMFIELD
-
-
-
-end
-% =========================================================================
 function Stats = assessfielddistribution( Field, voi, filename )
 %ASSESSSHIM
 %
@@ -261,6 +254,7 @@ function Stats = assessfielddistribution( Field, voi, filename )
 %
 %   .min
 %   .max
+assert( ndims( Field.img ) <=3, 'Multiple volumes not supported. TODO' )
 
 if nargin < 2 || isempty(voi)
     voi = Field.Hdr.MaskingImage ;
@@ -647,25 +641,14 @@ end
 % =========================================================================
 methods(Static)
 % =========================================================================
-function [Field, Extras] = mapfield( Img, Params, ObjectiveImg )
-% MAPFIELD
+function [Field] = mapfield( varargin )
+%MAPFIELD
 %
-% Field = MAPFIELD( Img ) 
-% Field = MAPFIELD( Img, Params ) 
-% Field = MAPFIELD( Img, Params, ObjectiveImg ) 
-% 
-% Img --- a cell array where the 1st dimension (i.e. row) corresponds to
-% echo number and the index along the second dimension (i=1,2) corresponds to
-% Magnitude & Wrapped Phase respectively (each a MaRdI-type object) 
+% Field = MAPFIELD( Mag, Phase ) 
+% Field = MAPFIELD( Mag, Phase, Params ) 
 %
-% if nEchoes == 1 
-%   (i.e. Img = { Mag, Phase } )
-%
-%   It is assumed that Phase is in fact a phase-difference image.
-%
-% if nEchoes == 2
-%   (i.e. Img = { MagEcho1, PhaseEcho1 ; MagEcho2, PhaseEcho2 } )
-%
+% Mag and Phase should either be paths to the respective DICOM directories, 
+% OR, instantiated MaRdI-type image objects (e.g. Mag = MaRdI( path_to_Mag_DICOMs ) )
 %
 % Params may contain the following fields
 %
@@ -680,19 +663,38 @@ function [Field, Extras] = mapfield( Img, Params, ObjectiveImg )
 %       [default: 0.01] 
 %
 %   .unwrapper
-%       'Sunwrap' [default], calls SUNWRAP( ) (Maier, et al. MRM 2015)
-%       'AbdulRahman_2007' , calls unwrap3d( ), which wraps to the Abdul-Rahman binary
+%       'Sunwrap' [default for 2d image (single slice)], calls sunwrap( ) (Maier, et al. MRM 2015)
+%       'AbdulRahman_2007' [default for 3d image volume], calls unwrap3d( ), which wraps to the Abdul-Rahman binary
 %       'FslPrelude', calls prelude( ), which wraps to FSL-prelude 
 
+DEFAULT_THRESHOLD    = 0.01 ;
+DEFAULT_UNWRAPPER_2D = 'Sunwrap' ; 
+DEFAULT_UNWRAPPER_3D = 'AbdulRahman_2007' ;
 
-DEFAULT_THRESHOLD                      = 0.01 ;
-DEFAULT_UNWRAPPER                      = 'Sunwrap' ; % 'AbdulRahman_2007' ;
+assert( ( nargin >= 2 ) && ...
+        isa( varargin{1}, 'MaRdI' ) || ischar( varargin{1} ) && ...
+        isa( varargin{2}, 'MaRdI' ) || ischar( varargin{2} ), ...
+        'Invalid input.' ) ;
 
-DEFAULT_ECHOINDICES                    = [ 1 2 ] ;
+for iImg = 1 : 2
+    if isa( varargin{iImg}, 'MaRdI' )
+        Img = varargin{iImg} ;
+    elseif ischar( varargin{iImg} )
+        Img = MaRdI( varargin{iImg} ) ;
+    end
 
-assert( (nargin >= 1) && ~isempty( Img ) ) ;
+    if ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) )
+        Mag = Img.copy() ;
+    elseif ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) )
+        Phase = Img.copy() ;
+    else
+        error('Unexpected image type: Neither magnitude nor phase?') ;
+    end
+end
 
-if nargin == 1
+if isstruct( varargin{end} )
+    Params = varargin{end} ;
+else
     Params.dummy = [];
 end
 
@@ -700,151 +702,117 @@ if ~myisfield( Params, 'threshold' ) || isempty( Params.threshold )
     Params.threshold = DEFAULT_THRESHOLD ;
 end
 
-
 if ~myisfield( Params, 'unwrapper' ) || isempty( Params.unwrapper ) 
-    Params.unwrapper = DEFAULT_UNWRAPPER ;
-end
-
-if ~myisfield( Params, 'echoIndices' ) || isempty( Params.echoIndices ) 
-    Params.echoIndices = DEFAULT_ECHOINDICES ;
-end
-    
-if isa( Img, 'cell' ) ;
-    
-    ImgArray = Img ;
-    nEchoes  = 0 ;
-    for iPhase = 1 : size( Img, 1 ) 
-        if ~isempty( Img{ iPhase, 2 } )
-            nEchoes = nEchoes + 1 ;
-        end
+    nSlices = size( Phase.img, 3 ) ;
+    if nSlices == 1
+        Params.unwrapper = DEFAULT_UNWRAPPER_2D ;
+    else
+        Params.unwrapper = DEFAULT_UNWRAPPER_3D ;
     end
-
-elseif ischar( Img )
-    
-    warning('UNTESTED feature.')    
-    iSpace = strfind( Img, ' ' ) ;
-
-    magDirs   = [ Img( 1:iSpace-1 ) '/' ] ;
-    phaseDirs = [ Img( (iSpace+1):end ) '/' ] ;
-   
-    echoSubdirs = dir( [ phaseDirs 'echo*' ] ) ;
-    nEchoes     = length( echoSubdirs ) ; 
-    
-    ImgArray         = cell( numel( nEchoes ) , 2 ) ;
-    ImgArray{ 1, 1 } = MaRdI( strcat( magDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
-    ImgArray{ 1, 2 } = MaRdI( strcat( phaseDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
-
-    if nEchoes > 1 
-        assert( max(Params.echoIndices) <= nEchoes, ...
-            ['Max echo index exceeds the number of image echo-subdirectories found.']  ) ; 
-    end
-    
-   
-    for iEcho = 1 : 2
-
-        ImgArray{ 1, 1 } = MaRdI( strcat( magDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
-        ImgArray{ 1, 2 } = MaRdI( strcat( phaseDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
-
-    end 
-
 end
-
-Extras = [] ;
+    
+nEchoes       = length( Phase.echotime ) ;
+nMeasurements = size( Phase.img, 5 ) ;
 
 % -------
 % define spatial support for unwrapping
 if ~myisfield( Params, 'mask' ) || isempty( Params.mask )
 
-    Params.mask = true( size( ImgArray{1,1}.img ) ) ;
+    Params.mask = true( [Phase.getgridsize() nEchoes nMeasurements] ) ;
 
-    for iEcho = 1 : nEchoes 
-
-        Params.mask = Params.mask .* ...
-            ( ImgArray{ iEcho, 1 }.img ./ max( ImgArray{ iEcho, 1 }.img(:) ) >= Params.threshold ) ;
-
+    for iMeasurement = 1 : nMeasurements
+        for iEcho = 1 : nEchoes 
+            mag_i = Mag.img(:,:,:,iEcho,iMeasurement) ;
+        
+            Params.mask(:,:,:,iEcho,iMeasurement) = Params.mask(:,:,:,iEcho,iMeasurement) .* ...
+                ( mag_i ./ max( mag_i(:) ) ) >= Params.threshold ; 
+        end
     end
 
+    Params.mask = prod( Params.mask, 4 ) ;
 end
 
 Params.mask = logical( Params.mask ) ;
 
-% -------
-if ImgArray{ 1, 2}.Hdr.MrProt.lContrasts == 1 
-    
-    if nEchoes == 1 % single echo phase image
-        % in this case only, PhaseDiff refers to the difference between t=TE and t=0
-        PhaseDiff = ImgArray{ 1, 2 }.copy() ; 
-    else % echoes acquired using separate excitations
-        %TODO:implement check/assertion that the echoes were indeed acquired using separate excitations 
-        
-        % correct for possible frequency difference between excitations using f0_Tx of 1st TE as reference
-        f0_1 = ImgArray{1,2}.Hdr.ImagingFrequency*1E6 ; % [units: Hz]
+% % ------- TODO Add support for separate excitations for each TE
+% if ImgArray{ 1, 2}.Hdr.MrProt.lContrasts == 1 
+%     
+%     if nEchoes == 1 % single echo phase image
+%         % in this case only, PhaseDiff refers to the difference between t=TE and t=0
+%         PhaseDiff = ImgArray{ 1, 2 }.copy() ; 
+%     else % echoes acquired using separate excitations
+%         %TODO:implement check/assertion that the echoes were indeed acquired using separate excitations 
+%         
+%         % correct for possible frequency difference between excitations using f0_Tx of 1st TE as reference
+%         f0_1 = ImgArray{1,2}.Hdr.ImagingFrequency*1E6 ; % [units: Hz]
+%
+%         for iEcho = 2 : nEchoes
+%             
+%             delta_f0 = ImgArray{iEcho, 2}.Hdr.ImagingFrequency*1E6 - f0_1 ;
+%             
+%             if ( delta_f0 ~= 0 )
+%                 warning('Modifying the MaRdI inputs...')
+%                 % TODO: work-around that doesn't modify the inputs in this way
+%                 ImgArray{ iEcho, 2 }.img = ImgArray{ iEcho, 2 }.img + 2*pi*delta_f0*ImgArray{ iEcho, 2 }.Hdr.EchoTime/1000 ;
+%                 ImgArray{ iEcho, 2 }.Hdr.ImagingFrequency = ImgArray{1,2}.Hdr.ImagingFrequency ; 
+%             end 
+%
+%         end
+%
+%         PhaseDiff      = ImgArray{ 1, 2}.copy() ;
+%
+%         img            = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
+%         img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(i*ImgArray{ 2, 2 }.img) ;
+%
+%         PhaseDiff.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
+%
+%         PhaseDiff.Hdr.EchoTime = ImgArray{ 2, 2 }.Hdr.EchoTime - ImgArray{ 1, 2 }.Hdr.EchoTime ; % [units : ms]
+%         % Cornell Complex fitting...        
+%         M  = zeros( [ImgArray{1,1}.getgridsize() nEchoes] ) ;
+%         TE = zeros( nEchoes, 1 ) ;
+%
+%         for iEcho = 1 : nEchoes
+%             M( :,:,:, iEcho ) = ImgArray{ iEcho, 1}.img .* exp(i*-ImgArray{ iEcho, 2}.img) ;
+%             TE(iEcho) = ImgArray{iEcho,1}.Hdr.EchoTime/1000 ;
+%         end
+%
+%         [p1, dp1, relres, p0, iter]=Fit_ppm_complex_TE(M,TE);
+%
+%         P1 = ImgArray{1,2}.copy() ;
+%         P1.img = p1 ;
+%         P1.Hdr.EchoTime = TE(2) - TE(1) ;
+%         Field3 = P1.copy() ;
+%         Field3.scalephasetofrequency() ;
+%         nii((p1/(1000*(TE(2)-TE(1)))/(2*pi)));
+%     end
+%     
+% else
+%
+%
+% end
 
-        for iEcho = 2 : nEchoes
-            
-            delta_f0 = ImgArray{iEcho, 2}.Hdr.ImagingFrequency*1E6 - f0_1 ;
-            
-            if ( delta_f0 ~= 0 )
-                warning('Modifying the MaRdI inputs...')
-                % TODO: work-around that doesn't modify the inputs in this way
-                ImgArray{ iEcho, 2 }.img = ImgArray{ iEcho, 2 }.img + 2*pi*delta_f0*ImgArray{ iEcho, 2 }.Hdr.EchoTime/1000 ;
-                ImgArray{ iEcho, 2 }.Hdr.ImagingFrequency = ImgArray{1,2}.Hdr.ImagingFrequency ; 
-            end 
-
-        end
-
-        PhaseDiff      = ImgArray{ 1, 2}.copy() ;
-
-        img            = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
-        img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(i*ImgArray{ 2, 2 }.img) ;
-
-        PhaseDiff.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
-
-        PhaseDiff.Hdr.EchoTime = ImgArray{ 2, 2 }.Hdr.EchoTime - ImgArray{ 1, 2 }.Hdr.EchoTime ; % [units : ms]
-        % Cornell Complex fitting...        
-        M  = zeros( [ImgArray{1,1}.getgridsize() nEchoes] ) ;
-        TE = zeros( nEchoes, 1 ) ;
-
-        for iEcho = 1 : nEchoes
-            M( :,:,:, iEcho ) = ImgArray{ iEcho, 1}.img .* exp(i*-ImgArray{ iEcho, 2}.img) ;
-            TE(iEcho) = ImgArray{iEcho,1}.Hdr.EchoTime/1000 ;
-        end
-
-        [p1, dp1, relres, p0, iter]=Fit_ppm_complex_TE(M,TE);
-
-        P1 = ImgArray{1,2}.copy() ;
-        P1.img = p1 ;
-        P1.Hdr.EchoTime = TE(2) - TE(1) ;
-        Field3 = P1.copy() ;
-        Field3.scalephasetofrequency() ;
-        nii((p1/(1000*(TE(2)-TE(1)))/(2*pi)));
+if nEchoes == 1 
+    % Input phase should be a phase *difference* image; alternatively, PhaseDiff will refer
+    % to the difference between t=TE and t=0
+    if( numel( Phase.Hdr.MrProt.alTE ) < 2 )
+        warning( ['Expected Siemens phase difference image with at least 2 TEs specified in the DICOM header.' ...
+           'Output field estimate may retain an offset term'] )
     end
-    
+
+    PhaseDiff = Phase.copy() ;
+    PhaseDiff.Hdr.EchoTime = Phase.echotime ;
+
 else
+    % -------
+    % phase difference image via complex division of first 2 echoes
+    PhaseDiff      = Phase.copy() ;
 
-    if nEchoes == 1 % 2 echoes acquired but only 1 input (phase *difference* image)
-       
-        assert( myisfield( ImgArray{ 1, 2}.Hdr.MrProt, 'alTE') && numel( ImgArray{ 1, 2}.Hdr.MrProt.alTE ) >= 2, ...
-           'Expected Siemens phase difference image with at least 2 TEs specified in the DICOM header.' )
-        
-        PhaseDiff = ImgArray{ 1, 2 }.copy() ;
+    img            = Mag.img(:,:,:,1,:) .* exp( i*Phase.img(:,:,:,1,:) ) ;
+    img(:,:,:,2,:) = Mag.img(:,:,:,2,:) .* exp( i*Phase.img(:,:,:,2,:) ) ;
 
-        PhaseDiff.Hdr.EchoTime = ... 
-            ( ImgArray{ 1, 2 }.Hdr.MrProt.alTE(2) - ImgArray{ 1, 2 }.Hdr.MrProt.alTE(1) )/1000 ; % [units : ms]
+    PhaseDiff.img  = angle( img(:,:,:,1,:) ./ img(:,:,:,2,:) ) ;
 
-    else
-
-        % -------
-        % phase difference image via complex division of first 2 echoes
-        PhaseDiff       = ImgArray{ 1, 2}.copy() ;
-
-        img             = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
-        img(:,:,:,:,2)  = ImgArray{ 2, 1 }.img .* exp(i*ImgArray{ 2, 2 }.img) ;
-
-        PhaseDiff.img   = angle( img(:,:,:,:,2) ./ img(:,:,:,:,1) ) ;
-
-        PhaseDiff.Hdr.EchoTime = ImgArray{ 2, 2 }.Hdr.EchoTime - ImgArray{ 1, 2 }.Hdr.EchoTime ; % [units : ms]
-    end
+    PhaseDiff.Hdr.EchoTime = Phase.echotime(2) - Phase.echotime(1) ; % [units : ms]
 
 end
 
@@ -852,22 +820,20 @@ PhaseDiff.Hdr.MaskingImage = logical( Params.mask ) & ~isnan( PhaseDiff.img ) ;
 
 % -------
 % 3d path-based unwrapping
-PhaseDiff = PhaseDiff.unwrapphase( ImgArray{1,1}, Params ) ;
+PhaseDiff = PhaseDiff.unwrapphase( Mag, Params ) ;
 
 % if time series, correct for potential 2pi wraps between time points:
-nImg = size( PhaseDiff.img, 4 ) ;
+nImg = size( PhaseDiff.img, 5 ) ;
 
 if nImg > 1
-    
-    phaseEstimate = median( PhaseDiff.img, 4, 'omitnan' ) ;
-
-    % Wherever the absolute deviation from median exceeds pi,
+    % Wherever the absolute deviation from the estimate exceeds pi,
     % correct the measurement by adding the appropriate pi-multiple:
+    phaseEstimate = min( abs(PhaseDiff.img), [], 5, 'omitnan' ) ;
     
     for iImg = 1 : nImg
-        dPhase         = phaseEstimate - PhaseDiff.img( :,:,:, iImg )  ;
+        dPhase         = phaseEstimate - PhaseDiff.img( :,:,:,1,iImg )  ;
         n              = ( abs(dPhase) > pi ) .* round( dPhase/pi ) ;
-        PhaseDiff.img( :,:,:, iImg ) = PhaseDiff.img(:,:,:, iImg ) + n*pi ;
+        PhaseDiff.img( :,:,:,1,iImg ) = PhaseDiff.img(:,:,:,1,iImg ) + n*pi ;
     end
 end
 
@@ -876,9 +842,8 @@ PhaseDiffInRad = PhaseDiff.copy() ; % PhaseDiffInRad.img : [units: rad]
 PhaseDiff.scalephasetofrequency( ) ; % PhaseDiff.img : [units: Hz]
 Field     = FieldEval( PhaseDiff ) ;
 
-
 if nEchoes > 2
-    % error('TODO: field-fitting over multiple echoes');
+    error('TODO: field-fitting over multiple echoes');
     % approx filter (smoothing kernel) diameter in mm:
     filterDiameter = 11 ;
     
