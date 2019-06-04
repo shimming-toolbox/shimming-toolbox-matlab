@@ -10,8 +10,8 @@
 ## Overview
 
 This library consists of programs to perform shimming (static and real-time).
-First designed for use with the 24-channel spine shim (Topfer R, et al., MRM,
-2018. https://doi.org/10.1002/mrm.27089)
+First designed for use with the 24-channel spine shim ([Topfer R, et al., MRM,
+2018](https://doi.org/10.1002/mrm.27089)).
 
 ## Installation
 
@@ -22,7 +22,7 @@ Before running this software you will need to install the following dependencies
 - [SCT v 4.0.0](https://github.com/neuropoly/spinalcordtoolbox)
 
 Then, download (or `git clone`) this repository, open Matlab, and add this folder (with sub-folders) to the Matlab Path.
-
+To use the optional Abdul-Rahman 3D phase unwrapper, binaries must be compiled from the source code found in /external/source/
 ## Getting started
 
 

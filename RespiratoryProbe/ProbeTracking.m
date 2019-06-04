@@ -1,32 +1,28 @@
-classdef ProbeTracking < matlab.mixin.SetGet 
+classdef ProbeTracking < matlab.mixin.SetGet
 % PROBETRACKING - Respiratory probe for real-time shimming 
 %
 % Aux = PROBETRACKING(  )
 %
 %   Aux contains fields
 %           
-%       .ComPort    
-%
 %       .Data 
+%
+%       .Log
+%
+%       .Source    
 %
 %       .Specs
 %
-% .......
-%
-%   Description
-%
-%
 % =========================================================================
 %
-%
 % =========================================================================
-% Updated::20190220::ryan.topfer@polymtl.ca
+% Updated::20190504::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties   
-    ComPort ;
     Data ;
-    Params ;
+    Log ;
+    Source ;
     Specs ; % state = {active, inactive, inert, void}
 end
 
@@ -34,22 +30,50 @@ end
 % =========================================================================
 methods
 % =========================================================================
-function Aux = ProbeTracking( Specs )
-%PROBE - ProbeTracking  
+function Aux = ProbeTracking( varargin )
+%PROBETRACKING  
 
-if nargin < 1
+Aux.Log            = []; % memmapfile object pertaining to recording log
+
+Aux.Data.p         = []; % may be filtered & limited
+Aux.Data.pRaw      = []; % raw measurement
+Aux.Data.t         = []; % measurement time [units: ms]
+
+Aux.Data.startTime = [] ;
+Aux.Data.endTime   = [] ;
+
+Aux.Data.iSample   = [] ;
+
+if nargin < 1 || isempty( varargin{1} )
     Specs = [] ;
+
+elseif isstruct( varargin{1} )
+    Specs = varargin{1} ;
+
+elseif ischar( varargin{1} )
+% Non-urgent TODO:
+%   This form of ProbeTracking() initialization/construction is not to
+%   be called by a user, but rather, from the ProbeTracking() constructor
+%   itself, making it better suited as a 'private' constructor. Apparently
+%   Matlab does not permit this. There is a work-around described here:
+%   https://stackoverflow.com/questions/29671482/private-constructor-in-matlab-oop
+    filename = varargin{1} ;
+    load( filename ) ;
+    Aux.launchrecordingdaemon() ; % runs continuously in background
+    return;
 end
 
 if myisfield( Specs, 'state' ) && strcmp( Specs.state, 'inert' )
-    Aux.ComPort = [] ;
-    Aux.Specs   = Specs ;
+    Aux.Source = [] ;
+    Aux.Specs  = Specs ;
 else
-    [Aux.ComPort, Aux.Specs] = ProbeTracking.declareprobe( Specs ) ;
+    [ Aux.Source, Aux.Specs ] = ProbeTracking.declareprobe( Specs ) ;
+    
+    if ~strcmp( Aux.Specs.state, 'inert' )    
+        Aux.createlogfile() ;
+        Aux.createrecordingdaemon() ;
+    end
 end
-
-Aux.Data.p    = []; % may be filtered & limited
-Aux.Data.pRaw = []; % raw measurement
 
 end    
 % =========================================================================
@@ -61,84 +85,79 @@ function [AuxCopy] = copy( Aux )
 Specs       = Aux.Specs ;
 Specs.state = 'inert' ;
 
-AuxCopy = ProbeTracking( Specs ) ; % or just allow that constructor to accept ProbeTracking as an input and copy the fields...
+AuxCopy = ProbeTracking( Specs ) ; 
 
 AuxCopy.Data = Aux.Data ;
-
-if myisfield( Aux, 'Params' )
-    AuxCopy.Params = Aux.Params ;
-end
 
 end
 % =========================================================================
 function [] = delete( Aux )
 %DELETE  
+%
 % DELETE( Aux )
-% 
-% Destructor. Calls Aux.deletecomport( ) 
 
-if myisfield( Aux, 'ComPort' ) && ~isempty( Aux.ComPort ) 
-    Aux.deletecomport();
+if isa( Aux.Source, 'serial' ) 
+    fclose( Aux.Source ) ;
+    delete( Aux.Source ) ;
+    clear Aux.Source  ;
+else
+    % TODO 
+    %   prompt user to save recording?
 end
 
 clear Aux ;
 
 end
 % =========================================================================
-function [Aux] = deletecomport( Aux )
-%DELETECOMPORT  
-% 
-% DELETECOMPORT( Aux )
-% 
-% Proper way to close + delete the serial port object
-
-if myisfield( Aux, 'ComPort' ) && ~isempty( Aux.ComPort ) 
-    fclose( Aux.ComPort ) ;
-    delete( Aux.ComPort ) ;
-    clear Aux.ComPort  ;
-else
-    disp('Failed to delete .ComPort - it does not exist.');
-end
-
-end
-% =========================================================================
-function [isTracking] = begintracking( Aux )
-%BEGINTRACKING - Initialize & open (RS-232) communication port 
+function [isRecording] = beginrecording( Aux )
+%BEGINRECORDING - Initialize & open (RS-232) communication port 
 %
-% [isTracking] = BEGINTRACKING( Aux )
+% [isRecording] = BEGINRECORDING( Aux )
 %
-% Opens Aux.ComPort 
+% Opens Aux.Source 
 %
 % Returns TRUE if successful
 
-isTracking = false;
+isRecording  = false ;
 
-maxCommunicationAttempts = 3; 
-
-fopen(Aux.ComPort);
-
-iAttempt = 1 ;
-disp('Connecting to respiratory probe...')
-
-while(~isTracking && iAttempt <= maxCommunicationAttempts )
-
-    disp(['Attempt #' num2str(iAttempt)]);    
-   
-    firstWord = fscanf( Aux.ComPort, '%u') ;
+if isa( Aux.Source, 'serial' )
     
-    if( ~isempty(firstWord) && isnumeric(firstWord) )  
-        isTracking = true;
+    fopen( Aux.Source ) ;
+    disp('Connecting to respiratory probe...')
+
+    iAttempt    = 1 ;
+    nAttempsMax = 3 ; 
+
+    while( ~isRecording && iAttempt <= nAttempsMax )
+
+        disp(['Attempt #' num2str(iAttempt)]);    
+       
+        firstWord = fscanf( Aux.Source, '%u') ;
+        
+        if( ~isempty(firstWord) && isnumeric(firstWord) )  
+            isRecording = true ;
+        end
+        
+        iAttempt = iAttempt + 1;
+
     end
-    
-    iAttempt = iAttempt + 1;
 
-end
+    if isRecording
+        disp('Communication successful. Reading in from serial port...')
+        Aux.Log.Data.startTime = str2num( datestr( now, 'yyyymmddHHMMSS.FFF') ) ; 
+        Aux.Data.startTime     = Aux.Log.Data.startTime ;
+        Aux.Log.Data.endTime   = Inf ; 
+        Aux.Data.endTime       = Aux.Log.Data.endTime ; 
+    else
+        Aux.stoprecording() ;
+        error('Communication to respiratory probe failed. Closing Aux.Source.')
+    end
 
-if isTracking
-    disp('Communication successful. Reading in from serial port...')
 else
-    Aux.stoptracking() ;
-    error('Communication to respiratory probe failed. Closing Aux.ComPort.')
+    % Check daemon session is still recording
+    if Aux.Log.Data.isLogging 
+        isRecording = true ;
+    end
 end
 
 end
@@ -165,189 +184,190 @@ Aux.Specs.clipLimits = [ ( mean(signal) - 5*std(signal) ), ...
 
 end
 % =========================================================================
-function [] = stoptracking( Aux )
-%STOPTRACKING - close (RS-232) Communication Port 
+function [] = stoprecording( Aux )
+%STOPRECORDING 
+% 
+% Closes communication port/source + marks recording end time
 %
-% [] = STOPTRACKING( Aux )
-%
-% fclose( Aux.ComPort )
+% [] = STOPRECORDING( Aux )
 
-fclose( Aux.ComPort ) ;
+if isa( Aux.Source, 'serial' ) 
+    Aux.Data.endTime = str2num( datestr( now, 'yyyymmddHHMMSS.FFF') ) ; 
+    fclose( Aux.Source ) ;
+end
 
 end
 % =========================================================================
 function [] = clearrecording( Aux )
 %CLEARRECORDING  
 %
-% [] = CLEARRECORDING( Aux )
+% Empties subfields of Aux.Data
 %
-% Empties Aux.Data.p and Aux.Data.pRaw  
+% [] = CLEARRECORDING( Aux )
 
-Aux.Data.p = [] ;
-Aux.Data.pRaw = [] ;
+Aux.Data.pRaw      = [] ;
+Aux.Data.p         = [] ;
+
+Aux.Data.t         = [] ;
+Aux.Data.startTime = [] ;
+Aux.Data.endTime   = [] ;
+
+Aux.Data.iSample   = [] ; 
 
 end
 % =========================================================================
-function [p] = getupdate( Aux )
+function [pRaw, p, t] = getupdate( Aux )
 %GETUPDATE 
 %
-% Reads a single (16-bit) measurement (p) in from open com port and 
-% returns p as the typecasted double.
+% [pRaw, p] = GETUPDATE( Aux )
+
+% Reads a single (16-bit) measurement (p) and returns p as the typecasted double.
+% t is the sample time in units of milliseconds.
 %
-% p = GETUPDATE( Aux )
+% p is either read from the open com port, or from the temp file buffer.
 
-assert( strcmp( Aux.ComPort.Status, 'open' ), 'Error: Serial port is closed.' );
+if isa( Aux.Source, 'serial' ) 
+    assert( strcmp( Aux.Source.Status, 'open' ), 'Error: Serial port is closed.' );
 
-tmp = fscanf( Aux.ComPort, '%u', [1 1] ) ;
-Aux.Data.pRaw(end+1) = tmp(end) ;
+    tmp = fscanf( Aux.Source, '%u', [1 1] ) ;
+    
+    Aux.Data.pRaw(end+1) = tmp(end) ;
+    pRaw = Aux.Data.pRaw(end);
+    
+    p = Aux.processupdate( ) ;
+    p = p(end) ; 
+    Aux.Data.p(end+1) = p ;
+    
+    Aux.writeupdatetologfile( ) ;
+    
+    t = Aux.Log.Data.nSamples * Aux.Specs.dt ;
+    Aux.Data.t(end+1) = t ;
 
-if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
-        && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
+    % % if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
+    % %         && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
+    % %
+    % %     Aux.Data.p(end+1) = Aux.Data.pRaw(end) ;
+    % % else
+    % %     % replace with most recent unclipped/undistorted sample:
+    % %     Aux.Data.p(end+1) = Aux.Data.p(end) ;
+    % % end
+    % Aux.Data.p(end+1) = p(end) ;
+    %
+    % p = p(end) ;
+    %
+    % n = length(Aux.Data.pRaw);
+    % Aux.Log.Data(n) = p ;
 
-    Aux.Data.p(end+1) = Aux.Data.pRaw(end) ;
-else
-    % replace with most recent unclipped/undistorted sample:
-    Aux.Data.p(end+1) = Aux.Data.p(end) ;
+elseif ischar( Aux.Source ) 
+
+    [iSample, pRaw, p, t] = Aux.readupdatefromlogfile( ) ;
+
+    Aux.Data.iSample     = iSample ;
+    Aux.Data.pRaw(end+1) = pRaw ;
+    Aux.Data.p(end+1)    = p ;
+    Aux.Data.t(end+1)    = t ;
+
 end
 
-p = Aux.Data.p(end) ;
 
 end  
 % =========================================================================
-function [physioSignal, sampleTimes] = recordandplotphysiosignal( Aux1, Params, Aux2 ) 
-%RECORDANDPLOTPHYSIO    
+function [p] = processupdate( Aux )
+%PROCESSUPDATE
+% 
+% Filters/detrends raw recording in Aux.Data.pRaw
 %
-%   Description
-%   
-%   Reads physiological data from microcontroller 
-%
-%   Syntax
-%
-%   [measurements, sampleTimes] = RECORDANDPLOTPHYSIO( Aux1, Parameters )
-%   [measurements, sampleTimes] = RECORDANDPLOTPHYSIO( Aux1, Parameters, Aux2 )
-%
-%    .......................
-%   
-%   The following Parameters.fields are supported
-%
-%   .isSavingData
-%       default = true
-%
-%   .isForcingOverwrite 
-%       Will overwrite the log files if they already exist. 
-%       default = false
-%
-%   .physioSignalFilename
-%       default = ['./' datestr(now,30) '-physioSignal.bin' ] ; 
-%
-%   .sampleTimesFilename
-%       default = ['./' datestr(now,30) '-sampleTimes.bin' ] ;
-%
-%   .runTime 
-%       Total sampling time in seconds.
-%       default = 30
-%
-%   .isPlottingInRealTime
-%       [default : true ]
-%
-%   .refreshRate  
-%       Rate at which the real-time display refreshes. 
-%       Problems may arise if this is too fast!
-%       [default : 4 Hz ]
+% [p] = PROCESSRECORDING( Aux )
 
-assert( strcmp( Aux1.ComPort.Status, 'closed' ), 'Error: Serial port is open/in use.' );
+% % limiting
+% if length( Aux.Data.pRaw ) > 100
+%
+%     pMean = mean( Aux.Data.pRaw(end-100:end) ) ;
+%     pStd  = std( Aux.Data.pRaw(end-100:end) ) ;
+%
+%     pRaw( abs( Aux.Data.pRaw(end) - pMean ) > 5*pStd ) = [] ;
+%
+% end
 
-if nargin == 3
-    assert( strcmp( Aux2.ComPort.Status, 'closed' ), 'Error: Serial port is open/in use.' );
-    isDualTracking = true ;
-else
-    isDualTracking = false ;
+switch Aux.Specs.probeType
+    case 'capacitive'
+        pRaw      = Aux.Data.pRaw ;
+      nSamples    = length(pRaw) ;
+      t           = Aux.Specs.dt*[0:nSamples-1] ;
+      nSamplesMin = 5 ;
+
+      if nSamples < nSamplesMin
+          p = detrend( pRaw, 'constant' ) ;
+      else
+          y = polyfit( t, pRaw, 4 ) ;
+          p = pRaw - polyval( y, t ) ;
+      end
+
+    case 'pressure'
+        % local windowing
+        if length( Aux.Data.pRaw ) > 3000
+            pRaw = Aux.Data.pRaw((end-3000):end) ;
+        else
+            pRaw = Aux.Data.pRaw ;
+        end
+      
+        p = detrend( pRaw, 'constant' ) ;
 end
+        
+end
+% =========================================================================
+function [] = killrecordingdaemon( Aux )
+%KILLRECORDINGDAEMON
+%
+% Sends STOP byte to daemon session
+
+Aux.Log.Data.isLogging = uint64(0) ; 
+
+end
+% =========================================================================
+function [] = recordandplotphysiosignal( Aux, Params ) 
+%RECORDANDPLOTPHYSIOSIGNAL
+%   
+% Calls ProbeTracking.recordphysiosignal() to record probe data, after which
+% user is prompted whether to proceed (e.g. save + return) or re-record.
+%
+% [] = RECORDANDPLOTPHYSIOSIGNAL( Aux, Parameters )
+%
+% See HELP ProbeTracking.recordphysiosignal() for accepted Parameters
 
 DEFAULT_ISSAVINGDATA          = true ;
-DEFAULT_ISFORCINGOVERWRITE    = false ;
-DEFAULT_PHYSIOSIGNALFILENAME  = ['./' datestr(now,30) '-physioSignal.bin' ] ;
-DEFAULT_SAMPLETIMESFILENAME   = ['./' datestr(now,30) '-sampleTimes.bin' ] ;
+% DEFAULT_PHYSIOSIGNALFILENAME  = [] ; % ProbeTracking.saverecording() will name it
 
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;
 end
- 
+
 if  ~myisfield( Params, 'isSavingData' ) || isempty(Params.isSavingData)
     Params.isSavingData = DEFAULT_ISSAVINGDATA ;
+else
+    isSavingData = Params.isSavingData ;
+    % Save only the final (user-approved) recording:
+    Params.isSavingData = false ; 
 end
 
-if  ~myisfield( Params, 'isForcingOverwrite' ) || isempty(Params.isForcingOverwrite)
-    Params.isForcingOverwrite = DEFAULT_ISFORCINGOVERWRITE ;
-end
-
-if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
-    Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
-end
-
-if  ~myisfield( Params, 'sampleTimesFilename' ) || isempty(Params.sampleTimesFilename)
-    Params.sampleTimesFilename  = DEFAULT_SAMPLETIMESFILENAME ; 
-end
-
-msg = input( ['\n Press [Enter] to begin recording pressure log.\n'], 's' );
-assert( isempty(msg), 'Cancelled calibration.')
+% if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
+%     Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
+% end
 
 % ------- 
 isUserSatisfied = false ;
 
 while ~isUserSatisfied
-   
-   if ~isDualTracking 
-        Aux1.clearrecording() ;
-        Aux1.recordphysiosignal( Params ) ;
-    else
-        Aux1.clearrecording() ;
-        Aux2.clearrecording() ;
-        Aux1.recordphysiosignal( Params, Aux2 ) ;
-    end
-    
-    physioSignal = Aux1.Data.p ;    
-    sampleTimes = (Aux1.Specs.dt/1000)*[0:(numel(Aux1.Data.p)-1)] ;
-   
+    % boo hoo </3
+    Aux.recordphysiosignal( Params ) ;
+
     % ------- 
     fprintf(['\n ----- \n Plotting physio recording for user verification... \n']) ;
     figure ;
-    if ~isDualTracking
-        plot( sampleTimes, Aux1.Data.p, '+' ) ;
-
-        if Params.isSavingData
-            title( Params.physioSignalFilename ) ;
-        else
-            title( 'Physio signal' )
-        end
-
-        xlabel('Time (s)');
-        ylabel('Amplitude (AU)');
-    else
-        subplot(211)
-        plot( sampleTimes, Aux1.Data.p, '+' ) ;
-
-        if Params.isSavingData
-            title( Params.physioSignalFilename ) ;
-        else
-            title( 'Physio signal 1' )
-        end
-
-        xlabel('Time (s)');
-        ylabel('Amplitude (AU)');
-        
-        subplot(212)
-        plot( sampleTimes, Aux2.Data.p, '+' ) ;
-
-        if Params.isSavingData
-            title( [Params.physioSignalFilename '-2'] ) ;
-        else
-            title( 'Physio signal 2' )
-        end
-
-        xlabel('Time (s)');
-        ylabel('Amplitude (AU)');
-    end
+    plot( Aux.Data.t/1000, Aux.Data.p, '+' ) ;
+    xlabel('Time (s)');
+    ylabel('Amplitude (AU)');
+    title( 'Physio recording' ) ;
     
     response = input(['\n Is the current physio recording satisfactory? ' ...
         'Enter 0 to rerecord; 1 to continue. \n']) ;
@@ -357,21 +377,8 @@ while ~isUserSatisfied
 end
 
 % ------- 
-if Params.isSavingData
-    
-    physioSignalFid = fopen( Params.physioSignalFilename, 'w+' ) ;
-    fwrite( physioSignalFid, Aux1.Data.p, 'double' ) ;
-    fclose( physioSignalFid );
-    
-    if isDualTracking
-        physioSignalFid = fopen( [ Params.physioSignalFilename '-2' ], 'w+' ) ;
-        fwrite( physioSignalFid, Aux2.Data.p, 'double' ) ;
-        fclose( physioSignalFid );
-    end
-
-    sampleTimesFid = fopen( Params.sampleTimesFilename, 'w+' ) ;
-    fwrite( sampleTimesFid, sampleTimes, 'double' ) ;
-    fclose( sampleTimesFid );
+if isSavingData
+    Aux.saverecording( Params.physioSignalFilename )
 end
 
 end
@@ -381,12 +388,23 @@ function [] = recordphysiosignal( Aux1, Params, Aux2 )
 %
 % Continuously tracks respiratory probe.
 %
-% [] = TRACKPROBE( Aux1, Params )
-% [] = TRACKPROBE( Aux1, Params, Aux2 )
+% Syntax
 %
-% Params
-%   .runTime
-%       [default : 30 s]
+% [] = RECORDPHYSIOSIGNAL( Aux, Params )
+%
+%  .......................
+%   
+%   The following Params.fields are supported
+%
+%   .isSavingData
+%       default = true
+%
+%   .physioSignalFilename
+%       default = ['./' datestr(now,30) '-physioSignal.txt' ] ; 
+%
+%   .runTime 
+%       Total sampling time in seconds.
+%       default = 15*60
 %
 %   .isPlottingInRealTime
 %       [default : true ]
@@ -396,13 +414,23 @@ function [] = recordphysiosignal( Aux1, Params, Aux2 )
 %       Problems may arise if this is too fast!
 %       [default : 4 Hz ]
 
-DEFAULT_RUNTIME              = 60 ; % [units : s]
-DEFAULT_ISPLOTTINGINREALTIME = true ;
-DEFAULT_REFRESHRATE          = 4 ; % [units : Hz]
+DEFAULT_ISSAVINGDATA          = true ;
+% DEFAULT_PHYSIOSIGNALFILENAME  = [] ; % ProbeTracking.saverecording() will name it
+DEFAULT_RUNTIME               = 15*60 ; % [units : s]
+DEFAULT_ISPLOTTINGINREALTIME  = true ;
+DEFAULT_REFRESHRATE           = 4 ; % [units : Hz]
 
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;
 end
+
+if  ~myisfield( Params, 'isSavingData' ) || isempty(Params.isSavingData)
+    Params.isSavingData = DEFAULT_ISSAVINGDATA ;
+end
+
+% if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
+%     Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
+% end
 
 if  ~myisfield( Params, 'runTime' ) || isempty(Params.runTime)
     Params.runTime = DEFAULT_RUNTIME ;
@@ -415,13 +443,7 @@ end
 if  ~myisfield( Params, 'refreshRate' ) || isempty(Params.refreshRate)
     Params.refreshRate = DEFAULT_REFRESHRATE ;
 end
-
-if nargin == 3 
-   isDualTracking = true ;  
-else
-    isDualTracking = false ;
-end
-    
+ 
 % ------- 
 StopButton     = stoploop({'Stop recording'}) ;
 Aux1.clearrecording() ;
@@ -430,17 +452,6 @@ sampleIndices  = [] ;
 
 nSamples = Params.runTime / (Aux1.Specs.dt/1000) ;
 iSample  = 0 ; 
-
-isTracking = Aux1.begintracking() ;
-
-if isDualTracking
-    Aux2.clearrecording() ;
-    isTracking2 = Aux2.begintracking() ;
-    isTracking  = isTracking & isTracking2 
-end
-
-assert(isTracking, 'Could not begin tracking. Check device connection.')
-
 if Params.isPlottingInRealTime
 
     % ------- 
@@ -459,38 +470,23 @@ if Params.isPlottingInRealTime
 
     hold on;
     
-    % if ~isDualTracking    
-        plotHandle = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
-            
-        xlim(axesHandle,[0 nSamples]);
-            
-        title('Respiration Aux','FontSize',15,'Color',[1 1 0]);
-        xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-        ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-    % else
-    %     dbstop in ProbeTracking at 480
-    %     subplot(211)
-    %     plotHandle1 = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
-    %         
-    %     xlim(axesHandle,[0 nSamples]);
-    %         
-    %     title('Respiration Aux 1','FontSize',15,'Color',[1 1 0]);
-    %     xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-    %     ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-    %     
-    %     subplot(212)
-    %     plotHandle2 = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
-    %         
-    %     xlim(axesHandle,[0 nSamples]);
-    %         
-    %     title('Respiration Aux 2','FontSize',15,'Color',[1 1 0]);
-    %     xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-    %     ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
-    
-    % end
+    plotHandle = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
+        
+    title('Respiration Aux','FontSize',15,'Color',[1 1 0]);
+    ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+    xlabel('Time [s]','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+    % xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+
     drawnow limitrate; 
     set(figureHandle,'Visible','on');
 
+end
+
+isRecording = Aux1.beginrecording() ;
+if isRecording
+    display('Reading probe measurements...') ;
+else
+    error('?');
 end
 
 % for real-time plotting, updating @the same rate as the samples
@@ -507,59 +503,220 @@ while ( iSample < nSamples ) && ~StopButton.Stop()
         iSample = iSample + 1 ;
         Aux1.getupdate() ;
         sampleIndices(end+1) = iSample ;
-        
-        if isDualTracking
-            Aux2.getupdate() ;
-        end
 
     end
 
     if Params.isPlottingInRealTime
-        % if ~isDualTracking
-            set(plotHandle,'YData',Aux1.Data.p,'XData',sampleIndices);
-        % else
-        %     set(plotHandle1,'YData',Aux1.Data.p,'XData',sampleIndices);
-        %     set(plotHandle2,'YData',Aux2.Data.p,'XData',sampleIndices);
-        % end
+        set( plotHandle,'YData',Aux1.Data.p,'XData', Aux1.Data.t/1000 );
+        % set(plotHandle,'YData',[Aux1.Data.pRaw-mean(Aux1.Data.pRaw) Aux1.Data.p],'XData',[sampleIndices sampleIndices]);
     end
 
 end
 
-Aux1.stoptracking();
-if isDualTracking
-    Aux2.stoptracking();
-end
+Aux1.stoprecording();
 
 StopButton.Clear() ;
 
+% ------- 
+if Params.isSavingData
+
+    Aux1.saverecording(  )
+
+    % if isDualTracking
+    %     Aux2.saverecording( [ Params.physioSignalFilename '-2' ] )
+    % end
+
 end
+
+end
+% =========================================================================
+function [] = saverecording( Aux, logFilename )
+%SAVERECORDING
+%
+%   SAVERECORDING( Aux )
+%   SAVERECORDING( Aux, logFilename )
+
+if  nargin < 2 || ~ischar( logFilename ) 
+    logFilename = ['./' datestr( now, 30 ) '-physioSignal' ] ;
+end
+            
+ShimUse.customdisplay( ['\n----- Saving physio recording -----\n'] );
+ShimUse.customdisplay( ['Filename:  ' logFilename '\n'] );
+
+fid = fopen( [ logFilename '.dat' ], 'w') ;
+fprintf( fid, '%f  %f\n', ...
+    [ Aux.Data.startTime Aux.Data.pRaw;
+      Aux.Data.endTime Aux.Data.p ] ) ;
+fclose(fid) ;
+
+Data = Aux.Data ;
+save( logFilename, 'Data' ) ;
+
+end
+% =========================================================================
+function [] = resetdaemon( Aux )
+%RESETDAEMON
+% 
+% Resets the daemon recording: i.e. Preceding recording is retained in Aux.Log
+% but the signal processing will begin afresh. (Use when patient position
+% changes, for example.)
+
+Aux.clearrecording() ;
+
+% Changing .endTime from Inf signals daemon session to call this function &
+% clear its current recording.
+Aux.Log.Data.endTime = str2num( datestr( now, 'yyyymmddHHMMSS.FFF') ) ; 
+
+end
+% =========================================================================
+
+% =========================================================================
 % =========================================================================
 end
 
 % =========================================================================
 % =========================================================================
+
+% =========================================================================
+% =========================================================================
+methods( Access =  private)
+% =========================================================================
+function [] = createlogfile( Aux )
+%CREATELOGFILE
+% 
+% [] = CREATELOGFILE( Aux )
+
+% Create or overwrite the file: 
+filename = fullfile( tempdir, [ Aux.Specs.probeType '_probe_log.dat'] ) ;
+[f, msg] = fopen( filename, 'w' ) ;
+
+nSamplesMax = 21600000 ;
+
+if f ~= -1
+    fwrite( f, [ zeros(nSamplesMax+4, 2);], 'double' ) ; 
+    fclose( f ) ;
+else
+    error('MATLAB:demo:send:cannotOpenFile', ...
+          'Cannot open file "%s": %s.', filename, msg) ;
+end
+
+% Memory map the file.
+Aux.Log = memmapfile( filename, 'Writable', true, 'Format', ...
+    { 'uint64', [1 1], 'nSamples' ;
+      'uint64', [1 1], 'isLogging' ;
+      'double', [1 1], 'startTime' ;
+      'double', [1 1], 'endTime' ;
+      'double', [nSamplesMax 1], 'pRaw' ;
+      'double', [nSamplesMax 1], 'p' } ) ;
+
+Aux.Log.Data.isLogging = uint64(true) ;
+
+end
+% =========================================================================
+function [nSamples, pRaw, p, t] = readupdatefromlogfile( Aux )
+%READUPDATEFROMLOGFILE
+
+DWELL_TIME     = 0.01 ; % [units: s]
+MAX_DWELL_TIME = 1 ;
+
+totalDwellTime = 0 ;
+
+while ( Aux.Data.iSample == Aux.Log.Data.nSamples ) & ( totalDwellTime < MAX_DWELL_TIME )
+    % Value has already been read. Wait for a new one.
+    pause( DWELL_TIME ) ;
+    totalDwellTime = totalDwellTime + DWELL_TIME ; 
+end
+
+% copy to new variable to ensure the value remains constant during reading
+% NOTE: For some reason (?) typecasting as a double copies by value. Otherwise
+% it is copied by reference,
+nSamples = double( Aux.Log.Data.nSamples ) ;
+
+pRaw = Aux.Log.Data.pRaw( nSamples ) ;
+p    = Aux.Log.Data.p( nSamples ) ;
+t    = length( Aux.Data.p ) * Aux.Specs.dt ;
+ 
+end
+% =========================================================================
+function [] = writeupdatetologfile( Aux )
+%WRITEUPDATETOLOGFILE
+
+% update N samples logged
+Aux.Log.Data.nSamples = Aux.Log.Data.nSamples + 1 ;
+
+Aux.Log.Data.pRaw( Aux.Log.Data.nSamples+1 ) = Aux.Data.pRaw(end) ;
+Aux.Log.Data.p( Aux.Log.Data.nSamples+1 )    = Aux.Data.p(end) ;
+   
+end
+% =========================================================================
+function [] = createrecordingdaemon( Aux )
+%CREATERECORDINGDAEMON
+% 
+% CREATERECORDINDAEMON( Aux )
+%
+% Saves the instantiated Aux object, and launches a background (daemon) Matlab
+% session to load the object and begin background recording.
+%
+% The daemon session reads directly from the USB (Com) port while the user
+% session reads from a file buffer.
+
+pathToAuxObject = [ tempdir 'Aux' ] ;
+save( pathToAuxObject, 'Aux' ) ;
+
+tmpDir = pwd ;
+cd( '~/' ) ; % change to home folder so Matlab runs startup.m (defines path)
+cmd = sprintf( '%s', 'matlab -r " ProbeTracking( ''', pathToAuxObject, ''' );" &') ;
+
+ShimUse.customdisplay( ['\n----- Launching daemon session -----\n'] );
+unix( cmd ) ;
+pause(5) ;
+cd( tmpDir ) ;
+
+Aux.Source = 'logFile' ;
+
+end
+% =========================================================================
+function [] = launchrecordingdaemon( Aux )
+%LAUNCHRECORDINGDAEMON
+% 
+% [] = LAUNCHRECORDINDAEMON( Aux )
+
+Aux.clearrecording() ;
+Aux.beginrecording() ;
+
+while Aux.Log.Data.isLogging
+
+    if Aux.Log.Data.endTime ~= Inf 
+        Aux.resetdaemon() ;
+        Aux.Log.Data.endTime = Inf ;
+    end
+
+    Aux.getupdate() ;
+end
+
+Aux.stoprecording() ;
+Aux.saverecording( ) ;
+
+% ------
+% close serial port, delete object, and quit matlab session 
+Aux.delete() ;
+quit ;
+
+end
+% =========================================================================
+
+end
 
 % =========================================================================
 % =========================================================================
 methods(Static)
 % =========================================================================
-function [ComPort, AuxSpecs] = declareprobe( AuxSpecs )
+function [Source, AuxSpecs] = declareprobe( AuxSpecs )
 %DECLAREPROBE Declares serial object for probe 
 % 
-% [ComPort,AuxSpecs] = declareprobe( AuxSpecs )
+% [Source, AuxSpecs] = declareprobe( AuxSpecs )
 %
-
 % AuxSpecs can have the following fields 
-%  
-% NOTE 
-%   these are not really optional/configurable... TODO: remove deprecated/false 'options'
-%
-% .dt
-%   Interval between samples [units: ms]
-%   Should be a positive multiple of the minimum period of 10 ms.
-% 
-% .baudRate
-%   default : 115200
 %
 % .portName 
 %   Address of the probe-associated serial port within file system
@@ -569,55 +726,39 @@ function [ComPort, AuxSpecs] = declareprobe( AuxSpecs )
 %       elseif isunix
 %           portName = '/dev/ttyS100'
 
+% NOTE 
+%   System specs are hardcoded into the probe microcontroller. 
+%
+%   TODO: rather than hardcode the values here as well, there should be 
+%   a parameter file specifying values for baudrate and sampling period.
 DEFAULT_ARDUINOPERIOD = 50 ; % [units: ms] 
 DEFAULT_TEENSYPERIOD  = 100 ; % [units: ms] 
 DEFAULT_BAUDRATE      = 115200 ;
 
-DEFAULT_CLIPLIMITS    = [-Inf Inf] ; % [units: probe signal] 
-
-if nargin < 1 || isempty(AuxSpecs)
-    ShimUse.customdisplay('Default parameters will be used:')
+if nargin < 1 || isempty( AuxSpecs )
     AuxSpecs.dummy = [] ;
 end
 
-if ~myisfield( AuxSpecs, 'baudRate' ) || isempty(AuxSpecs.baudRate) ...
-    AuxSpecs.baudRate = DEFAULT_BAUDRATE ;
-end
+AuxSpecs.clipLimits = [-Inf Inf] ; % [units: probe signal] 
 
-
-if ~myisfield( AuxSpecs, 'clipLimits' ) || isempty(AuxSpecs.clipLimits) ...
-    AuxSpecs.clipLimits = DEFAULT_CLIPLIMITS ;
-end
-
-isPressureProbe = true; % assume initially the connected device is the arduino pressure sensor
-
-% -------------------------------------------------------------------------
-% check and/or assign serial port
-ComPort = [] ; 
-isAssigningSerialPort = false ;
-
+% ------- 
+% Check for device 
+isDeviceFound = false ;
 
 if  myisfield( AuxSpecs, 'portName' ) && ~isempty(AuxSpecs.portName)
    
-    [fileDir,portname,fileExtension] = fileparts( AuxSpecs.portName ) ;
+    [fileDir,portname, fileExtension] = fileparts( AuxSpecs.portName ) ;
     
     listOfDevices = dir( fileDir ) ;
-
-    isPortDetected = false ;
     
     for iFile = 1 : length(listOfDevices)-1
         if strcmp( [fileDir '/' listOfDevices(iFile).name fileExtension], AuxSpecs.portName )
-            isPortDetected = true ;
-            isAssigningSerialPort = true ;
-            if strcmp( AuxSpecs.portName, '/dev/tty.usbmodem4471890' )
-                isPressureProbe = false; % this is the teensy capacitive probe
-            end
+            isDeviceFound = true ;
        end
     end
 
-    if ~isPortDetected    
-        disp(['Warning: Given port name (' AuxSpecs.portName ' ) not found. ' ...
-            'Checking default port names.']) ;
+    if ~isDeviceFound    
+        disp(['Warning: Given port name [ ' AuxSpecs.portName ' ] not found. Checking default port names.']) ;
         AuxSpecs.portName = [] ;
     end
 end
@@ -625,48 +766,22 @@ end
 if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
 
     if ismac
-        % For some reason this doesn't work...
-        % -------
-        % if exist( '/dev/tty.usbmodem1411', 'file' ) ; % my macbook's left USB port
-        %   AuxSpecs.portName = '/dev/tty.usbmodem1411';
-        % elseif exist( '/dev/tty.usbmodem1421', 'file' ) ;
-        %     AuxSpecs.portName = '/dev/tty.usbmodem1421' ; % my macbook's right USB port
-        % else
-        %     error(['Device file not found. ' ...
-        %         'Is the microcontroller connected?']) ; 
-        % ------
+        
         listOfDevices = dir( '/dev/tty.usbmodem*' ) ;
 
-        if isempty(listOfDevices) 
-            warning( 'Device file not found. Check USB device is connected.' ) ;
+        if length(listOfDevices) == 0
+            warning( 'Respiratory Probe: Device file not found. Check USB device is connected.' ) ;
         elseif length(listOfDevices) == 1
-            
-            isAssigningSerialPort = true ;
-            AuxSpecs.portName     = ['/dev/' listOfDevices(1).name ] ;
-            
-            switch listOfDevices(1).name
-            
-                case 'tty.usbmodem4471890'
-                    isPressureProbe = false ; % this is the capacitive probe
-                otherwise
-                   isPressureProbe  = true ; % NOT necessarily true!! 
-            end
+            isDeviceFound     = true ;
+            AuxSpecs.portName = ['/dev/' listOfDevices(1).name ] ;
         else
-            warning('Ambiguous device identifier. Consider entering portName as argument. See HELP.');
-            
-            for iD = 1 : length( listOfDevices ) 
-                if strcmp( listOfDevices(iD).name, 'tty.usbmodem4471890' ) ; % teensy 3.5 on RT macbook pro
-                    isAssigningSerialPort = true ;
-                    isPressureProbe       = false ; % this is the capacitive probe
-                    AuxSpecs.portName     = ['/dev/' listOfDevices(iD).name ] ;
-                end
-            end
+            warning('Ambiguous device identifier. Consider entering portName as argument. See HELP.') ;
         end
 
     elseif isunix
         % if exist('/dev/ttyS100', 'file')  
-            warning('ProbeTracking.declareprobe() assumes a serial port address/name that may be invalid!')
             AuxSpecs.portName = '/dev/ttyS100' ;
+            warning( [ 'ProbeTracking.declareprobe() currently assumes a device address of ' AuxSpecs.portName ' which may be invalid!' ] ) ;
         % % else
         %     errorMsg = ['Device file ( ' portName ' ) not found.'  ...
         %     'Is the microcontroller connected?' ...
@@ -682,38 +797,53 @@ if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
     end
 end
 
-if  ~myisfield( AuxSpecs, 'dt' ) || isempty(AuxSpecs.dt) ...
-    || (AuxSpecs.dt < MIN_ARDUINOPERIOD) 
-
-        AuxSpecs.dt = DEFAULT_ARDUINOPERIOD ;
-else
+if isDeviceFound
     
-    skipSampleFactor = round( AuxSpecs.dt / MIN_ARDUINOPERIOD ) ;
-    AuxSpecs.dt = skipSampleFactor * MIN_ARDUINOPERIOD ;
+    AuxSpecs.state = 'active' ;
+    
+    % Check device type 
+    % NOTE : names probably need to change computer-to-computer!
+    switch AuxSpecs.portName 
+        case { '/dev/tty.usbmodem4471890','/dev/tty.usbmodem4873120' } 
+            AuxSpecs.probeType = 'capacitive' ;
+        case { '/dev/tty.usbmodem14101','/dev/tty.usbmodem14201' } 
+            AuxSpecs.probeType = 'pressure' ;
+    end
 
-end
+    switch AuxSpecs.probeType
+        case 'pressure'
+            ShimUse.customdisplay( ['\n----- Pressure probe -----\n'] );
+            AuxSpecs.dt       = DEFAULT_ARDUINOPERIOD ; % [units: ms]
+            AuxSpecs.baudRate = DEFAULT_BAUDRATE ; % [units: ms]
+        case 'capacitive'
+            ShimUse.customdisplay( ['\n----- Capacitive probe -----\n'] );
+            AuxSpecs.dt       = DEFAULT_TEENSYPERIOD ; 
+            AuxSpecs.baudRate = DEFAULT_BAUDRATE ; % [units: ms]
+    end
+    
+    Source = serial( AuxSpecs.portName, 'BaudRate',  AuxSpecs.baudRate ) ;
 
+    samplingFrequency = 1000/AuxSpecs.dt ; % [units: Hz]
+    
+    ShimUse.customdisplay( [ 'Sampling frequency = ' num2str(samplingFrequency) ' Hz'] )
+    
+    [b,a] = butter( 4, 0.064/(samplingFrequency/2) ) ;
 
-if isAssigningSerialPort
-    ComPort = serial( AuxSpecs.portName, 'BaudRate',  AuxSpecs.baudRate ) ;
+    AuxSpecs.Filter = [] ;
+    AuxSpecs.Filter.Lowpass.order  = 4 ;
+    AuxSpecs.Filter.Lowpass.cutoff = 0.0001 ;
+    AuxSpecs.Filter.Lowpass.Coefficients = [] ;
+    AuxSpecs.Filter.Lowpass.Coefficients.numerator   = b ;
+    AuxSpecs.Filter.Lowpass.Coefficients.denominator = a ;
 
 else
-    ComPort = [] ;
+    Source = [] ;
+    AuxSpecs.state = 'inert' ;
 end
-
-if isPressureProbe 
-    ShimUse.customdisplay( ['\n----- Pressure probe -----\n'] );
-    AuxSpecs.dt = DEFAULT_ARDUINOPERIOD ; % [units: ms]
-else
-    ShimUse.customdisplay( ['\n----- Capacitive probe -----\n'] );
-    AuxSpecs.dt = DEFAULT_TEENSYPERIOD ; 
-end
-
-ShimUse.customdisplay( [ 'Sampling frequency = ' num2str(1000/AuxSpecs.dt) ' Hz'] )
 
 end
 % =========================================================================
-function [measurementLog, sampleTimes] = loadmeasurementlog( measurementLogFilename, sampleTimesFilename )
+function [p, sampleTimes] = loadmeasurementlog( measurementLogFilename, sampleTimesFilename )
 %LOADMEASUREMENTLOG
 % 
 % Reads binary file of data measurements (e.g. pressure recording) to return
@@ -723,16 +853,25 @@ function [measurementLog, sampleTimes] = loadmeasurementlog( measurementLogFilen
 % [measurementLog, sampleTimes] = LOADMEASUREMENTLOG( measurementLogFilename, sampleTimesFilename )
 
 if nargin < 1
-    error( 'Insufficient arguments. Must provide full path to measurement log .bin file.' ) ;
+    error( 'Insufficient arguments. Must provide full path to measurement log file.' ) ;
 
 else
     if nargin >= 1
-        measurementLogFid = fopen( measurementLogFilename, 'r' ) ;
-        measurementLog    = fread( measurementLogFid, inf, 'double' ) ;
-        fclose( measurementLogFid );
-    end
+        [~,~,ext] = fileparts( measurementLogFilename ) ;
 
-    if nargin == 2 
+        if strcmp( ext, '.txt' )
+            X = load( measurementLogFilename ) ;
+            sampleTimes    = X(:,1) ;
+            p = X(:,2) ;
+            return;
+        elseif strcmp( ext, '.bin' )
+            measurementLogFid = fopen( measurementLogFilename, 'r' ) ;
+            p    = fread( measurementLogFid, inf, 'double' ) ;
+            fclose( measurementLogFid );
+        end
+    end
+    
+    if nargin == 2 % saved as binary
         sampleTimesFid = fopen( sampleTimesFilename, 'r' ) ;
         sampleTimes    = fread( sampleTimesFid, inf, 'double' ) ;
         fclose( sampleTimesFid );
@@ -943,8 +1082,7 @@ while ~isUserSatisfied
 end
 
 end
-% =========================================================================
-
+% =========================================================================1
 % =========================================================================
 
 end

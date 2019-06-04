@@ -1,5 +1,5 @@
-classdef ShimComRri < ShimCom 
-%SHIMCOMRRI - Shim Communication for RRI system
+classdef ShimCom_Rriyan < ShimCom 
+%SHIMCOM_RRIYAN - Shim Communication for RRI system
 %
 % .......
 % 
@@ -115,15 +115,15 @@ classdef ShimComRri < ShimCom
 % =========================================================================
 methods
 % =========================================================================
-function Shims = ShimComRri(  )
+function Shims = ShimCom_Rriyan(  )
 %SHIMCOM - Shim Communication
 
 if nargin < 2
-    Shims.Specs = ShimSpecsRri( );
+    Shims.Specs = ShimSpecs_Rriyan( );
 end
 
-Shims.ComPort = ShimComRri.initializecomport( Shims.Specs ) ;
-Shims.Cmd     = ShimComRri.getcommands( ) ;
+Shims.ComPort = ShimCom_Rriyan.initializecomport( Shims.Specs ) ;
+Shims.Cmd     = ShimCom_Rriyan.getcommands( ) ;
 
 Shims.Data.output = uint8(0) ;
 Shims.Data.input  = uint8(0) ;
@@ -161,8 +161,8 @@ Shims.Data.output(2) = 6 ;
 Shims.Data.output(3) = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ; 
 Shims.Data.output(4) = uint8( iBank ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 if isSendOk
@@ -170,10 +170,10 @@ if isSendOk
 end
 
 Shims.Data.input
-offset = double( ShimComRri.mergeints( Shims.Data.input(3), ...
+offset = double( ShimCom_Rriyan.mergeints( Shims.Data.input(3), ...
                                Shims.Data.input(4), true ) ) ;
 
-slope = double( ShimComRri.mergeints( Shims.Data.input(5), ...
+slope = double( ShimCom_Rriyan.mergeints( Shims.Data.input(5), ...
                                Shims.Data.input(6), false ) ) ;
 end
 % =========================================================================
@@ -191,8 +191,8 @@ Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
 Shims.Data.output(2) = 5 ; 
 Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getSystemHeartbeat ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 if isSendOk 
@@ -214,8 +214,8 @@ Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
 Shims.Data.output(2) = 5 ; 
 Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.clearSystemErrors ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 if isSendOk
@@ -255,8 +255,8 @@ Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getChannelThresholdData ) ;
 Shims.Data.output(4) = uint8( iBank ) ;
 Shims.Data.output(5) = uint8( iChannel ) ;
 
-Shims.Data.output    = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output    = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd( ) ;
 
@@ -267,15 +267,15 @@ end
 
 % in volts
 ThresholdData.maxControlVoltage = ...
-     (1/1000)*double( ShimComRri.mergeints( Shims.Data.input(3), ...
+     (1/1000)*double( ShimCom_Rriyan.mergeints( Shims.Data.input(3), ...
                                       Shims.Data.input(4), true ) ) ;
 % in amperes
 ThresholdData.maxOutputCurrent = ...
-     (1/1000)*double( ShimComRri.mergeints( Shims.Data.input(5), ...
+     (1/1000)*double( ShimCom_Rriyan.mergeints( Shims.Data.input(5), ...
                                      Shims.Data.input(6), true ) ) ;
 % in Watts
 ThresholdData.maxOutputPower   = ...
-     double( ShimComRri.mergeints( Shims.Data.input(7), ...
+     double( ShimCom_Rriyan.mergeints( Shims.Data.input(7), ...
                                  Shims.Data.input(8), false ) ) ;
 
 end
@@ -291,8 +291,8 @@ Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
 Shims.Data.output(2) = 5 ; 
 Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setPowerOn ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 if isSendOk
@@ -313,8 +313,8 @@ Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
 Shims.Data.output(2) = 5 ; 
 Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setPowerOff ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 if isSendOk
@@ -360,8 +360,8 @@ for iChannel = 1 : Shims.Specs.Amp.nChannels
     iByteOut = iByteOut + 1 ;
 end
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd( ) ;
 
@@ -388,8 +388,8 @@ Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync) ) ;
 Shims.Data.output(2) = 5 ; 
 Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.setLoadAllShims ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 
@@ -423,8 +423,8 @@ Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
 Shims.Data.output(2) = 5 ; 
 Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getSystemLongStatus ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 if isSendOk
@@ -432,7 +432,7 @@ if isSendOk
 end
 % in Watts
 SystemStatus.totalOutputPower = ...
-    double( ShimComRri.mergeints( Shims.Data.input(3), ...
+    double( ShimCom_Rriyan.mergeints( Shims.Data.input(3), ...
                                Shims.Data.input(4), false ) ) ;
 
 SystemStatus.onOff = logical( Shims.Data.input(5) ) ;
@@ -466,21 +466,21 @@ Shims.Data.output(2) = 6 ;
 Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getBankLongStatus ) ;
 Shims.Data.output(4) = uint8( iBank ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 if isSendOk
     disp('OK')
     % in volts 
     BankStatus.highVoltagePositiveRail = ...
-        ShimComRri.convertfromtwoscomplement( Shims.Data.input(3) ) ;
+        ShimCom_Rriyan.convertfromtwoscomplement( Shims.Data.input(3) ) ;
     BankStatus.highVoltageNegativeRail = ...
-        ShimComRri.convertfromtwoscomplement( Shims.Data.input(4) ) ;
+        ShimCom_Rriyan.convertfromtwoscomplement( Shims.Data.input(4) ) ;
     BankStatus.lowVoltagePositiveRail  = ...
-        ShimComRri.convertfromtwoscomplement( Shims.Data.input(5) ) ;
+        ShimCom_Rriyan.convertfromtwoscomplement( Shims.Data.input(5) ) ;
     BankStatus.lowVoltageNegativeRail  = ...
-        ShimComRri.convertfromtwoscomplement( Shims.Data.input(6) ) ;
+        ShimCom_Rriyan.convertfromtwoscomplement( Shims.Data.input(6) ) ;
     
     % in degrees Celsius
     BankStatus.heatsinkTemperature = Shims.Data.input(7) ;
@@ -516,8 +516,8 @@ Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
 Shims.Data.output(2) = 5 ; 
 Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getSystemInformation ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 if isSendOk
@@ -531,7 +531,7 @@ SystemInfo.SystemModel.name = Shims.Data.input(5) ;
 SystemInfo.SystemModel.numberOfChannels = Shims.Data.input(6) ; 
 
 SystemInfo.serialNumber = ...
-    double( ShimComRri.mergeints( Shims.Data.input(7), ...
+    double( ShimCom_Rriyan.mergeints( Shims.Data.input(7), ...
                                Shims.Data.input(8), false ) ) ;
     
 end
@@ -574,8 +574,8 @@ Shims.Data.output(9)  = uint8( SystemTime.minutes ) ;
 Shims.Data.output(10) = uint8( SystemTime.seconds ) ;
 
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 
@@ -661,8 +661,8 @@ Shims.Data.output    = uint8( hex2dec( Shims.Cmd.Mxd.sync ) ) ;
 Shims.Data.output(2) = 5 ; 
 Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getSystemCurrentTime ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 if isSendOk
@@ -673,7 +673,7 @@ Shims.Data.input(:)
 SystemTime.month = double( Shims.Data.input(3) ) ; 
 SystemTime.day   = double( Shims.Data.input(4) ) ; 
 
-SystemTime.year = double( ShimComRri.mergeints( Shims.Data.input(5), ...
+SystemTime.year = double( ShimCom_Rriyan.mergeints( Shims.Data.input(5), ...
                     Shims.Data.input(6), false ) ) ;
 
 SystemTime.hours   = double( Shims.Data.input(7) ) ; 
@@ -726,8 +726,8 @@ elseif nargin == 4
     
 end
     
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd( ) ;
 
@@ -773,8 +773,8 @@ Shims.Data.output(6) = currentHB ;
 Shims.Data.output(7) = currentLB ; 
 
 
-Shims.Data.output    = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output    = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd( ) ;
 
@@ -814,8 +814,8 @@ Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getChannelLongStatus ) ;
 Shims.Data.output(4) = uint8( iBank ) ;
 Shims.Data.output(5) = uint8( iChannel ) ;
 
-Shims.Data.output    = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output    = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd( ) ;
 
@@ -826,28 +826,28 @@ end
 
 % in amperes
 ChannelStatus.current = ...
-     (1/1000)*double( ShimComRri.mergeints( Shims.Data.input(3), ...
+     (1/1000)*double( ShimCom_Rriyan.mergeints( Shims.Data.input(3), ...
                                       Shims.Data.input(4), true ) ) ;
 % in volts
 ChannelStatus.voltage = ...
-     (1/100)*double( ShimComRri.mergeints( Shims.Data.input(5), ...
+     (1/100)*double( ShimCom_Rriyan.mergeints( Shims.Data.input(5), ...
                                      Shims.Data.input(6), true ) ) ;
 % in Watts
 ChannelStatus.power   = ...
-     double( ShimComRri.mergeints( Shims.Data.input(7), ...
+     double( ShimCom_Rriyan.mergeints( Shims.Data.input(7), ...
                                  Shims.Data.input(8), false ) ) ;
 
 ChannelStatus.dissipatedPower = ...
-     double( ShimComRri.mergeints( Shims.Data.input(9), ...
+     double( ShimCom_Rriyan.mergeints( Shims.Data.input(9), ...
                                  Shims.Data.input(10), false ) ) ;
 
 % in volts
 ChannelStatus.dacInputVoltage = ...
-     (1/100)*double( ShimComRri.mergeints( Shims.Data.input(11), ...
+     (1/100)*double( ShimCom_Rriyan.mergeints( Shims.Data.input(11), ...
                                      Shims.Data.input(12), true ) ) ;
 
 ChannelStatus.auxiliaryInputVoltage = ...
-     (1/100)*double( ShimComRri.mergeints( Shims.Data.input(13), ...
+     (1/100)*double( ShimCom_Rriyan.mergeints( Shims.Data.input(13), ...
                                      Shims.Data.input(14), true ) ) ;
 
 ChannelStatus.onOff = logical( Shims.Data.input(15) ) ;
@@ -878,8 +878,8 @@ Shims.Data.output(3) = hex2dec( Shims.Cmd.Mxd.getChannelOutput ) ;
 Shims.Data.output(4) = uint8( iBank ) ;
 Shims.Data.output(5) = uint8( iChannel ) ;
 
-Shims.Data.output    = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output    = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd( ) ;
 
@@ -890,19 +890,19 @@ end
 
 % in amperes
 ChannelOutput.current = ...
-     (1/1000)*double( ShimComRri.mergeints( Shims.Data.input(3), ...
+     (1/1000)*double( ShimCom_Rriyan.mergeints( Shims.Data.input(3), ...
                                       Shims.Data.input(4), true ) ) ;
 % in volts
 ChannelOutput.voltage = ...
-     (1/100)*double( ShimComRri.mergeints( Shims.Data.input(5), ...
+     (1/100)*double( ShimCom_Rriyan.mergeints( Shims.Data.input(5), ...
                                      Shims.Data.input(6), true ) ) ;
 % in Watts
 ChannelOutput.power   = ...
-     double( ShimComRri.mergeints( Shims.Data.input(7), ...
+     double( ShimCom_Rriyan.mergeints( Shims.Data.input(7), ...
                                  Shims.Data.input(8), false ) ) ;
 
 ChannelOutput.dissipatedPower = ...
-     double( ShimComRri.mergeints( Shims.Data.input(9), ...
+     double( ShimCom_Rriyan.mergeints( Shims.Data.input(9), ...
                                  Shims.Data.input(10), false ) ) ;
 
 end
@@ -912,7 +912,7 @@ function percentSliceIntensity = getslice( Shims, iChannel, iSlice )
 %
 % percentSliceIntensity = GETSLICE( Shims, channelIndex, sliceIndex ) 
 %
-%   channelIndex : number between 1 to 32 (see ShimComRri.getchanneltobankkey)
+%   channelIndex : number between 1 to 32 (see ShimCom_Rriyan.getchanneltobankkey)
 %   sliceIndex   : number between 1 and 1000 
 %
 %   percentSliceIntensity : number between -100 and 100  
@@ -929,8 +929,8 @@ Shims.Data.output(4) = uint8( iChannel ) ;
 Shims.Data.output(5) = iSliceHighByte ;
 Shims.Data.output(6) = iSliceLowByte ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 
@@ -947,7 +947,7 @@ if( Shims.Data.input(2) ~= Shims.Params.nBytesToRead )
 end
 
 percentSliceIntensity = dactopercentsliceintensity( ...
-    ShimComRri.mergeints( Shims.Data.input(3), Shims.Data.input(4), true ) ) ;
+    ShimCom_Rriyan.mergeints( Shims.Data.input(3), Shims.Data.input(4), true ) ) ;
 
 function ps = dactopercentsliceintensity( dc )
 % Convert dac counts (dc, between 0 and 65535)) to percent slice intensity (ps,
@@ -963,7 +963,7 @@ function [] = setslice( Shims, iChannel, iSlice, percentSliceIntensity )
 %
 % [] = SETSLICE( Shims, channelIndex, sliceIndex, sliceIntensity ) 
 %
-%   channelIndex : number between 1 to 32 (see ShimComRri.getchanneltobankkey)
+%   channelIndex : number between 1 to 32 (see ShimCom_Rriyan.getchanneltobankkey)
 %   sliceIndex   : number between 1 and 1000 
 %   percentSliceIntensity : number between -100 and 100  
 
@@ -988,8 +988,8 @@ Shims.Data.output(6) = iSliceLowByte ;
 Shims.Data.output(7) = percentSliceIntensityHighByte ;
 Shims.Data.output(8) = percentSliceIntensityLowByte ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 
@@ -1022,7 +1022,7 @@ function [] = setmatrixinterconnectiontoself( Shims, iChannel, iSlot )
 %
 % [] = SETMATRIXINTERCONNECTIONTOSELF( Shims, channelIndex, slotIndex ) 
 %
-%   channelIndex : number between 1 to 32 (see ShimComRri.getchanneltobankkey)
+%   channelIndex : number between 1 to 32 (see ShimCom_Rriyan.getchanneltobankkey)
 %   slotIndex : [time constant module 1-4]: 
 %       0x00 (no connection), 
 %       0x01 (first module), 
@@ -1041,8 +1041,8 @@ Shims.Data.output(3) = hex2dec( Shims.Cmd.Dsu.setMatrixInterconnectionToSelf ) ;
 Shims.Data.output(4) = uint8( iChannel ) ;
 Shims.Data.output(5) = uint8( hex2dec( iSlot ) ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 
@@ -1065,7 +1065,7 @@ function interconnections = getchannelmatrixinterconnection( Shims, iChannel )
 %
 % interconnections = GETMATRIXINTERCONNECTION( Shims, channelIndex ) 
 %
-%   channelIndex : number between 1 to 32 (see ShimComRri.getchanneltobankkey)
+%   channelIndex : number between 1 to 32 (see ShimCom_Rriyan.getchanneltobankkey)
 
 
 Shims.Params.nBytesToRead = 68 ; 
@@ -1075,8 +1075,8 @@ Shims.Data.output(2) = 6 ;
 Shims.Data.output(3) = hex2dec( Shims.Cmd.Dsu.getMatrixInterconnections ) ;
 Shims.Data.output(4) = uint8( iChannel ) ;
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 
@@ -1106,7 +1106,7 @@ function [] = testwave( Shims, iChannel, isOn )
 %
 % [] = TESTWAVE( Shims, channelIndex, isOn ) 
 %
-%   channelIndex : number between 1 to 32 (see ShimComRri.getchanneltobankkey)
+%   channelIndex : number between 1 to 32 (see ShimCom_Rriyan.getchanneltobankkey)
 %   isOn : true (1) OR false (0) 
 
 Shims.Params.nBytesToRead = 5 ; 
@@ -1122,8 +1122,8 @@ else
     Shims.Data.output(5) = uint8( 2 ) ;
 end
 
-Shims.Data.output = ShimComRri.appendcrc( Shims.Data.output, ...
-                        ShimComRri.calculatecrc( Shims.Data.output ) ) ; 
+Shims.Data.output = ShimCom_Rriyan.appendcrc( Shims.Data.output, ...
+                        ShimCom_Rriyan.calculatecrc( Shims.Data.output ) ) ; 
 
 [Shims, isSendOk] = Shims.sendcmd() ;
 
@@ -1240,7 +1240,7 @@ while ~isSendOk && (iSendAttempt < Shims.Params.nSendAttemptsMax)
 
     [Shims, isMsgRead] = Shims.writetomachine() ;
     if isMsgRead % check message was read properly:
-        crc = ShimComRri.calculatecrc( Shims.Data.input( 1 :end-2) ) ;
+        crc = ShimCom_Rriyan.calculatecrc( Shims.Data.input( 1 :end-2) ) ;
     
         if ( Shims.Data.input( end - 1) == bitand(crc, uint16(255) ) ) ...
             && ( Shims.Data.input( end ) == bitshift( crc, -8 ) ) 
@@ -1321,7 +1321,7 @@ function [X0,X1,X2,X3] = getchanneltobankmatrices( )
 % of the vector corresponding strictly to the channels belonging to amplifier
 % banks 0 through 3.
 
-channelsToBankKey = ShimComRri.getchanneltobankkey() ;
+channelsToBankKey = ShimCom_Rriyan.getchanneltobankkey() ;
 
 nActiveChannels   = size( channelsToBankKey, 1 ) ;
 banks             = channelsToBankKey(:,2) ;
@@ -1360,7 +1360,7 @@ function [currentsOut] = mapcurrentstomxd( currents )
 % e.g. Insert active channel indices into corresponding cells of full currents
 %   vector (i.e. 32 channels, including inactive channels)
 %
-% >> currentsOut = ShimComRri.mapcurrentstomxd( [1 : 24] ) 
+% >> currentsOut = ShimCom_Rriyan.mapcurrentstomxd( [1 : 24] ) 
 %
 % currentsOut =
 %
@@ -1397,7 +1397,7 @@ function [currentsOut] = mapcurrentstomxd( currents )
 %      0
 %      0
 
-channelToBankKey = ShimComRri.getchanneltobankkey() ;
+channelToBankKey = ShimCom_Rriyan.getchanneltobankkey() ;
 currentsOut = zeros( 32, 1 ) ;
 currentsOut( channelToBankKey( :, 4 ) ) = currents ;
 
@@ -1490,7 +1490,7 @@ function [dataMsg] = appendcrc( dataMsg, crc )
 assert( isa( crc, 'uint16' ) ) ;
 assert( isa( dataMsg, 'uint8' ) ) ;
 
-[lowByte, highByte] = ShimComRri.splitint( crc ) ; 
+[lowByte, highByte] = ShimCom_Rriyan.splitint( crc ) ; 
 
 dataMsg(end+1) = lowByte ;    
 dataMsg(end+1) = highByte ;

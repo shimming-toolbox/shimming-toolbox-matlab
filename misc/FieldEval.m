@@ -55,6 +55,7 @@ if nargin ~= 0
         % convert MaRdI-type Img object to FieldEval
         Field.img = Img.img ;
         Field.Hdr = Img.Hdr ;
+        Field.Hdrs = Img.Hdrs ;
         Field.Aux = Img.Aux ;
     
     elseif ischar( Img ) 
@@ -153,7 +154,7 @@ if  ~myisfield( Params, 'tolerance' ) || isempty(Params.tolerance)
     Params.tolerance = DEFAULT_TOLERANCE ;
 end
 
-voxelSize  = Field.getvoxelsize() ;
+voxelSize  = Field.getvoxelspacing() ;
 mask = Field.Hdr.MaskingImage ;
 
 % make spherical/ellipsoidal convolution kernel (ker)
@@ -213,14 +214,6 @@ end
 
 end
 % =========================================================================
-% =========================================================================
-function Field = histogramfield( Field )
-%HISTOGRAMFIELD
-
-
-
-end
-% =========================================================================
 function Stats = assessfielddistribution( Field, voi, filename )
 %ASSESSSHIM
 %
@@ -261,6 +254,7 @@ function Stats = assessfielddistribution( Field, voi, filename )
 %
 %   .min
 %   .max
+assert( ndims( Field.img ) <=3, 'Multiple volumes not supported. TODO' )
 
 if nargin < 2 || isempty(voi)
     voi = Field.Hdr.MaskingImage ;
@@ -268,7 +262,7 @@ end
 
 voi = logical( voi ) ;
 
-Stats.volume    = nnz( voi ) .* prod( 0.1*Field.getvoxelsize() )  ; % [units: cm^3]
+Stats.volume    = nnz( voi ) .* prod( 0.1*Field.getvoxelspacing() )  ; % [units: cm^3]
 Stats.mean      = mean( Field.img( voi ) ) ;
 Stats.median    = median( Field.img( voi ) ) ;
 Stats.std       = std( Field.img( voi ) ) ;
@@ -647,25 +641,14 @@ end
 % =========================================================================
 methods(Static)
 % =========================================================================
-function [Field, Extras] = mapfield( Img, Params, ObjectiveImg )
-% MAPFIELD
+function [Field] = mapfield( varargin )
+%MAPFIELD
 %
-% Field = MAPFIELD( Img ) 
-% Field = MAPFIELD( Img, Params ) 
-% Field = MAPFIELD( Img, Params, ObjectiveImg ) 
-% 
-% Img --- a cell array where the 1st dimension (i.e. row) corresponds to
-% echo number and the index along the second dimension (i=1,2) corresponds to
-% Magnitude & Wrapped Phase respectively (each a MaRdI-type object) 
+% Field = MAPFIELD( Mag, Phase ) 
+% Field = MAPFIELD( Mag, Phase, Params ) 
 %
-% if nEchoes == 1 
-%   (i.e. Img = { Mag, Phase } )
-%
-%   It is assumed that Phase is in fact a phase-difference image.
-%
-% if nEchoes == 2
-%   (i.e. Img = { MagEcho1, PhaseEcho1 ; MagEcho2, PhaseEcho2 } )
-%
+% Mag and Phase should either be paths to the respective DICOM directories, 
+% OR, instantiated MaRdI-type image objects (e.g. Mag = MaRdI( path_to_Mag_DICOMs ) )
 %
 % Params may contain the following fields
 %
@@ -679,196 +662,197 @@ function [Field, Extras] = mapfield( Img, Params, ObjectiveImg )
 %   ignored) 
 %       [default: 0.01] 
 %
-%   .isFilteringField 
-%       Applies harmonic ('RESHARP', i.e. low-pass) filtering & returns filtered field map.
-%       [default: false]
-%   
-%   .filteringMask
-%       binary array indicating local ROI to retain + RESHARP filter 
-%       [default: uses the region retained after unwrapping, which may generally be = Params.mask)
-%
 %   .unwrapper
-%       'Sunwrap' [default], calls SUNWRAP( ) (Maier, et al. MRM 2015)
-%       'AbdulRahman_2007' , calls unwrap3d( ), which wraps to the Abdul-Rahman binary
+%       'Sunwrap' [default for 2d image (single slice)], calls sunwrap( ) (Maier, et al. MRM 2015)
+%       'AbdulRahman_2007' [default for 3d image volume], calls unwrap3d( ), which wraps to the Abdul-Rahman binary
 %       'FslPrelude', calls prelude( ), which wraps to FSL-prelude 
 
-% TODO 
-%
-% ...Untested features
-%
-% ObjectiveImg --- a MaRdI-type object *example* image (e.g. EPI volume!) 
-% that, most importantly, has its voxels positioned precisely where the field
-% information/shim is desired. That is, if a spherical harmonic fitting of
-% the field is performed (see below) then the fitted-field will be interpolated
-% at the voxel positions from ObjectiveImg. 
-%
-% What is the immediate purpose of this? To enabled gapped/partial gre_field_map
-% acquisitions in order to reduce the acquisition time for real-time shim training
-% i.e. these generally involve the subject holding their breath, so, for
-% feasibility + patient comfort, the acquisitions should be as brief as
-% possible.
-%
-%   .isFittingSphericalHarmonics 
-%       Fits field map to spherical harmonic basis set & returns the fitted field map.
-%       See doc FieldEval.extractharmonicfield() for relevant Params.
-%       [default: false]
-%
-%   .ordersToGenerate
-%       Orders of SH incorporated into fitting 
-%       [default: [0:1:8]]
+DEFAULT_THRESHOLD    = 0.01 ;
+DEFAULT_UNWRAPPER_2D = 'Sunwrap' ; 
+DEFAULT_UNWRAPPER_3D = 'AbdulRahman_2007' ;
 
-DEFAULT_ISCORRECTINGPHASEOFFSET        = true ; % deprecated
-DEFAULT_ISUNWRAPPINGECHOESINDIVIDUALLY = false ; % deprecated
-DEFAULT_ISFILTERINGFIELD               = false ;
-DEFAULT_THRESHOLD                      = 0.01 ;
+assert( ( nargin >= 2 ) && ...
+        isa( varargin{1}, 'MaRdI' ) || ischar( varargin{1} ) && ...
+        isa( varargin{2}, 'MaRdI' ) || ischar( varargin{2} ), ...
+        'Invalid input.' ) ;
 
-DEFAULT_ISFITTINGSPHERICALHARMONICS    = false ;
-DEFAULT_ORDERSTOGENERATE               = [0:8] ;
+for iImg = 1 : 2
+    if isa( varargin{iImg}, 'MaRdI' )
+        Img = varargin{iImg} ;
+    elseif ischar( varargin{iImg} )
+        Img = MaRdI( varargin{iImg} ) ;
+    end
 
-DEFAULT_UNWRAPPER                      = 'Sunwrap' ; % 'AbdulRahman_2007' ;
-DEFAULT_ECHOINDICES                    = [ 1 2 ] ;
+    if ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) )
+        Mag = Img.copy() ;
+    elseif ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) )
+        Phase = Img.copy() ;
+    else
+        error('Unexpected image type: Neither magnitude nor phase?') ;
+    end
+end
 
-assert( (nargin >= 1) && ~isempty( Img ) ) ;
-
-if nargin == 1
+if isstruct( varargin{end} )
+    Params = varargin{end} ;
+else
     Params.dummy = [];
-end
-
-if ~myisfield( Params, 'isCorrectingPhaseOffset' ) || isempty( Params.isCorrectingPhaseOffset ) 
-    Params.isCorrectingPhaseOffset = DEFAULT_ISCORRECTINGPHASEOFFSET ;
-end
-
-if ~myisfield( Params, 'isUnwrappingEchoesIndividually' ) || isempty( Params.isUnwrappingEchoesIndividually ) 
-    Params.isUnwrappingEchoesIndividually = DEFAULT_ISUNWRAPPINGECHOESINDIVIDUALLY ;
-end
-
-if ~myisfield( Params, 'isFilteringField' ) || isempty( Params.isFilteringField ) 
-    Params.isFilteringField = DEFAULT_ISFILTERINGFIELD ;
 end
 
 if ~myisfield( Params, 'threshold' ) || isempty( Params.threshold ) 
     Params.threshold = DEFAULT_THRESHOLD ;
 end
 
-if ~myisfield( Params, 'isFittingSphericalHarmonics' ) || isempty( Params.isFittingSphericalHarmonics ) 
-    Params.isFittingSphericalHarmonics = DEFAULT_ISFITTINGSPHERICALHARMONICS ;
-end
-
-if ~myisfield( Params, 'ordersToGenerate' ) || isempty( Params.ordersToGenerate ) 
-    Params.ordersToGenerate = DEFAULT_ORDERSTOGENERATE ;
-end
-
 if ~myisfield( Params, 'unwrapper' ) || isempty( Params.unwrapper ) 
-    Params.unwrapper = DEFAULT_UNWRAPPER ;
-end
-
-if ~myisfield( Params, 'echoIndices' ) || isempty( Params.echoIndices ) 
-    Params.echoIndices = DEFAULT_ECHOINDICES ;
-end
-    
-if isa( Img, 'cell' ) ;
-    
-    ImgArray = Img ;
-    nEchoes  = size( ImgArray, 1 ) ;
-
-elseif ischar( Img )
-    
-    warning('UNTESTED feature.')    
-    iSpace = strfind( Img, ' ' ) ;
-
-    magDirs   = [ Img( 1:iSpace-1 ) '/' ] ;
-    phaseDirs = [ Img( (iSpace+1):end ) '/' ] ;
-   
-    echoSubdirs = dir( [ phaseDirs 'echo*' ] ) ;
-    nEchoes     = length( echoSubdirs ) ; 
-    
-    ImgArray         = cell( numel( nEchoes ) , 2 ) ;
-    ImgArray{ 1, 1 } = MaRdI( strcat( magDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
-    ImgArray{ 1, 2 } = MaRdI( strcat( phaseDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
-
-    if nEchoes > 1 
-        assert( max(Params.echoIndices) <= nEchoes, ...
-            ['Max echo index exceeds the number of image echo-subdirectories found.']  ) ; 
+    nSlices = size( Phase.img, 3 ) ;
+    if nSlices == 1
+        Params.unwrapper = DEFAULT_UNWRAPPER_2D ;
+    else
+        Params.unwrapper = DEFAULT_UNWRAPPER_3D ;
     end
-    
-   
-    for iEcho = 1 : 2
-
-        ImgArray{ 1, 1 } = MaRdI( strcat( magDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
-        ImgArray{ 1, 2 } = MaRdI( strcat( phaseDirs, echoSubdirs( Params.echoIndices(1) ).name, '/' ) ) ;
-
-    end 
-
 end
-
-Extras = [] ;
+    
+nEchoes       = length( Phase.echotime ) ;
+nMeasurements = size( Phase.img, 5 ) ;
 
 % -------
 % define spatial support for unwrapping
 if ~myisfield( Params, 'mask' ) || isempty( Params.mask )
 
-    Params.mask = true( ImgArray{1,1}.getgridsize ) ;
+    Params.mask = true( [Phase.getgridsize() nEchoes nMeasurements] ) ;
 
-    for iEcho = 1 : nEchoes 
-
-        Params.mask = Params.mask .* ...
-            ( ImgArray{ iEcho, 1 }.img ./ max( ImgArray{ iEcho, 1 }.img(:) ) > Params.threshold ) ;
-
+    for iMeasurement = 1 : nMeasurements
+        for iEcho = 1 : nEchoes 
+            mag_i = Mag.img(:,:,:,iEcho,iMeasurement) ;
+        
+            Params.mask(:,:,:,iEcho,iMeasurement) = Params.mask(:,:,:,iEcho,iMeasurement) .* ...
+                ( mag_i ./ max( mag_i(:) ) ) >= Params.threshold ; 
+        end
     end
 
+    Params.mask = prod( Params.mask, 4 ) ;
 end
 
 Params.mask = logical( Params.mask ) ;
 
-if nEchoes == 1 % 2 echoes acquired but only 1 input (phase *difference* image)
-   
-    assert( myisfield( ImgArray{ 1, 2}.Hdr.MrProt, 'alTE') && numel( ImgArray{ 1, 2}.Hdr.MrProt.alTE ) >= 2, ...
-       'Expected Siemens FM phase difference image with at least 2 TEs specified in the DICOM header.' )
-    
-    PhaseDiff = ImgArray{ 1, 2 }.copy() ;
+% % ------- TODO Add support for separate excitations for each TE
+% if ImgArray{ 1, 2}.Hdr.MrProt.lContrasts == 1 
+%     
+%     if nEchoes == 1 % single echo phase image
+%         % in this case only, PhaseDiff refers to the difference between t=TE and t=0
+%         PhaseDiff = ImgArray{ 1, 2 }.copy() ; 
+%     else % echoes acquired using separate excitations
+%         %TODO:implement check/assertion that the echoes were indeed acquired using separate excitations 
+%         
+%         % correct for possible frequency difference between excitations using f0_Tx of 1st TE as reference
+%         f0_1 = ImgArray{1,2}.Hdr.ImagingFrequency*1E6 ; % [units: Hz]
+%
+%         for iEcho = 2 : nEchoes
+%             
+%             delta_f0 = ImgArray{iEcho, 2}.Hdr.ImagingFrequency*1E6 - f0_1 ;
+%             
+%             if ( delta_f0 ~= 0 )
+%                 warning('Modifying the MaRdI inputs...')
+%                 % TODO: work-around that doesn't modify the inputs in this way
+%                 ImgArray{ iEcho, 2 }.img = ImgArray{ iEcho, 2 }.img + 2*pi*delta_f0*ImgArray{ iEcho, 2 }.Hdr.EchoTime/1000 ;
+%                 ImgArray{ iEcho, 2 }.Hdr.ImagingFrequency = ImgArray{1,2}.Hdr.ImagingFrequency ; 
+%             end 
+%
+%         end
+%
+%         PhaseDiff      = ImgArray{ 1, 2}.copy() ;
+%
+%         img            = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
+%         img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(i*ImgArray{ 2, 2 }.img) ;
+%
+%         PhaseDiff.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
+%
+%         PhaseDiff.Hdr.EchoTime = ImgArray{ 2, 2 }.Hdr.EchoTime - ImgArray{ 1, 2 }.Hdr.EchoTime ; % [units : ms]
+%         % Cornell Complex fitting...        
+%         M  = zeros( [ImgArray{1,1}.getgridsize() nEchoes] ) ;
+%         TE = zeros( nEchoes, 1 ) ;
+%
+%         for iEcho = 1 : nEchoes
+%             M( :,:,:, iEcho ) = ImgArray{ iEcho, 1}.img .* exp(i*-ImgArray{ iEcho, 2}.img) ;
+%             TE(iEcho) = ImgArray{iEcho,1}.Hdr.EchoTime/1000 ;
+%         end
+%
+%         [p1, dp1, relres, p0, iter]=Fit_ppm_complex_TE(M,TE);
+%
+%         P1 = ImgArray{1,2}.copy() ;
+%         P1.img = p1 ;
+%         P1.Hdr.EchoTime = TE(2) - TE(1) ;
+%         Field3 = P1.copy() ;
+%         Field3.scalephasetofrequency() ;
+%         nii((p1/(1000*(TE(2)-TE(1)))/(2*pi)));
+%     end
+%     
+% else
+%
+%
+% end
 
-    PhaseDiff.Hdr.EchoTime = ... 
-        ( ImgArray{ 1, 2 }.Hdr.MrProt.alTE(2) - ImgArray{ 1, 2 }.Hdr.MrProt.alTE(1) )/1000 ; % [units : ms]
+if nEchoes == 1 
+    % Input phase should be a phase *difference* image; alternatively, PhaseDiff will refer
+    % to the difference between t=TE and t=0
+    if( numel( Phase.Hdr.MrProt.alTE ) < 2 )
+        warning( ['Expected Siemens phase difference image with at least 2 TEs specified in the DICOM header.' ...
+           'Output field estimate may retain an offset term'] )
+    end
+
+    PhaseDiff = Phase.copy() ;
+    PhaseDiff.Hdr.EchoTime = Phase.echotime ;
 
 else
-
     % -------
     % phase difference image via complex division of first 2 echoes
-    PhaseDiff      = ImgArray{ 1, 2}.copy() ;
+    PhaseDiff      = Phase.copy() ;
 
-    img            = ImgArray{ 1, 1 }.img .* exp(i*ImgArray{ 1, 2 }.img) ;
-    img(:,:,:,2)   = ImgArray{ 2, 1 }.img .* exp(i*ImgArray{ 2, 2 }.img) ;
+    img            = Mag.img(:,:,:,1,:) .* exp( i*Phase.img(:,:,:,1,:) ) ;
+    img(:,:,:,2,:) = Mag.img(:,:,:,2,:) .* exp( i*Phase.img(:,:,:,2,:) ) ;
 
-    PhaseDiff.img = angle( img(:,:,:,2) ./ img(:,:,:,1) ) ;
+    PhaseDiff.img  = angle( img(:,:,:,1,:) ./ img(:,:,:,2,:) ) ;
 
-    PhaseDiff.Hdr.EchoTime = ImgArray{ 2, 2 }.Hdr.EchoTime - ImgArray{ 1, 2 }.Hdr.EchoTime ; % [units : ms]
+    PhaseDiff.Hdr.EchoTime = Phase.echotime(2) - Phase.echotime(1) ; % [units : ms]
+
 end
 
 PhaseDiff.Hdr.MaskingImage = logical( Params.mask ) & ~isnan( PhaseDiff.img ) ;
 
 % -------
 % 3d path-based unwrapping
-PhaseDiff = PhaseDiff.unwrapphase( ImgArray{1,1}, Params ) ;
+PhaseDiff = PhaseDiff.unwrapphase( Mag, Params ) ;
+
+% if time series, correct for potential 2pi wraps between time points:
+nImg = size( PhaseDiff.img, 5 ) ;
+
+if nImg > 1
+    % Wherever the absolute deviation from the estimate exceeds pi,
+    % correct the measurement by adding the appropriate pi-multiple:
+    phaseEstimate = min( abs(PhaseDiff.img), [], 5, 'omitnan' ) ;
+    
+    for iImg = 1 : nImg
+        dPhase         = phaseEstimate - PhaseDiff.img( :,:,:,1,iImg )  ;
+        n              = ( abs(dPhase) > pi ) .* round( dPhase/pi ) ;
+        PhaseDiff.img( :,:,:,1,iImg ) = PhaseDiff.img(:,:,:,1,iImg ) + n*pi ;
+    end
+end
 
 PhaseDiffInRad = PhaseDiff.copy() ; % PhaseDiffInRad.img : [units: rad]
 
-% double echo estimate:
 PhaseDiff.scalephasetofrequency( ) ; % PhaseDiff.img : [units: Hz]
 Field     = FieldEval( PhaseDiff ) ;
 
-dbstop in FieldEval at 981
 if nEchoes > 2
-
+    error('TODO: field-fitting over multiple echoes');
     % approx filter (smoothing kernel) diameter in mm:
     filterDiameter = 11 ;
     
     % filter size in number of voxels 
-    Params.filterSize = round( filterDiameter ./ ImgArray{ 1, 1 }.getvoxelsize() ) ;
+    Params.kernelSize = round( filterDiameter ./ ImgArray{ 1, 1 }.getvoxelspacing() ) ;
     % if size is an even number of voxels along any dimension, increment up:
-    evenDims = ~logical( mod( Params.filterSize, 2 ) ) ;
-    Params.filterSize( evenDims ) = Params.filterSize( evenDims ) + ones( [ 1 nnz( evenDims ) ] ) ; 
-
-    % Params.filterSize = [15 15 7] ;
+    evenDims = ~logical( mod( Params.kernelSize, 2 ) ) ;
+    Params.kernelSize( evenDims ) = Params.kernelSize( evenDims ) + ones( [ 1 nnz( evenDims ) ] ) ; 
+    Params.method     = 'gaussian' ; 
 
     % Unwrap later echoes using the phase difference/TE estimate from the 1st 2
     % echoes, assuming a linear model of phase evolution with TE
@@ -891,10 +875,7 @@ if nEchoes > 2
 
     % -----
     % Filter phase diff estimate before estimating offset + later phases:
-    tmp1 = ImgArray{2,1}.img .* PhaseDiffInRad.img ;
-    tmp2 = smooth3( ImgArray{2,1}.img, 'box', Params.filterSize ) ;
-    tmp3 = smooth3( tmp1, 'box', Params.filterSize ) ;
-    PhaseDiffInRad.img = tmp3./tmp2 ;
+    PhaseDiffInRad.filter( ImgArray{2,1}.img, Params ) ;
     
     PhaseOffset     = PhaseDiffInRad.copy() ;
     
@@ -905,10 +886,8 @@ if nEchoes > 2
 
     % -----
     % lowpass filter unwrapped phase offset before correction of individual echoes:
-    tmp1 = ImgArray{2,1}.img .* PhaseOffset.img ;
-    tmp2 = smooth3( ImgArray{2,1}.img, 'box', Params.filterSize ) ;
-    tmp3 = smooth3( tmp1, 'box', Params.filterSize ) ;
-    PhaseOffset.img= tmp3./tmp2 ;
+    PhaseOffsetC = PhaseOffset.copy() ;
+    PhaseOffset.filter( ImgArray{2,1}.img, Params ) ;
 
     % -----
     % Perform correction and unwrap phases :
@@ -926,13 +905,9 @@ if nEchoes > 2
 
     end
     
-
     % -----
     % Correct for temporal wraps between echoes (assuming phase offset = 0):
-    
     PhaseCorrectedTE = cell( nEchoes, 1 ) ;
-
-    clear tmp2;
     
     for iEcho = 1 : nEchoes 
 
@@ -955,8 +930,6 @@ if nEchoes > 2
 
     for iEcho = 1 : nEchoes
      mag = mag + ( ImgArray{ iEcho, 1 }.img ).^2 ;
-     % mag = mag + ( ImgArray{ iEcho, 1 }.img .* exp(i*ImgArray{ iEcho, 2 }.img ) ) .^2 ;
-     % mag(:,:,:,iEcho) =ImgArray{ iEcho, 1 }.img ;
     end
 
     mag = sqrt( mag ) ;  
@@ -972,20 +945,37 @@ if nEchoes > 2
      den = den + ( TE(iEcho)* ImgArray{ iEcho, 1 }.img ) .^2 ;
     end
 
-    dPhasedt = num./den ;    
+    PhaseDiffAvg     = PhaseTE{1}.copy() ;
+    PhaseDiffAvg.img = num./den ;
+    PhaseDiffAvg.Hdr.EchoTime = 1 ; % [units: ms]
+    PhaseDiffAvg.scalephasetofrequency( ) ; % scales to Hz
 
-    tmp11 = mag .* dPhasedt ;
-    tmp12 = smooth3( mag, 'box', Params.filterSize ) ;
-    tmp13 = smooth3( tmp11, 'box', Params.filterSize ) ;
-    tmp14 = tmp13./tmp12 ;
-    nii(dPhasedt - tmp14);
+    Field2     = FieldEval( PhaseDiffAvg ) ;
+    
+    Nii.filename = './Field1' ;
+    nii(mask.*Field.img, Nii);
+    
+    Nii.filename = './Field2' ;
+    nii(mask.*Field2.img, Nii);
+    
+    Nii.filename = './Field3' ;
+    nii(mask.*Field3.img, Nii);
+
+    
+    % dPhasedt = num./den ;    
+
+    % tmp11 = mag .* dPhasedt ;
+    % tmp12 = smooth3( mag, 'gaussian', Params.filterSize ) ;
+    % tmp13 = smooth3( tmp11, 'gaussian', Params.filterSize ) ;
+    % tmp14 = tmp13./tmp12 ;
+    % nii(dPhasedt - tmp14);
     
     % Fit PhaseCorrectedTE to TE
     %
     mask = Params.mask ;
 
     for iEcho = 1 : nEchoes 
-        mask = mask & ( PhaseCorrectedTE{iEcho}.img ~=0 ) & ( ImgArray{iEcho,1}.img ~=0 );
+        mask = mask & ( PhaseTE{iEcho}.img ~=0 ) & ( ImgArray{iEcho,1}.img ~=0 );
     end
 
     nVoxelsVoi = nnz( mask ) ;
@@ -1111,7 +1101,7 @@ if nEchoes > 2
     % e.g use unweighted solution as starting guess for weighted:
     %
 
-    [Dx,Dy,Dz] = createdifferenceoperators( ImgArray{1,1}.getgridsize(), ImgArray{1,1}.getvoxelsize, 2 ) ;
+    [Dx,Dy,Dz] = createdifferenceoperators( ImgArray{1,1}.getgridsize(), ImgArray{1,1}.getvoxelspacing, 2 ) ;
 
     L = Dx + Dy + Dz ;
     
@@ -1191,127 +1181,7 @@ if nEchoes > 2
 
 end
 
-if Params.isFilteringField
-
-    if myisfield( Params, 'filteringMask' ) && ~isempty( Params.filteringMask )
-        
-        % intersection of unwrapped region with desired local region
-        Field.Hdr.MaskingImage = logical(Field.Hdr.MaskingImage) & logical(Params.filteringMask) ;    
-
-    end
-
-    Extras.fieldUnfiltered = Field.img ;
-
-    Field.img( ~Field.Hdr.MaskingImage ) = NaN ; % medfilt3() will ignore these values
-    Field.img = medfilt3( Field.img, round( Field.getvoxelsize()./Params.filterRadius ) ) ; 
-    Field.img( ~Field.Hdr.MaskingImage ) = 0 ;
-    
-end
-
 Field.Hdr.SeriesDescription = [ 'B0Field_measured_' Field.Hdr.SeriesDescription  ] ;
-
-if Params.isFittingSphericalHarmonics % UNTESTED
-    % -------
-    % fit spherical harmonic basis set to input Field 
-
-    % generates basis set, with field positions same as those of input Field 
-    Shims = ShimOptSHarmonics( Params, Field ) ;
-
-    % calculate fitting coefficients ('currents')
-    Shims = Shims.optimizeshimcurrents( Params ) ;
-    
-    Extras.FieldResidual = Field.img + Shims.Model.field ;
-
-    Field.img = -Shims.Model.field ;
-    
-    if (nargin == 3) & ~isempty( ObjectiveImg )
-        % Interpolate the field @ VoxelPositions
-        %
-        % Main purpose: to enable gapped slices in the field map acquisitions
-        % for real-time shim training --- by reducing nSlices, acq. time is
-        % reduced, & therefore, the necessary duration of the breath hold.
-
-        [X0, Y0, Z0] = Field.getvoxelpositions( ) ; % original
-        [X, Y, Z]    = ObjectiveImg.getvoxelpositions( ) ; % final
-
-        % recalculate the set of harmonics at the given voxel positions      
-        basisFields = ShimOptSHarmonics.generatebasisfields( Params.ordersToGenerate, X, Y, Z ) ;
-        
-        % scale each harmonic by the fitted 'currents' (coefficients)
-        for iHarmonic = 1 : size( basisFields, 4 ) 
-            basisFields(:,:,:, iHarmonic) = Shims.Model.currents(iHarmonic) * basisFields(:,:,:, iHarmonic) ;
-        end
-        
-        Field.img = sum( -basisFields, 4 ) ;
-        
-
-        disp( ['Interpolating phase/field mask...' ]) ;
-            
-        Field.Hdr.MaskingImage = griddata( X0, Y0, Z0, Field.Hdr.MaskingImage, X, Y, Z, 'nearest' ) ;
-
-        % if new positions are outside the range of the original, 
-        % interp3/griddata replaces array entries with NaN
-        Field.Hdr.MaskingImage( isnan( Field.Hdr.MaskingImage ) ) = 0 ; 
-
-        % -------
-        % Update Hdr 
-        %
-        % Note: the Hdr could probably simply be copied from ObjectiveImg but recalculating the entries 
-        % is more general ('extensible') should the future user not have a
-        % fully-formed 'ObjectiveImg' set of dicoms, but merely the target
-        % voxel positions [X,Y,Z]
-        % 
-        % That said, the way SliceLocation is updated below may not always be correct.
-        % (borrowed from MaRdI.resliceimg() )
-        
-        Field.Hdr.ImagePositionPatient( 1 ) = X(1) ; 
-        Field.Hdr.ImagePositionPatient( 2 ) = Y(1) ;
-        Field.Hdr.ImagePositionPatient( 3 ) = Z(1) ;
-
-        %-------
-        % Rows 
-        Field.Hdr.Rows = size(Field.img, 1) ;
-
-        dx = X(2,1,1) - X(1,1,1) ;
-        dy = Y(2,1,1) - Y(1,1,1) ;
-        dz = Z(2,1,1) - Z(1,1,1) ;  
-
-        % vertical (row) spacing
-        Field.Hdr.PixelSpacing(1) = ( dx^2 + dy^2 + dz^2 )^0.5 ; 
-
-        % column direction cosine (expressing angle btw column direction and X,Y,Z axes)
-        Field.Hdr.ImageOrientationPatient(4) = dx/Field.Hdr.PixelSpacing(1) ;
-        Field.Hdr.ImageOrientationPatient(5) = dy/Field.Hdr.PixelSpacing(1) ;
-        Field.Hdr.ImageOrientationPatient(6) = dz/Field.Hdr.PixelSpacing(1) ;
-
-        %-------
-        % Columns 
-        Field.Hdr.Columns = size(Field.img, 2) ;       
-
-        dx = X(1,2,1) - X(1,1,1) ;
-        dy = Y(1,2,1) - Y(1,1,1) ;
-        dz = Z(1,2,1) - Z(1,1,1) ;  
-
-        % horizontal (column) spacing
-        Field.Hdr.PixelSpacing(2) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
-
-        % row direction cosine (expressing angle btw column direction and X,Y,Z axes)
-        Field.Hdr.ImageOrientationPatient(1) = dx/Field.Hdr.PixelSpacing(2) ;
-        Field.Hdr.ImageOrientationPatient(2) = dy/Field.Hdr.PixelSpacing(2) ;
-        Field.Hdr.ImageOrientationPatient(3) = dz/Field.Hdr.PixelSpacing(2) ;
-
-        %-------
-        % Slices
-        Field.Hdr.NumberOfSlices       = size(Field.img, 3) ;
-        Field.Hdr.SpacingBetweenSlices = ( (X(1,1,2) - X(1,1,1))^2 + ...
-                                           (Y(1,1,2) - Y(1,1,1))^2 + ...
-                                           (Z(1,1,2) - Z(1,1,1))^2 ) ^(0.5) ;
-
-        [~, ~, sHat] = Field.getdirectioncosines( ) ;  
-        Field.Hdr.SliceLocation = dot( Field.Hdr.ImagePositionPatient, sHat ) ;
-    end
-
-end
 
 end
 % =========================================================================
@@ -1351,13 +1221,13 @@ function [Field] = modelfield( Fields, Params )
 %    pEx = -1 ;
 %    such that Field.img as defined ^ becomes the avg. of the 2 input Fields
 
-DEFAULT_MAXABSFIELD        = 500 ;
+DEFAULT_MAXABSFIELD        = 600 ;
 DEFAULT_MAXFIELDDIFFERENCE = 150 ;
 
 if nargin < 1
-    error('Function requires at least 1 input (linear cell array of FieldEval-type objects)');
+    error('Function requires at least 1 input (e.g. linear cell array of FieldEval-type objects)') ;
 elseif nargin == 1
-    Params.pDc = 0 ; % output Field.img will refer to the Zero field offset
+    Params.dummy = [] ;
 end
 
 if ~myisfield( Params, 'maxAbsField' ) || isempty( Params.maxAbsField ) 
@@ -1368,67 +1238,153 @@ if ~myisfield( Params, 'maxFieldDifference' ) || isempty( Params.maxFieldDiffere
     Params.maxFieldDifference = DEFAULT_MAXFIELDDIFFERENCE ;
 end
 
-FieldInspired = Fields{1} ;
-FieldExpired  = Fields{2} ;
+if iscell( Fields )
+    % if difference in Larmor frequency >= 1 Hz, issue an error:
+    assert( abs( 1000*double( Fields{1}.Hdr.ImagingFrequency - Fields{2}.Hdr.ImagingFrequency ) ) < 1.0, ... 
+        'Expected the 2 given field maps to have been acquired at the same Larmor frequency. Unimplemented feature.' )
 
-% if difference in Larmor frequency >= 1 Hz, issue an error:
-assert( abs( 1000*double( FieldInspired.Hdr.ImagingFrequency - FieldExpired.Hdr.ImagingFrequency ) ) < 1.0, ... 
-    'Expected the 2 given field maps to have been acquired at the same Larmor frequency. Unimplemented feature.' )
+    if ~isempty( Fields{1}.Aux.Tracker.Data.p ) 
+        assert( isscalar( Fields{1}.Aux.Tracker.Data.p), ...
+            'Expected single scalar value for Fields{1}.Aux.Data.p' ) ;
 
-if ~isempty( FieldInspired.Aux.Tracker.Data.p ) 
-    assert( isscalar( FieldInspired.Aux.Tracker.Data.p), ...
-        'Expected single scalar value for FieldInspired.Aux.Data.p' ) ;
+        pIn = Fields{1}.Aux.Tracker.Data.p ;
+    else 
+        pIn = 1 ;
+    end
 
-    pIn = FieldInspired.Aux.Tracker.Data.p ;
-else 
-    pIn = 1 ;
+    if ~isempty( Fields{2}.Aux.Tracker.Data.p ) 
+        assert( isscalar( Fields{2}.Aux.Tracker.Data.p), ...
+            'Expected single scalar value for Fields{2}.Aux.Data.p' ) ;
+
+        pEx = Fields{2}.Aux.Tracker.Data.p ;
+    else 
+        pEx = -1 ;
+    end
+
+    if ~myisfield( Params, 'pBreathing' ) || isempty( Params.pBreathing ) 
+        Params.pBreathing = [ pIn pEx ] ;
+    end
+
+    pDc            = median( Params.pBreathing ) ;
+    pShiftTraining = pIn - pEx ;
+
+    Field     = Fields{1}.copy() ; 
+    Riro      = Fields{1}.copy() ; 
+    FieldZero = Fields{1}.copy() ; 
+
+    FieldZero.img                = ( pIn*Fields{2}.img - pEx*Fields{1}.img )/(pShiftTraining) ;
+    FieldZero.Aux.Tracker.Data.p = 0 ;
+    Field.Model.Zero             = FieldZero ;
+    % no way of knowing what values might be reasonable for this 'Zero' field, so
+    % there is no call to .getvaliditymask()
+
+    Riro.img                = Fields{1}.img - Fields{2}.img ;
+    Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
+    % The training fields themselves (e.g. inspired/expired breath-holds) might not
+    % be representative of the typical field shift if it's defined for any
+    % given phase of the respiratory cycle as the deviation from the expected
+    % (mean/DC) value.
+    %
+    % Scale the shift by the RMS pressure deviation observed during regular breathing:
+    pShiftRms = rms( Params.pBreathing - pDc ) ;
+
+    Riro.img  = ( pShiftRms/pShiftTraining ) * Riro.img ;
+    Riro.Aux.Tracker.Data.p = pShiftRms ;
+
+    Field.Model.Riro = Riro ;
+
+    Field.img                = pDc*(Field.Model.Riro.img/pShiftRms) + Field.Model.Zero.img ;
+    Field.Aux.Tracker.Data.p = pDc ;
+
+    Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
+
+elseif isa( Fields, 'FieldEval' )
+    % fit Fields.img time series (along 4th dimension) to tracker time series
+    nAcq    = size( Fields.img, 4 ) ;
+    assert( nAcq == length( Fields.Aux.Tracker.Data.p ), 'Expected a single tracker measurement for each image' )
+
+    mask = ( sum( Fields.Hdr.MaskingImage, 4 ) == nAcq ) ;
+    
+    nVoxels = prod( Fields.getgridsize() ) ;
+    nVoxelsVoi = nnz(mask) ;
+    % I       = speye( nVoxels, nVoxels ) ;
+    I       = speye( nVoxelsVoi, nVoxelsVoi ) ;
+    
+    % linear operator: A
+    A       = [ I Fields.Aux.Tracker.Data.p(1)*I ] ;
+    
+    % solution vector: Bt
+    Bt  = Fields.img( :, :, :, 1) ;
+    Bt  = Bt( mask ) ;
+    % Bt      = squeeze( Fields.img( :, :, :, 1) ) ;
+    % Bt      = Bt(:) ;
+
+    for iT = 2 : nAcq 
+        disp( [ num2str(100*iT/nAcq, 3) '%'])
+        
+        A    = [ A ; I Fields.Aux.Tracker.Data.p(iT)*I ] ;
+        
+        tmpB = Fields.img( :, :, :, iT) ;
+        tmpB = tmpB( mask ) ;
+        % tmpB = squeeze( Fields.img( :, :, :, iT) ) ;
+        Bt   = [ Bt ; tmpB(:) ] ;
+    end
+    Bt(isnan(Bt)) = 0;
+    
+    % isRegularizing = false ; % possible TODO: add option?
+    %     % lamda(1): regularization parameter for the static field component
+    %     % lamda(2): " " for the RIRO component
+    %     lamda = [0 0];
+    %
+    % if isRegularizing
+    % A0 = A;
+    %     % construct masking/truncation operator M to limit the fit to 
+    %     % voxels within the reliable region of the image (i.e. region of sufficient SNR)
+    %     nVoxelsVoi = nnz( Fields.Hdr.MaskingImage(:,:,:,1) ) ;
+    %     indicesVoi = find( Fields.Hdr.MaskingImage(:,:,:,1)~= 0 ) ;
+    %     Mvoi = sparse( [1:nVoxelsVoi], indicesVoi, ones([nVoxelsVoi 1]), nVoxelsVoi, nVoxels ) ;
+    %     
+    %     [Dx, Dy, Dz] = createdifferenceoperators( Fields.getgridsize(), Fields.getvoxelspacing(), 2) ;
+    %
+    %     L = Dx + Dy + Dz ;
+    %
+    %     R  = [lamda(1)*Mvoi*L sparse( size(Mvoi*L,1),size(Mvoi*L,2) ) ; 
+    %           sparse( size(Mvoi*L,1),size(Mvoi*L,2) ) lamda(2)*Mvoi*L ] ; 
+    %
+    %     A  = [A; R] ;
+    %     Bt = [Bt ; zeros(2*nVoxelsVoi, 1 ) ] ;
+    % end
+
+    % Params for conjugate-gradient optimization
+    CgParams.tolerance     = 1E-4 ;
+    CgParams.maxIterations = 500 ;    
+    CgParams.isDisplayingProgress = true ;    
+
+    x = cgls( A'*A, ... % least squares operator
+              A'*Bt, ... % effective solution vector
+              zeros( [2*nVoxelsVoi 1] ) , ... % % initial 'guess' solution vector
+              CgParams ) ;
+    
+    Field                    = Fields.copy() ; 
+    Field.img                = Field.img(:,:,:,1) ;
+    Field.img( mask )        = x(1:nVoxelsVoi) ;
+    Field.img( ~mask )       = 0 ;
+    Field.Hdr.MaskingImage   = mask ; 
+    Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
+    Field.Aux.Tracker.Data.p = 0 ; 
+
+    Riro                    = Fields.copy() ; 
+    Riro.img                = Riro.img(:,:,:,1) ;
+    % scale RIRO by RMSE of physio signal
+    pShiftRms               = rms( Fields.Aux.Tracker.Data.p - mean(Fields.Aux.Tracker.Data.p) ) ;
+    Riro.img( mask )        = pShiftRms .* x(nVoxelsVoi+1:end) ;
+    Riro.img( ~mask )       = 0 ;
+    Riro.Hdr.MaskingImage   = mask ; 
+    Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
+    Riro.Aux.Tracker.Data.p = pShiftRms ; 
+    Field.Model.Riro        = Riro ;
+
 end
-
-if ~isempty( FieldExpired.Aux.Tracker.Data.p ) 
-    assert( isscalar( FieldExpired.Aux.Tracker.Data.p), ...
-        'Expected single scalar value for FieldExpired.Aux.Data.p' ) ;
-
-    pEx = FieldExpired.Aux.Tracker.Data.p ;
-else 
-    pEx = -1 ;
-end
-
-if ~myisfield( Params, 'pBreathing' ) || isempty( Params.pBreathing ) 
-    Params.pBreathing = [ pIn pEx ] ;
-end
-
-pDc            = median( Params.pBreathing ) ;
-pShiftTraining = pIn - pEx ;
-
-Field     = FieldInspired.copy() ; 
-Riro      = FieldInspired.copy() ; 
-FieldZero = FieldInspired.copy() ; 
-
-FieldZero.img                = ( pIn*FieldExpired.img - pEx*FieldInspired.img )/(pShiftTraining) ;
-FieldZero.Aux.Tracker.Data.p = 0 ;
-Field.Model.Zero             = FieldZero ;
-% no way of knowing what values might be reasonable for this 'Zero' field, so
-% there is no call to .getvaliditymask()
-
-Riro.img                = FieldInspired.img - FieldExpired.img ;
-Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
-% The training fields themselves (e.g. inspired/expired breath-holds) might not
-% be representative of the typical field shift if it's defined for any
-% given phase of the respiratory cycle as the deviation from the expected
-% (mean/DC) value.
-%
-% Scale the shift by the RMS pressure deviation observed during regular breathing:
-pShiftRms = rms( Params.pBreathing - pDc ) ;
-
-Riro.img  = ( pShiftRms/pShiftTraining ) * Riro.img ;
-Riro.Aux.Tracker.Data.p = pShiftRms ;
-
-Field.Model.Riro = Riro ;
-
-Field.img                = pDc*(Field.Model.Riro.img/pShiftRms) + Field.Model.Zero.img ;
-Field.Aux.Tracker.Data.p = pDc ;
-
-Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
 
 end
 % =========================================================================

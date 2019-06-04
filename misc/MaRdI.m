@@ -22,7 +22,7 @@ classdef MaRdI < matlab.mixin.SetGet
 %       Array of images (3D if there are multiple DICOMs in directory)
 %
 %   .Hdr
-%       Header of the first DICOM file read by dir( imgPath )
+%       DICOM header 
 %       
 %   .Aux
 %       Aux-objects: auxiliary measurements (e.g. PMU/respiratory probe tracking)
@@ -41,7 +41,7 @@ classdef MaRdI < matlab.mixin.SetGet
 % etc.
 %
 % =========================================================================
-% Updated::20190220::ryan.topfer@polymtl.ca
+% Updated::20190507::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -49,6 +49,7 @@ classdef MaRdI < matlab.mixin.SetGet
 properties
     img ;
     Hdr ;
+    Hdrs ;
     Aux ;
 end
 
@@ -68,103 +69,113 @@ if nargin == 1
         error( 'DICOM images not found. Check input path is valid.' ) ;
         return;
     
-    elseif ( exist( imgPath  ) == 7 ) % input is an image directory (hopefully containing dicoms)
-        
-        imgDir = imgPath ; 
-
-        listOfImages = dir( [ imgDir '/*.dcm'] );
-
-        if length(listOfImages) == 0
-            % try .IMA
-            listOfImages = dir( [imgDir '/*.IMA'] ) ;
-        end
-        
-        assert( length(listOfImages) ~= 0, 'No .dcm or .IMA files found in given directory' ) ;
-
-        Img.Hdr = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(1).name] ) ;
-
-        for sliceIndex = 1 : length(listOfImages) 
-            Img.img(:,:,sliceIndex) = double( dicomread( [ imgDir '/' listOfImages(sliceIndex).name] ) );
-        end
-        
-        Params = [] ;
-
-        HdrLastSlice = MaRdI.dicominfosiemens( [ imgDir '/' listOfImages(length(listOfImages)).name] ) ;
-        
-        if HdrLastSlice.SliceLocation == Img.Hdr.SliceLocation
-            % loaded images are a time series
-            % 4th-dimension will refer to time:
-            
-            if ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
-               
-                Params.isNormalizingMagnitude = false ;        
-                Img = reshapemosaic( Img ) ;
-
-            else
-                warning('loaded images presumed to be a single-slice time-series')
-                Img.Hdr.NumberOfSlices = uint16( 1 ) ; 
-                Img.img = permute( Img.img, [1 2 4 3] ) ;
-            end
-        
-        else
-            Img.Hdr.NumberOfSlices = uint16( length(listOfImages) ) ; 
-        end
-
-        Img = Img.scaleimgtophysical( Params ) ;   
-
-        if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
-            Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
-        end
-       
-        % % Temp. fix for determining voxel positions in 3d slice-stack
-        % % TODO: determine voxel positions on an image-by-image basis (and, if necessary, reorder the slices!)
-        % % load Hdr of last image in directory
-        r = Img.Hdr.ImageOrientationPatient(4:6) ; 
-        c = Img.Hdr.ImageOrientationPatient(1:3) ; 
-        
-        % estimate positions based on the 1st loaded image in the directory:
-        % 1. using
-        Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;  
-        [X1,Y1,Z1] = Img.getvoxelpositions() ;     
-        
-        % 2. using the reverse
-        Img.Hdr.Img.SliceNormalVector = cross( r, c ) ;  
-        [X2,Y2,Z2] = Img.getvoxelpositions() ; % estimate positions based on the 1st loaded image in the directory. 
-       
-        % the actual position corresponding to the slice direction can be increasing or decreasing with slice/image number
-        
-        % which estimate is closer? 1 or 2? 
-        if norm( HdrLastSlice.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) <= ...
-                norm( HdrLastSlice.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) 
-            % if true, then 1. corresponds to the correct orientation
-            Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;
-        end
-
-    elseif ( exist( imgPath ) == 2 ) % input may be a single dicom
+    elseif ( exist( imgPath ) == 2 ) % input is a single file (e.g. DICOM) 
         
         [~, ~, ext] = fileparts( imgPath ) ;
         
         assert( strcmp( ext, '.dcm' ) || strcmp( ext, '.IMA' ), ...
             'Input must be a path string leading to a single dicom image OR to a dicom-containing folder' )
 
-            Img.img = double( dicomread( imgPath ) ) ;
+        Img.img = double( dicomread( imgPath ) ) ;
+        Img.Hdr = MaRdI.dicominfosiemens( imgPath ) ;
 
-            Img.Hdr = MaRdI.dicominfosiemens( imgPath ) ;
-            Img.Hdr.NumberOfSlices = uint16( 1 ) ; 
+        %  Add/replace a few Hdr entries:
+        Img.Hdr.NumberOfSlices = uint16( 1 ) ; 
+        
+        if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
+            Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
+        end
+       
+        % Not sure if this is really necessary... 
+        Img.Hdr.Img.SliceNormalVector = cross( Img.Hdr.ImageOrientationPatient(1:3), Img.Hdr.ImageOrientationPatient(4:6) ) ;  
+    
+    elseif ( exist( imgPath  ) == 7 ) % input is a directory (e.g. containing DICOMs)
+        
+        imgDir = [ imgPath '/' ] ; 
+
+        imgList = MaRdI.findimages( imgDir ) ;
+        nImages = length( imgList ) ;
+
+        if ~nImages
+            return;
+        end
+        
+        % Read protocol info from 1st loaded image (arbitrary):
+        SpecialHdr = MaRdI.dicominfosiemens( imgList{1} ) ;
+
+        nRows      = SpecialHdr.Height ;
+        nColumns   = SpecialHdr.Width ;
+        
+        if ~myisfield( SpecialHdr.MrProt, 'lRepetitions' ) 
+            nVolumes = 1 ;
+        else
+            nVolumes = SpecialHdr.MrProt.lRepetitions + 1 ;
+        end
+        
+        % containers for a few terms varying between dicoms:
+        sliceLocations = zeros( nImages, 1 ) ; % [units: mm]
+        echoTimes      = zeros( nImages, 1 ) ; % [units: ms]
+
+        % Image headers, not yet organized:
+        RawHdrs        = cell( nImages, 1 ) ; 
+        
+       % Read all the image headers and structure the MaRdI object accordingly:
+       %
+       % NOTE: It may well be possible to determine all the necessary info from
+       % the complete Siemens header (e.g. SpecialHdr) of a single image;
+       % practically, however, the following is easier since the header
+       % information is abstrusely defined for some sequences.
+        for iImg = 1 : nImages
+            % using dicominfo() here as parse-siemens-shadow() takes much longer
+            RawHdrs{ iImg }      = dicominfo( imgList{iImg} ) ;
+
+            sliceLocations(iImg) = RawHdrs{ iImg }.SliceLocation ;
+            echoTimes(iImg)      = RawHdrs{ iImg }.EchoTime ;
+        end
+
+        sliceLocations = sort( unique( sliceLocations ), 1, 'ascend' ) ; 
+        nSlices        = length( sliceLocations ) ;
+        
+        echoTimes      = sort( unique( echoTimes ), 1, 'ascend' ) ; 
+        nEchoes        = length( echoTimes ) ; 
+        
+        Img.img = zeros( nRows, nColumns, nSlices, nEchoes, nVolumes ) ;
+        
+        % copy of RawHdrs to be reorganized:
+        Img.Hdrs = cell( nSlices, nEchoes, nVolumes ) ;
+        
+        for iImg = 1 : nImages
+
+            iHdr    = RawHdrs{ iImg } ;
+
+            iVolume = iHdr.AcquisitionNumber ;
+            iSlice  = find( iHdr.SliceLocation == sliceLocations ) ;
+            iEcho   = find( iHdr.EchoTime == echoTimes ) ;
+
+            Img.Hdrs{ iSlice, iEcho, iVolume } = iHdr ;
+
+            Img.img( :, :, iSlice, iEcho, iVolume ) = dicomread( imgList{iImg} ) ;
+
+        end
+        
+        % Save the complete 1st Hdr
+        Img.Hdr = MaRdI.dicominfosiemens( Img.Hdrs{1}.Filename ) ;
             
-            if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
-                Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
-            end
-            
-            % % Temp. fix for determining voxel positions
-            % % TODO: determine voxel positions on an image-by-image basis (and, if necessary, reorder the slices!)
-            % % load Hdr of last image in directory
-            r = Img.Hdr.ImageOrientationPatient(4:6) ; 
-            c = Img.Hdr.ImageOrientationPatient(1:3) ; 
-            Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;  
+        Img.rescaleimg() ;
+
+        Img.Hdr.NumberOfSlices = size( Img.img, 3 ) ; 
+
+        if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
+            Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
+        end
+        
+        if ~isempty( strfind( Img.Hdr.ImageType, 'MOSAIC' ) ) 
+            Img = reshapemosaic( Img ) ;
+        end
+
+        Img.setslicenormalvector() ;
+
     end
-
-
 end
 
 end
@@ -183,20 +194,9 @@ end
 %   make compatible for odd-sized arrays
 % ..... 
 % RESLICEIMG()
-%   griddata takes too f-ing long.
+%   griddata takes too long.
 %   write interp function in cpp
 %   Clean up 'resliceimg()'
-%   
-% ..... 
-% Changing .ImageType:
-%   Invalid replacement occurs in a few places.
-%   eg. in scaleimgtophysical()
-%   Original entry is replaced by
-%    Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\P\' ; 
-%   -> Actually, things like DIS2D may have been applied and that appears after
-%   the \P\ (or \M\). 
-%   Solution: replace 'PRIMARY' with 'SECONDARY' and leave the rest.
-%
 % ..... 
 % Saving FIELD as DICOM
 %      -> (do not save image type as phase)
@@ -232,99 +232,13 @@ function ImgCopy = copy(Img)
 
 ImgCopy     = MaRdI() ;
 
-ImgCopy.img = Img.img;
-ImgCopy.Hdr = Img.Hdr ;
+ImgCopy.img  = Img.img;
+ImgCopy.Hdr  = Img.Hdr ;
+ImgCopy.Hdrs = Img.Hdrs ;
 
 if ~isempty( Img.Aux ) && myisfield( Img.Aux, 'Tracker' ) 
     ImgCopy.Aux.Tracker = Img.Aux.Tracker.copy() ;
 end
-
-% from https://www.mathworks.com/matlabcentral/newsreader/view_thread/257925
-% % Instantiate new object of the same class.
-% ImgCopy = feval(class(Img));
-% Copy all non-hidden properties.
-% ImgProperties = properties(Img)
-% for iProperty = 1 : length(ImgProperties)
-%     ImgCopy.(ImgProperties{i}) = Img.(ImgProperties{i});
-% end
-end
-% =========================================================================
-function Img = scaleimgtophysical( Img, Params )
-%SCALEIMGTOPHYSICAL
-%
-% Img = SCALEIMGTOPHYSICAL( Img ) 
-% Img = SCALEIMGTOPHYSICAL( Img, Params ) 
-
-DEFAULT_ISUNDOING              = false ;
-
-if (nargin < 2) || isempty( Params ) 
-    Params.dummy = [] ;
-end 
-
-if  ~myisfield( Params, 'isUndoing' ) || isempty( Params.isUndoing )
-    Params.isUndoing = DEFAULT_ISUNDOING ;
-end
-
-
-if ~Params.isUndoing
-    
-    if ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) ) % is raw SIEMENS mag
-        
-        DEFAULT_ISNORMALIZINGMAGNITUDE = false ;
-        
-        if  ~myisfield( Params, 'isNormalizingMagnitude' ) || isempty( Params.isNormalizingMagnitude )
-            Params.isNormalizingMagnitude = DEFAULT_ISNORMALIZINGMAGNITUDE ;
-        end
-            
-        if Params.isNormalizingMagnitude
-            Img = Img.normalizeimg() ;
-            Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\M\' ; 
-        end
-
-
-    elseif ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) ) % is raw SIEMENS phase
-        
-        DEFAULT_RESCALEINTERCEPT = -(2^12) ;
-        DEFAULT_RESCALESLOPE     = 2 ;
-        
-        if  ~myisfield( Img.Hdr, 'RescaleIntercept' ) || isempty( Img.Hdr.RescaleIntercept )
-            Img.Hdr.RescaleIntercept = DEFAULT_RESCALEINTERCEPT ;
-        end
-
-        if ~myisfield( Img.Hdr, 'RescaleSlope' ) || isempty( Img.Hdr.RescaleSlope )
-            Img.Hdr.RescaleSlope = DEFAULT_RESCALESLOPE ;
-        end
-
-        Img.img = (Img.Hdr.RescaleSlope .* double( Img.img ) ...
-                    + Img.Hdr.RescaleIntercept)/double(2^Img.Hdr.BitsStored) ;
-    
-        Img.img            = pi*Img.img ; % scale to rad
-        Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\P\' ; 
-        Img.Hdr.PixelRepresentation = uint8(1) ; % i.e. signed 
-    
-    else 
-        error('Unknown Hdr.ImageType or invalid .Hdr') ;
-    end
-
-    Img.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
-
-elseif Params.isUndoing
-    
-    Img.Hdr.RescaleIntercept = min( Img.img(:) ) ;
-    Img.img                  = Img.img - Img.Hdr.RescaleIntercept ;
-    Img.Hdr.RescaleSlope     = max( Img.img(:) )/double( 2^Img.Hdr.BitsStored ) ;
-    Img.img                  = uint16( Img.img / Img.Hdr.RescaleSlope ) ;
-
-end
-
-end
-% =========================================================================
-function Img = normalizeimg( Img )
-%NORMALIZEIMG
-%
-% Img = NORMALIZEIMG( Img )
-
-Img.img = double(Img.img)/max( abs( Img.img(:) ) ) ; % normalize 
 
 end
 % =========================================================================
@@ -391,6 +305,78 @@ Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
 
 end
 % =========================================================================
+function [] = filter( Img, weights, Params )
+%FILTER
+%
+% 3D low-pass (weighted or unweighted) or median filtering.
+% Wraps to smooth3() or medfilt3() accordingly.
+%
+% [] = FILTER( Img )
+% [] = FILTER( Img, weights )
+% [] = FILTER( Img, weights, Params )
+%
+% Img 
+%   the MaRdI-type image volume.
+%
+% weights
+%   an array of data weights (>=0) to penalize (for smooth3) or exclude (for
+%   medfilt3()) identifiable outliers.  Dimensions of weights must be the
+%   same as the image volume (i.e. Img.getgridsize() )
+%
+% Params
+%   an optional struct for which the following Params.fields are supported
+%
+%   .kernelSize
+%       in number of voxels
+%       default = [3 3 3] 
+%
+%   .method
+%       'gaussian' OR 'box' OR 'median'
+%       default = 'gaussian'
+%
+% 
+% TODO
+%   Add support for 2d (single slice) images 
+
+DEFAULT_KERNELSIZE = [3 3 3] ;
+DEFAULT_METHOD     = 'gaussian' ;
+
+if nargin < 3 || isempty(Params)
+    Params.dummy = [] ;
+end
+
+if ~myisfield( Params, 'kernelSize' ) || isempty( Params.kernelSize )
+    Params.kernelSize = DEFAULT_KERNELSIZE ;
+end
+
+if ~myisfield( Params, 'method' ) || isempty( Params.method )
+    Params.method = DEFAULT_METHOD ;
+end
+
+if nargin < 2 || isempty( weights )
+    weights = ones( Img.getgridsize() ) ;
+else
+    assert( all( size(weights) == Img.getgridsize() ), ...
+        'weights and image volume must possess the same dimensions, i.e. Img.getgridsize()' ) ;
+end
+
+switch Params.method
+
+    case 'median'
+
+        Img.img( ~weights ) = NaN ; % medfilt3() will ignore these values
+        Img.img = medfilt3( Img.img, Params.kernelSize ) ; 
+        Img.img( ~weights ) = 0 ;
+    
+    otherwise
+        
+        weightsSmoothed = smooth3( weights, Params.method, Params.kernelSize ) ;
+        Img.img = smooth3( weights .* Img.img, Params.method, Params.kernelSize ) ./ weightsSmoothed ; 
+
+end
+
+end
+% =========================================================================
 function Img = zeropad( Img, padSize, padDirection )
 %ZEROPAD
 % Img = ZEROPAD( Img, padSize, padDirection )
@@ -421,7 +407,7 @@ if ~strcmp( padDirection, 'post' )
 % update image position 
 % (i.e. location in DICOM RCS of 1st voxel in data array (.img))
     
-    voxelSize = Img.getvoxelsize() ;
+    voxelSize = Img.getvoxelspacing() ;
 
     dr = voxelSize(1) ; % spacing btwn rows 
     dc = voxelSize(2) ; % spacing btwn columns
@@ -482,18 +468,16 @@ end
 function GYRO = getgyromagneticratio( Img )
 %GETGYROMAGNETICRATIO
 %
-% Examines .Hdr of MaRdI-type Img for .ImagedNucleus and returns gyromagnetic
-% ratio in units of rad/s/T 
-%
-% .....
-%
 % Gyro = getgyromagneticratio( Img )
+%
+% Examines .Hdr of MaRdI-type Img for .ImagedNucleus and returns gyromagnetic
+% ratio in units of rad/s/T.
 
 switch Img.Hdr.ImagedNucleus 
     case '1H' 
         GYRO = 267.513E6 ; 
     otherwise
-        error('Unknown nucleus.') ;
+        error('Not implemented.') ;
 end
 
 end
@@ -541,10 +525,6 @@ function Phase = unwrapphase( Phase, Mag, Options )
 %
 %    .......................
 
-% TODO 
-%
-%   Both FSL and the Abdul-Rahman method require installed binaries. For
-%   simplicity, consider removing these options.
 assert( strcmp( Phase.Hdr.PixelComponentPhysicalUnits, '0000H' ), 'SCALEPHASE2RAD() before unwrapping.' ) ;
 
 DEFAULT_UNWRAPPER = 'Sunwrap' ;
@@ -552,14 +532,15 @@ DEFAULT_THRESHOLD = 0.0 ;
 
 Options.dummy     = [];
 
-if nargin < 2 && ( size( Phase.img, 3 ) > 1 )
-    
-    Options.unwrapper = 'AbdulRahman_2007' ;    
+if nargin < 2 
+    if ( size( Phase.img, 3 ) > 1 )
+        Options.unwrapper = 'AbdulRahman_2007' ;    
 
-    assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
-        'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
-else
-    error('See help MaRdI.unwrapphase()') ;
+        assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
+            'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
+    else
+        error('See help MaRdI.unwrapphase()') ;
+    end
 end
 
 if nargin == 2 || ~myisfield( Options, 'unwrapper') || isempty(Options.unwrapper)
@@ -571,34 +552,39 @@ if ~myisfield( Options, 'threshold') || isempty(Options.threshold)
 end
 
 
-nVolumes = (Phase.Hdr.MrProt.lRepetitions + 1) ;
-assert( nVolumes == size( Phase.img, 4 ) ) ;
+if myisfield( Phase.Hdr.MrProt, 'lRepetitions' ) 
+    nVolumes = (Phase.Hdr.MrProt.lRepetitions + 1) ;
+else
+    nVolumes = 1;
+end
+
+assert( nVolumes == size( Phase.img, 5 ) ) ;
 
 for iVolume = 1 : nVolumes
-    
+
     display(['Unwrapping volume ' num2str(iVolume) ' of ' num2str(nVolumes) ] ) ;    
-    
+
     switch Options.unwrapper
 
         case 'AbdulRahman_2007'
             
-            Phase.img(:,:,:, iVolume) = unwrap3d( Phase.img(:,:,:, iVolume), logical(Phase.Hdr.MaskingImage(:,:,:,iVolume)), Options ) ;
+            Phase.img(:,:,:,1, iVolume) = unwrap3d( Phase.img(:,:,:,1, iVolume), logical(Phase.Hdr.MaskingImage(:,:,:,1, iVolume)), Options ) ;
 
         case 'FslPrelude'
 
             if myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage)
-                Options.mask = single( Phase.Hdr.MaskingImage(:,:,:,iVolume) ) ;
+                Options.mask = single( Phase.Hdr.MaskingImage(:,:,:,1,iVolume) ) ;
             end
             
-            Options.voxelSize = Phase.getvoxelsize() ;   
+            Options.voxelSize = Phase.getvoxelspacing() ;   
 
-            Phase.img(:,:,:, iVolume) = prelude( Phase.img(:,:,:, iVolume), Mag.img(:,:,:, iVolume), Options ) ;
+            Phase.img(:,:,:,1, iVolume) = prelude( Phase.img(:,:,:,1, iVolume), Mag.img(:,:,:,1, iVolume), Options ) ;
 
-        case 'Sunwrap'
+        case {'Sunwrap', 'sunwrap'}
             
-            iMag      = Mag.img(:,:,:,iVolume) ;
+            iMag      = Mag.img(:,:,:,1,iVolume) ;
             iMag      = iMag./max(iMag(:)) ;
-            Phase.img(:,:,:, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:, iVolume) ), Options.threshold ) ;
+            Phase.img(:,:,:,1, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,1,iVolume) ), Options.threshold ) ;
 
         otherwise
             error('Unrecognized "Options.unwrapper" input') ;
@@ -611,6 +597,60 @@ Phase.img = double( Phase.img ) ;
 % update header
 Img.Hdr.ImageType         = 'DERIVED\SECONDARY' ; 
 Img.Hdr.SeriesDescription = ['phase_unwrapped_' Options.unwrapper ] ; 
+
+end
+% =========================================================================
+function [t] = getacquisitiontime( Img ) 
+% GETACQUISITIONTIME
+% 
+% t = GETACQUISITIONTIME( Img )
+%
+% Returns the value of AcquisitionTime from the Siemens DICOM header as a
+% double in units of seconds. t is a vector if Img is a time series
+% acquisition, in which case, t - t(1) yields the time elapsed since the first
+% acquisition. 
+
+nSlices = Img.Hdr.NumberOfSlices ;
+
+if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
+    nVolumes = ( Img.Hdr.MrProt.lRepetitions + 1) ;
+else
+    nVolumes = 1;
+end
+
+assert( ( nSlices == size( Img.img, 3 ) ) & ( nVolumes == size( Img.img, 5 ) ), 'Invalid .Hdr' ) ;
+
+t = zeros( nSlices, nVolumes ) ;
+
+for iSlice = 1 : nSlices
+    for iVolume = 1 : nVolumes
+        t_iAcq = Img.Hdrs{iSlice,1,iVolume}.AcquisitionTime ;
+        t(iSlice, iVolume) = str2double( t_iAcq(1:2) )*60*60 + str2double( t_iAcq(3:4) )*60 + str2double( t_iAcq(5:end) ) ;
+    end
+end
+
+end
+% =========================================================================
+function [echoTime] = echotime( Img, iEcho ) 
+%ECHOTIME
+% 
+% TE = ECHOTIME( Img )
+% TE = ECHOTIME( Img, iEcho )
+%
+% Returns vector of echo times in units of ms.
+% If 2nd argument (echo index iEcho) is provided, ECHOTIME returns the TE of
+% the corresponding echo.
+
+if nargin == 1
+    if strcmp( Img.Hdr.SequenceName, '*fm2d2' ) && ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) )
+        echoTime = ( Img.Hdr.MrProt.alTE(2) - Img.Hdr.MrProt.alTE(1) )/1000  ;
+    else
+        nEchoes  = size( Img.img, 4 ) ;
+        echoTime = Img.Hdr.MrProt.alTE(1:nEchoes)/1000 ;
+    end
+else
+    echoTime = Img.Hdr.MrProt.alTE(iEcho)/1000 ;
+end 
 
 end
 % =========================================================================
@@ -640,8 +680,7 @@ function [r,c,s] = getdirectioncosines( Img )
 % matrix (it has a determinant of < 0)."
 %  -From http://nipy.org/nibabel/dicom/dicom_mosaic.html 
 %
-% RT 20180716: I define Hdr.Img.SliceNormalVector in the MaRdI constructor
-% s = cross( c, r ) ;  
+% NOTE: Hdr.Img.SliceNormalVector gets defined in the MaRdI constructor
 
 c = Img.Hdr.ImageOrientationPatient(1:3) ; 
 r = Img.Hdr.ImageOrientationPatient(4:6) ; 
@@ -736,7 +775,7 @@ R = [r c s] ;
                   
 %-------
 % Scaling matrix: S  
-voxelSize = Img.getvoxelsize() ;
+voxelSize = Img.getvoxelspacing() ;
 S = diag(voxelSize); 
 
 RS = R*S ;
@@ -749,8 +788,7 @@ Y1 = RS(2,1)*iRows + RS(2,2)*iColumns + RS(2,3)*iSlices;
 Z1 = RS(3,1)*iRows + RS(3,2)*iColumns + RS(3,3)*iSlices;
 
 %-------
-% TRANSLATE w.r.t. origin 
-% (i.e. location of 1st element: .img(1,1,1))
+% TRANSLATE w.r.t. origin (i.e. location of 1st element: .img(1,1,1))
 X = Img.Hdr.ImagePositionPatient(1) + X1 ; 
 Y = Img.Hdr.ImagePositionPatient(2) + Y1 ; 
 Z = Img.Hdr.ImagePositionPatient(3) + Z1 ; 
@@ -772,25 +810,24 @@ assert( xyzIso(2) == 0, 'Table shifted in A/P direction?' ) ;
 
 end
 % =========================================================================
-function voxelSize = getvoxelsize( Img )
-%GETVOXELSIZE
+function h = getvoxelspacing( Img )
+%GETVOXELSPACING
 % 
-% voxelSize = GETVOXELSIZE( Img )
+% h = GETVOXELSPACING( Img )
 %       
-% Returns 3 component vector of voxel dimensions :
+% Returns 3-component grid-spacing vector [units: mm]:
 %
-%   voxelSize(1) : row spacing in mm (spacing between the centers of adjacent
-%   rows, i.e. vertical spacing). 
+%   h(1) : row spacing (between centers of adjacent rows, i.e. vertical spacing). 
 %
-%   voxelSize(2) : column spacing in mm (spacing between the centers of
-%   adjacent columns, i.e. horizontal spacing).    
+%   h(2) : column spacing (between the centers of adjacent columns,
+%   i.e. horizontal spacing).    
 %
-%   voxelSize(3) : slice spacing in mm (spacing between the centers of
-%   adjacent slices, i.e. from the DICOM hdr, this is Hdr.SpacingBetweenSlices 
-%   - for a 2D acquisition this NOT necessarily the same as Hdr.SliceThickness).    
+%   h(3) : slice spacing (between the centers of adjacent slices, i.e.
+%   from the DICOM hdr, this is Hdr.SpacingBetweenSlices - for a 2D acquisition
+%   this not necessarily the same as Hdr.SliceThickness).    
 
-voxelSize = [ Img.Hdr.PixelSpacing(1) Img.Hdr.PixelSpacing(2) ...
-        Img.Hdr.SpacingBetweenSlices ] ;
+h = [ Img.Hdr.PixelSpacing(1) Img.Hdr.PixelSpacing(2) Img.Hdr.SpacingBetweenSlices ] ;
+
 end
 % =========================================================================
 function [mask, weights] = segmentspinalcanal( Img, Params )
@@ -844,7 +881,6 @@ function [F] = resliceimg( Img, X_1, Y_1, Z_1, varargin )
 %   Optional interpolationMethod is a string supported by the scatteredInterpolant constructor.
 %   F is the object of type 'scatteredInterpolant' used for interpolation.
 
-
 DEFAULT_INTERPOLATIONMETHOD  = 'linear' ;
 DEFAULT_ISFORMINGINTERPOLANT = true ;
 
@@ -875,7 +911,14 @@ nImgStacks = size(Img.img, 4) ;
 
 [X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
 
-imgInterpolated  = zeros( [ size(X_1) nImgStacks ] ) ;
+if length( size(X_1) ) == 2 
+    % interpolating volume down to a single slice:
+    gridSizeInterpolated = [ size(X_1) 1 nImgStacks ] ;
+elseif length( size(X_1) ) == 3
+    gridSizeInterpolated = [ size(X_1) nImgStacks ] ;
+end
+
+imgInterpolated  = zeros( gridSizeInterpolated ) ;
 
 img0 = Img.img( :,:,:, 1 ) ;
 
@@ -883,24 +926,33 @@ tic
 
 if isFormingInterpolant 
     disp( ['Forming interpolant (may take ~1 min)...']) ;
-    F    = scatteredInterpolant( [X_0(:) Y_0(:) Z_0(:)], img0(:), interpolationMethod, 'none' ) ;
+    F    = scatteredInterpolant( [X_0(:) Y_0(:) Z_0(:)], img0(:), interpolationMethod, 'none'  ) ;
 end
 
 img1 = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
-imgInterpolated(:,:,:, 1 ) = reshape( img1, size(X_1) ) ;
+
+if length( size(X_1) ) == 2
+    imgInterpolated(:,:,1, 1 ) = reshape( img1, [ size(X_1) 1] ) ;
+elseif length( size(X_1) ) == 3
+    imgInterpolated(:,:,:, 1 ) = reshape( img1, size(X_1) ) ;
+end
+
 
 for iImgStack = 2 : nImgStacks     
     disp( ['Reslicing image stack...' num2str(iImgStack) ' of ' num2str(nImgStacks) ]) ;
     
     % replace samples with those of the next img stack 
     img0     = Img.img(:,:,:, iImgStack ) ;
+
     F.Values = img0(:) ;
    
     img1  = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
-    imgInterpolated(:,:,:, iImgStack ) = reshape( img1, size(X_1) ) ;
-   
-    % imgInterpolated(:,:,:,iImgStack) = ...
-    %     griddata( X_0, Y_0, Z_0, Img.img(:,:,:,iImgStack), X_1, Y_1, Z_1, interpolationMethod ) ;
+    
+    if length( size(X_1) ) == 2
+        imgInterpolated(:,:,1, iImgStack ) = reshape( img1, [ size(X_1) 1] ) ;
+    elseif length( size(X_1) ) == 3
+        imgInterpolated(:,:,:, iImgStack ) = reshape( img1, size(X_1) ) ;
+    end
 
 end
 
@@ -969,8 +1021,6 @@ end
 [rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 
 Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
-% Img.Hdr.SliceLocation = dot( [X_1(1) Y_1(1) Z_1(1)],  ... 
-%     cross( Img.Hdr.ImageOrientationPatient(1:3), Img.Hdr.ImageOrientationPatient(4:6) ) ) ;
 
 end
 % =========================================================================
@@ -993,7 +1043,7 @@ function [] = nii( Img )
 
 workingDir       = [ pwd '/' ] ;
 Params.filename  = [ workingDir Img.Hdr.PatientName.FamilyName '_' num2str( Img.Hdr.SeriesNumber ) '_' Img.Hdr.SeriesDescription  ] ;
-Params.voxelSize = Img.getvoxelsize() ;
+Params.voxelSize = Img.getvoxelspacing() ;
 
 nii( Img.img, Params )  ;
 
@@ -1119,6 +1169,89 @@ end
 
 end
 % =========================================================================
+function timeStd = timestd( Img )
+%TIMESTD
+% 
+% standardDeviation = TIMESTD( Img ) 
+% 
+% Assumes 5th dimension of Img.img corresponds to time:
+%   
+%   standardDeviation = std( Img.img, 0, 5 ) ;
+
+timeStd = std( Img.img, 0, 5 ) ;
+
+end
+% =========================================================================
+function timeAverage = timeaverage( Img )
+%TIMEAVERAGE
+% 
+% Img = TIMEAVERAGE( Img) 
+% 
+% Assumes 5th dimension of Img.img corresponds to time:
+%   
+%   timeAverage = mean( Img.img, 5 ) ;
+
+timeAverage = mean( Img.img, 5 ) ;
+
+end
+% =========================================================================
+
+end
+% =========================================================================
+% =========================================================================
+methods(Access=private)
+% =========================================================================
+function Img = rescaleimg( Img, isUndoing )
+%RESCALEIMG
+%
+% []=RESCALEIMG( Img ) 
+% []=RESCALEIMG( Img, isUndoing ) 
+%
+% Currently only alters phase images (+ Hdr) by rescaling to radians. Mag. is unaffected.
+
+if isempty( strfind( Img.Hdr.ImageType, '\P\' ) )
+    % not a phase image
+    return;
+end
+
+DEFAULT_ISUNDOING        = false ;
+DEFAULT_RESCALEINTERCEPT = -(2^12) ;
+DEFAULT_RESCALESLOPE     = 2 ;
+
+if (nargin < 2) || isempty( isUndoing ) 
+   isUndoing = DEFAULT_ISUNDOING ; 
+end 
+
+if ~isUndoing
+    
+    if  ~myisfield( Img.Hdr, 'RescaleIntercept' ) || isempty( Img.Hdr.RescaleIntercept )
+        Img.Hdr.RescaleIntercept = DEFAULT_RESCALEINTERCEPT ;
+    end
+
+    if ~myisfield( Img.Hdr, 'RescaleSlope' ) || isempty( Img.Hdr.RescaleSlope )
+        Img.Hdr.RescaleSlope = DEFAULT_RESCALESLOPE ;
+    end
+
+    % rescale to rad:
+    Img.img = pi*(Img.Hdr.RescaleSlope .* double( Img.img ) ...
+                + Img.Hdr.RescaleIntercept)/double(2^Img.Hdr.BitsStored) ;
+
+    % update Hdr:
+    Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\P\' ; 
+    Img.Hdr.PixelRepresentation = uint8(1) ; % i.e. signed 
+    Img.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
+
+else
+    
+    Img.Hdr.RescaleIntercept = min( Img.img(:) ) ;
+    Img.img                  = Img.img - Img.Hdr.RescaleIntercept ;
+    Img.Hdr.RescaleSlope     = max( Img.img(:) )/double( 2^Img.Hdr.BitsStored ) ;
+    Img.img                  = uint16( Img.img / Img.Hdr.RescaleSlope ) ;
+
+end
+
+end
+% =========================================================================
 function Img = reshapemosaic( Img )
 %RESHAPEMOSAIC
 % 
@@ -1136,10 +1269,10 @@ nImgPerLine = ceil( sqrt( double(Img.Hdr.NumberOfSlices) ) ); % always nImgPerLi
 
 nRows    = size(Img.img, 1) / nImgPerLine; 
 nColumns = size(Img.img, 2) / nImgPerLine; 
-nVolumes = size(Img.img, 3 ) ;
+nEchoes  = size(Img.img, 4) ;  
+nVolumes = size(Img.img, 5) ;
 
-img = zeros([nRows nColumns Img.Hdr.NumberOfSlices nVolumes], class(Img.img));
-
+img = zeros([nRows nColumns Img.Hdr.NumberOfSlices nEchoes nVolumes], class(Img.img));
 
 for iImg = 1 : double(Img.Hdr.NumberOfSlices)
 
@@ -1167,7 +1300,7 @@ R = [r c s] ;
                   
 %-------
 % Scaling matrix: S  
-voxelSize = Img.getvoxelsize() ;
+voxelSize = Img.getvoxelspacing() ;
 S = diag(voxelSize); 
 
 RS = R*S ;
@@ -1190,29 +1323,34 @@ end
 
 end
 % =========================================================================
-function timeStd = timestd( Img )
-%TIMESTD
-% 
-% standardDeviation = TIMESTD( Img ) 
-% 
-% Assumes 4th dimension of Img.img corresponds to time:
-%   
-%   standardDeviation = std( Img.img, 0, 4 ) ;
+function [] = setslicenormalvector( Img )
+%SETSLICENORMALVECTOR
+%
+% For determining voxel positions in 3d slice-stack
 
-timeStd = std( Img.img, 0, 4 ) ;
+% TODO: Determine voxel positions on an image-by-image basis (and, if
+% necessary, reorder the slices?) or use the Siemens header to order based on
+% ascending/descending acquisition?
+    
+r = Img.Hdr.ImageOrientationPatient(4:6) ; 
+c = Img.Hdr.ImageOrientationPatient(1:3) ; 
+    
+% Estimate positions of last slice based on the 1st image:
+% 1. using
+Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;  
+[X1,Y1,Z1] = Img.getvoxelpositions() ;     
 
+% 2. using the reverse
+Img.Hdr.Img.SliceNormalVector = cross( r, c ) ;  
+[X2,Y2,Z2] = Img.getvoxelpositions() ; % estimate positions based on the 1st loaded image in the directory. 
+
+% Actual position corresponding to the slice direction can be increasing or
+% decreasing with slice/image number. So, which estimate is closer: 1 or 2? 
+if norm( Img.Hdrs{end,1,1}.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) < ...
+        norm( Img.Hdrs{end,1,1}.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) 
+    % if true, then 1. corresponds to the correct orientation
+    Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;
 end
-% =========================================================================
-function timeAverage = timeaverage( Img )
-%TIMEAVERAGE
-% 
-% Img = TIMEAVERAGE( Img) 
-% 
-% Assumes 4th dimension of Img.img corresponds to time:
-%   
-%   timeAverage = mean( Img.img, 4 ) ;
-
-timeAverage = mean( Img.img, 4 ) ;
 
 end
 % =========================================================================
@@ -1221,6 +1359,64 @@ end
 % =========================================================================
 % =========================================================================
 methods(Static)
+% =========================================================================
+function list = findimages( imgDir )
+%FINDIMAGES
+% 
+% list = FINDIMAGES( imageDirectory ) 
+%
+% Calls dir() to return list of .dcm OR .IMA files in imageDirectory and its echo_* subdirectories
+
+imgDir       = [ imgDir '/' ] ;
+
+ListSubdirs  = dir( [ imgDir 'echo*'] );
+nEchoSubdirs = length( ListSubdirs ) ;
+
+if nEchoSubdirs > 0 
+    
+    List = finddcmorima( [imgDir ListSubdirs(1).name] ) ;
+    nImgPerEcho = length(List) ;
+
+    list = cell( nImgPerEcho*nEchoSubdirs, 1 ) ;
+
+    for iImg = 1 : nImgPerEcho 
+        list{iImg} = [ imgDir ListSubdirs(1).name '/' List(iImg).name ] ;
+    end
+
+    for iEcho = 2 : nEchoSubdirs
+        ListiSubdir = finddcmorima( [imgDir ListSubdirs(iEcho).name] ) ;
+        assert( length(ListiSubdir) == nImgPerEcho, 'Each echo subdirectory should contain the same number of images' ) ; 
+
+        for iImg = 1 : nImgPerEcho
+            list{ (iEcho-1)*nImgPerEcho + iImg} = [ imgDir ListSubdirs(iEcho).name '/' ListiSubdir(iImg).name ] ;
+        end
+    end
+
+else
+    List = finddcmorima( imgDir ) ;
+    nImg = length(List) ;
+    list = cell( nImg, 1 ) ;
+
+    for iImg = 1 : nImg
+        list{iImg} = [ imgDir List(iImg).name ] ;
+    end
+end
+
+
+function List = finddcmorima( imgDir ) 
+%Find .dcm OR .IMA files in imgDir
+List   = dir( [ imgDir '/*.dcm'] );
+
+if length(List) == 0 % try .IMA
+    List = dir( [imgDir '/*.IMA'] ) ;
+end
+
+nImages = length( List ) ; 
+assert( nImages ~= 0, 'No .dcm or .IMA files found in given directory' ) ;
+
+end
+
+end
 % =========================================================================
 function fullDir = getfulldir( dataLoadDir, iDir )
 %GETFULLDIR
@@ -1388,7 +1584,7 @@ weights = weights/max(weights(:)) ;
 
 end
 % =========================================================================
-function [ Hdr ] = dicominfosiemens( filename  )
+function [ Hdr ] = dicominfosiemens( filename )
 %DICOMINFOSIEMENS
 %
 % Hdr = DICOMINFOSIEMENS
@@ -1487,31 +1683,30 @@ for iImage = 1 : nImages
     
     % Create directories for each series
     if ~exist( [ sortedDicomDir seriesDir ], 'dir' )
-        
         mkdir( [ sortedDicomDir seriesDir ] );
-    
     end
     
     echoDir = [ sortedDicomDir seriesDir 'echo_' num2str( Hdr.EchoTime, 3 ) ] ;
          
     if ~exist( echoDir, 'dir' )
-        
         mkdir( echoDir ) ;
-    
     end
     
     iSlice   = Hdr.Img.ProtocolSliceNumber + 1 ;
     sliceStr = num2str( iSlice ) ;
 
+    acqStr   = num2str( Hdr.AcquisitionNumber ) ;
+
     for ord = 3 : -1 : 1
         if iSlice < 10^ord
             sliceStr = [ '0' sliceStr ] ;
+             acqStr  = [ '0' acqStr ] ;
         end
     end
 
     [~, ~, ext]    = fileparts( Hdr.Filename ) ;
     sortedFilename = fullfile( echoDir, strcat( Hdr.PatientName.FamilyName, '-', ...
-                Hdr.Img.ImaCoilString, '-', sliceStr, ext ) ) ;
+                Hdr.Img.ImaCoilString, '-', sliceStr, '-', acqStr, ext ) ) ;
     
     if isCopying
         copyfile( Hdr.Filename, sortedFilename{1} ) ;
@@ -1712,8 +1907,6 @@ end
 end
 % =========================================================================
 % =========================================================================
-
-
 
 
 end
