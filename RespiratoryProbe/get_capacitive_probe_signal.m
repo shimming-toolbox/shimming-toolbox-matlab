@@ -4,8 +4,9 @@ function get_capacitive_probe_signal()
 % 
 %   FS: Structure that gathers info from probe
 %   data_cprobe: signal from probe
-
-load('../test/capacitive_probe_phantom.mat');  % for debugging
+[file,path] = uigetfile('*.mat','Please choose the recording data');% debugging recording path
+load(strcat(path,file));
+%dummy recordings are located under: '../test/capacitive_probe_phantom.mat' or '../test/capacitive_probe_human.mat'
 n_samples_before_start_fitting = 50;
 deg_poly = 0;
 
