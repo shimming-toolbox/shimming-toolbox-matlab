@@ -16,7 +16,7 @@ classdef ProbeTracking < matlab.mixin.SetGet
 % =========================================================================
 %
 % =========================================================================
-% Updated::20190504::ryan.topfer@polymtl.ca
+% Updated::20190528::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties   
@@ -51,7 +51,7 @@ elseif isstruct( varargin{1} )
     Specs = varargin{1} ;
 
 elseif ischar( varargin{1} )
-% Non-urgent TODO:
+% Nonurgent TODO:
 %   This form of ProbeTracking() initialization/construction is not to
 %   be called by a user, but rather, from the ProbeTracking() constructor
 %   itself, making it better suited as a 'private' constructor. Apparently
@@ -69,7 +69,7 @@ if myisfield( Specs, 'state' ) && strcmp( Specs.state, 'inert' )
 else
     [ Aux.Source, Aux.Specs ] = ProbeTracking.declareprobe( Specs ) ;
     
-    if ~strcmp( Aux.Specs.state, 'inert' )    
+    if isa( Aux.Source, 'serial' )    
         Aux.createlogfile() ;
         Aux.createrecordingdaemon() ;
     end
@@ -102,7 +102,7 @@ if isa( Aux.Source, 'serial' )
     clear Aux.Source  ;
 else
     % TODO 
-    %   prompt user to save recording?
+    %   prompt user to save latest recording?
 end
 
 clear Aux ;
@@ -148,6 +148,8 @@ if isa( Aux.Source, 'serial' )
         Aux.Data.startTime     = Aux.Log.Data.startTime ;
         Aux.Log.Data.endTime   = Inf ; 
         Aux.Data.endTime       = Aux.Log.Data.endTime ; 
+
+        Aux.Specs.state = 'active' ;
     else
         Aux.stoprecording() ;
         error('Communication to respiratory probe failed. Closing Aux.Source.')
@@ -194,6 +196,8 @@ function [] = stoprecording( Aux )
 if isa( Aux.Source, 'serial' ) 
     Aux.Data.endTime = str2num( datestr( now, 'yyyymmddHHMMSS.FFF') ) ; 
     fclose( Aux.Source ) ;
+    
+    Aux.Specs.state = 'inactive' ;
 end
 
 end
@@ -268,7 +272,6 @@ elseif ischar( Aux.Source )
     Aux.Data.t(end+1)    = t ;
 
 end
-
 
 end  
 % =========================================================================
@@ -799,7 +802,7 @@ end
 
 if isDeviceFound
     
-    AuxSpecs.state = 'active' ;
+    AuxSpecs.state = 'inactive' ;
     
     % Check device type 
     % NOTE : names probably need to change computer-to-computer!
@@ -827,14 +830,14 @@ if isDeviceFound
     
     ShimUse.customdisplay( [ 'Sampling frequency = ' num2str(samplingFrequency) ' Hz'] )
     
-    [b,a] = butter( 4, 0.064/(samplingFrequency/2) ) ;
-
-    AuxSpecs.Filter = [] ;
-    AuxSpecs.Filter.Lowpass.order  = 4 ;
-    AuxSpecs.Filter.Lowpass.cutoff = 0.0001 ;
-    AuxSpecs.Filter.Lowpass.Coefficients = [] ;
-    AuxSpecs.Filter.Lowpass.Coefficients.numerator   = b ;
-    AuxSpecs.Filter.Lowpass.Coefficients.denominator = a ;
+    % [b,a] = butter( 4, 0.064/(samplingFrequency/2) ) ;
+    %
+    % AuxSpecs.Filter = [] ;
+    % AuxSpecs.Filter.Lowpass.order  = 4 ;
+    % AuxSpecs.Filter.Lowpass.cutoff = 0.0001 ;
+    % AuxSpecs.Filter.Lowpass.Coefficients = [] ;
+    % AuxSpecs.Filter.Lowpass.Coefficients.numerator   = b ;
+    % AuxSpecs.Filter.Lowpass.Coefficients.denominator = a ;
 
 else
     Source = [] ;
@@ -889,13 +892,13 @@ function [] = plotmeasurementlog( measurementLog, Params )
 % Supported fields to Params struct
 %
 %   .figureTitle
-%       [default: 'Pressure log']
+%       [default: 'Respiration']
 %
 %   .sampleTimes
 %       vector (length == length(measurementLog)) of sample times in seconds
 %
 %   .yLabel
-%       [default: 'Pressure (kPa)']
+%       [default: 'Amplitude (AU)']
 
 DEFAULT_FIGURETITLE = 'Respiration' ;
 DEFAULT_YLABEL      = 'Amplitude (AU)' ;
@@ -1035,8 +1038,6 @@ while ~isUserSatisfied
              isUserSatisfied = true;
          end
     
-
-
         if ~isUserSatisfied
             % Manual selection    
             trainingFrameStartIndex = ...
