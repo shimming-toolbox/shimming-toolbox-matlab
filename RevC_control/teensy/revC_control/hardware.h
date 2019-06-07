@@ -3,6 +3,16 @@
 #define NUM_B 1//number of boards
 #define NUM_C 8//number of channesl per board
 
+boolean logic_address_real[8][3] = {{LOW, LOW, HIGH},
+  {HIGH, HIGH, HIGH},
+  {LOW, HIGH, HIGH},
+  {LOW, LOW, LOW},
+  {HIGH, HIGH, LOW},
+  {HIGH, LOW, LOW},
+  {LOW, HIGH, LOW},
+  {HIGH, LOW, HIGH}
+};
+
 typedef enum LTC26456_COMMAND {
   WRITE_TO_INPUT             = 0x00,
   UPDATE_DAC                 = 0x10,
@@ -164,7 +174,7 @@ void LTC2656Write(LTC26456_COMMAND action, LTC2656_ADDRESS address, uint16_t val
   SPI_MASTER->tx16(data_tx, 2, CTAR_MODE0, CS0);
   selectNone();
   sei();
-   delayMicroseconds(100);
+  delayMicroseconds(100);
 }
 
 
@@ -222,16 +232,10 @@ uint16_t computeDacVal_I(float current) {
   return uint16_t((65535.0 / (current / 1.66 + 2.5)));
 }
 
-void selectBoards() {
-  digitalWrite(boardSelect0, HIGH);
-  digitalWrite(boardSelect1, LOW);
-  digitalWrite(boardSelect2, LOW);
-}
-
-void unselectBoards() {
-  digitalWrite(boardSelect0, HIGH);
-  digitalWrite(boardSelect1, LOW);
-  digitalWrite(boardSelect2, HIGH);
+void selectBoards(int board_no) {
+  digitalWrite(boardSelect0, logic_address_real[board_no][0]);
+  digitalWrite(boardSelect1, logic_address_real[board_no][1]);
+  digitalWrite(boardSelect2, logic_address_real[board_no][2]);
 }
 
 void mosi_sck_hi() {
@@ -252,22 +256,12 @@ boolean logic_address[8][3] = {{LOW, LOW, LOW},
   {HIGH, HIGH, LOW},
   {HIGH, HIGH, HIGH}
 };
-boolean logic_address_real[8][3] = {{LOW, LOW, HIGH},
-  {HIGH, HIGH, HIGH},
-  {LOW, HIGH, HIGH},
-  {LOW, LOW, LOW},
-  {HIGH, HIGH, LOW},
-  {HIGH, LOW, LOW},
-  {LOW, HIGH, LOW},
-  {HIGH, LOW, HIGH}
-};
 
 float computeOutI(uint16_t dacVal) {
   return ((float(dacVal) * 4.096 / 4096.0) - 1.25) / 10 / 0.2;
 }
 
 void print_all() {
-  Serial.println();
   for (int i = 0; i < 7; i++) {
     uint16_t data = LTC1863ReadSlow(i);
     //    Serial.print(i);

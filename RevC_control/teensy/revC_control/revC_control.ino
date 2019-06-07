@@ -3,94 +3,88 @@
 void setup() {
   initIO();
   Serial.begin(115200);
-  Serial.println("ready to use");
   spiInit();
+  selectBoards(0);
+  delay(100);
+  Serial.println("ready to use");
 }
-int add_no, crt;
+int add_no;
 float crt_val;
 void loop() {
-
   char incomingByte;
   if (Serial.available() > 0) {
     incomingByte = Serial.read();
     //Serial.println(incomingByte);
     switch (incomingByte) {
-      case 'a':
+      case 'a'://used to test selectNone
         selectNone();
         Serial.println("selectNone");
         break;
-      case 's':
+      case 's'://used to test selectDAC
         selectDAC();
         Serial.println("selectDAC");
         break;
-      case 'w':
+      case 'd': //used to test selectADC
         selectADC();
         Serial.println("selectADC");
         break;
-      case 'd':
-        selectBoards();
-        Serial.println("selectBoard");
-        break;
-      case 'r':
+      case 'f': //used to test selectError
         selectError();
         Serial.println("selectError");
         break;
-      case 't':
-        Serial.println("\n");
-        Serial.print("ADC output:");
+      case 't'://used to get ADC values
+        selectBoards(0);
+        Serial.println("ADC output:");
         print_all();
-        break;
-      case 'f':
-        unselectBoards();
-        Serial.println("unselectBoard");
-        break;
-      case 'g':
-        //selectBoards();
-        crt_val = Serial.parseFloat();
         Serial.println();
-        Serial.print("Write_DAC: ");Serial.print(crt_val);Serial.print(" A");
+        break;
+      case 'g'://used to set DAC values
+        selectBoards(0);
+        crt_val = Serial.parseFloat();
+        Serial.print("Write DAC: "); Serial.print(crt_val); Serial.print(" A");
         LTC2656Write(WRITE_AND_UPDATE, channelMap[0], computeDacVal_I(crt_val));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[1], computeDacVal_I(crt_val+0.1));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[2], computeDacVal_I(crt_val+0.2));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[3], computeDacVal_I(crt_val+0.3));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[4], computeDacVal_I(crt_val+0.4));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[5], computeDacVal_I(crt_val+0.5));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[6], computeDacVal_I(crt_val+0.6));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[7], computeDacVal_I(crt_val+0.7));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[1], computeDacVal_I(crt_val + 0.1));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[2], computeDacVal_I(crt_val + 0.2));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[3], computeDacVal_I(crt_val + 0.3));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[4], computeDacVal_I(crt_val + 0.4));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[5], computeDacVal_I(crt_val + 0.5));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[6], computeDacVal_I(crt_val + 0.6));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[7], computeDacVal_I(crt_val + 0.7));
+        Serial.println();
         break;
-      case 'z':
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[1], 0);
+      case 'z'://zero all channels
+        selectBoards(0);
+        for (int i = 0; i < 8; i++) {
+          LTC2656Write(WRITE_AND_UPDATE, channelMap[i], computeDacVal_I(0));
+        }
+        Serial.println("Zero all DAC");
         break;
-      case 'b':
-        selectBoards();
-        Serial.println("selectBoard");
-        break;
-      case 'h':
+      case 'h'://used to test mosi_sck pins from teensy board
         mosi_sck_hi();
         Serial.println("mosi_sck_hi");
         break;
-      case 'j':
+      case 'j'://used to test mosi_sck pins from teensy board
         mosi_sck_lo();
         Serial.println("mosi_sck_lo");
         break;
-      case 'e':
+      case 'e': //used to test real board address
         add_no = Serial.parseInt();
-        Serial.println();
-        Serial.print("Address: "); Serial.print(add_no); Serial.print(" --- ");
+        Serial.print("Address: "); Serial.print(add_no);
         digitalWrite(boardSelect0, logic_address_real[add_no][0]);
         digitalWrite(boardSelect1, logic_address_real[add_no][1]);
         digitalWrite(boardSelect2, logic_address_real[add_no][2]);
-        break;
-      case 'q':
-        add_no = Serial.parseInt();
         Serial.println();
-        Serial.print("Address: "); Serial.print(add_no); Serial.print(" --- ");
+        break;
+      case 'q'://used to map board address
+        add_no = Serial.parseInt();
+        Serial.print("Address: "); Serial.print(add_no);
         Serial.print(logic_address[add_no][0]);
         Serial.print(logic_address[add_no][1]);
         Serial.print(logic_address[add_no][2]);
         digitalWrite(boardSelect0, logic_address[add_no][0]);
         digitalWrite(boardSelect1, logic_address[add_no][1]);
         digitalWrite(boardSelect2, logic_address[add_no][2]);
+        Serial.println();
         break;
 
     }
