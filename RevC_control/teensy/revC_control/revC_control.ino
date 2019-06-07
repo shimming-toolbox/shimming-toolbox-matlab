@@ -7,6 +7,7 @@ void setup() {
   spiInit();
 }
 int add_no, crt;
+float crt_val;
 void loop() {
 
   char incomingByte;
@@ -45,8 +46,17 @@ void loop() {
         break;
       case 'g':
         //selectBoards();
-        LTC2656Write(WRITE_AND_UPDATE,channelMap[7], 5000);
-//        Serial.println("Write_DAC:");
+        crt_val = Serial.parseFloat();
+        Serial.println();
+        Serial.print("Write_DAC: ");Serial.print(crt_val);Serial.print(" A");
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[0], computeDacVal_I(crt_val));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[1], computeDacVal_I(crt_val+0.1));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[2], computeDacVal_I(crt_val+0.2));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[3], computeDacVal_I(crt_val+0.3));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[4], computeDacVal_I(crt_val+0.4));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[5], computeDacVal_I(crt_val+0.5));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[6], computeDacVal_I(crt_val+0.6));
+        LTC2656Write(WRITE_AND_UPDATE, channelMap[7], computeDacVal_I(crt_val+0.7));
         break;
       case 'z':
         LTC2656Write(WRITE_AND_UPDATE, channelMap[1], 0);

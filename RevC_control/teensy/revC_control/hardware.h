@@ -155,19 +155,16 @@ void selectBoard(int board) {
 }
 
 void LTC2656Write(LTC26456_COMMAND action, LTC2656_ADDRESS address, uint16_t value) {
-  //NVIC_ENABLE_IRQ(IRQ_SPI1);
+  NVIC_ENABLE_IRQ(IRQ_SPI1);
   selectNone();
   selectDAC();
-  //  data_tx[0] = ((action | address) & 0xFF);
-  //  Serial.println(action);
-  //  Serial.println(address);
-  //  Serial.println((action | address)& 0xFF);
-  //  data_tx[1] = ((value >> 8) & 0xFF) << 8;
-  //  data_tx[1] |= (value & 0xFF);
-  //  SPI_MASTER->tx16(data_tx, 1, CTAR_MODE0, CS0);
-  delay(2000);
+  data_tx[0] = ((action | address) & 0xFF);
+  data_tx[1] = ((value >> 8) & 0xFF) << 8;
+  data_tx[1] |= (value & 0xFF);
+  SPI_MASTER->tx16(data_tx, 2, CTAR_MODE0, CS0);
   selectNone();
-  delayMicroseconds(100);
+  sei();
+   delayMicroseconds(100);
 }
 
 
@@ -222,7 +219,6 @@ void spi1_isr(void) {
 }
 
 uint16_t computeDacVal_I(float current) {
-  Serial.println(uint16_t((65535.0 / (current / 1.66 + 2.5))));
   return uint16_t((65535.0 / (current / 1.66 + 2.5)));
 }
 
