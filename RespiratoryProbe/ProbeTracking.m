@@ -159,6 +159,7 @@ else
     % Check daemon session is still recording
     if Aux.Log.Data.isLogging 
         isRecording = true ;
+        Aux.Data.startTime = str2num( datestr( now, 'yyyymmddHHMMSS.FFF') ) ; 
     end
 end
 
@@ -192,11 +193,11 @@ function [] = stoprecording( Aux )
 % Closes communication port/source + marks recording end time
 %
 % [] = STOPRECORDING( Aux )
+    
+Aux.Data.endTime = str2num( datestr( now, 'yyyymmddHHMMSS.FFF') ) ; 
 
 if isa( Aux.Source, 'serial' ) 
-    Aux.Data.endTime = str2num( datestr( now, 'yyyymmddHHMMSS.FFF') ) ; 
     fclose( Aux.Source ) ;
-    
     Aux.Specs.state = 'inactive' ;
 end
 
@@ -339,7 +340,7 @@ function [] = recordandplotphysiosignal( Aux, Params )
 % See HELP ProbeTracking.recordphysiosignal() for accepted Parameters
 
 DEFAULT_ISSAVINGDATA          = true ;
-% DEFAULT_PHYSIOSIGNALFILENAME  = [] ; % ProbeTracking.saverecording() will name it
+DEFAULT_FILENAME  = [] ; % ProbeTracking.saverecording() will name it
 
 if  nargin < 2 || isempty(Params)
     Params.dummy = [] ;
@@ -353,9 +354,9 @@ else
     Params.isSavingData = false ; 
 end
 
-% if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
-%     Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
-% end
+if  ~myisfield( Params, 'filename' ) || isempty(Params.filename)
+    Params.filename = DEFAULT_FILENAME ;
+end
 
 % ------- 
 isUserSatisfied = false ;
@@ -381,12 +382,12 @@ end
 
 % ------- 
 if isSavingData
-    Aux.saverecording( Params.physioSignalFilename )
+    Aux.saverecording( Params.filename )
 end
 
 end
 % =========================================================================
-function [] = recordphysiosignal( Aux1, Params, Aux2 )
+function [] = recordphysiosignal( Aux1, varargin )
 %RECORDPHYSIOSIGNAL  
 %
 % Continuously tracks respiratory probe.
@@ -394,6 +395,14 @@ function [] = recordphysiosignal( Aux1, Params, Aux2 )
 % Syntax
 %
 % [] = RECORDPHYSIOSIGNAL( Aux, Params )
+% [] = RECORDPHYSIOSIGNAL( Aux, Aux2, Params )
+%
+%
+% RECORDPHYSIOSIGNAL( Aux, Params ) will begin a new recording (and, optionally, real-time plotting)
+% from the probe 'Aux'. 
+% 
+% With an additional probe input 'Aux2', dual recording is performed 
+% NOTE both Aux and Aux2 must possess the same sampling period (i.e. Aux.Specs.dt == Aux2.Specs.dt)
 %
 %  .......................
 %   
@@ -402,12 +411,12 @@ function [] = recordphysiosignal( Aux1, Params, Aux2 )
 %   .isSavingData
 %       default = true
 %
-%   .physioSignalFilename
-%       default = ['./' datestr(now,30) '-physioSignal.txt' ] ; 
+%   .filename
+%       default: Named by ProbeTracking.saverecording() 
 %
 %   .runTime 
 %       Total sampling time in seconds.
-%       default = 15*60
+%       default = 15*60 [i.e. 15 minutes] 
 %
 %   .isPlottingInRealTime
 %       [default : true ]
@@ -418,12 +427,31 @@ function [] = recordphysiosignal( Aux1, Params, Aux2 )
 %       [default : 4 Hz ]
 
 DEFAULT_ISSAVINGDATA          = true ;
-% DEFAULT_PHYSIOSIGNALFILENAME  = [] ; % ProbeTracking.saverecording() will name it
+DEFAULT_FILENAME  = [] ; % ProbeTracking.saverecording() will name it
 DEFAULT_RUNTIME               = 15*60 ; % [units : s]
 DEFAULT_ISPLOTTINGINREALTIME  = true ;
 DEFAULT_REFRESHRATE           = 4 ; % [units : Hz]
 
-if  nargin < 2 || isempty(Params)
+for iIn = 1 : length( varargin )
+    
+    if isstruct( varargin{iIn} )
+        Params = varargin{iIn} ;
+
+    elseif isa( varargin{iIn}, 'ProbeTracking' )
+        Aux2 = varargin{iIn} ;
+    end
+end
+
+if exist( 'Aux2' )
+    assert( Aux1.Specs.dt == Aux2.Specs.dt, 'For dual tracking, the 2 probes must have the same sampling period.' )
+    isDualTracking = true ;
+    nProbes = 2 ;
+else
+    isDualTracking = false ;
+    nProbes = 1 ;
+end
+
+if  nargin < 2 || ~exist( 'Params' )
     Params.dummy = [] ;
 end
 
@@ -431,9 +459,9 @@ if  ~myisfield( Params, 'isSavingData' ) || isempty(Params.isSavingData)
     Params.isSavingData = DEFAULT_ISSAVINGDATA ;
 end
 
-% if  ~myisfield( Params, 'physioSignalFilename' ) || isempty(Params.physioSignalFilename)
-%     Params.physioSignalFilename = DEFAULT_PHYSIOSIGNALFILENAME ;
-% end
+if  ~myisfield( Params, 'filename' ) || isempty(Params.filename)
+    Params.filename = DEFAULT_FILENAME ;
+end
 
 if  ~myisfield( Params, 'runTime' ) || isempty(Params.runTime)
     Params.runTime = DEFAULT_RUNTIME ;
@@ -449,12 +477,17 @@ end
  
 % ------- 
 StopButton     = stoploop({'Stop recording'}) ;
+
 Aux1.clearrecording() ;
 
-sampleIndices  = [] ;
+if isDualTracking
+    Aux2.clearrecording() ;
+end
 
+sampleIndices  = [] ;
 nSamples = Params.runTime / (Aux1.Specs.dt/1000) ;
 iSample  = 0 ; 
+
 if Params.isPlottingInRealTime
 
     % ------- 
@@ -472,27 +505,63 @@ if Params.isPlottingInRealTime
         'Color',[0 0 0]);
 
     hold on;
+   
+    plotHandle1 = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
     
-    plotHandle = plot(axesHandle,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
-        
-    title('Respiration Aux','FontSize',15,'Color',[1 1 0]);
+    title(['RECORDING: ' Aux1.Specs.probeType ' probe'], 'FontSize',15,'Color',[1 1 0]);
     ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
     xlabel('Time [s]','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
     % xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
 
     drawnow limitrate; 
     set(figureHandle,'Visible','on');
+   
+    if isDualTracking 
+        figureHandle2 = figure('NumberTitle','off',...
+            'Name','Physio signal 2',...
+            'Color',[0 0 0],'Visible','off');
+            
+        % Set axes
+        axesHandle2 = axes('Parent',figureHandle2,...
+            'YGrid','on',...
+            'YColor',[0.9725 0.9725 0.9725],...
+            'XGrid','on',...
+            'XColor',[0.9725 0.9725 0.9725],...
+            'Color',[0 0 0]);
+
+        hold on;
+       
+        plotHandle2 = plot(axesHandle2,0,0,'Marker','.','LineWidth',1,'Color',[1 0 0]);
+        
+        title(['RECORDING: ' Aux2.Specs.probeType ' probe'],'FontSize',15,'Color',[1 1 0]);
+        ylabel('Amplitude','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+        xlabel('Time [s]','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+        % xlabel('Sample index','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+
+        drawnow limitrate; 
+        set(figureHandle2,'Visible','on');
+    end
 
 end
 
 isRecording = Aux1.beginrecording() ;
 if isRecording
-    display('Reading probe measurements...') ;
+    display( ['Recording from probe 1/' num2str(nProbes) '...'] ) ;
 else
-    error('?');
+    error(['Failed to record from probe 1']);
 end
 
-% for real-time plotting, updating @the same rate as the samples
+if isDualTracking
+    isRecording = Aux2.beginrecording() ;
+    
+    if isRecording
+        display( ['Recording from probe 2/' num2str(nProbes) '...'] ) ;
+    else
+        error(['Failed to record from probe 2']);
+    end
+end
+
+% For real-time plotting, updating @the same rate as the samples
 % (e.g. 100 Hz) poses a problem (computer can't seem to keep up with the incoming samples).
 % solution is to update the display ~every so often~ (e.g. 4x per second seems OK)
 nSamplesBetweenRefresh = (1/Params.refreshRate)/(Aux1.Specs.dt/1000) ;
@@ -505,30 +574,39 @@ while ( iSample < nSamples ) && ~StopButton.Stop()
         
         iSample = iSample + 1 ;
         Aux1.getupdate() ;
+        
+        if isDualTracking
+            Aux2.getupdate() ;
+        end
+        
         sampleIndices(end+1) = iSample ;
 
     end
 
     if Params.isPlottingInRealTime
-        set( plotHandle,'YData',Aux1.Data.p,'XData', Aux1.Data.t/1000 );
-        % set(plotHandle,'YData',[Aux1.Data.pRaw-mean(Aux1.Data.pRaw) Aux1.Data.p],'XData',[sampleIndices sampleIndices]);
-    end
+        set( plotHandle1,'XData', Aux1.Data.t/1000 ,'YData', Aux1.Data.p ); 
+        if isDualTracking
+            set( plotHandle2,'XData', Aux2.Data.t/1000 ,'YData', Aux2.Data.p ); 
+        end
+   end
 
 end
 
+StopButton.Clear() ;
+
 Aux1.stoprecording();
 
-StopButton.Clear() ;
+if isDualTracking
+    Aux2.stoprecording() ;
+end
 
 % ------- 
 if Params.isSavingData
+    Aux1.saverecording( Params.filename )
 
-    Aux1.saverecording(  )
-
-    % if isDualTracking
-    %     Aux2.saverecording( [ Params.physioSignalFilename '-2' ] )
-    % end
-
+    if isDualTracking
+        Aux2.saverecording( )
+    end
 end
 
 end
@@ -540,19 +618,20 @@ function [] = saverecording( Aux, logFilename )
 %   SAVERECORDING( Aux, logFilename )
 
 if  nargin < 2 || ~ischar( logFilename ) 
-    logFilename = ['./' datestr( now, 30 ) '-physioSignal' ] ;
+    logFilename = ['./' datestr( now, 30 ) '_' Aux.Specs.probeType 'ProbeRec' ] ;
 end
             
 ShimUse.customdisplay( ['\n----- Saving physio recording -----\n'] );
 ShimUse.customdisplay( ['Filename:  ' logFilename '\n'] );
 
-fid = fopen( [ logFilename '.dat' ], 'w') ;
-fprintf( fid, '%f  %f\n', ...
-    [ Aux.Data.startTime Aux.Data.pRaw;
-      Aux.Data.endTime Aux.Data.p ] ) ;
-fclose(fid) ;
+% fid = fopen( [ logFilename '.dat' ], 'w') ;
+% fprintf( fid, '%f  %f\n', ...
+%     [ Aux.Data.startTime Aux.Data.pRaw;
+%       Aux.Data.endTime Aux.Data.p ] ) ;
+% fclose(fid) ;
 
 Data = Aux.Data ;
+
 save( logFilename, 'Data' ) ;
 
 end
@@ -568,7 +647,7 @@ Aux.clearrecording() ;
 
 % Changing .endTime from Inf signals daemon session to call this function &
 % clear its current recording.
-Aux.Log.Data.endTime = str2num( datestr( now, 'yyyymmddHHMMSS.FFF') ) ; 
+Aux.Log.Data.endTime = 0 ; 
 
 end
 % =========================================================================
@@ -613,6 +692,7 @@ Aux.Log = memmapfile( filename, 'Writable', true, 'Format', ...
       'double', [nSamplesMax 1], 'p' } ) ;
 
 Aux.Log.Data.isLogging = uint64(true) ;
+Aux.Log.Data.endTime   = Inf ;
 
 end
 % =========================================================================
@@ -734,7 +814,7 @@ function [Source, AuxSpecs] = declareprobe( AuxSpecs )
 %
 %   TODO: rather than hardcode the values here as well, there should be 
 %   a parameter file specifying values for baudrate and sampling period.
-DEFAULT_ARDUINOPERIOD = 50 ; % [units: ms] 
+DEFAULT_ARDUINOPERIOD = 100 ; % [units: ms] 
 DEFAULT_TEENSYPERIOD  = 100 ; % [units: ms] 
 DEFAULT_BAUDRATE      = 115200 ;
 
@@ -807,7 +887,7 @@ if isDeviceFound
     % Check device type 
     % NOTE : names probably need to change computer-to-computer!
     switch AuxSpecs.portName 
-        case { '/dev/tty.usbmodem4471890','/dev/tty.usbmodem4873120' } 
+        case { '/dev/tty.usbmodem4471890','/dev/tty.usbmodem4873120','/dev/tty.usbmodem48731201' } 
             AuxSpecs.probeType = 'capacitive' ;
         case { '/dev/tty.usbmodem14101','/dev/tty.usbmodem14201' } 
             AuxSpecs.probeType = 'pressure' ;
