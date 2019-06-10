@@ -23,8 +23,7 @@ void setup() {
   selectNone();
 
 }
-int add_no;
-float crt_val;
+
 void loop() {
   char incomingByte;
   if (Serial.available() > 0) {
@@ -45,7 +44,7 @@ void loop() {
         
       case 'g'://used to set DAC values
         selectBoard(0);
-        crt_val = Serial.parseFloat();
+        float crt_val = Serial.parseFloat();
         Serial.print("Write DAC: "); Serial.print(crt_val); Serial.print(" A");
         for (int i = 0; i < 8; i++) {
           LTC2656Write(WRITE_AND_UPDATE, channelMap[i], computeDacVal_I(crt_val + 0.1 * i, 0, i));
