@@ -1,12 +1,27 @@
 #include "hardware.h"
+#include "util.h"
 
 void setup() {
   initIO();
   Serial.begin(115200);
   spiInit();
-  selectBoards(0);
+  selectBoard(0);
   delay(100);
   Serial.println("ready to use");
+  for (int b = 0; b < NUM_B; b++) {
+    selectBoard(b);
+    for (int c = 0; c < NUM_C; c++) {
+      zeroPoint[b][c] = 0;
+      gain[b][c] = -1.6;
+    }
+  }
+  //Initialize DAC
+  selectNone();
+  delay(100);
+  selectDAC();
+  delay(100);
+  selectNone();
+
 }
 int add_no;
 float crt_val;
@@ -14,8 +29,14 @@ void loop() {
   char incomingByte;
   if (Serial.available() > 0) {
     incomingByte = Serial.read();
-    //Serial.println(incomingByte);
     switch (incomingByte) {
+      case 'c':
+        for (int b = 0; b < NUM_B; b++) {
+          for (int c = 0; c < NUM_C; c++) {
+            calibrate_channel(b, c);
+          }
+          delay(500);
+        }
       case 'a'://used to test selectNone
         selectNone();
         Serial.println("selectNone");
@@ -33,29 +54,24 @@ void loop() {
         Serial.println("selectError");
         break;
       case 't'://used to get ADC values
-        selectBoards(0);
+        selectBoard(0);
         Serial.println("ADC output:");
         print_all();
         Serial.println();
         break;
       case 'g'://used to set DAC values
-        selectBoards(0);
+        selectBoard(0);
         crt_val = Serial.parseFloat();
         Serial.print("Write DAC: "); Serial.print(crt_val); Serial.print(" A");
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[0], computeDacVal_I(crt_val));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[1], computeDacVal_I(crt_val + 0.1));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[2], computeDacVal_I(crt_val + 0.2));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[3], computeDacVal_I(crt_val + 0.3));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[4], computeDacVal_I(crt_val + 0.4));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[5], computeDacVal_I(crt_val + 0.5));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[6], computeDacVal_I(crt_val + 0.6));
-        LTC2656Write(WRITE_AND_UPDATE, channelMap[7], computeDacVal_I(crt_val + 0.7));
+        for (int i = 0; i < 8; i++) {
+          LTC2656Write(WRITE_AND_UPDATE, channelMap[i], computeDacVal_I(crt_val + 0.1 * i, 0, i));
+        }
         Serial.println();
         break;
       case 'z'://zero all channels
-        selectBoards(0);
+        selectBoard(0);
         for (int i = 0; i < 8; i++) {
-          LTC2656Write(WRITE_AND_UPDATE, channelMap[i], computeDacVal_I(0));
+          LTC2656Write(WRITE_AND_UPDATE, channelMap[i], computeDacVal_I(0, 0, i));
         }
         Serial.println("Zero all DAC");
         break;
@@ -70,9 +86,9 @@ void loop() {
       case 'e': //used to test real board address
         add_no = Serial.parseInt();
         Serial.print("Address: "); Serial.print(add_no);
-        digitalWrite(boardSelect0, logic_address_real[add_no][0]);
-        digitalWrite(boardSelect1, logic_address_real[add_no][1]);
-        digitalWrite(boardSelect2, logic_address_real[add_no][2]);
+        digitalWrite(boardSelect0, board_address[add_no][0]);
+        digitalWrite(boardSelect1, board_address[add_no][1]);
+        digitalWrite(boardSelect2, board_address[add_no][2]);
         Serial.println();
         break;
       case 'q'://used to map board address
@@ -86,7 +102,6 @@ void loop() {
         digitalWrite(boardSelect2, logic_address[add_no][2]);
         Serial.println();
         break;
-
     }
   }
 }

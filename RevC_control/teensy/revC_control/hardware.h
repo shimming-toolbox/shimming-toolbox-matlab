@@ -3,7 +3,7 @@
 #define NUM_B 1//number of boards
 #define NUM_C 8//number of channesl per board
 
-boolean logic_address_real[8][3] = {{LOW, LOW, HIGH},
+boolean board_address[8][3] = {{LOW, LOW, HIGH},
   {HIGH, HIGH, HIGH},
   {LOW, HIGH, HIGH},
   {LOW, LOW, LOW},
@@ -41,17 +41,15 @@ typedef enum LTC2656_ADDRESS {
 
 T3SPI * SPI_MASTER;
 T3SPI * SPI_SLAVE;
+
 //communication buffers
 volatile uint16_t data_tx[20] = {};
 volatile uint8_t data_tx_8[20] = {};
 volatile uint16_t data_rx[20] = {};
 bool read_in_flight;
-// volatile uint8_t data_rx[20] = {};
-const bool bncOut = true;
 
 LTC2656_ADDRESS channelMap[] = {DAC_E, DAC_F, DAC_G, DAC_H, DAC_A, DAC_B, DAC_C, DAC_D};
 uint8_t channelMap_ADC[] = {0, 4, 1, 5, 2, 6, 3, 7};
-const int boardMap[NUM_B] = {2};//{3,4,5,6};
 
 float zeroPoint[NUM_B][NUM_C];
 float gain[NUM_B][NUM_C];
@@ -79,13 +77,13 @@ void selectBoard(int board);
 void spiInit(void);
 
 
-
 void LTC2656Write(T3SPI * SPIx
                   , LTC26456_COMMAND action
                   , LTC2656_ADDRESS address
                   , uint16_t value);
 
 uint16_t LTC1863ReadSlow(T3SPI * SPIx, uint8_t address);
+
 /******************************************************/
 /*********************** SELECTION UTIL* **************/
 /******************************************************/
@@ -95,10 +93,7 @@ const int selectPin1 = 15;
 const int boardSelect2 = 16;
 const int boardSelect1 = 17;
 const int boardSelect0 = 18;
-const int interruptPin = 6;
-const int bncPin = 4;
 const int CS_BB = 30;
-// Alex Constants
 
 const int sck_ms = 13;
 const int mosi_pin = 11;
@@ -109,16 +104,10 @@ void initIO() {
   pinMode(boardSelect0, OUTPUT);
   pinMode(boardSelect1, OUTPUT);
   pinMode(boardSelect2, OUTPUT);
-  pinMode(interruptPin, INPUT);
-  pinMode(sck_ms, OUTPUT);
-  pinMode(mosi_pin, OUTPUT);
   pinMode(CS_BB, OUTPUT);
   digitalWrite(CS_BB, 1);
-  if (bncOut) {
-    pinMode(bncPin, OUTPUT);
-  } else {
-    pinMode(bncPin, INPUT);
-  }
+  pinMode(sck_ms, OUTPUT);
+  pinMode(mosi_pin, OUTPUT);
 
 }
 
@@ -131,7 +120,6 @@ void spiInit() {
   SPI_SLAVE->begin_SLAVE(SCK, MOSI, MISO, CS0);
 
   SPI_MASTER->setCTAR(CTAR_MODE0, 16, SPI_MODE0, LSB_FIRST, SPI_CLOCK_DIV16);
-  //  SPI_MASTER->setCTAR(CTAR_MODE1, 8, SPI_MODE0, LSB_FIRST, SPI_CLOCK_DIV16);
   SPI_SLAVE->setCTAR_SLAVE(16, SPI_MODE1);
 }
 
@@ -157,11 +145,20 @@ void selectError() {
   //digitalWrite(selectPin1, HIGH);
 }
 
-void selectBoard(int board) {
-  int b = boardMap[board];
-  digitalWrite(boardSelect0, b & 0x01);
-  digitalWrite(boardSelect1, b & 0x02);
-  digitalWrite(boardSelect2, b & 0x04);
+void selectBoard(int board_no) {
+  digitalWrite(boardSelect0, board_address[board_no][0]);
+  digitalWrite(boardSelect1, board_address[board_no][1]);
+  digitalWrite(boardSelect2, board_address[board_no][2]);
+}
+
+void mosi_sck_hi() {
+  digitalWrite(mosi_pin, HIGH);
+  digitalWrite(sck_ms, HIGH);
+}
+
+void mosi_sck_lo() {
+  digitalWrite(mosi_pin, LOW);
+  digitalWrite(sck_ms, LOW);
 }
 
 void LTC2656Write(LTC26456_COMMAND action, LTC2656_ADDRESS address, uint16_t value) {
@@ -177,7 +174,6 @@ void LTC2656Write(LTC26456_COMMAND action, LTC2656_ADDRESS address, uint16_t val
   delayMicroseconds(100);
 }
 
-
 uint16_t LTC1863ReadSlow(uint8_t address) {
   read_in_flight = true;
   NVIC_ENABLE_IRQ(IRQ_SPI1);
@@ -188,13 +184,12 @@ uint16_t LTC1863ReadSlow(uint8_t address) {
   SPI_MASTER->tx16(data_tx, 1, CTAR_MODE0, CS0);
   selectNone(); //toggle CS line to initialize the conversion
   delayMicroseconds(20); //wait the conversion time
-
+  
   selectNone();
   selectADC();
   data_tx[0] = ((0x80 | ((address << 4)) | 0x04) << 8) | (0x00);;
   SPI_MASTER->tx16(data_tx, 1, CTAR_MODE0, CS0);
   while (SPI_SLAVE->packetCT == 0) {
-
   }
   digitalWrite(CS_BB, 1);
   read_in_flight = false;
@@ -202,8 +197,6 @@ uint16_t LTC1863ReadSlow(uint8_t address) {
   SPI_SLAVE->packetCT = 0;
   SPI_SLAVE->dataPointer = 0;
   selectNone(); //toggle CS line to initialize the conversion
-
-  //  return (~data_rx[1]&0xFFFF)>>4; // 74HCT244
   return (data_rx[1] & 0xFFFF) >> 4; // 74HCT240
 }
 
@@ -228,25 +221,6 @@ void spi1_isr(void) {
   sei();
 }
 
-uint16_t computeDacVal_I(float current) {
-  return uint16_t((65535.0 / (current / 1.66 + 2.5)));
-}
-
-void selectBoards(int board_no) {
-  digitalWrite(boardSelect0, logic_address_real[board_no][0]);
-  digitalWrite(boardSelect1, logic_address_real[board_no][1]);
-  digitalWrite(boardSelect2, logic_address_real[board_no][2]);
-}
-
-void mosi_sck_hi() {
-  digitalWrite(mosi_pin, HIGH);
-  digitalWrite(sck_ms, HIGH);
-}
-
-void mosi_sck_lo() {
-  digitalWrite(mosi_pin, LOW);
-  digitalWrite(sck_ms, LOW);
-}
 boolean logic_address[8][3] = {{LOW, LOW, LOW},
   {LOW, LOW, HIGH},
   {LOW, HIGH, LOW},
@@ -257,16 +231,3 @@ boolean logic_address[8][3] = {{LOW, LOW, LOW},
   {HIGH, HIGH, HIGH}
 };
 
-float computeOutI(uint16_t dacVal) {
-  return ((float(dacVal) * 4.096 / 4096.0) - 1.25) / 10 / 0.2;
-}
-
-void print_all() {
-  for (int i = 0; i < 7; i++) {
-    uint16_t data = LTC1863ReadSlow(i);
-    //    Serial.print(i);
-    //    Serial.print("\t");
-    Serial.print(computeOutI(data), 4);
-    Serial.print("\t");
-  }
-}
