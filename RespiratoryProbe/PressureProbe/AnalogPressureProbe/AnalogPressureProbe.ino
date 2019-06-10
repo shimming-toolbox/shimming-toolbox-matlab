@@ -8,7 +8,7 @@
 // ========================================================================= 
 
 int pressurePin         = A5 ; // pressure sensor
-unsigned long dwellTime = 50 ; // delay between samples [units: ms]
+unsigned long dwellTime = 100 ; // delay between samples [units: ms]
 
 void setup()
 {
