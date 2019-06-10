@@ -41,14 +41,16 @@ float measure_gain(uint8_t b, uint8_t c) {
 }
 
 bool calibrate_channel(uint8_t b, uint8_t c) {
-  Serial.print("Calibrating board: "); Serial.print(b); Serial.print(" CH: "); Serial.print(c);
+//  Serial.println();
+//  Serial.print("Calibrating board: "); Serial.print(b); Serial.print(" CH: "); Serial.print(c+1);
+  bool isCalibrationSuccessful = false ;
   zeroPoint[b][c] = 0;
   delay(1);
   gain[b][c] = measure_gain(b, c);
   if (abs(gain[b][c] + 1.62) > 0.5) {
-    Serial.println(" --> failed (gain)");
+    //    Serial.println(" failed (gain)");
     calibrationStatus[b][c] = false;
-    return false;
+    isCalibrationSuccessful = false ;
   } else {
   }
   //  Serial.print("gain: ");
@@ -60,7 +62,7 @@ bool calibrate_channel(uint8_t b, uint8_t c) {
     //    Serial.println(output_offset_I,5);
     if (abs(output_offset_I) <= 0.001) {
       calibrationStatus[b][c] = true;
-      return true;
+      isCalibrationSuccessful = true ;
     }
     zeroPoint[b][c] = zeroPoint[b][c] + (output_offset_I / gain[b][c]);
     //    Serial.print("next: ");
@@ -68,16 +70,26 @@ bool calibrate_channel(uint8_t b, uint8_t c) {
     LTC2656Write(WRITE_AND_UPDATE, channelMap[c], computeDacVal_I(0, b, c));
     delay(10);
   }
-  Serial.println("failed (cal)");
+  //  Serial.println("failed (cal)");
   calibrationStatus[b][c] = false;
   zeroPoint[b][c] = 0;
   LTC2656Write(WRITE_AND_UPDATE, channelMap[c], computeDacVal_I(0, b, c));
-  return false;
+  isCalibrationSuccessful = false;
+  return isCalibrationSuccessful ;
 }
 
 /******************************************************/
 /******************* FUNCTIONS FROM ACDC **************/
 /******************************************************/
+void resetallshims( )
+{
+  for (int b = 0; b < NUM_B; b++) {
+    for (int c = 0; c < NUM_C; c++) {
+      selectBoard(b);
+      LTC2656Write(WRITE_AND_UPDATE, channelMap[c], computeDacVal_I(0, b, c));
+    }
+  }
+}
 
 void usergetsystemheartbeat()
 {
@@ -92,3 +104,33 @@ void usergetallchannelcurrents()
     print_all();
   }
 }
+
+bool userresetallshims()
+{
+  // same as resetallshims() but prints+returns true when finished
+  resetallshims();
+  Serial.println(true); return true;
+}
+
+bool calibratedaccompensation()
+{
+
+  bool isCalibrationSuccessful = true ;
+  int SHIM_NCHANNELS = NUM_B * NUM_C;
+  bool isChannelCalibrationSuccessful [SHIM_NCHANNELS] ;
+  int iCh = 0 ;
+  for (int b = 0; b < NUM_B; b++) {
+    for (int c = 0; c < NUM_C; c++) {
+      selectBoard(b);
+      isChannelCalibrationSuccessful[iCh] = calibrate_channel(b, c);
+      iCh = iCh + 1;
+    }
+  }
+  for ( iCh = 0; iCh < SHIM_NCHANNELS; iCh++)
+    if ( !isChannelCalibrationSuccessful[iCh])
+      isCalibrationSuccessful = false ;
+
+  Serial.println(isCalibrationSuccessful);
+  return isCalibrationSuccessful ;
+}
+
