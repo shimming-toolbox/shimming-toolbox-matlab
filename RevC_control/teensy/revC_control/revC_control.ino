@@ -75,11 +75,11 @@ void loop() {
         }
         Serial.println("Zero all DAC");
         break;
-      case 'h'://used to test mosi_sck pins from teensy board
+      case 'o'://used to test mosi_sck pins from teensy board
         mosi_sck_hi();
         Serial.println("mosi_sck_hi");
         break;
-      case 'j'://used to test mosi_sck pins from teensy board
+      case 'p'://used to test mosi_sck pins from teensy board
         mosi_sck_lo();
         Serial.println("mosi_sck_lo");
         break;
@@ -102,6 +102,9 @@ void loop() {
         digitalWrite(boardSelect2, logic_address[add_no][2]);
         Serial.println();
         break;
+      case 'h': // prints TRUE/FALSE \n
+          usergetsystemheartbeat(); 
+          break;
     }
   }
 }
