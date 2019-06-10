@@ -37,6 +37,7 @@ void loop() {
           }
           delay(500);
         }
+        break;
       case 'a'://used to test selectNone
         selectNone();
         Serial.println("selectNone");
@@ -53,11 +54,8 @@ void loop() {
         selectError();
         Serial.println("selectError");
         break;
-      case 't'://used to get ADC values
-        selectBoard(0);
-        Serial.println("ADC output:");
-        print_all();
-        Serial.println();
+      case 'q':// Print all channel currents in A
+        usergetallchannelcurrents();
         break;
       case 'g'://used to set DAC values
         selectBoard(0);
@@ -69,9 +67,12 @@ void loop() {
         Serial.println();
         break;
       case 'z'://zero all channels
-        selectBoard(0);
-        for (int i = 0; i < 8; i++) {
-          LTC2656Write(WRITE_AND_UPDATE, channelMap[i], computeDacVal_I(0, 0, i));
+        for (int b = 0; b < NUM_B; b++) {
+          for (int c = 0; c < NUM_C; c++) {
+            selectBoard(b);
+            LTC2656Write(WRITE_AND_UPDATE, channelMap[c], computeDacVal_I(0, b, c));
+            delay(500);
+          }
         }
         Serial.println("Zero all DAC");
         break;
@@ -83,7 +84,7 @@ void loop() {
         mosi_sck_lo();
         Serial.println("mosi_sck_lo");
         break;
-      case 'e': //used to test real board address
+      case 'n': //used to test real board address
         add_no = Serial.parseInt();
         Serial.print("Address: "); Serial.print(add_no);
         digitalWrite(boardSelect0, board_address[add_no][0]);
@@ -91,7 +92,7 @@ void loop() {
         digitalWrite(boardSelect2, board_address[add_no][2]);
         Serial.println();
         break;
-      case 'q'://used to map board address
+      case 'm'://used to map board address
         add_no = Serial.parseInt();
         Serial.print("Address: "); Serial.print(add_no);
         Serial.print(logic_address[add_no][0]);
@@ -103,8 +104,8 @@ void loop() {
         Serial.println();
         break;
       case 'h': // prints TRUE/FALSE \n
-          usergetsystemheartbeat(); 
-          break;
+        usergetsystemheartbeat();
+        break;
     }
   }
 }
