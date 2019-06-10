@@ -1,5 +1,5 @@
 classdef ProbeTracking < matlab.mixin.SetGet
-% PROBETRACKING - Respiratory probe for real-time shimming 
+% PROBETRACKING - Respiratory probe
 %
 % Aux = PROBETRACKING(  )
 %
@@ -16,7 +16,7 @@ classdef ProbeTracking < matlab.mixin.SetGet
 % =========================================================================
 %
 % =========================================================================
-% Updated::20190528::ryan.topfer@polymtl.ca
+% Updated::20190609::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties   
@@ -51,16 +51,24 @@ elseif isstruct( varargin{1} )
     Specs = varargin{1} ;
 
 elseif ischar( varargin{1} )
-% Nonurgent TODO:
-%   This form of ProbeTracking() initialization/construction is not to
-%   be called by a user, but rather, from the ProbeTracking() constructor
-%   itself, making it better suited as a 'private' constructor. Apparently
-%   Matlab does not permit this. There is a work-around described here:
-%   https://stackoverflow.com/questions/29671482/private-constructor-in-matlab-oop
+    
     filename = varargin{1} ;
     load( filename ) ;
-    Aux.launchrecordingdaemon() ; % runs continuously in background
-    return;
+
+    if exist('Aux')
+    % Nonurgent TODO:
+    %   This form of ProbeTracking() initialization/construction is not to
+    %   be called by a user, but rather, from the ProbeTracking() constructor
+    %   itself, making it better suited as a 'private' constructor. Apparently
+    %   Matlab does not permit this. There is a work-around described here:
+    %   https://stackoverflow.com/questions/29671482/private-constructor-in-matlab-oop
+        Aux.launchrecordingdaemon() ; % runs continuously in background
+        return;
+    elseif
+        Specs.state = 'inert' ;
+        error('TODO: enable debug mode: previous (raw) recording is loaded and can be processed as if it were a new recording...')
+    end
+
 end
 
 if myisfield( Specs, 'state' ) && strcmp( Specs.state, 'inert' )
@@ -402,7 +410,7 @@ function [] = recordphysiosignal( Aux1, varargin )
 % from the probe 'Aux'. 
 % 
 % With an additional probe input 'Aux2', dual recording is performed 
-% NOTE both Aux and Aux2 must possess the same sampling period (i.e. Aux.Specs.dt == Aux2.Specs.dt)
+% NOTE: Aux and Aux2 must possess the same sampling period (i.e. Aux.Specs.dt == Aux2.Specs.dt)
 %
 %  .......................
 %   
@@ -631,6 +639,8 @@ ShimUse.customdisplay( ['Filename:  ' logFilename '\n'] );
 % fclose(fid) ;
 
 Data = Aux.Data ;
+
+Data.probeType = Aux.Specs.probeType ;
 
 save( logFilename, 'Data' ) ;
 
