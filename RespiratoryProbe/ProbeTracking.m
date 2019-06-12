@@ -1,22 +1,22 @@
 classdef ProbeTracking < matlab.mixin.SetGet
 % PROBETRACKING - Respiratory probe
-%
+% 
+% This class deals with external sensor recording.
+% 
+% Usage:
+%   ProbeTracking()
+%   ProbeTracking(recording.mat)  % if you have a recording (for debugging)
+% 
 % Aux = PROBETRACKING(  )
 %
-%   Aux contains fields
-%           
+%   Aux contains fields:
 %       .Data 
-%
 %       .Log
-%
 %       .Source    
-%
 %       .Specs
 %
 % =========================================================================
-%
-% =========================================================================
-% Updated::20190609::ryan.topfer@polymtl.ca
+% Author: ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties   
@@ -64,7 +64,7 @@ elseif ischar( varargin{1} )
     %   https://stackoverflow.com/questions/29671482/private-constructor-in-matlab-oop
         Aux.launchrecordingdaemon() ; % runs continuously in background
         return;
-    elseif
+    else
         Specs.state = 'inert' ;
         error('TODO: enable debug mode: previous (raw) recording is loaded and can be processed as if it were a new recording...')
     end
