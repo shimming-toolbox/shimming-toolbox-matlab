@@ -23,9 +23,12 @@ Before running this software you will need to install the following dependencies
 
 Then, download (or `git clone`) this repository, open Matlab, and add this folder (with sub-folders) to the Matlab Path.
 To use the optional Abdul-Rahman 3D phase unwrapper, binaries must be compiled from the source code found in /external/source/
-## Getting started
 
+## Getting started (WIP)
 
+- Connect sensor probe to station
+- Launch a Matlab session
+- See example: realtime_shimming/example/XXX
 
 ## Class definitions
 
