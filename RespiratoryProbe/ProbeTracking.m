@@ -4,8 +4,13 @@ classdef ProbeTracking < matlab.mixin.SetGet
 % This class deals with external sensor recording.
 % 
 % Usage:
-%   ProbeTracking()
-%   ProbeTracking(recording.mat)  % if you have a recording (for debugging)
+%   1) With deamon running in another session:
+%      P = ProbeTracking()  % This will start the reading of the probe
+%      P.recordphysiosignal()  % Record signal and save to file. 
+%        For more details type: help ProbeTracking.recordphysiosignal
+% 
+%   2) Only one session running
+%      TODO
 % 
 % Aux = PROBETRACKING(  )
 %
@@ -247,7 +252,7 @@ if isa( Aux.Source, 'serial' )
     Aux.Data.pRaw(end+1) = tmp(end) ;
     pRaw = Aux.Data.pRaw(end);
     
-    p = Aux.processupdate( ) ;
+    p = filter_signal(Aux.Specs.probeType, pRaw) ;
     p = p(end) ; 
     Aux.Data.p(end+1) = p ;
     
@@ -283,49 +288,50 @@ elseif ischar( Aux.Source )
 end
 
 end  
-% =========================================================================
-function [p] = processupdate( Aux )
-%PROCESSUPDATE
+% % =========================================================================
+% function [p] = processupdate( Aux )
+% %PROCESSUPDATE
+% % 
+% % Filters/detrends raw recording in Aux.Data.pRaw
+% %
+% % [p] = PROCESSRECORDING( Aux )
 % 
-% Filters/detrends raw recording in Aux.Data.pRaw
-%
-% [p] = PROCESSRECORDING( Aux )
-
-% % limiting
-% if length( Aux.Data.pRaw ) > 100
-%
-%     pMean = mean( Aux.Data.pRaw(end-100:end) ) ;
-%     pStd  = std( Aux.Data.pRaw(end-100:end) ) ;
-%
-%     pRaw( abs( Aux.Data.pRaw(end) - pMean ) > 5*pStd ) = [] ;
-%
+% % % limiting
+% % if length( Aux.Data.pRaw ) > 100
+% %
+% %     pMean = mean( Aux.Data.pRaw(end-100:end) ) ;
+% %     pStd  = std( Aux.Data.pRaw(end-100:end) ) ;
+% %
+% %     pRaw( abs( Aux.Data.pRaw(end) - pMean ) > 5*pStd ) = [] ;
+% %
+% % end
+% 
+% switch Aux.Specs.probeType
+%     case 'capacitive'
+%         
+%         pRaw      = Aux.Data.pRaw ;
+%       nSamples    = length(pRaw) ;
+%       t           = Aux.Specs.dt*[0:nSamples-1] ;
+%       nSamplesMin = 5 ;
+% 
+%       if nSamples < nSamplesMin
+%           p = detrend( pRaw, 'constant' ) ;
+%       else
+%           y = polyfit( t, pRaw, 4 ) ;
+%           p = pRaw - polyval( y, t ) ;
+%       end
+% 
+%     case 'pressure'
+%         % local windowing
+%         if length( Aux.Data.pRaw ) > 3000
+%             pRaw = Aux.Data.pRaw((end-3000):end) ;
+%         else
+%             pRaw = Aux.Data.pRaw ;
+%         end
+%       
+%         p = detrend( pRaw, 'constant' ) ;
 % end
-
-switch Aux.Specs.probeType
-    case 'capacitive'
-        pRaw      = Aux.Data.pRaw ;
-      nSamples    = length(pRaw) ;
-      t           = Aux.Specs.dt*[0:nSamples-1] ;
-      nSamplesMin = 5 ;
-
-      if nSamples < nSamplesMin
-          p = detrend( pRaw, 'constant' ) ;
-      else
-          y = polyfit( t, pRaw, 4 ) ;
-          p = pRaw - polyval( y, t ) ;
-      end
-
-    case 'pressure'
-        % local windowing
-        if length( Aux.Data.pRaw ) > 3000
-            pRaw = Aux.Data.pRaw((end-3000):end) ;
-        else
-            pRaw = Aux.Data.pRaw ;
-        end
-      
-        p = detrend( pRaw, 'constant' ) ;
-end
-        
+%         
 end
 % =========================================================================
 function [] = killrecordingdaemon( Aux )
@@ -834,10 +840,11 @@ end
 
 AuxSpecs.clipLimits = [-Inf Inf] ; % [units: probe signal] 
 
-% ------- 
-% Check for device 
+%% Check the presence of the device 
+
 isDeviceFound = false ;
 
+% If user has specified the portName, 
 if  myisfield( AuxSpecs, 'portName' ) && ~isempty(AuxSpecs.portName)
    
     [fileDir,portname, fileExtension] = fileparts( AuxSpecs.portName ) ;
@@ -854,11 +861,9 @@ if  myisfield( AuxSpecs, 'portName' ) && ~isempty(AuxSpecs.portName)
         disp(['Warning: Given port name [ ' AuxSpecs.portName ' ] not found. Checking default port names.']) ;
         AuxSpecs.portName = [] ;
     end
-end
-
-if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
-
-    if ismac
+    
+else
+    if ismac  % macOS
         
         listOfDevices = dir( '/dev/tty.usbmodem*' ) ;
 
@@ -871,7 +876,7 @@ if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
             warning('Ambiguous device identifier. Consider entering portName as argument. See HELP.') ;
         end
 
-    elseif isunix
+    elseif isunix  % Linux
         % if exist('/dev/ttyS100', 'file')  
             AuxSpecs.portName = '/dev/ttyS100' ;
             warning( [ 'ProbeTracking.declareprobe() currently assumes a device address of ' AuxSpecs.portName ' which may be invalid!' ] ) ;
@@ -888,7 +893,10 @@ if  ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
     else
         error( 'OS not supported' ) ;
     end
+
 end
+
+%% Configure the device
 
 if isDeviceFound
     
