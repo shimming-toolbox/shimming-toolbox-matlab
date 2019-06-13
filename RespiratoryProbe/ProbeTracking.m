@@ -1,20 +1,65 @@
 classdef ProbeTracking < matlab.mixin.SetGet
 % PROBETRACKING - Respiratory probe
 % 
-% This class deals with external sensor recording.
+% This class deals with respiratory sensor recording.
 % 
-% Usage:
-%   1) With deamon running in another session:
-%      P = ProbeTracking()  % This will start the reading of the probe
-%      P.recordphysiosignal()  % Record signal and save to file. 
-%        For more details type: help ProbeTracking.recordphysiosignal
-% 
-%   2) Only one session running
-%      TODO
-% 
-% Aux = PROBETRACKING(  )
+% .......
 %
-%   Aux contains fields:
+% Usage
+%
+%   P = ProbeTracking() ;
+%   P = ProbeTracking( Specs ) ;
+%
+%   When called without arguments, ProbeTracking will attempt to find a
+%   connected probe device (in /dev/) based on a set of known device names
+%   (operating system + station dependent). 
+%
+%       [TODO: Add KnownDevices.m ?]
+%
+%   If a device is discovered, by default + and if properly configured (see
+%   NOTE [1]), a second ("daemon") MATLAB session is launched in the background
+%   to record continuously from the device. 
+%   
+%   To record + display the signal at any given moment, the user calls 
+%   P.recordphysiosignal(), which reads back the live recording from the
+%   daemon session through a shared memory-mapping. A graphical STOP button
+%   appears which, when pressed, ends this windowed recording + saves it to file
+%   without ending the background recording (so P.recordphysiosignal() can be
+%   called again). 
+%
+%   For more options, type: HELP ProbeTracking.recordphysiosignal() 
+%
+%
+%   P = ProbeTracking( Specs ) ;
+%
+%   Specs (optional) can have the following fields
+%
+%       [TODO: Add Non-daemon recording option + describe additional Specs]
+%
+% .......
+%
+%   NOTE [1]: The daemon configuration requires 3 things: 
+%
+%       1. The file '~/startup.m' must exist and must add the
+%       realtime_shimming_repository directory to the MATLAB path, e.g.
+%
+%           addpath( genpath( '~/Code/realtime_shimming_repository/' ) ) ;
+%       
+%       2. For #3 to work, matlab needs to exist in the system path, 
+%       e.g. add the following lines (adapted to refer to your version of MATLAB)
+%       to ~/.bash_profile
+%
+%           # add MATLAB path
+%           export PATH=$PATH:/Applications/MATLAB_R2015a.app/bin/ 
+%
+%       3. The user needs to start their MATLAB session from the command line,
+%       and from their home folder, e.g. 
+%           
+%           user@polymtl ~ $ matlab &
+%
+% .......
+%
+%   P has properties:
 %       .Data 
 %       .Log
 %       .Source    
