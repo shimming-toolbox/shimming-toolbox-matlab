@@ -332,7 +332,7 @@ end
 %         p = detrend( pRaw, 'constant' ) ;
 % end
 %         
-end
+% end
 % =========================================================================
 function [] = killrecordingdaemon( Aux )
 %KILLRECORDINGDAEMON
@@ -844,8 +844,8 @@ AuxSpecs.clipLimits = [-Inf Inf] ; % [units: probe signal]
 
 isDeviceFound = false ;
 
-% If user has specified the portName, 
-if  myisfield( AuxSpecs, 'portName' ) && ~isempty(AuxSpecs.portName)
+% If user has specified the portName:
+if myisfield( AuxSpecs, 'portName' ) && ~isempty(AuxSpecs.portName)
    
     [fileDir,portname, fileExtension] = fileparts( AuxSpecs.portName ) ;
     
@@ -861,8 +861,10 @@ if  myisfield( AuxSpecs, 'portName' ) && ~isempty(AuxSpecs.portName)
         disp(['Warning: Given port name [ ' AuxSpecs.portName ' ] not found. Checking default port names.']) ;
         AuxSpecs.portName = [] ;
     end
-    
-else
+end
+
+% If portName unspecified by user, or if user-specified portName was not discovered:
+if ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
     if ismac  % macOS
         
         listOfDevices = dir( '/dev/tty.usbmodem*' ) ;
