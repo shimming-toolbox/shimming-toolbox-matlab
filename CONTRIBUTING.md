@@ -23,7 +23,7 @@ If your are new to git or github, the following articles may help you:
 
 When contributing to the library, for maintainability, please adhere to the
 Matlab programming guidelines outlined by Richard Johnson:
-https://www.mathworks.com/matlabcentral/fileexchange/2529-matlab-programming-style-guidelines
+https://www.mathworks.com/matlabcentral/fileexchange/46056-matlab-style-guidelines-2-0
 
 For general information on OO-programming in Matlab:
 http://www.cs.ubc.ca/~murphyk/Software/matlabTutorial/html/objectOriented.html
