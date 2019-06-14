@@ -50,6 +50,7 @@ if start_fitting
     y_filt = y(x_sub) - y_fit;
 
 else
+    y_fit = y(x_sub);
     y_filt = y;
 end
 
@@ -62,7 +63,7 @@ end
 % y_fit = power(a, x_full);
 % >>>
 
-figure(1)
+figure(10)
 % x = 1:timepoint;
 subplot(2,1,1)
 plot(x, y(x), 'k');
