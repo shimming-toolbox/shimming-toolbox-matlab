@@ -47,7 +47,7 @@ classdef ProbeTracking < matlab.mixin.SetGet
 %       
 %       2. For #3 to work, matlab needs to exist in the system path, 
 %       e.g. add the following lines (adapted to refer to your version of MATLAB)
-%       to ~/.bash_profile
+%       to ~/.bash_profile (or ~/.bashrc)
 %
 %           # add MATLAB path
 %           export PATH=$PATH:/Applications/MATLAB_R2015a.app/bin/ 
@@ -302,9 +302,9 @@ if isa( Aux.Source, 'serial' )
     tmp = fscanf( Aux.Source, '%u', [1 1] ) ;
     
     Aux.Data.pRaw(end+1) = tmp(end) ;
-    pRaw = Aux.Data.pRaw(end);
+%     pRaw = Aux.Data.pRaw(end);
     
-    p = filter_signal(Aux.Specs.probeType, pRaw) ;
+    p = filter_signal(Aux.Specs.probeType, Aux.Log.Data.pRaw(1:Aux.Log.Data.nSamples)) ;
     p = p(end) ; 
     Aux.Data.p(end+1) = p ;
     
