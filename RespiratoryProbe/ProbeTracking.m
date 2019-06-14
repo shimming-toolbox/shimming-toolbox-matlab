@@ -208,7 +208,7 @@ if isa( Aux.Source, 'serial' )
 
     if isRecording
         disp('Communication successful. Reading in from serial port...')
-        Aux.Log.Data.startTime = str2num( datestr( now, 'yyyymmddHHMMSS.FFF') ) ; 
+        Aux.Log.Data.startTime = str2num( datestr( now, 'yyyymmddHHMMSS.FFF') ) ;  % to read it while debugging, use vpa(Aux.Log.Data.startTime)
         Aux.Data.startTime     = Aux.Log.Data.startTime ;
         Aux.Log.Data.endTime   = Inf ; 
         Aux.Data.endTime       = Aux.Log.Data.endTime ; 
