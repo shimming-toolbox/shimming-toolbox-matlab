@@ -1,4 +1,4 @@
-function filter_signal(probe_type, signal)
+function y_filt = filter_signal(probe_type, signal)
 % Filter the input probe signal for drifts and high frequency glitches.
 % 
 % Input:
