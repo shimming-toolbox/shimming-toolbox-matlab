@@ -22,8 +22,8 @@ elseif ischar(signal)
 end
 
 %% Filter signal
-x_first_sample_to_include_in_fitting = 300;
-x_start_fitting = 600;
+x_first_sample_to_include_in_fitting = 1;
+x_start_fitting = 100000000000;
 
 % timepoint = 1;
 % count_zero_cross = 0;
@@ -36,22 +36,29 @@ x_start_fitting = 600;
 x = 1:length(y);
 x_sub = x_first_sample_to_include_in_fitting:length(y);
 
-if length(x) > x_start_fitting
-    start_fitting = true;
-else
-    start_fitting = false;
-end
 
-if start_fitting
-    deg_poly = 3;
-    [p, s, mu] = polyfit(x_sub, y(x_sub), deg_poly);
-    % y_fit = (polyval(p, x_full) + mu(1)) * mu(2);
-    y_fit = polyval(p, x_sub, [], mu);
-    y_filt = y(x_sub) - y_fit;
+switch probe_type
+    case 'pressure'       
+        y_filt = detrend(y, 'constant');
+        
+    case 'capacitive'
+        if length(x) > x_start_fitting
+            start_fitting = true;
+        else
+            start_fitting = false;
+        end
 
-else
-    y_fit = y(x_sub);
-    y_filt = y;
+        if start_fitting
+            deg_poly = 3;
+            [p, s, mu] = polyfit(x_sub, y(x_sub), deg_poly);
+            % y_fit = (polyval(p, x_full) + mu(1)) * mu(2);
+            y_fit = polyval(p, x_sub, [], mu);
+            y_filt = y(x_sub) - y_fit;
+
+        else
+            y_fit = y(x_sub);
+            y_filt = y - y(1);  % - mean(y(1:200));
+        end
 end
 
 % <<< EXPERIMENTAL 
