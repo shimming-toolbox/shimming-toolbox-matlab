@@ -76,10 +76,9 @@ properties
     Specs ; % state = {active, inactive, inert, void}
 end
 
-% =========================================================================
-% =========================================================================
 methods
-% =========================================================================
+    
+%% ========================================================================
 function Aux = ProbeTracking( varargin )
 %PROBETRACKING  
 
@@ -118,7 +117,6 @@ elseif ischar( varargin{1} )
         Specs.state = 'inert' ;
         error('TODO: enable debug mode: previous (raw) recording is loaded and can be processed as if it were a new recording...')
     end
-
 end
 
 if myisfield( Specs, 'state' ) && strcmp( Specs.state, 'inert' )
@@ -133,8 +131,9 @@ else
     end
 end
 
-end    
-% =========================================================================
+end
+
+%% ========================================================================
 function [AuxCopy] = copy( Aux )
 %COPY  
 % 
@@ -148,7 +147,8 @@ AuxCopy = ProbeTracking( Specs ) ;
 AuxCopy.Data = Aux.Data ;
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = delete( Aux )
 %DELETE  
 %
@@ -166,7 +166,8 @@ end
 clear Aux ;
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [isRecording] = beginrecording( Aux )
 %BEGINRECORDING - Initialize & open (RS-232) communication port 
 %
@@ -222,7 +223,8 @@ else
 end
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = calibratelimiting( Aux, Params )
 %CALIBRATELIMITING 
 %
@@ -244,7 +246,8 @@ Aux.Specs.clipLimits = [ ( mean(signal) - 5*std(signal) ), ...
                          ( mean(signal) + 5*std(signal) ) ] ;
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = stoprecording( Aux )
 %STOPRECORDING 
 % 
@@ -260,7 +263,8 @@ if isa( Aux.Source, 'serial' )
 end
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = clearrecording( Aux )
 %CLEARRECORDING  
 %
@@ -278,7 +282,8 @@ Aux.Data.endTime   = [] ;
 Aux.Data.iSample   = [] ; 
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [pRaw, p, t] = getupdate( Aux )
 %GETUPDATE 
 %
@@ -332,7 +337,8 @@ elseif ischar( Aux.Source )
 
 end
 
-end  
+end
+
 % % =========================================================================
 % function [p] = processupdate( Aux )
 % %PROCESSUPDATE
@@ -378,7 +384,8 @@ end
 % end
 %         
 % end
-% =========================================================================
+
+%% ========================================================================
 function [] = killrecordingdaemon( Aux )
 %KILLRECORDINGDAEMON
 %
@@ -387,7 +394,8 @@ function [] = killrecordingdaemon( Aux )
 Aux.Log.Data.isLogging = uint64(0) ; 
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = recordandplotphysiosignal( Aux, Params ) 
 %RECORDANDPLOTPHYSIOSIGNAL
 %   
@@ -445,7 +453,8 @@ if isSavingData
 end
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = recordphysiosignal( Aux1, varargin )
 %RECORDPHYSIOSIGNAL  
 %
@@ -669,7 +678,8 @@ if Params.isSavingData
 end
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = saverecording( Aux, logFilename )
 %SAVERECORDING
 %
@@ -696,7 +706,8 @@ Data.probeType = Aux.Specs.probeType ;
 save( logFilename, 'Data' ) ;
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = resetdaemon( Aux )
 %RESETDAEMON
 % 
@@ -711,19 +722,12 @@ Aux.clearrecording() ;
 Aux.Log.Data.endTime = 0 ; 
 
 end
-% =========================================================================
 
-% =========================================================================
-% =========================================================================
 end
 
 % =========================================================================
-% =========================================================================
-
-% =========================================================================
-% =========================================================================
 methods( Access =  private)
-% =========================================================================
+%% ========================================================================
 function [] = createlogfile( Aux )
 %CREATELOGFILE
 % 
@@ -756,7 +760,8 @@ Aux.Log.Data.isLogging = uint64(true) ;
 Aux.Log.Data.endTime   = Inf ;
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [nSamples, pRaw, p, t] = readupdatefromlogfile( Aux )
 %READUPDATEFROMLOGFILE
 
@@ -781,7 +786,8 @@ p    = Aux.Log.Data.p( nSamples ) ;
 t    = length( Aux.Data.p ) * Aux.Specs.dt ;
  
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = writeupdatetologfile( Aux )
 %WRITEUPDATETOLOGFILE
 
@@ -792,7 +798,8 @@ Aux.Log.Data.pRaw( Aux.Log.Data.nSamples+1 ) = Aux.Data.pRaw(end) ;
 Aux.Log.Data.p( Aux.Log.Data.nSamples+1 )    = Aux.Data.p(end) ;
    
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = createrecordingdaemon( Aux )
 %CREATERECORDINGDAEMON
 % 
@@ -819,7 +826,8 @@ cd( tmpDir ) ;
 Aux.Source = 'logFile' ;
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = launchrecordingdaemon( Aux )
 %LAUNCHRECORDINGDAEMON
 % 
@@ -852,9 +860,9 @@ end
 end
 
 % =========================================================================
-% =========================================================================
 methods(Static)
-% =========================================================================
+
+%% ========================================================================
 function [Source, AuxSpecs] = declareprobe( AuxSpecs )
 %DECLAREPROBE Declares serial object for probe 
 % 
@@ -885,10 +893,8 @@ end
 
 AuxSpecs.clipLimits = [-Inf Inf] ; % [units: probe signal] 
 
-%% Check the presence of the device 
-
+% Check the presence of the device 
 isDeviceFound = false ;
-
 % If user has specified the portName:
 if myisfield( AuxSpecs, 'portName' ) && ~isempty(AuxSpecs.portName)
    
@@ -943,8 +949,7 @@ if ~myisfield( AuxSpecs, 'portName' ) || isempty(AuxSpecs.portName)
 
 end
 
-%% Configure the device
-
+% Configure the device
 if isDeviceFound
     
     AuxSpecs.state = 'inactive' ;
@@ -990,7 +995,8 @@ else
 end
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [p, sampleTimes] = loadmeasurementlog( measurementLogFilename, sampleTimesFilename )
 %LOADMEASUREMENTLOG
 % 
@@ -1027,7 +1033,8 @@ else
 end
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [] = plotmeasurementlog( measurementLog, Params )
 %PLOTMEASUREMENTLOG
 %
@@ -1079,7 +1086,8 @@ title( Params.figureTitle ) ;
 ylabel( Params.yLabel ) ;
 
 end
-% =========================================================================
+
+%% ========================================================================
 function [iFlattest] = findflattest( measurementLog, nSamples )
 %FINDFLATTEST 
 %
@@ -1228,7 +1236,7 @@ while ~isUserSatisfied
 end
 
 end
-% =========================================================================1
+% =========================================================================
 % =========================================================================
 
 end
