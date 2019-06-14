@@ -1,47 +1,39 @@
 classdef MaRdI < matlab.mixin.SetGet 
 %MaRdI Ma(t)-R-dI(com)
 %
-% .......
-%   
-% Description
-%
 %   Dicom into Matlab for Siemens MRI data
 %
 % .......
 %   
 % Usage
 %
-% Img = MaRdI( imgPath )
+%   Img = MaRdI( imgPath )
 % 
-% where imgPath is the path to a single .dcm image OR a directory containing
-% the .dcm or .IMA images.
+%   where imgPath is the path to a single .dcm image OR a directory containing
+%   the .dcm or .IMA images.
 %
 % Img contains fields
 %
 %   .img
-%       Array of images (3D if there are multiple DICOMs in directory)
+%       Array of images: 
+%       If multi-echo, the echo index is along the 4th dimension;
+%       If multiple volume repetitions, the measurement index is along the 5th dimension.
 %
 %   .Hdr
 %       DICOM header 
 %       
 %   .Aux
-%       Aux-objects: auxiliary measurements (e.g. PMU/respiratory probe tracking)
+%       Aux-objects: auxiliary measurements (e.g. respiratory ProbeTracking)
 %
 % .......
 %
-% Dependencies
-%   
-%   Matlab's Image Processing Toolbox 
-%   
-%   myisfield.m
-%       http://www.mathworks.com/matlabcentral/fileexchange/36862-viewprofiles/content/viewProfiles/myIsField.m
-%   
-%   parse-dicom Matlab functions
-%       https://github.com/Human-Connectome-Project/parse-dicom
-% etc.
+% NOTE
+%
+%   A number of MaRdI methods are deprecated and need to be either adapted
+%   (if they might still be useful) or deleted entirely.
 %
 % =========================================================================
-% Updated::20190507::ryan.topfer@polymtl.ca
+% Author: ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -119,12 +111,12 @@ if nargin == 1
         % Image headers, not yet organized:
         RawHdrs        = cell( nImages, 1 ) ; 
         
-       % Read all the image headers and structure the MaRdI object accordingly:
-       %
-       % NOTE: It may well be possible to determine all the necessary info from
-       % the complete Siemens header (e.g. SpecialHdr) of a single image;
-       % practically, however, the following is easier since the header
-       % information is abstrusely defined for some sequences.
+        % Read all the image headers and structure the MaRdI object accordingly:
+        %
+        % NOTE: It may well be possible to determine all the necessary info from
+        % the complete Siemens header (e.g. SpecialHdr) of a single image;
+        % practically, however, the following is easier since the header
+        % information is abstrusely defined for some sequences.
         for iImg = 1 : nImages
             % using dicominfo() here as parse-siemens-shadow() takes much longer
             RawHdrs{ iImg }      = dicominfo( imgList{iImg} ) ;
@@ -181,26 +173,19 @@ end
 end
 % =========================================================================
 % *** TODO
-% 
-% ..... 
-% MaRdI( ) [constructor] 
-%
-%   Option to call Img = MaRdI( img, Hdr ) 
-%   such that an object can be instantiated using an array of doubles and 
-%   an appropriate dicom Hdr.  
-%
 % ..... 
 % CROPIMG
 %   make compatible for odd-sized arrays
 % ..... 
 % RESLICEIMG()
-%   griddata takes too long.
-%   write interp function in cpp
-%   Clean up 'resliceimg()'
+%   griddata takes too long (possible solution: write interp function in cpp?)
+%   Clean up 
 % ..... 
-% Saving FIELD as DICOM
-%      -> (do not save image type as phase)
-%      -> must save proper ImagePositionPatient info
+% Saving as DICOM
+%   (maybe better just to avoid and delete this for now?)
+%
+%   -> (do not save image type as phase)
+%   -> must save proper ImagePositionPatient info
 % 
 % ..... 
 % Write static comparegrid() function or something to ensure operations involving
