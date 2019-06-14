@@ -99,6 +99,7 @@ if nargin < 1 || isempty( varargin{1} )
 elseif isstruct( varargin{1} )
     Specs = varargin{1} ;
 
+% If daemon (or user) launched: ProbeTracking(PATH_TO_AUX)
 elseif ischar( varargin{1} )
     
     filename = varargin{1} ;
