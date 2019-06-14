@@ -29,12 +29,14 @@ classdef ProbeTracking < matlab.mixin.SetGet
 %
 %   For more options, type: help ProbeTracking.recordphysiosignal
 %
-%
 %   P = ProbeTracking( Specs ) ;
 %
 %   Specs (optional) can have the following fields
 %
-%       [TODO: Add Non-daemon recording option and describe additional Specs]
+%       .isRecordingDaemonEnabled 
+%           If true, device I/O (probe recording) and signal processing are 
+%           performed in a secondary background/daemon MATLAB session.
+%           User session can still monitor the live recording with Probe.recordphysiosignal()
 %
 % .......
 %
@@ -128,7 +130,9 @@ else
     
     if isa( Aux.Source, 'serial' )    
         Aux.createlogfile() ;
-        Aux.createrecordingdaemon() ;
+        if Aux.Specs.isRecordingDaemonEnabled
+            Aux.createrecordingdaemon() ;
+        end
     end
 end
 
@@ -302,9 +306,8 @@ if isa( Aux.Source, 'serial' )
     tmp = fscanf( Aux.Source, '%u', [1 1] ) ;
     
     Aux.Data.pRaw(end+1) = tmp(end) ;
-%     pRaw = Aux.Data.pRaw(end);
     
-    p = filter_signal(Aux.Specs.probeType, Aux.Log.Data.pRaw(1:Aux.Log.Data.nSamples)) ;
+    p = filter_signal( Aux.Specs.probeType, Aux.Data.pRaw ) ;
     p = p(end) ; 
     Aux.Data.p(end+1) = p ;
     
@@ -312,21 +315,6 @@ if isa( Aux.Source, 'serial' )
     
     t = Aux.Log.Data.nSamples * Aux.Specs.dt ;
     Aux.Data.t(end+1) = t ;
-
-    % % if ( Aux.Data.pRaw(end) > Aux.Specs.clipLimits(1) ) ...
-    % %         && ( Aux.Data.pRaw(end) < Aux.Specs.clipLimits(2) )
-    % %
-    % %     Aux.Data.p(end+1) = Aux.Data.pRaw(end) ;
-    % % else
-    % %     % replace with most recent unclipped/undistorted sample:
-    % %     Aux.Data.p(end+1) = Aux.Data.p(end) ;
-    % % end
-    % Aux.Data.p(end+1) = p(end) ;
-    %
-    % p = p(end) ;
-    %
-    % n = length(Aux.Data.pRaw);
-    % Aux.Log.Data(n) = p ;
 
 % Reading from temp file buffer
 elseif ischar( Aux.Source ) 
@@ -872,14 +860,16 @@ function [Source, AuxSpecs] = declareprobe( AuxSpecs )
 % [Source, AuxSpecs] = declareprobe( AuxSpecs )
 %
 % AuxSpecs can have the following fields 
+% 
+% .isRecordingDaemonEnabled 
+%   Perform device I/O (probe recording) and signal processing in a 
+%   secondary background/daemon MATLAB session.
+%   User session can monitor the live recording with Probe.recordphysiosignal()
+%   [default = true]
 %
 % .portName 
 %   Address of the probe-associated serial port within file system
-%   default: 
-%       if ismac 
-%           portName = '/dev/tty.usbmodem*'
-%       elseif isunix
-%           portName = '/dev/ttyS100'
+%   e.g. AuxSpecs.portName = '/dev/tty.usbmodem487312' ;
 
 % NOTE 
 %   System specs are hardcoded into the probe microcontroller. 
@@ -890,8 +880,14 @@ DEFAULT_ARDUINOPERIOD = 100 ; % [units: ms]
 DEFAULT_TEENSYPERIOD  = 100 ; % [units: ms] 
 DEFAULT_BAUDRATE      = 115200 ;
 
+DEFAULT_ISRECORDINGDAEMONENABLED = true ;
+
 if nargin < 1 || isempty( AuxSpecs )
     AuxSpecs.dummy = [] ;
+end
+
+if ~myisfield( AuxSpecs, 'isRecordingDaemonEnabled' ) || isempty(AuxSpecs.isRecordingDaemonEnabled)
+    AuxSpecs.isRecordingDaemonEnabled = DEFAULT_ISRECORDINGDAEMONENABLED ;
 end
 
 AuxSpecs.clipLimits = [-Inf Inf] ; % [units: probe signal] 
@@ -959,12 +955,12 @@ if isDeviceFound
     
     % Check device type 
     % NOTE : names probably need to change computer-to-computer!
-    if strfind(AuxSpecs.portName, '/dev/tty.usbmodem487312') || strfind(AuxSpecs.portName, '/dev/tty.usbmodem447189')
+    if ~isempty(strfind(AuxSpecs.portName, '/dev/tty.usbmodem487312')) || ~isempty(strfind(AuxSpecs.portName, '/dev/tty.usbmodem447189'))
         AuxSpecs.probeType = 'capacitive' ;
-    elseif strfind(AuxSpecs.portName, '/dev/tty.usbmodem14101') || strfind(AuxSpecs.portName, '/dev/tty.usbmodem14201')
+    elseif ~isempty(strfind(AuxSpecs.portName, '/dev/tty.usbmodem14101')) || ~isempty(strfind(AuxSpecs.portName, '/dev/tty.usbmodem14201'))
         AuxSpecs.probeType = 'pressure' ;
     else
-        error('Probe type was not found. Please check your /dev folder and see if you identify the probe (should start with tty.usbmodem and add this case in the code');
+        error('Probe was not found. Please check your /dev folder and see if you identify the probe (should start with tty.usbmodem and add this case in the code');
     end
 
     switch AuxSpecs.probeType
