@@ -63,24 +63,26 @@ end
 % y_fit = power(a, x_full);
 % >>>
 
-figure(10)
-% x = 1:timepoint;
-subplot(2,1,1)
-plot(x, y(x), 'k');
-hold on
-plot(x_sub, y_fit, 'r');
-hold off
-title('Raw signal.')  % Do we need that? --> Estimated frequency: ', num2str(meanfreq(y))])
-legend('Raw signal', 'Fitted signal')
-ylabel('Frequency [KHz]')
-grid on
-if start_fitting
-    subplot(2,1,2)
-    plot(x_sub, y_filt, 'k');
-    title(['Normalized signal (deg\_poly=' num2str(deg_poly) ')'])
-    xlabel('Time [s]')  % TODO: fix label unit with sampling rate
+do_plot = false;
+if do_plot
+    figure(10)
+    % x = 1:timepoint;
+    subplot(2,1,1)
+    plot(x, y(x), 'k');
+    hold on
+    plot(x_sub, y_fit, 'r');
+    hold off
+    title('Raw signal.')  % Do we need that? --> Estimated frequency: ', num2str(meanfreq(y))])
+    % legend('Raw signal', 'Fitted signal')
+    ylabel('Frequency [KHz]')
     grid on
-end
+    if start_fitting
+        subplot(2,1,2)
+        plot(x_sub, y_filt, 'k');
+        title(['Normalized signal (deg\_poly=' num2str(deg_poly) ')'])
+        xlabel('Time [s]')  % TODO: fix label unit with sampling rate
+        grid on
+    end
 end
 
 % 
