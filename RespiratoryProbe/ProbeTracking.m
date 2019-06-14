@@ -31,12 +31,12 @@ classdef ProbeTracking < matlab.mixin.SetGet
 %
 %   P = ProbeTracking( Specs ) ;
 %
-%   Specs (optional) can have the following fields
-%
-%       .isRecordingDaemonEnabled 
-%           If true, device I/O (probe recording) and signal processing are 
-%           performed in a secondary background/daemon MATLAB session.
-%           User session can still monitor the live recording with Probe.recordphysiosignal()
+%       Specs.isRecordingDaemonEnabled (bool)
+%           true: device I/O (probe recording) and signal processing are 
+%             performed in a secondary background/daemon MATLAB session.
+%             User session can still monitor the live recording with Probe.recordphysiosignal()
+%           false: device I/O and signal processing is done in the same 
+%             session. This is useful for debugging. 
 %
 % .......
 %
