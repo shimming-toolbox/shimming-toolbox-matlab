@@ -294,6 +294,7 @@ function [pRaw, p, t] = getupdate( Aux )
 %
 % p is either read from the open com port, or from the temp file buffer.
 
+% Reading from open com port
 if isa( Aux.Source, 'serial' ) 
     assert( strcmp( Aux.Source.Status, 'open' ), 'Error: Serial port is closed.' );
 
@@ -326,6 +327,7 @@ if isa( Aux.Source, 'serial' )
     % n = length(Aux.Data.pRaw);
     % Aux.Log.Data(n) = p ;
 
+% Reading from temp file buffer
 elseif ischar( Aux.Source ) 
 
     [iSample, pRaw, p, t] = Aux.readupdatefromlogfile( ) ;
