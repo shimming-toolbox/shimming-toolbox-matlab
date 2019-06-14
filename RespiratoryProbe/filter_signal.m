@@ -8,7 +8,7 @@ function filter_signal(probe_type, signal)
 %     the raw signal to filter.
 % 
 
-
+% TODO: implement feature based on probe_type
 % signal = '/Users/julien/Desktop/capacitive_probe_baseline-capacitor';
 
 %% Load signal
