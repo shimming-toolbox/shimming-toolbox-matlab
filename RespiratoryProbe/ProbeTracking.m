@@ -38,6 +38,17 @@ classdef ProbeTracking < matlab.mixin.SetGet
 %           false: device I/O and signal processing is done in the same 
 %             session. This is useful for debugging. 
 %
+%   For dual recording (e.g., pressure + capacitive probe), do the
+%   following:
+%   Plug both probes, then launch the deamon for one probe:
+%     P = ProbeTracking();
+%   Then, create a new structure with portName of the 2nd probe:
+%     AuxSpecs.portName = 'tty.usbmodem4873121' (find the proper port address under /dev after plugging the usb)
+%   Create a new object (daemon):
+%     C = ProbeTracking(AuxSpecs)
+%   To record with both probes:
+%     P.recordphysiosignal(C)
+% 
 % .......
 %
 %   NOTE [1]: The daemon configuration requires 3 things: 
@@ -957,7 +968,7 @@ if isDeviceFound
     % NOTE : names probably need to change computer-to-computer!
     if ~isempty(strfind(AuxSpecs.portName, '/dev/tty.usbmodem487312')) || ~isempty(strfind(AuxSpecs.portName, '/dev/tty.usbmodem447189'))
         AuxSpecs.probeType = 'capacitive' ;
-    elseif ~isempty(strfind(AuxSpecs.portName, '/dev/tty.usbmodem14101')) || ~isempty(strfind(AuxSpecs.portName, '/dev/tty.usbmodem14201'))
+    elseif ~isempty(strfind(AuxSpecs.portName, '/dev/tty.usbmodem141')) || ~isempty(strfind(AuxSpecs.portName, '/dev/tty.usbmodem142'))
         AuxSpecs.probeType = 'pressure' ;
     else
         error('Probe was not found. Please check your /dev folder and see if you identify the probe (should start with tty.usbmodem and add this case in the code');
