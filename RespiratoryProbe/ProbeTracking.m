@@ -956,11 +956,12 @@ if isDeviceFound
     
     % Check device type 
     % NOTE : names probably need to change computer-to-computer!
-    switch AuxSpecs.portName 
-        case { '/dev/tty.usbmodem4471890','/dev/tty.usbmodem4873120','/dev/tty.usbmodem48731201' } 
-            AuxSpecs.probeType = 'capacitive' ;
-        case { '/dev/tty.usbmodem14101','/dev/tty.usbmodem14201' } 
-            AuxSpecs.probeType = 'pressure' ;
+    if strfind(AuxSpecs.portName, '/dev/tty.usbmodem487312') || strfind(AuxSpecs.portName, '/dev/tty.usbmodem447189')
+        AuxSpecs.probeType = 'capacitive' ;
+    elseif strfind(AuxSpecs.portName, '/dev/tty.usbmodem14101') || strfind(AuxSpecs.portName, '/dev/tty.usbmodem14201')
+        AuxSpecs.probeType = 'pressure' ;
+    else
+        error('Probe type was not found. Please check your /dev folder and see if you identify the probe (should start with tty.usbmodem and add this case in the code');
     end
 
     switch AuxSpecs.probeType
