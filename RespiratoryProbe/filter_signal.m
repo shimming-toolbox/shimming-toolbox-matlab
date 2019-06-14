@@ -9,7 +9,7 @@ function filter_signal(probe_type, signal)
 % 
 
 
-signal = '/Users/julien/Desktop/capacitive_probe_baseline-capacitor';
+% signal = '/Users/julien/Desktop/capacitive_probe_baseline-capacitor';
 
 %% Load signal
 if isnumeric(signal)
