@@ -9,29 +9,25 @@ classdef (Abstract) ShimOpt < FieldEval
 % Shim = ShimOpt( Params )
 % Shim = ShimOpt( Params, Field )
 % 
-% Inputs
+% Inputs (Optional)
 %
-%   Field [MaRdI-type object]
-%       The original field to be shimmed. (Optional.)
+%   Field 
+%       A FieldEval-type object pertaining to the field map to be targetted by
+%       shimming.
 %
 %   Params can have the following fields
 %
 %       .pathToShimReferenceMaps
-%           file path to .mat containing shim reference maps (ie basis fields) &
+%           File path to .mat containing shim reference maps (ie basis fields) &
 %           .Hdr info
 %
 %       .TrackerSpecs 
-%           parameters struct for ProbeTracking(). 
-%           See HELP ProbeTracking() for more information.
-%       
-%       .isInterpolatingReferenceMaps [== true (default) OR false] 
-%           if true,
-%           when ShimOpt() is called with the Field argument, interpolation of the
-%           reference maps onto the grid of the Field image is done automatically.
+%           Parameters struct for ProbeTracking(). 
+%           Type HELP ProbeTracking for more information.
 %
 % Outputs
 %
-%   Shim contains fields
+%   Shim possesses the following properties:
 %
 %       .img
 %           Shim reference maps
@@ -41,13 +37,18 @@ classdef (Abstract) ShimOpt < FieldEval
 %           (e.g. Hdr.MaskingImage defines the spatial support of the ref maps)
 %
 %       .Field
-%           Object of type FieldEval pertaining to field distribution to be shimmed
+%           As defined above in Inputs.
+%           Field can be supplied as an input during ShimOpt instantiation,
+%           or, at later point by calling Shim.setoriginalfield( Field ) ;
 %
 %       .Aux
 %           .Shim
 %               When Shim does not itself refer to the scanner shims, then .Aux 
 %               is a ShimOpt object corresponding to the MRI host system.
-%
+%       
+%       .Tracker
+%           A ProbeTracking-type object (device should be connected during
+%           ShimOpt instantiation if the user intends to do real-time shimming).
 %
 %       .Model
 %           .currents  
@@ -71,22 +72,14 @@ classdef (Abstract) ShimOpt < FieldEval
 %           .Specs
 %               Object of a type of ShimSpecs sub-class (e.g. ShimSpecs_IUGM_Prisma_fit) 
 %
+% .......
 %
-% =========================================================================
-% Notes
-%
-% Part of series of classes pertaining to shimming:
-%
-%    ShimCal
-%    ShimCom
-%    ShimOpt
-%    ShimSpecs
-%    ShimUse
+% NOTE
 %
 % ShimOpt is a FieldEval subclass [ShimOpt < FieldEval < MaRdI]
 %     
 % =========================================================================
-% Updated::20181022::ryan.topfer@polymtl.ca
+% Author: ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -151,7 +144,7 @@ end
 
 Params = ShimOpt.assigndefaultparameters( Params ) ;
 
-% .......
+%% .......
 % Load shim basis if provided 
 if ~isempty(Params.pathToShimReferenceMaps)
     

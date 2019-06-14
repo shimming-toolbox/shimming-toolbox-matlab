@@ -74,7 +74,7 @@ Series of classes pertaining to shimming:
 
 *Shim control via high-level commands.*
 
-**AuxTracking( )**
+**ProbeTracking( )**
 
 *Dynamic tracking of resonance offsets (for now: only subject respiration vis-a-vis the respiratory probe...).*
 
