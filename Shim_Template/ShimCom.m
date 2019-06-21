@@ -29,23 +29,11 @@ classdef (Abstract) ShimCom < matlab.mixin.SetGet
 %
 %       .Specs
 %
-% =========================================================================
-%
-%   Part of series of classes pertaining to shimming:
-%
-%    Tracking
-%    ShimCal
-%    ShimCom
-%    ShimEval
-%    ShimOpt
-%    ShimSpecs
-%    ShimTest 
-%    ShimUse
 %    
 %    ShimCom is an Abstract class.
 %
 % =========================================================================
-% Updated::20181027::ryan.topfer@polymtl.ca
+% Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
 
