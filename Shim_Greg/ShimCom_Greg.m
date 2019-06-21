@@ -63,6 +63,7 @@ end
 % =========================================================================
 function [isAckReceived] = getsystemheartbeat( Shim ) ;
 %GETSYSTEMHEARTBEAT
+% Check if shim system is responding.
 
 Shim.Params.nBytesToRead = 1 ;   
 Shim.Data.output = Shim.Cmd.getSystemHeartbeat ;
