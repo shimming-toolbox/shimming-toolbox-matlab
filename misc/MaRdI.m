@@ -1036,17 +1036,25 @@ end
 % =========================================================================
 function [] = write( Img, saveDirectory, imgFormat )
 %WRITE Ma(t)-R-dI(com)
+% 
+% Write MaRdI image object to DICOM and/or NifTI
 %
 %.....
-%   Syntax
+%
+%   Usage 
 %
 %   WRITE( Img )
 %   WRITE( Img, saveDirectory )
 %   WRITE( Img, saveDirectory, imgFormat ) 
 %
+%   Inputs
+%
 %   default saveDirectory = './tmp'
 %   
-%   imgFormat may be 'dcm' (default) or 'nii'
+%   imgFormat can be:
+%       'dcm' [default]
+%       'nii' (creating temporary DICOMs which are deleted after the system call to dcm2niix)
+%       'both' (does not delete the DICOMs)
 %
 %.....
 %
@@ -1068,8 +1076,7 @@ fprintf(['\n Writing images to: ' saveDirectory ' ... \n'])
 
 [~,~,~] = mkdir( saveDirectory ) ;
 
-TmpParams.isUndoing = true ;
-Img = scaleimgtophysical( Img, TmpParams ) ;
+Img = rescaleimg( Img, true ) ;
 
 [X,Y,Z] = Img.getvoxelpositions() ;
 
@@ -1087,11 +1094,8 @@ Hdr.StudyID                 = num2str(SN);
 Hdr.PatientID               = num2str(SN);
 Hdr.AccessionNumber         = num2str(SN);
 
-% Hdr.StudyInstanceUID        = Img.Hdr.StudyInstanceUID ;
-
-
 % copy from original
-Hdr.ImageType               = Img.Hdr.ImageType ; % TODO: 20180716: proper redefinition in .scaleimgtophysical()
+Hdr.ImageType               = Img.Hdr.ImageType ; 
 
 Hdr.StudyDescription        = Img.Hdr.StudyDescription ;
 Hdr.SeriesDescription       = Img.Hdr.SeriesDescription ;
@@ -1109,47 +1113,65 @@ Hdr.ImageOrientationPatient = Img.Hdr.ImageOrientationPatient ;
 Hdr.SliceLocation           = Img.Hdr.SliceLocation ; 
 Hdr.NumberOfSlices          = Img.Hdr.NumberOfSlices ; 
 
+Hdr.AcquisitionMatrix       = Img.Hdr.AcquisitionMatrix ; 
+Hdr.RepetitionTime          = Img.Hdr.RepetitionTime ; 
+Hdr.NumberOfAverages        = Img.Hdr.NumberOfAverages ; 
+Hdr.PercentSampling         = Img.Hdr.PercentSampling ; 
+Hdr.PercentPhaseFieldOfView = Img.Hdr.PercentPhaseFieldOfView ; 
+Hdr.InPlanePhaseEncodingDirection  = Img.Hdr.InPlanePhaseEncodingDirection ; 
+
 [rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 
-for iSlice = 1 : Img.Hdr.NumberOfSlices 
-    
-    %-------
-    % filename 
-    sliceSuffix = '000000' ;
-    sliceSuffix = [sliceSuffix( length(iSlice) : end ) num2str(iSlice) ] ;
-    sliceSuffix = ['-' sliceSuffix '.dcm'] ;
-    filename    = [saveDirectory '/' Img.Hdr.PatientName.FamilyName sliceSuffix] ;
+nSlices       = Img.Hdr.NumberOfSlices ;
+nEchoes       = numel( Img.echotime ) ;
+nAcquisitions = numel( Img.getacquisitiontime ) ;
 
-    %-------
-    % slice specific hdr info 
-    Hdr.ImageNumber          = iSlice ;
-    Hdr.InstanceNumber       = iSlice ;
-    Hdr.ImagePositionPatient = [(X(1,1,iSlice)) (Y(1,1,iSlice)) (Z(1,1,iSlice))] ;
+nImg = nSlices*nEchoes*nAcquisitions ;
 
-    Hdr.SliceLocation        = dot( Hdr.ImagePositionPatient, sHat ) ;
-   
-    dicomwrite( Img.img(:,:,iSlice) , filename, ...; % Hdr ) ;
-        'ObjectType', 'MR Image Storage',Hdr ) ;
+for iSlice = 1 : nSlices 
+    for iEcho  = 1 : nEchoes 
+        for iAcq = 1 : nAcquisitions  
+
+            iImg = iSlice*iEcho*iAcq ;
+
+            disp( [num2str(100*iImg/nImg) '% ...'] ) ;
     
-    if( iSlice==1 )
-        info                  = dicominfo( filename ) ;
-        Hdr.StudyInstanceUID  = info.StudyInstanceUID ;
-        Hdr.SeriesInstanceUID = info.SeriesInstanceUID ;
+            %-------
+            % filename 
+            sliceSuffix = '000000' ;
+            sliceSuffix = [ sliceSuffix( length(iSlice) : end ) num2str(iSlice) '-' num2str(iEcho) '-' num2str(iAcq) ] ;
+            sliceSuffix = ['-' sliceSuffix '.dcm'] ;
+            filename    = [saveDirectory '/' Img.Hdr.PatientName.FamilyName sliceSuffix] ;
+
+            %-------
+            % image specific hdr info 
+            Hdr.ImageNumber          = iSlice*iEcho*iAcq ;
+            Hdr.InstanceNumber       = iSlice*iEcho*iAcq ;
+            Hdr.AcquisitionTime      = Img.Hdrs{iSlice,iEcho,iAcq}.AcquisitionTime ;
+            
+            Hdr.ImagePositionPatient = [(X(1,1,iSlice)) (Y(1,1,iSlice)) (Z(1,1,iSlice))] ;
+
+            Hdr.SliceLocation        = dot( Hdr.ImagePositionPatient, sHat ) ;
+           
+            dicomwrite( Img.img(:,:,iSlice,iEcho, iAcq) , filename, 'ObjectType', 'MR Image Storage', Hdr ) ;
+            
+            if( iSlice==1 )
+                info                  = dicominfo( filename ) ;
+                Hdr.StudyInstanceUID  = info.StudyInstanceUID ;
+                Hdr.SeriesInstanceUID = info.SeriesInstanceUID ;
+            end
+
+        end
     end
-
 end
 
 %-------
-if strcmp( imgFormat, 'nii' ) 
+if ~strcmp( imgFormat, 'dcm' )
+    system(['dcm2niix ' saveDirectory]) ;
     
-    tmpSaveDirectory = [saveDirectory '_nii'] ;
-    [~,~,~] = mkdir( tmpSaveDirectory ) ;
-    
-    dicm2nii( saveDirectory, tmpSaveDirectory ) ;
-    rmdir( saveDirectory, 's' ) ;
-
-    copyfile( tmpSaveDirectory, saveDirectory ) ;
-    rmdir( tmpSaveDirectory, 's' ) ;
+    if strcmp( imgFormat, 'nii' )
+        delete( [saveDirectory '/*.dcm'] ) ;
+    end
 end
 
 end
