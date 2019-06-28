@@ -15,13 +15,26 @@ pathToPhase = '/Users/ryan/Projects/Shimming/Acdc/20190511_Ismrm/data/acdc_69/14
 % for more info, see HELP FieldEval.mapfield
 
 % relative to max magnitude: defines the binary mask for phase unwrapping
-Params.threshold = 0.01 ;
+Params.threshold = 0.05 ;
 
 % assign the unwrapping method (must be 'sunwrap' for single 2d slice)
 Params.unwrapper = 'sunwrap' ;
 
 %% -------
 % Create FieldEval object:
+Field = FieldEval.mapfield( pathToMag, pathToPhase, Params ) ;
 
-Field = FieldEval.mapfield( pathToMag, pathToPhase ) ;
- 
+%% -------
+% At this point, the user has access to a number of methods, e.g.: 
+% see HELP for 
+% Field.assessfielddistribution()
+% etc.
+
+% e.g. create NifTI output
+% 
+% NOTE: 
+% This calls MaRdI.write(), which creates temporary DICOMs, followed by a system call to dicm2niix 
+% This has not been extensively tested and some of Hdr info may be incomplete:
+
+pathToNii = './field/' ; % where to save the images
+Field.write( pathToNii, 'nii' )
