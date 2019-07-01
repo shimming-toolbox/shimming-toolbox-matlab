@@ -19,6 +19,7 @@ Before running this software you will need to install the following dependencies
 - MATLAB (tested on R2015A, but more recent versions are expected to work)
   - Optimization toolbox
   - Image processing toolbox
+- [dcm2niix](https://github.com/rordenlab/dcm2niix#install)
 - [SCT v 4.0.0](https://github.com/neuropoly/spinalcordtoolbox)
 
 To install, download (or `git clone`) this repository and add this folder (with sub-folders) to the Matlab path.
