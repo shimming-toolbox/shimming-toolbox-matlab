@@ -844,7 +844,7 @@ Params.imgSlice     = 14 ;
 
 Params.scaling      = [ -300 300 ] ;
 Params.filename     = [Params.mediaSaveDir '/fieldShimmed_Dc_s_dynamic' num2str(Params.imgSlice)] ;
-MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*PredictedField.img(:,:,Params.imgSlice), Params ) ;
+MaRdI.savefigure( Params.validityMask(:,:, Params.imgSlice ).*PredictedField.img(:,:,Params.imgSlice), Params ) ;
         
 if Params.isRealtimeShimming
     filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction_dynamic' ] ;
@@ -852,7 +852,7 @@ if Params.isRealtimeShimming
 
     Params.scaling      = [ -20 20 ] ;
     Params.filename     = [Params.mediaSaveDir '/riro_s_dynamic' num2str(Params.imgSlice)] ;
-    MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*PredictedRiro.img(:,:, Params.imgSlice), Params ) ;
+    MaRdI.savefigure( Params.validityMask(:,:, Params.imgSlice ).*PredictedRiro.img(:,:, Params.imgSlice), Params ) ;
 end
 
 % reset shim voi
@@ -1437,16 +1437,16 @@ if Params.isSavingResultsTable
     Params.colormap     = 'gray' ;
 
     Params.filename     = [Params.mediaSaveDir '/shimVoi_s' num2str(Params.imgSlice)] ;
-    MaRdI.writeimg( Params.assessmentVoi(:,:, Params.imgSlice ), Params ) ;
+    MaRdI.savefigure( Params.assessmentVoi(:,:, Params.imgSlice ), Params ) ;
     
     Params.scaling      = [ -100 100 ] ;
     Params.colormap     = 'default' ;
     
     Params.filename     = [Params.mediaSaveDir '/field_Dc_s' num2str(Params.imgSlice)] ;
-    MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).* Shim.Field.img(:,:,Params.imgSlice), Params ) ;
+    MaRdI.savefigure( Params.validityMask(:,:, Params.imgSlice ).* Shim.Field.img(:,:,Params.imgSlice), Params ) ;
     
     Params.filename     = [Params.mediaSaveDir '/fieldShimmed_Dc_s' num2str(Params.imgSlice)] ;
-    MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
+    MaRdI.savefigure( Params.validityMask(:,:, Params.imgSlice ).*PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
         
     NiiOptions.filename = [Params.mediaSaveDir 'fieldB0'] ;
     nii( Shim.Field.img, NiiOptions ) ;
@@ -1466,10 +1466,10 @@ if Params.isSavingResultsTable
        
         Params.scaling      = [ -dp dp ]/3 ;
         Params.filename     = [Params.mediaSaveDir '/riro_s' num2str(Params.imgSlice)] ;
-        MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*Shim.Field.Model.Riro.img(:,:,Params.imgSlice), Params ) ;
+        MaRdI.savefigure( Params.validityMask(:,:, Params.imgSlice ).*Shim.Field.Model.Riro.img(:,:,Params.imgSlice), Params ) ;
 
         Params.filename     = [Params.mediaSaveDir '/riroShimmed_s' num2str(Params.imgSlice)] ;
-        MaRdI.writeimg( Params.validityMask(:,:, Params.imgSlice ).*PredictedShimmedRiro.img(:,:,Params.imgSlice), Params ) ;
+        MaRdI.savefigure( Params.validityMask(:,:, Params.imgSlice ).*PredictedShimmedRiro.img(:,:,Params.imgSlice), Params ) ;
         
 
         NiiOptions.filename = [Params.mediaSaveDir 'riro'] ;

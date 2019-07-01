@@ -1790,8 +1790,8 @@ end
 
 end
 % =========================================================================
-function [Params] = writeimg( img, Params )
-%WRITEIMG
+function [Params] = savefigure( img, Params )
+%SAVEFIGURE
 %
 %   Description
 %   
@@ -1801,7 +1801,7 @@ function [Params] = writeimg( img, Params )
 %
 %   Syntax
 %
-%   Parameters = WRITEIMG( img, Parameters )
+%   Parameters = SAVEFIGURE( img, Parameters )
 %   
 %   Returns employed Parameters struct.
 %
