@@ -782,10 +782,10 @@ Z = Img.Hdr.ImagePositionPatient(3) + Z1 ;
 
 end
 % =========================================================================
-function xyzIso = getisocenter( Img )
-%GETISOCENTER
+function xyzIso = isocenter( Img )
+%ISOCENTER
 % 
-% xyzIso = GETISOCENTER( Img ) 
+% xyzIso = ISOCENTER( Img ) 
 %
 % Returns the 3-element vector of the x, y and z coordinates of the magnet
 % isocenter in the patient coordinate system
