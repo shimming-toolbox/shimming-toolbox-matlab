@@ -641,40 +641,6 @@ end
 
 end
 % =========================================================================
-function [r,c,s] = getdirectioncosines( Img ) 
-% GETDIRECTIONALCOSINES
-% 
-%   "The direction cosines of a vector are the cosines of the angles between
-%   the vector and the three coordinate axes. Equivalently, they are the
-%   contributions of each component of the basis to a unit vector in that
-%   direction." 
-%   https://en.wikipedia.org/wiki/Direction_cosine
-%
-% [r,c,s] = GETDIRECTIONALCOSINES( Img ) 
-%   r: row *index* direction cosine
-%   c: column index " "
-%   s: slice index " "
-%
-%   NB: the *index* term. r & c may be defined obstrusely:
-%   i.e. r is not the row direction cosine (c is!), it is the direction cosine
-%   of the vector that points along the direction of increasing row indices
-%   (i.e. it's in the column direction!)
-      
-% " To make a full rotation matrix, we can generate the last column from
-% the cross product of the first two. However, Siemens defines, in its
-% private CSA header, a SliceNormalVector which gives the third column, but
-% possibly with a z flip, so that R is orthogonal, but not a rotation
-% matrix (it has a determinant of < 0)."
-%  -From http://nipy.org/nibabel/dicom/dicom_mosaic.html 
-%
-% NOTE: Hdr.Img.SliceNormalVector gets defined in the MaRdI constructor
-
-c = Img.Hdr.ImageOrientationPatient(1:3) ; 
-r = Img.Hdr.ImageOrientationPatient(4:6) ; 
-s = Img.Hdr.Img.SliceNormalVector ;
-
-end 
-% =========================================================================
 function fieldOfView = getfieldofview( Img )
 %GETFIELDOFVIEW
 % 
@@ -1211,6 +1177,40 @@ end
 % =========================================================================
 % =========================================================================
 methods(Access=private)
+% =========================================================================
+function [r,c,s] = getdirectioncosines( Img ) 
+% GETDIRECTIONALCOSINES
+% 
+%   "The direction cosines of a vector are the cosines of the angles between
+%   the vector and the three coordinate axes. Equivalently, they are the
+%   contributions of each component of the basis to a unit vector in that
+%   direction." 
+%   https://en.wikipedia.org/wiki/Direction_cosine
+%
+% [r,c,s] = GETDIRECTIONALCOSINES( Img ) 
+%   r: row *index* direction cosine
+%   c: column index " "
+%   s: slice index " "
+%
+%   NB: the *index* term. r & c may be defined obstrusely:
+%   i.e. r is not the row direction cosine (c is!), it is the direction cosine
+%   of the vector that points along the direction of increasing row indices
+%   (i.e. it's in the column direction!)
+      
+% " To make a full rotation matrix, we can generate the last column from
+% the cross product of the first two. However, Siemens defines, in its
+% private CSA header, a SliceNormalVector which gives the third column, but
+% possibly with a z flip, so that R is orthogonal, but not a rotation
+% matrix (it has a determinant of < 0)."
+%  -From http://nipy.org/nibabel/dicom/dicom_mosaic.html 
+%
+% NOTE: Hdr.Img.SliceNormalVector gets defined in the MaRdI constructor
+
+c = Img.Hdr.ImageOrientationPatient(1:3) ; 
+r = Img.Hdr.ImageOrientationPatient(4:6) ; 
+s = Img.Hdr.Img.SliceNormalVector ;
+
+end 
 % =========================================================================
 function Img = rescaleimg( Img, isUndoing )
 %RESCALEIMG
