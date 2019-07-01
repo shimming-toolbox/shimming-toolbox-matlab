@@ -116,8 +116,7 @@ if nargin == 1
             Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
         end
        
-        % Not sure if this is really necessary... 
-        Img.Hdr.Img.SliceNormalVector = cross( Img.Hdr.ImageOrientationPatient(1:3), Img.Hdr.ImageOrientationPatient(4:6) ) ;  
+        Img.setslicenormalvector() ;
     
     elseif ( exist( imgPath  ) == 7 ) % input is a directory (e.g. containing DICOMs)
         
@@ -1338,29 +1337,30 @@ function [] = setslicenormalvector( Img )
 %SETSLICENORMALVECTOR
 %
 % For determining voxel positions in 3d slice-stack
-
-% TODO: Determine voxel positions on an image-by-image basis (and, if
-% necessary, reorder the slices?) or use the Siemens header to order based on
-% ascending/descending acquisition?
     
 r = Img.Hdr.ImageOrientationPatient(4:6) ; 
 c = Img.Hdr.ImageOrientationPatient(1:3) ; 
     
-% Estimate positions of last slice based on the 1st image:
-% 1. using
 Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;  
-[X1,Y1,Z1] = Img.getvoxelpositions() ;     
 
-% 2. using the reverse
-Img.Hdr.Img.SliceNormalVector = cross( r, c ) ;  
-[X2,Y2,Z2] = Img.getvoxelpositions() ; % estimate positions based on the 1st loaded image in the directory. 
+if size( Img.img, 3 ) > 1
+% Determine: ascending or descending slices?
 
-% Actual position corresponding to the slice direction can be increasing or
-% decreasing with slice/image number. So, which estimate is closer: 1 or 2? 
-if norm( Img.Hdrs{end,1,1}.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) < ...
-        norm( Img.Hdrs{end,1,1}.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) 
-    % if true, then 1. corresponds to the correct orientation
-    Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;
+    % Estimate positions of last slice based on the 1st image:
+    % 1. using
+    [X1,Y1,Z1] = Img.getvoxelpositions() ;     
+
+    % 2. using the reverse
+    Img.Hdr.Img.SliceNormalVector = cross( r, c ) ;  
+    [X2,Y2,Z2] = Img.getvoxelpositions() ; % estimate positions based on the 1st loaded image in the directory. 
+
+    % Actual position corresponding to the slice direction can be increasing or
+    % decreasing with slice/image number. So, which estimate is closer: 1 or 2? 
+    if norm( Img.Hdrs{end,1,1}.ImagePositionPatient' - [ X1(1,1,end) Y1(1,1,end) Z1(1,1,end) ] ) < ...
+            norm( Img.Hdrs{end,1,1}.ImagePositionPatient' - [ X2(1,1,end) Y2(1,1,end) Z2(1,1,end) ] ) 
+        % if true, then 1. corresponds to the correct orientation
+        Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;
+    end
 end
 
 end
