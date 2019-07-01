@@ -5,30 +5,40 @@ classdef FieldEval < MaRdI
 % 
 % Usage
 %
-% Field = FieldEval( )
+% Field = FieldEval( Mag, Phase ) 
+% Field = FieldEval( Mag, Phase, Params ) 
 %
-% =========================================================================
-% Notes
+% Mag and Phase should either be paths to the respective DICOM directories, 
+% OR, instantiated MaRdI-type image objects (e.g. Mag = MaRdI( path_to_Mag_DICOMs ) )
 %
-% Part of series of classes pertaining to shimming:
+% Params may contain the following fields
 %
-%    FieldEval
-%    ProbeTracking
-%    ShimCal
-%    ShimCom
-%    ShimOpt
-%    ShimSpecs
-%    ShimTest 
-%    ShimUse
+%   .mask
+%       binary array indicating phase region to be unwrapped 
+%       [default: formed by thresholding magnitude images > Params.threshold)
+%
+%   .threshold  
+%   (as a fraction (<1) of max measured magnitude intensity)
+%   Determines the phase region to be unwrapped (i.e. areas of low signal are
+%   ignored) 
+%       [default: 0.01] 
+%
+%   .unwrapper
+%       'Sunwrap' [default for 2d image (single slice)], calls sunwrap( ) (Maier, et al. MRM 2015)
+%       'AbdulRahman_2007' [default for 3d image volume], calls unwrap3d( ), which wraps to the Abdul-Rahman binary
+%       'FslPrelude', calls prelude( ), which wraps to FSL-prelude 
+%
+% .......
+%
+% NOTE
 %
 % FieldEval is a MaRdI subclass [FieldEval < MaRdI]
 %     
 % =========================================================================
-% Updated::20181019::ryan.topfer@polymtl.ca
+% Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties
-    % Aux; % Auxiliary field tracking measurements (e.g. respiratory probe tracking)
     Model ;
 end
 
@@ -36,8 +46,7 @@ end
 % =========================================================================    
 methods
 % =========================================================================
-function Field = FieldEval( Img, Params )
-%FIELDEVAL - [B0] Field Evaluation 
+function Field = FieldEval( varargin )
 
 Field.img   = [] ; 
 Field.Hdr   = [] ;
@@ -50,7 +59,7 @@ if nargin ~= 0
         Params.dummy = [] ;
     end
 
-    if isa( Img, 'MaRdI' )
+    if isa( varargin{1}, 'MaRdI' )
 
         % convert MaRdI-type Img object to FieldEval
         Field.img = Img.img ;
@@ -58,18 +67,33 @@ if nargin ~= 0
         Field.Hdrs = Img.Hdrs ;
         Field.Aux = Img.Aux ;
     
-    elseif ischar( Img ) 
-       % input should be the path-string to the magnitude and phase directories of the GRE images 
-        Field = FieldEval.mapfield( Img, Params ) ;
-    
-    elseif isa( Img, 'cell' ) 
-        
-        % if Img is a cell array of MaRdI-images, this is presumed to be a set of GRE images destined for B0-mapping 
+    elseif isa( varargin{1}, 'cell' ) 
+
+        % if Img input is a cell array of MaRdI-images, this is presumed to be a set of GRE images destined for B0-mapping 
+        Img = varargin{1} ; 
+
         for iImg = 1 : numel( Img ) 
             assert( isa( Img{ iImg }, 'MaRdI' ) ) ;
         end
         
+        if nargin == 2
+           Params = varargin{2} ;
+        end
+        
         Field = FieldEval.mapfield( Img, Params ) ;
+    
+    elseif ischar( varargin{1} ) 
+       % input should be the path-string to the magnitude and phase directories of the GRE images 
+
+       assert( nargin >= 2, 'Expected pathToMagnitude and pathToPhase (DICOM directories) as comma-separated arguments' )
+       imgPath1 = varargin{1} ;
+       imgPath2 = varargin{2} ; 
+        
+       if nargin == 3
+           Params = varargin{2} ;
+       end
+       
+       Field = FieldEval.mapfield( imgPath1, imgPath2, Params ) ;
 
     end
 end
@@ -83,15 +107,18 @@ function ImgCopy = copy(Img)
 % 
 % ImgCopy = Copy( Img ) ;
 
+%% these 2 lines are the only parts that differs from MaRdI.copy():
 ImgCopy       = FieldEval() ;
+ImgCopy.Model = Img.Model ;
+%% 
+
 ImgCopy.img   = Img.img;
 ImgCopy.Hdr   = Img.Hdr ;
+ImgCopy.Hdrs  = Img.Hdrs ;
 
 if ~isempty( Img.Aux ) && myisfield( Img.Aux, 'Tracker' ) 
     ImgCopy.Aux.Tracker = Img.Aux.Tracker.copy() ;
 end
-
-ImgCopy.Model = Img.Model ;
 
 end
 % =========================================================================
@@ -262,15 +289,15 @@ end
 
 voi = logical( voi ) ;
 
-Stats.volume    = nnz( voi ) .* prod( 0.1*Field.getvoxelspacing() )  ; % [units: cm^3]
-Stats.mean      = mean( Field.img( voi ) ) ;
-Stats.median    = median( Field.img( voi ) ) ;
-Stats.std       = std( Field.img( voi ) ) ;
+Stats.volume     = nnz( voi ) .* prod( 0.1*Field.getvoxelspacing() )  ; % [units: cm^3]
+Stats.mean       = mean( Field.img( voi ) ) ;
+Stats.median     = median( Field.img( voi ) ) ;
+Stats.std        = std( Field.img( voi ) ) ;
 Stats.rmsePerCm3 = norm( Field.img( voi ), 2 )/Stats.volume ;
-Stats.meanAbs   = mean( abs( Field.img( voi ) ) ) ;
-Stats.stdAbs    = std( abs( Field.img( voi ) ) ) ;
-Stats.min       = min( ( Field.img( voi ) ) ) ;
-Stats.max       = max( ( Field.img( voi ) ) ) ;
+Stats.meanAbs    = mean( abs( Field.img( voi ) ) ) ;
+Stats.stdAbs     = std( abs( Field.img( voi ) ) ) ;
+Stats.min        = min( ( Field.img( voi ) ) ) ;
+Stats.max        = max( ( Field.img( voi ) ) ) ;
 
 if nargin == 3 && ischar( filename ) 
     measure = {'Volume (cm^3)'; 'Mean (Hz)' ; 'Median (Hz)' ; 'St. dev. (Hz)' ; 'RMSE/Volume (Hz/cm^3)' ; 'Mean[abs.] (Hz)'; 'Std[abs.] (Hz)'; 'Min (Hz)'; 'Max (Hz)'} ;
@@ -315,7 +342,7 @@ mask = mask & ( abs(Field.img) <= maxAbsField ) ;
 
 end
 % =========================================================================
-function [] = plotfieldhistogram( Field, Params )
+function [] = plotfieldhistogram( Field, voi, Params )
 %PLOTFIELDHISTOGRAM
 % 
 % [] = PLOTFIELDHISTOGRAM( Field )
@@ -826,15 +853,21 @@ PhaseDiff = PhaseDiff.unwrapphase( Mag, Params ) ;
 nImg = size( PhaseDiff.img, 5 ) ;
 
 if nImg > 1
+    display('Correcting for temporal wraps in field time-series')
+    warning('spatial phase unwrapping (using sunwrap) observed to create temporal discontinuities for subject acdc_69 which are not fully corrected with the current processing scheme.')
     % Wherever the absolute deviation from the estimate exceeds pi,
     % correct the measurement by adding the appropriate pi-multiple:
     phaseEstimate = min( abs(PhaseDiff.img), [], 5, 'omitnan' ) ;
     
     for iImg = 1 : nImg
-        dPhase         = phaseEstimate - PhaseDiff.img( :,:,:,1,iImg )  ;
-        n              = ( abs(dPhase) > pi ) .* round( dPhase/pi ) ;
+        dPhase = phaseEstimate - PhaseDiff.img( :,:,:,1,iImg )  ;
+        n      = ( abs(dPhase) > pi ) .* round( dPhase/pi ) ;
         PhaseDiff.img( :,:,:,1,iImg ) = PhaseDiff.img(:,:,:,1,iImg ) + n*pi ;
     end
+    
+    % % -------
+    % % spatial unwrapping post-correction
+    % PhaseDiff = PhaseDiff.unwrapphase( Mag, Params ) ;
 end
 
 PhaseDiffInRad = PhaseDiff.copy() ; % PhaseDiffInRad.img : [units: rad]
@@ -1394,4 +1427,3 @@ end
 % =========================================================================
 
 end
-
