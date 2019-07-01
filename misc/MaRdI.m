@@ -36,6 +36,44 @@ classdef MaRdI < matlab.mixin.SetGet
 % Author: ryan.topfer@polymtl.ca
 % =========================================================================
 
+%% ========================================================================
+% *** TODO
+% ..... 
+% CROPIMG
+%   make compatible for odd-sized arrays
+% ..... 
+% RESLICEIMG()
+%   griddata takes too long (possible solution: write interp function in cpp?)
+%   Clean up 
+% ..... 
+% Saving as DICOM
+%   (maybe better just to avoid and delete this for now?)
+%
+%   -> (do not save image type as phase)
+%   -> must save proper ImagePositionPatient info
+% 
+% ..... 
+% Write static comparegrid() function or something to ensure operations involving
+% multiple images are valid (e.g. voxel positions are the same) 
+%
+% ..... 
+% GETDIRECTIONCOSINES()
+%   Weird flip-conditional for slice direction? Is this OK??
+%   Siemens private header apprently contains field SliceNormalVector.
+%
+% ..... 
+% WRITE()
+%   Neither 'as dcm' nor 'as nii' functionalities work properly.
+% 
+% ..... 
+% EXTRACTHARMONICFIELD()
+%  Clean up 
+% 
+% .....
+% ASSOCIATEAUX()
+%  link Image to corresponding Auxiliary data
+%%
+
 % =========================================================================
 % =========================================================================
 properties
@@ -171,42 +209,6 @@ if nargin == 1
 end
 
 end
-% =========================================================================
-% *** TODO
-% ..... 
-% CROPIMG
-%   make compatible for odd-sized arrays
-% ..... 
-% RESLICEIMG()
-%   griddata takes too long (possible solution: write interp function in cpp?)
-%   Clean up 
-% ..... 
-% Saving as DICOM
-%   (maybe better just to avoid and delete this for now?)
-%
-%   -> (do not save image type as phase)
-%   -> must save proper ImagePositionPatient info
-% 
-% ..... 
-% Write static comparegrid() function or something to ensure operations involving
-% multiple images are valid (e.g. voxel positions are the same) 
-%
-% ..... 
-% GETDIRECTIONCOSINES()
-%   Weird flip-conditional for slice direction? Is this OK??
-%   Siemens private header apprently contains field SliceNormalVector.
-%
-% ..... 
-% WRITE()
-%   Neither 'as dcm' nor 'as nii' functionalities work properly.
-% 
-% ..... 
-% EXTRACTHARMONICFIELD()
-%  Clean up 
-% 
-% .....
-% ASSOCIATEAUX()
-%  link Image to corresponding Auxiliary data
 % =========================================================================
 function ImgCopy = copy(Img)
 %COPY 
@@ -1021,16 +1023,18 @@ function [] = nii( Img )
 %.....
 %
 % WARNING
-%   My nii() function is convenient for quickly writing a file to throw
-%   into an external viewing application (ImageJ!). The nifti Hdr info (i.e. orientation) 
-%   is probably ALL WRONG! Can't use this if the NiFTi will later be used
-%   as an input for more processing (e.g. FSL, SCT, etc.).
+%
+%   nii() function is convenient for quickly writing a file to throw
+%   into an external viewing application (e.g. ImageJ). 
+%   The nifti Hdr info (i.e. orientation) is probably all wrong. 
+%
+%   To save NifTI's properly (takes longer) use Img.write() 
 
 workingDir       = [ pwd '/' ] ;
 Params.filename  = [ workingDir Img.Hdr.PatientName.FamilyName '_' num2str( Img.Hdr.SeriesNumber ) '_' Img.Hdr.SeriesDescription  ] ;
 Params.voxelSize = Img.getvoxelspacing() ;
 
-nii( Img.img, Params )  ;
+nii( squeeze(Img.img), Params )  ;
 
 end
 % =========================================================================
