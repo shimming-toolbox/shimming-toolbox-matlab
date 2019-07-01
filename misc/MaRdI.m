@@ -12,25 +12,37 @@ classdef MaRdI < matlab.mixin.SetGet
 %   where imgPath is the path to a single .dcm image OR a directory containing
 %   the .dcm or .IMA images.
 %
-% Img contains fields
+% Img contains public properties:
 %
 %   .img
 %       Array of images: 
 %       If multi-echo, the echo index is along the 4th dimension;
 %       If multiple volume repetitions, the measurement index is along the 5th dimension.
 %
-%   .Hdr
-%       DICOM header 
-%       
 %   .Aux
 %       Aux-objects: auxiliary measurements (e.g. respiratory ProbeTracking)
+% 
+% In addition to the read-only properties
+%
+%    .Hdr 
+%       The full Siemens DICOM header corresponding to Img.img(:,:,1) 
+%
+%    .Hdrs 
+%       Cell array of (truncated) DICOM headers courtesy of dicominfo().
+%       (One entry for every image)
 %
 % =========================================================================
-% Author: ryan.topfer@polymtl.ca
+% Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
 %% ========================================================================
 % *** TODO
+% General naming convention for methods returning some image parameter:
+%   begin method name with 'get...', or just the parameter name?
+%   e.g. getechotime() vs. echotime() ?
+%   the latter has the advantage of reading as if it is the property itself,
+%   whereas the former makes explicit that this is a call to a method...
+%
 % ..... 
 % RESLICEIMG()
 %   griddata takes too long (possible solution: write interp function in cpp?)
@@ -49,9 +61,12 @@ classdef MaRdI < matlab.mixin.SetGet
 % =========================================================================
 properties
     img ;
-    Hdr ;
-    Hdrs ;
     Aux ;
+end
+
+properties(SetAccess=protected)
+    Hdr ; % full Siemens DICOM header of 1st img (i.e. Img.img(:,:,1) )
+    Hdrs ; % cell array of (truncated) DICOM headers courtesy of dicominfo()
 end
 
 % =========================================================================
@@ -60,9 +75,10 @@ methods
 % =========================================================================    
 function Img = MaRdI( imgPath )
 
-Img.img = [] ;
-Img.Hdr = [] ;
-Img.Aux = [] ;
+Img.img  = [] ;
+Img.Hdr  = [] ;
+Img.Hdrs = [] ;
+Img.Aux  = [] ;
 
 if nargin == 1 
     
