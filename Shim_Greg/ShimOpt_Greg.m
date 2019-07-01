@@ -1,10 +1,10 @@
 classdef ShimOpt_Greg < ShimOpt
-%SHIMOPT_GREG - Shim Optimization for Ac/Dc 8 channel array (cervical spine shim)
+%SHIMOPT_GREG - Shim Optimization for Ac/Dc 8-channel array (c-spine shim)
 %
 % ShimOpt_Greg is a ShimOpt subclass 
 %     
 % =========================================================================
-% Updated::20180726::ryan.topfer@polymtl.ca
+% Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -13,18 +13,11 @@ classdef ShimOpt_Greg < ShimOpt
 %
 % =========================================================================
 
-% properties % defined in parent class ShimOpt 
-    % Field ; % object of type MaRdI
-    % Model ;
-    % Tracker ; % object of type ProbeTracking
-% end
-
 % =========================================================================
 % =========================================================================    
 methods
 % =========================================================================
 function Shim = ShimOpt_Greg( Params, Field )
-%SHIMOPT_GREG - Shim Optimization
 
 Shim.img   = [] ;
 Shim.Hdr   = [] ;
@@ -126,9 +119,6 @@ function  [ Params ] = assigndefaultparameters( Params )
 % DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Acdc/Calibration/data/ShimReferenceMaps_Acdc_20180606.mat';
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_Greg_20181103';
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_Greg_20190201' ;
 DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_Greg_20190501' ;
 DEFAULT_PROBESPECS              = [] ;
 
@@ -242,12 +232,6 @@ end
 Params.unwrapper = 'AbdulRahman_2007' ;        
 
 end
-% =========================================================================
-
-end
-% =========================================================================
-% =========================================================================
-methods(Static)
 % =========================================================================
 
 end
