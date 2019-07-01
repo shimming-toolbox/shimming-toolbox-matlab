@@ -85,7 +85,7 @@ function [] = interpolatetoimggrid( Shim, Field )
 [X, Y, Z]    = Field.getvoxelpositions ;
 [X0, Y0, Z0] = Shim.getvoxelpositions ;
 
-dR = Field.getisocenter() ; 
+dR = Field.isocenter() ; 
 assert( dR(1) == 0, 'Table shifted in L/R direction?' ) ;
 assert( dR(2) == 0, 'Table shifted in A/P direction?' ) ;
 
