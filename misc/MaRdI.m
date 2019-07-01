@@ -330,141 +330,6 @@ end
 
 end
 % =========================================================================
-function GYRO = getgyromagneticratio( Img )
-%GETGYROMAGNETICRATIO
-%
-% Gyro = getgyromagneticratio( Img )
-%
-% Examines .Hdr of MaRdI-type Img for .ImagedNucleus and returns gyromagnetic
-% ratio in units of rad/s/T.
-
-switch Img.Hdr.ImagedNucleus 
-    case '1H' 
-        GYRO = 267.513E6 ; 
-    otherwise
-        error('Not implemented.') ;
-end
-
-end
-% =========================================================================
-function Phase = unwrapphase( Phase, Mag, Options )
-%UNWRAPPHASE
-%
-% Interface to SUNWRAP, to FSL prelude, or to Abdul-Rahman's path-based phase unwrapper
-%
-%   Phase = UNWRAPPHASE( Phase )
-%   Phase = UNWRAPPHASE( Phase, Mag )
-%   Phase = UNWRAPPHASE( Phase, Mag, Options )
-%   
-%   Phase and Mag are objects of type MaRdI.
-%
-%    .......................
-%    To call SUNWRAP [default if nargin ==2 ]
-%    
-%    Options.unwrapper = 'Sunwrap'
-%
-%       See HELP SUNWRAP for more details.
-% 
-%       Maier F, et al. Robust Phase Unwrapping for MR Temperature Imaging
-%       Using a Magnitude-Sorted List, Multi-Clustering Algorithm. Magn Reson
-%       Med, 73:1662-1668,2015.
-%
-%    .......................
-%    To call FSL Prelude   
-% 
-%    Options.unwrapper = 'FslPrelude'
-%
-%       See HELP PRELUDE for description of Options 
-%   
-%    .......................
-%    To call the Abdul-Rahman unwrapper [default if ( nargin == 1) && size(Phase.img,3) > 1] 
-% 
-%    Options.unwrapper = 'AbdulRahman_2007'
-%
-%       Phase is an object of type MaRdI and must have defined Phase.Hdr.MaskingImage
-%       See HELP UNWRAP3D for description of Options 
-%
-%       Abdul-Rahman H, et al. Fast and robust three-dimensional best path
-%       phase unwrapping algorithm. Applied Optics, Vol. 46, No. 26, pp.
-%       6623-6635, 2007.
-%
-%    .......................
-
-assert( strcmp( Phase.Hdr.PixelComponentPhysicalUnits, '0000H' ), 'SCALEPHASE2RAD() before unwrapping.' ) ;
-
-DEFAULT_UNWRAPPER = 'Sunwrap' ;
-DEFAULT_THRESHOLD = 0.0 ;
-
-Options.dummy     = [];
-
-if nargin < 2 
-    if ( size( Phase.img, 3 ) > 1 )
-        Options.unwrapper = 'AbdulRahman_2007' ;    
-
-        assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
-            'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
-    else
-        error('See help MaRdI.unwrapphase()') ;
-    end
-end
-
-if nargin == 2 || ~myisfield( Options, 'unwrapper') || isempty(Options.unwrapper)
-    Options.unwrapper = DEFAULT_UNWRAPPER ;
-end
-
-if ~myisfield( Options, 'threshold') || isempty(Options.threshold)
-    Options.threshold = DEFAULT_THRESHOLD ;
-end
-
-
-if myisfield( Phase.Hdr.MrProt, 'lRepetitions' ) 
-    nVolumes = (Phase.Hdr.MrProt.lRepetitions + 1) ;
-else
-    nVolumes = 1;
-end
-
-assert( nVolumes == size( Phase.img, 5 ) ) ;
-
-for iVolume = 1 : nVolumes
-
-    display(['Unwrapping volume ' num2str(iVolume) ' of ' num2str(nVolumes) ] ) ;    
-
-    switch Options.unwrapper
-
-        case 'AbdulRahman_2007'
-            
-            Phase.img(:,:,:,1, iVolume) = unwrap3d( Phase.img(:,:,:,1, iVolume), logical(Phase.Hdr.MaskingImage(:,:,:,1, iVolume)), Options ) ;
-
-        case 'FslPrelude'
-
-            if myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage)
-                Options.mask = single( Phase.Hdr.MaskingImage(:,:,:,1,iVolume) ) ;
-            end
-            
-            Options.voxelSize = Phase.getvoxelspacing() ;   
-
-            Phase.img(:,:,:,1, iVolume) = prelude( Phase.img(:,:,:,1, iVolume), Mag.img(:,:,:,1, iVolume), Options ) ;
-
-        case {'Sunwrap', 'sunwrap'}
-            
-            iMag      = Mag.img(:,:,:,1,iVolume) ;
-            iMag      = iMag./max(iMag(:)) ;
-            Phase.img(:,:,:,1, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,1,iVolume) ), Options.threshold ) ;
-
-        otherwise
-            error('Unrecognized "Options.unwrapper" input') ;
-    end
-
-end
-
-Phase.img = double( Phase.img ) ;
-
-% update header
-Img.Hdr.ImageType         = 'DERIVED\SECONDARY' ; 
-Img.Hdr.SeriesDescription = ['phase_unwrapped_' Options.unwrapper ] ; 
-
-end
-% =========================================================================
 function [t] = getacquisitiontime( Img ) 
 % GETACQUISITIONTIME
 % 
@@ -533,6 +398,23 @@ end
 function gridSize = getgridsize( Img )
 %GETGRIDSIZE
 gridSize = double( [ Img.Hdr.Rows, Img.Hdr.Columns, Img.Hdr.NumberOfSlices ] ) ;
+end
+% =========================================================================
+function GYRO = getgyromagneticratio( Img )
+%GETGYROMAGNETICRATIO
+%
+% Gyro = getgyromagneticratio( Img )
+%
+% Examines .Hdr of MaRdI-type Img for .ImagedNucleus and returns gyromagnetic
+% ratio in units of rad/s/T.
+
+switch Img.Hdr.ImagedNucleus 
+    case '1H' 
+        GYRO = 267.513E6 ; 
+    otherwise
+        error('Not implemented.') ;
+end
+
 end
 % =========================================================================
 function nVoxels = getnumberofvoxels( Img )
@@ -626,21 +508,6 @@ Z = Img.Hdr.ImagePositionPatient(3) + Z1 ;
 
 end
 % =========================================================================
-function xyzIso = isocenter( Img )
-%ISOCENTER
-% 
-% xyzIso = ISOCENTER( Img ) 
-%
-% Returns the 3-element vector of the x, y and z coordinates of the magnet
-% isocenter in the patient coordinate system
-
-xyzIso = Img.Hdr.Img.ImaRelTablePosition()' ;
-
-assert( xyzIso(1) == 0, 'Table shifted in L/R direction?' ) ;
-assert( xyzIso(2) == 0, 'Table shifted in A/P direction?' ) ;
-
-end
-% =========================================================================
 function h = getvoxelspacing( Img )
 %GETVOXELSPACING
 % 
@@ -661,39 +528,18 @@ h = [ Img.Hdr.PixelSpacing(1) Img.Hdr.PixelSpacing(2) Img.Hdr.SpacingBetweenSlic
 
 end
 % =========================================================================
-function [mask, weights] = segmentspinalcanal( Img, Params )
-%SEGMENTSPINALCANAL
+function xyzIso = isocenter( Img )
+%ISOCENTER
 % 
-% segment T2* multiecho data using the Spinal Cord Toolbox (must be installed + in path)
+% xyzIso = ISOCENTER( Img ) 
 %
-% [ mask, weights ] = SEGMENTSPINALCANAL( Img, Params )
-%
-% Params
-%
-%   .dataLoadDir 
-%       DICOM folder
-%   
-%   .dataSaveDir 
-%
-%   .isUsingPropsegCsf
-%       [default = false]
-%
-% NOTE
-%   The protocol is basically that of Topfer R, et al. Magn Reson Med, 2018. 
-%   It hasn't been tested extensively for different acquisition prtocols/systems
+% Returns the 3-element vector of the x, y and z coordinates of the magnet
+% isocenter in the patient coordinate system
 
-mask = false ;
+xyzIso = Img.Hdr.Img.ImaRelTablePosition()' ;
 
-if nargin < 2 || isempty(Params)
-    disp('Default parameters will be used')
-    Params.dummy = [] ;
-end
-
-if  ~myisfield( Params, 'dataLoadDir' ) || isempty(Params.dataLoadDir)
-    [Params.dataLoadDir,~,~] = fileparts( Img.Hdr.Filename ) ;
-end
-
-[mask, weights] = MaRdI.segmentspinalcanal_s( Params ) ;
+assert( xyzIso(1) == 0, 'Table shifted in L/R direction?' ) ;
+assert( xyzIso(2) == 0, 'Table shifted in A/P direction?' ) ;
 
 end
 % =========================================================================
@@ -855,6 +701,186 @@ Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
 
 end
 % =========================================================================
+function [mask, weights] = segmentspinalcanal( Img, Params )
+%SEGMENTSPINALCANAL
+% 
+% segment T2* multiecho data using the Spinal Cord Toolbox (must be installed + in path)
+%
+% [ mask, weights ] = SEGMENTSPINALCANAL( Img, Params )
+%
+% Params
+%
+%   .dataLoadDir 
+%       DICOM folder
+%   
+%   .dataSaveDir 
+%
+%   .isUsingPropsegCsf
+%       [default = false]
+%
+% NOTE
+%   The protocol is basically that of Topfer R, et al. Magn Reson Med, 2018. 
+%   It hasn't been tested extensively for different acquisition prtocols/systems
+
+mask = false ;
+
+if nargin < 2 || isempty(Params)
+    disp('Default parameters will be used')
+    Params.dummy = [] ;
+end
+
+if  ~myisfield( Params, 'dataLoadDir' ) || isempty(Params.dataLoadDir)
+    [Params.dataLoadDir,~,~] = fileparts( Img.Hdr.Filename ) ;
+end
+
+[mask, weights] = MaRdI.segmentspinalcanal_s( Params ) ;
+
+end
+% =========================================================================
+function timeAverage = timeaverage( Img )
+%TIMEAVERAGE
+% 
+% Img = TIMEAVERAGE( Img) 
+% 
+% Assumes 5th dimension of Img.img corresponds to time:
+%   
+%   timeAverage = mean( Img.img, 5 ) ;
+
+timeAverage = mean( Img.img, 5 ) ;
+
+end
+% =========================================================================
+function timeStd = timestd( Img )
+%TIMESTD
+% 
+% standardDeviation = TIMESTD( Img ) 
+% 
+% Assumes 5th dimension of Img.img corresponds to time:
+%   
+%   standardDeviation = std( Img.img, 0, 5 ) ;
+
+timeStd = std( Img.img, 0, 5 ) ;
+
+end
+% =========================================================================
+function Phase = unwrapphase( Phase, Mag, Options )
+%UNWRAPPHASE
+%
+% Interface to SUNWRAP, to FSL prelude, or to Abdul-Rahman's path-based phase unwrapper
+%
+%   Phase = UNWRAPPHASE( Phase )
+%   Phase = UNWRAPPHASE( Phase, Mag )
+%   Phase = UNWRAPPHASE( Phase, Mag, Options )
+%   
+%   Phase and Mag are objects of type MaRdI.
+%
+%    .......................
+%    To call SUNWRAP [default if nargin ==2 ]
+%    
+%    Options.unwrapper = 'Sunwrap'
+%
+%       See HELP SUNWRAP for more details.
+% 
+%       Maier F, et al. Robust Phase Unwrapping for MR Temperature Imaging
+%       Using a Magnitude-Sorted List, Multi-Clustering Algorithm. Magn Reson
+%       Med, 73:1662-1668,2015.
+%
+%    .......................
+%    To call FSL Prelude   
+% 
+%    Options.unwrapper = 'FslPrelude'
+%
+%       See HELP PRELUDE for description of Options 
+%   
+%    .......................
+%    To call the Abdul-Rahman unwrapper [default if ( nargin == 1) && size(Phase.img,3) > 1] 
+% 
+%    Options.unwrapper = 'AbdulRahman_2007'
+%
+%       Phase is an object of type MaRdI and must have defined Phase.Hdr.MaskingImage
+%       See HELP UNWRAP3D for description of Options 
+%
+%       Abdul-Rahman H, et al. Fast and robust three-dimensional best path
+%       phase unwrapping algorithm. Applied Optics, Vol. 46, No. 26, pp.
+%       6623-6635, 2007.
+%
+%    .......................
+
+assert( strcmp( Phase.Hdr.PixelComponentPhysicalUnits, '0000H' ), 'SCALEPHASE2RAD() before unwrapping.' ) ;
+
+DEFAULT_UNWRAPPER = 'Sunwrap' ;
+DEFAULT_THRESHOLD = 0.0 ;
+
+Options.dummy     = [];
+
+if nargin < 2 
+    if ( size( Phase.img, 3 ) > 1 )
+        Options.unwrapper = 'AbdulRahman_2007' ;    
+
+        assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
+            'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
+    else
+        error('See help MaRdI.unwrapphase()') ;
+    end
+end
+
+if nargin == 2 || ~myisfield( Options, 'unwrapper') || isempty(Options.unwrapper)
+    Options.unwrapper = DEFAULT_UNWRAPPER ;
+end
+
+if ~myisfield( Options, 'threshold') || isempty(Options.threshold)
+    Options.threshold = DEFAULT_THRESHOLD ;
+end
+
+
+if myisfield( Phase.Hdr.MrProt, 'lRepetitions' ) 
+    nVolumes = (Phase.Hdr.MrProt.lRepetitions + 1) ;
+else
+    nVolumes = 1;
+end
+
+assert( nVolumes == size( Phase.img, 5 ) ) ;
+
+for iVolume = 1 : nVolumes
+
+    display(['Unwrapping volume ' num2str(iVolume) ' of ' num2str(nVolumes) ] ) ;    
+
+    switch Options.unwrapper
+
+        case 'AbdulRahman_2007'
+            
+            Phase.img(:,:,:,1, iVolume) = unwrap3d( Phase.img(:,:,:,1, iVolume), logical(Phase.Hdr.MaskingImage(:,:,:,1, iVolume)), Options ) ;
+
+        case 'FslPrelude'
+
+            if myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage)
+                Options.mask = single( Phase.Hdr.MaskingImage(:,:,:,1,iVolume) ) ;
+            end
+            
+            Options.voxelSize = Phase.getvoxelspacing() ;   
+
+            Phase.img(:,:,:,1, iVolume) = prelude( Phase.img(:,:,:,1, iVolume), Mag.img(:,:,:,1, iVolume), Options ) ;
+
+        case {'Sunwrap', 'sunwrap'}
+            
+            iMag      = Mag.img(:,:,:,1,iVolume) ;
+            iMag      = iMag./max(iMag(:)) ;
+            Phase.img(:,:,:,1, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,1,iVolume) ), Options.threshold ) ;
+
+        otherwise
+            error('Unrecognized "Options.unwrapper" input') ;
+    end
+
+end
+
+Phase.img = double( Phase.img ) ;
+
+% update header
+Img.Hdr.ImageType         = 'DERIVED\SECONDARY' ; 
+Img.Hdr.SeriesDescription = ['phase_unwrapped_' Options.unwrapper ] ; 
+
+end
+% =========================================================================
 function [] = write( Img, saveDirectory, imgFormat )
 %WRITE Ma(t)-R-dI(com)
 % 
@@ -994,32 +1020,6 @@ if ~strcmp( imgFormat, 'dcm' )
         delete( [saveDirectory '/*.dcm'] ) ;
     end
 end
-
-end
-% =========================================================================
-function timeStd = timestd( Img )
-%TIMESTD
-% 
-% standardDeviation = TIMESTD( Img ) 
-% 
-% Assumes 5th dimension of Img.img corresponds to time:
-%   
-%   standardDeviation = std( Img.img, 0, 5 ) ;
-
-timeStd = std( Img.img, 0, 5 ) ;
-
-end
-% =========================================================================
-function timeAverage = timeaverage( Img )
-%TIMEAVERAGE
-% 
-% Img = TIMEAVERAGE( Img) 
-% 
-% Assumes 5th dimension of Img.img corresponds to time:
-%   
-%   timeAverage = mean( Img.img, 5 ) ;
-
-timeAverage = mean( Img.img, 5 ) ;
 
 end
 % =========================================================================
