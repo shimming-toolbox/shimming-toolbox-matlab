@@ -15,19 +15,19 @@ pathToPhase = '/Users/ryan/Projects/Shimming/Acdc/20190511_Ismrm/data/acdc_69/14
 % for more info, see HELP FieldEval.mapfield
 
 % relative to max magnitude: defines the binary mask for phase unwrapping
-Params.threshold = 0.05 ;
-
-% assign the unwrapping method (must be 'sunwrap' for single 2d slice)
-Params.unwrapper = 'sunwrap' ;
+Params.threshold = 0.1 ;
 
 %% -------
 % Create FieldEval object:
-Field = FieldEval.mapfield( pathToMag, pathToPhase, Params ) ;
+Field = FieldEval( pathToMag, pathToPhase, Params ) ;
 
-%% -------
+%% =========================================================================
 % At this point, the user has access to a number of methods, e.g.: 
 % see HELP for 
+%
 % Field.assessfielddistribution()
+% Field.getacquisitiontime()
+%
 % etc.
 
 % e.g. create NifTI output
