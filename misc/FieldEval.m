@@ -50,6 +50,7 @@ function Field = FieldEval( varargin )
 
 Field.img   = [] ; 
 Field.Hdr   = [] ;
+Field.Hdrs  = [] ;
 Field.Aux   = [] ;
 Field.Model = [] ;
 
