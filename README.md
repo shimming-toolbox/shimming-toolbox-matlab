@@ -49,9 +49,12 @@ export PATH=$PATH:/Applications/MATLAB_R2015a.app/bin/
 *For phase unwrapping:*
 
 To use the optional Abdul-Rahman 3D phase unwrapper, binaries must be compiled from the source code found in /external/source/
+<<<<<<< HEAD
 
 
 ## Getting started
+=======
+>>>>>>> alfoi/CapacitiveProbe
 
 ### Create calibration map
 
@@ -82,6 +85,11 @@ Download map and copy it under $PATH_REALTIMESHIMMING/data/
 
 
 
+## Getting started (WIP)
+
+- Connect sensor probe to station
+- Launch a Matlab session
+- See example: realtime_shimming/example/XXX
 
 ## Class definitions
 
