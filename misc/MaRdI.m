@@ -228,69 +228,6 @@ end
 
 end
 % =========================================================================
-function Img = cropimg( Img, gridSizeImgCropped, centralPoint )
-%CROPIMG
-%
-% Img = CROPIMG( Img, croppedDims )
-% Img = CROPIMG( Img, croppedDims, centralPoint )
-% 
-% centralPoint are the indices of the original img voxel to become the centralPoint of 
-% the cropped array.
-%
-% default  (nargin == 2)
-%   centralPoint = round( size(Img.img)/2 );
-% 
-% note: 
-% if centralPoint +/- croppedDims/2 exceeds the original bounds, the array is cropped at the bound (as opposed to zero filling)
-% -------
-    
-gridSizeImgOriginal = size(Img.img) ;
-
-if (nargin == 2) || isempty(centralPoint)
-    centralPoint = round( gridSizeImgOriginal/2 ) ;
-end
-
-low  = centralPoint - round(gridSizeImgCropped/2) + [1 1 1] ;
-high = low + gridSizeImgCropped - [1 1 1] ;  
-
-for dim = 1: 3
-   if low(dim) < 1
-      low(dim) = 1 ;
-   end
-   if high(dim) > gridSizeImgOriginal(dim)
-      high(dim) = gridSizeImgOriginal(dim) ;
-  end
-end
-    
-% Update header
-[X, Y, Z] = Img.getvoxelpositions( ); 
-x0        = X(low(1),low(2),low(3)) ;
-y0        = Y(low(1),low(2),low(3)) ;
-z0        = Z(low(1),low(2),low(3)) ;
-
-Img.Hdr.ImagePositionPatient = [x0 y0 z0] ;
-
-[rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
-
-Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
-
-% crop img
-Img.img = Img.img( low(1):high(1), low(2):high(2), low(3):high(3) ) ; 
-
-if myisfield( Img.Hdr, 'MaskingImage' )  && ~isempty( Img.Hdr.MaskingImage ) 
-    
-   Img.Hdr.MaskingImage = Img.Hdr.MaskingImage( low(1):high(1), low(2):high(2), low(3):high(3) ) ; 
-
-end
-
-% Update header
-Img.Hdr.Rows                 = size(Img.img, 1) ;
-Img.Hdr.Columns              = size(Img.img, 2) ;       
-Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
-
-
-end
-% =========================================================================
 function [] = filter( Img, weights, Params )
 %FILTER
 %
@@ -359,64 +296,6 @@ switch Params.method
         weightsSmoothed = smooth3( weights, Params.method, Params.kernelSize ) ;
         Img.img = smooth3( weights .* Img.img, Params.method, Params.kernelSize ) ./ weightsSmoothed ; 
 
-end
-
-end
-% =========================================================================
-function Img = zeropad( Img, padSize, padDirection )
-%ZEROPAD
-% Img = ZEROPAD( Img, padSize, padDirection )
-%
-% padSize = [ nZerosRows nZerosColumns nZerosSlices ] 
-%
-% padDirection == 'post' || 'pre' || 'both'
-%
-% -------
-%   See also PADARRAY()
-    
-gridSizeOriginalImg = size(Img.img) ;
-
-Img.img = padarray( Img.img, padSize, 0, padDirection ) ; 
-
-if myisfield( Img.Hdr, 'MaskingImage' )  && ~isempty( Img.Hdr.MaskingImage ) 
-    
-   Img.Hdr.MaskingImage = padarray( Img.Hdr.MaskingImage, padSize, 0, padDirection ) ; 
-
-end
-
-% Update header
-Img.Hdr.Rows                 = size(Img.img, 1) ;
-Img.Hdr.Columns              = size(Img.img, 2) ;       
-Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
-
-if ~strcmp( padDirection, 'post' )
-% update image position 
-% (i.e. location in DICOM RCS of 1st voxel in data array (.img))
-    
-    voxelSize = Img.getvoxelspacing() ;
-
-    dr = voxelSize(1) ; % spacing btwn rows 
-    dc = voxelSize(2) ; % spacing btwn columns
-    ds = voxelSize(3) ;
-    
-    nr = padSize(1) ;
-    nc = padSize(2) ;
-    ns = padSize(3) ;
-    
-    [r, c, s] = Img.getdirectioncosines( ) ;
-
-    % -1 because the zeros are padded before ('pre') 1st element (origin)        
-    dx = -1*( r(1)*dr*nr + c(1)*dc*nc + s(1)*ds*ns ) ; 
-    dy = -1*( r(2)*dr*nr + c(2)*dc*nc + s(2)*ds*ns ) ;
-    dz = -1*( r(3)*dr*nr + c(3)*dc*nc + s(3)*ds*ns ) ;
-
-    x1 = Img.Hdr.ImagePositionPatient(1) + dx ;
-    y1 = Img.Hdr.ImagePositionPatient(2) + dy ;
-    z1 = Img.Hdr.ImagePositionPatient(3) + dz ;
-
-    Img.Hdr.ImagePositionPatient = [x1 y1 z1] ;
-
-    Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, s ) ;
 end
 
 end
@@ -976,33 +855,6 @@ Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
 
 end
 % =========================================================================
-function [] = nii( Img )
-%NII - Write MaRdI image to NiFtI file
-%
-% Wraps to NII( ) (which wraps to the NiFtI toolbox)   
-%
-%.....
-%   Syntax
-%
-%   nii( Img ) 
-%.....
-%
-% WARNING
-%
-%   nii() function is convenient for quickly writing a file to throw
-%   into an external viewing application (e.g. ImageJ). 
-%   The nifti Hdr info (i.e. orientation) is probably all wrong. 
-%
-%   To save NifTI's properly (takes longer) use Img.write() 
-
-workingDir       = [ pwd '/' ] ;
-Params.filename  = [ workingDir Img.Hdr.PatientName.FamilyName '_' num2str( Img.Hdr.SeriesNumber ) '_' Img.Hdr.SeriesDescription  ] ;
-Params.voxelSize = Img.getvoxelspacing() ;
-
-nii( squeeze(Img.img), Params )  ;
-
-end
-% =========================================================================
 function [] = write( Img, saveDirectory, imgFormat )
 %WRITE Ma(t)-R-dI(com)
 % 
@@ -1361,6 +1213,164 @@ if size( Img.img, 3 ) > 1
         % if true, then 1. corresponds to the correct orientation
         Img.Hdr.Img.SliceNormalVector = cross( c, r ) ;
     end
+end
+
+end
+% =========================================================================
+
+end
+% =========================================================================
+% =========================================================================
+methods(Hidden=true)
+% =========================================================================
+% NOTE
+%   Temporarily placing cropimg(), nii(), and zeropad() here since these methods
+%   1) might be deprecated
+%   2) may or may not be useful to a typical user
+% =========================================================================
+function Img = cropimg( Img, gridSizeImgCropped, centralPoint )
+%CROPIMG
+%
+% Img = CROPIMG( Img, croppedDims )
+% Img = CROPIMG( Img, croppedDims, centralPoint )
+% 
+% centralPoint are the indices of the original img voxel to become the centralPoint of 
+% the cropped array.
+%
+% default  (nargin == 2)
+%   centralPoint = round( size(Img.img)/2 );
+% 
+% note: 
+% if centralPoint +/- croppedDims/2 exceeds the original bounds, the array is cropped at the bound (as opposed to zero filling)
+% -------
+    
+gridSizeImgOriginal = size(Img.img) ;
+
+if (nargin == 2) || isempty(centralPoint)
+    centralPoint = round( gridSizeImgOriginal/2 ) ;
+end
+
+low  = centralPoint - round(gridSizeImgCropped/2) + [1 1 1] ;
+high = low + gridSizeImgCropped - [1 1 1] ;  
+
+for dim = 1: 3
+   if low(dim) < 1
+      low(dim) = 1 ;
+   end
+   if high(dim) > gridSizeImgOriginal(dim)
+      high(dim) = gridSizeImgOriginal(dim) ;
+  end
+end
+    
+% Update header
+[X, Y, Z] = Img.getvoxelpositions( ); 
+x0        = X(low(1),low(2),low(3)) ;
+y0        = Y(low(1),low(2),low(3)) ;
+z0        = Z(low(1),low(2),low(3)) ;
+
+Img.Hdr.ImagePositionPatient = [x0 y0 z0] ;
+
+[rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
+
+Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
+
+% crop img
+Img.img = Img.img( low(1):high(1), low(2):high(2), low(3):high(3) ) ; 
+
+if myisfield( Img.Hdr, 'MaskingImage' )  && ~isempty( Img.Hdr.MaskingImage ) 
+    
+   Img.Hdr.MaskingImage = Img.Hdr.MaskingImage( low(1):high(1), low(2):high(2), low(3):high(3) ) ; 
+
+end
+
+% Update header
+Img.Hdr.Rows                 = size(Img.img, 1) ;
+Img.Hdr.Columns              = size(Img.img, 2) ;       
+Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
+
+end
+% =========================================================================
+function [] = nii( Img )
+%NII - Write MaRdI image to NiFtI file
+%
+% Wraps to NII( ) (which wraps to the NiFtI toolbox)   
+%
+%.....
+%   Syntax
+%
+%   nii( Img ) 
+%.....
+%
+% WARNING
+%
+%   nii() function is convenient for quickly writing a file to throw
+%   into an external viewing application (e.g. ImageJ). 
+%   The nifti Hdr info (i.e. orientation) is probably all wrong. 
+%
+%   To save NifTI's properly (takes longer) use Img.write() 
+
+workingDir       = [ pwd '/' ] ;
+Params.filename  = [ workingDir Img.Hdr.PatientName.FamilyName '_' num2str( Img.Hdr.SeriesNumber ) '_' Img.Hdr.SeriesDescription  ] ;
+Params.voxelSize = Img.getvoxelspacing() ;
+
+nii( squeeze(Img.img), Params )  ;
+
+end
+% =========================================================================
+function Img = zeropad( Img, padSize, padDirection )
+%ZEROPAD
+% Img = ZEROPAD( Img, padSize, padDirection )
+%
+% padSize = [ nZerosRows nZerosColumns nZerosSlices ] 
+%
+% padDirection == 'post' || 'pre' || 'both'
+%
+% -------
+%   See also PADARRAY()
+    
+gridSizeOriginalImg = size(Img.img) ;
+
+Img.img = padarray( Img.img, padSize, 0, padDirection ) ; 
+
+if myisfield( Img.Hdr, 'MaskingImage' )  && ~isempty( Img.Hdr.MaskingImage ) 
+    
+   Img.Hdr.MaskingImage = padarray( Img.Hdr.MaskingImage, padSize, 0, padDirection ) ; 
+
+end
+
+% Update header
+Img.Hdr.Rows                 = size(Img.img, 1) ;
+Img.Hdr.Columns              = size(Img.img, 2) ;       
+Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
+
+if ~strcmp( padDirection, 'post' )
+% update image position 
+% (i.e. location in DICOM RCS of 1st voxel in data array (.img))
+    
+    voxelSize = Img.getvoxelspacing() ;
+
+    dr = voxelSize(1) ; % spacing btwn rows 
+    dc = voxelSize(2) ; % spacing btwn columns
+    ds = voxelSize(3) ;
+    
+    nr = padSize(1) ;
+    nc = padSize(2) ;
+    ns = padSize(3) ;
+    
+    [r, c, s] = Img.getdirectioncosines( ) ;
+
+    % -1 because the zeros are padded before ('pre') 1st element (origin)        
+    dx = -1*( r(1)*dr*nr + c(1)*dc*nc + s(1)*ds*ns ) ; 
+    dy = -1*( r(2)*dr*nr + c(2)*dc*nc + s(2)*ds*ns ) ;
+    dz = -1*( r(3)*dr*nr + c(3)*dc*nc + s(3)*ds*ns ) ;
+
+    x1 = Img.Hdr.ImagePositionPatient(1) + dx ;
+    y1 = Img.Hdr.ImagePositionPatient(2) + dy ;
+    z1 = Img.Hdr.ImagePositionPatient(3) + dz ;
+
+    Img.Hdr.ImagePositionPatient = [x1 y1 z1] ;
+
+    Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, s ) ;
 end
 
 end
