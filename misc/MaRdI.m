@@ -25,13 +25,6 @@ classdef MaRdI < matlab.mixin.SetGet
 %   .Aux
 %       Aux-objects: auxiliary measurements (e.g. respiratory ProbeTracking)
 %
-% .......
-%
-% NOTE
-%
-%   A number of MaRdI methods are deprecated and need to be either adapted
-%   (if they might still be useful) or deleted entirely.
-%
 % =========================================================================
 % Author: ryan.topfer@polymtl.ca
 % =========================================================================
@@ -39,36 +32,18 @@ classdef MaRdI < matlab.mixin.SetGet
 %% ========================================================================
 % *** TODO
 % ..... 
-% CROPIMG
-%   make compatible for odd-sized arrays
-% ..... 
 % RESLICEIMG()
 %   griddata takes too long (possible solution: write interp function in cpp?)
 %   Clean up 
-% ..... 
-% Saving as DICOM
-%   (maybe better just to avoid and delete this for now?)
 %
-%   -> (do not save image type as phase)
-%   -> must save proper ImagePositionPatient info
+% ..... 
+% WRITE()
+%   Saving as DICOM (and, by extension, NifTI) not rigorously/fully tested
 % 
 % ..... 
 % Write static comparegrid() function or something to ensure operations involving
 % multiple images are valid (e.g. voxel positions are the same) 
 %
-% ..... 
-% GETDIRECTIONCOSINES()
-%   Weird flip-conditional for slice direction? Is this OK??
-%   Siemens private header apprently contains field SliceNormalVector.
-%
-% ..... 
-% WRITE()
-%   Neither 'as dcm' nor 'as nii' functionalities work properly.
-% 
-% ..... 
-% EXTRACTHARMONICFIELD()
-%  Clean up 
-% 
 % .....
 % ASSOCIATEAUX()
 %  link Image to corresponding Auxiliary data
@@ -206,6 +181,36 @@ if nargin == 1
 
     end
 end
+
+end
+% =========================================================================
+function [f0, g0, s0] = adjvalidateshim( Img )
+%ADJVALIDATESHIM
+% 
+% [f0, g0, s0] = ADJVALIDATESHIM( Img )
+% 
+% ADJVALIDATESHIM is not a particularly revealing name for a function; however,
+% it is based on the Siemens AdjValidate commandline tool, with a "-shim" input
+% argument.
+%
+% f0 = scalar Larmor (Tx) freq. [ units : Hz ]
+% g0 = 3-element vector of the linear gradient offsets (gX, gY, gZ) [units : DAC bits]
+% s0 = 5-element vector of 2nd order shim currents [units : mA] 
+%
+% To convert to the units of the 3D Shim card on the Siemens (Prisma) console,
+% see ShimOpt_IUGM_Prisma_fit.converttomultipole( )
+
+% Larmor (Tx) freq.
+f0 = Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency ; 
+
+% linear gradients
+g0 = [ Img.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetX ; ...
+       Img.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetY ; ...
+       Img.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetZ ] ;
+
+% -------
+% 2nd order shims (5-element vector)
+s0 = Img.Hdr.MrProt.sGRADSPEC.alShimCurrent ;
 
 end
 % =========================================================================
@@ -390,36 +395,6 @@ end
 function nVoxels = getnumberofvoxels( Img )
 %GETNUMBEROFVOXELS
 nVoxels = prod( Img.getgridsize( ) ) ;
-end
-% =========================================================================
-function [f0, g0, s0] = adjvalidateshim( Img )
-%ADJVALIDATESHIM
-% 
-% [f0, g0, s0] = ADJVALIDATESHIM( Img )
-% 
-% ADJVALIDATESHIM is not a particularly revealing name for a function; however,
-% it is based on the Siemens AdjValidate commandline tool, with a "-shim" input
-% argument.
-%
-% f0 = scalar Larmor (Tx) freq. [ units : Hz ]
-% g0 = 3-element vector of the linear gradient offsets (gX, gY, gZ) [units : DAC bits]
-% s0 = 5-element vector of 2nd order shim currents [units : mA] 
-%
-% To convert to the units of the 3D Shim card on the Siemens (Prisma) console,
-% see ShimOpt_IUGM_Prisma_fit.converttomultipole( )
-
-% Larmor (Tx) freq.
-f0 = Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency ; 
-
-% linear gradients
-g0 = [ Img.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetX ; ...
-       Img.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetY ; ...
-       Img.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetZ ] ;
-
-% -------
-% 2nd order shims (5-element vector)
-s0 = Img.Hdr.MrProt.sGRADSPEC.alShimCurrent ;
-
 end
 % =========================================================================
 function [X,Y,Z] = getvoxelpositions( Img )
@@ -1249,6 +1224,9 @@ function Img = cropimg( Img, gridSizeImgCropped, centralPoint )
 % note: 
 % if centralPoint +/- croppedDims/2 exceeds the original bounds, the array is cropped at the bound (as opposed to zero filling)
 % -------
+% *** TODO
+%
+%   make compatible for odd-sized arrays
     
 gridSizeImgOriginal = size(Img.img) ;
 
