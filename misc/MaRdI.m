@@ -40,10 +40,6 @@ classdef MaRdI < matlab.mixin.SetGet
 % WRITE()
 %   Saving as DICOM (and, by extension, NifTI) not rigorously/fully tested
 % 
-% ..... 
-% Write static comparegrid() function or something to ensure operations involving
-% multiple images are valid (e.g. voxel positions are the same) 
-%
 % .....
 % ASSOCIATEAUX()
 %  link Image to corresponding Auxiliary data
@@ -973,6 +969,26 @@ end
 % =========================================================================
 % =========================================================================
 methods(Access=protected)
+% =========================================================================
+function isSame = compareimggrids( Img1, Img2 )
+%COMPAREIMGGRIDS 
+%
+% isSame = COMPAREIMGGRIDS( Img1, Img2 )
+%
+% Returns TRUE if voxel positions of Img1 and Img2 are identical
+
+[X1, Y1, Z1] = Img1.getvoxelpositions ;
+[X2, Y2, Z2] = Img2.getvoxelpositions ;
+
+if ( numel(size(X1)) ~= numel(size(X2)) ) || any( size(X1) ~= size(X2) ) || any( X1(:) ~= X2(:) ) || any( Y1(:) ~= Y2(:) ) || any( Z1(:) ~= Z2(:) )
+    isSame = false ;
+elseif ( all(X1(:) == X2(:) ) && all( Y1(:) == Y2(:) ) && all( Z1(:) == Z2(:) ) ) 
+    isSame = true ;
+else
+    error('Unexpected result: Check conditions apparently insufficient. Modify code')
+end
+
+end
 % =========================================================================
 function [] = scalephasetofrequency( Img, undoFlag )
 %SCALEPHASETOFREQUENCY
