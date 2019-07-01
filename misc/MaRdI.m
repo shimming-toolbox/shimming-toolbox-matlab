@@ -300,36 +300,6 @@ end
 
 end
 % =========================================================================
-function [] = scalephasetofrequency( Img, undoFlag )
-%SCALEPHASETOFREQUENCY
-%
-% Converts unwrapped phase [units:rad] to field [units: Hz]
-% 
-%   Field = scalephasetofrequency( UnwrappedPhase )
-%   Phase = scalephasetofrequency( Field, -1 )
-%   
-%   The 'undo' mode with -1 as the 2nd argument scales from Hz back to rad
-% .....
-%
-% UnwrappedPhase.Hdr.EchoTime              [units: ms]
-
-scalingFactor = 1/( 2*pi*Img.Hdr.EchoTime*(1E-3)  ) ;
-
-if (nargin < 2) || (undoFlag ~= -1)
-    assert( strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0000H' ) )
-
-    Img.img       = scalingFactor * Img.img ;
-    Img.Hdr.PixelComponentPhysicalUnits = '0005H' ; % i.e. Hz
-
-elseif (undoFlag == -1)
-    assert( strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0005H' ) )
-
-    Img.img       = (scalingFactor^-1 )* Img.img ;
-    Img.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
-end
-
-end
-% =========================================================================
 function [t] = getacquisitiontime( Img ) 
 % GETACQUISITIONTIME
 % 
@@ -1019,6 +989,42 @@ if ~strcmp( imgFormat, 'dcm' )
     if strcmp( imgFormat, 'nii' )
         delete( [saveDirectory '/*.dcm'] ) ;
     end
+end
+
+end
+% =========================================================================
+
+end
+% =========================================================================
+% =========================================================================
+methods(Access=protected)
+% =========================================================================
+function [] = scalephasetofrequency( Img, undoFlag )
+%SCALEPHASETOFREQUENCY
+%
+% Converts unwrapped phase [units:rad] to field [units: Hz]
+% 
+%   Field = scalephasetofrequency( UnwrappedPhase )
+%   Phase = scalephasetofrequency( Field, -1 )
+%   
+%   The 'undo' mode with -1 as the 2nd argument scales from Hz back to rad
+% .....
+%
+% UnwrappedPhase.Hdr.EchoTime              [units: ms]
+
+scalingFactor = 1/( 2*pi*Img.Hdr.EchoTime*(1E-3)  ) ;
+
+if (nargin < 2) || (undoFlag ~= -1)
+    assert( strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0000H' ) )
+
+    Img.img       = scalingFactor * Img.img ;
+    Img.Hdr.PixelComponentPhysicalUnits = '0005H' ; % i.e. Hz
+
+elseif (undoFlag == -1)
+    assert( strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0005H' ) )
+
+    Img.img       = (scalingFactor^-1 )* Img.img ;
+    Img.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
 end
 
 end
