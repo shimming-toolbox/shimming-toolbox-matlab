@@ -61,15 +61,13 @@ if nargin ~= 0
     end
 
     if isa( varargin{1}, 'MaRdI' )
-
         % convert MaRdI-type Img object to FieldEval
-        Field.img = Img.img ;
-        Field.Hdr = Img.Hdr ;
+        Field.img  = Img.img ;
+        Field.Hdr  = Img.Hdr ;
         Field.Hdrs = Img.Hdrs ;
-        Field.Aux = Img.Aux ;
+        Field.Aux  = Img.Aux ;
     
     elseif isa( varargin{1}, 'cell' ) 
-
         % if Img input is a cell array of MaRdI-images, this is presumed to be a set of GRE images destined for B0-mapping 
         Img = varargin{1} ; 
 
@@ -90,8 +88,9 @@ if nargin ~= 0
        imgPath1 = varargin{1} ;
        imgPath2 = varargin{2} ; 
         
-       if nargin == 3
-           Params = varargin{2} ;
+       if ( nargin == 3 ) 
+           assert( isstruct( varargin{3} ), 'Expected Parameters struct as third input argument' ) ;
+           Params = varargin{3} ;
        end
        
        Field = FieldEval.mapfield( imgPath1, imgPath2, Params ) ;
@@ -708,6 +707,7 @@ for iImg = 1 : 2
     if isa( varargin{iImg}, 'MaRdI' )
         Img = varargin{iImg} ;
     elseif ischar( varargin{iImg} )
+        display( ['Loading img ' num2str(iImg) ' of 2'] );
         Img = MaRdI( varargin{iImg} ) ;
     end
 
@@ -845,7 +845,7 @@ else
 end
 
 PhaseDiff.Hdr.MaskingImage = logical( Params.mask ) & ~isnan( PhaseDiff.img ) ;
-
+% dbstop in FieldEval at 853
 % -------
 % 3d path-based unwrapping
 PhaseDiff = PhaseDiff.unwrapphase( Mag, Params ) ;
