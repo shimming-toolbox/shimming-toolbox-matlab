@@ -62,6 +62,7 @@ if nargin ~= 0
 
     if isa( varargin{1}, 'MaRdI' )
         % convert MaRdI-type Img object to FieldEval
+        Img        = varargin{1} ;
         Field.img  = Img.img ;
         Field.Hdr  = Img.Hdr ;
         Field.Hdrs = Img.Hdrs ;
@@ -845,7 +846,7 @@ else
 end
 
 PhaseDiff.Hdr.MaskingImage = logical( Params.mask ) & ~isnan( PhaseDiff.img ) ;
-% dbstop in FieldEval at 853
+
 % -------
 % 3d path-based unwrapping
 PhaseDiff = PhaseDiff.unwrapphase( Mag, Params ) ;
@@ -855,20 +856,22 @@ nImg = size( PhaseDiff.img, 5 ) ;
 
 if nImg > 1
     display('Correcting for temporal wraps in field time-series')
-    warning('spatial phase unwrapping (using sunwrap) observed to create temporal discontinuities for subject acdc_69 which are not fully corrected with the current processing scheme.')
+
+    % correct temporal wraps by comparing to phaseEstimate:
+    phaseEstimate = median(PhaseDiff.img,  5, 'omitnan' ) ;
+    % normalize the estimate so its spatial median is within [-pi,pi]
+    tmpMask = logical( prod( Params.mask, 5 ) ) ;
+    n       = round(median(phaseEstimate(tmpMask))/pi) ;
+    phaseEstimate = phaseEstimate - n*pi ;
+
     % Wherever the absolute deviation from the estimate exceeds pi,
     % correct the measurement by adding the appropriate pi-multiple:
-    phaseEstimate = min( abs(PhaseDiff.img), [], 5, 'omitnan' ) ;
-    
     for iImg = 1 : nImg
         dPhase = phaseEstimate - PhaseDiff.img( :,:,:,1,iImg )  ;
         n      = ( abs(dPhase) > pi ) .* round( dPhase/pi ) ;
         PhaseDiff.img( :,:,:,1,iImg ) = PhaseDiff.img(:,:,:,1,iImg ) + n*pi ;
     end
     
-    % % -------
-    % % spatial unwrapping post-correction
-    % PhaseDiff = PhaseDiff.unwrapphase( Mag, Params ) ;
 end
 
 PhaseDiffInRad = PhaseDiff.copy() ; % PhaseDiffInRad.img : [units: rad]
