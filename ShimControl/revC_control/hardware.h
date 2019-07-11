@@ -1,6 +1,6 @@
 #include <t3spi.h>
 
-#define NUM_B 1//number of boards
+#define NUM_B 2//number of boards
 #define NUM_C 8//number of channesl per board
 
 // power supply:

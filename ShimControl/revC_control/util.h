@@ -181,8 +181,8 @@ void setshimbufferbychannel( uint8_t iCh, float current )
 {
     currentsBuffer[iCh] = current ;
     dacBuffer[iCh] = ampstodac( iCh, currentsBuffer[iCh] ) ;
-//    LTC2656Write(WRITE_AND_UPDATE, channelMap[iCh],
-//    Dac.writeChannel( iCh, dacBuffer[iCh] );  
+    selectBoard(board_order[iCh]);
+    LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]],dacBuffer[iCh]);
 }
 
 float uint16toamps( uint16_t uint16current ) 
