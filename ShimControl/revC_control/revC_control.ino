@@ -4,7 +4,6 @@
 int8_t channels_used[NUM_B][NUM_C]  =
 {
   {0, 1, 2, 3, 4, 5, 6, 7},
-  {0, 1, 2, 3, 4, 5, 6, 7}
 };
 
 void setup() {
