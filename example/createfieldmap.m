@@ -15,7 +15,7 @@ pathToPhase = '/Users/ryan/Projects/Shimming/Acdc/20190511_Ismrm/data/acdc_69/14
 % for more info, see HELP FieldEval.mapfield
 
 % relative to max magnitude: defines the binary mask for phase unwrapping
-Params.threshold = 0.1 ;
+Params.threshold = 0.01 ;
 
 %% -------
 % Create FieldEval object:
@@ -37,4 +37,5 @@ Field = FieldEval( pathToMag, pathToPhase, Params ) ;
 % This has not been extensively tested and some of Hdr info may be incomplete:
 
 pathToNii = './field/' ; % where to save the images
-Field.write( pathToNii, 'nii' )
+isSavingSingleNiis = true ;
+Field.write( pathToNii, 'nii', isSavingSingleNiis ) ;

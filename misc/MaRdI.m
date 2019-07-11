@@ -226,6 +226,206 @@ s0 = Img.Hdr.MrProt.sGRADSPEC.alShimCurrent ;
 
 end
 % =========================================================================
+function [pInterp] = associatetrackerdata( Img, pTracker, tTracker )
+%ASSOCIATETRACKERDATA
+
+% number of acquisitions
+nAcq = size( Img.img, 5 ) ;
+
+% number of tracker samples
+nSamples = length(pTracker);
+
+if nSamples == 1
+    pInterp = pTracker*ones(nAcq, 1) ;
+    return ;
+else
+    assert( length(tTracker) == length(pTracker), 'Function expects one sample time-point for each input sample.' )
+end
+
+tAcq = Img.getacquisitiontime() ;
+tAcq = tAcq - tAcq(1) ;
+
+% time between images 
+dtAcq = median( diff( tAcq ) ) ;
+    
+% time between respiratory samples (note: round to ms before scaling to s)
+dtTracker = 0.001*round( ( tTracker(end) - tTracker(1) )/nSamples ) ; % [units: s]
+
+tTracker  = 0.001*tTracker ; % convert to [units: s]
+    
+assert( max(tTracker)>=max(tAcq), 'Function expects length of tracker (respiratory) recording to be greater or equal to the image acquisition time.' )
+
+if nAcq == 1
+    % single image time-point assumed to correspond to a breath-hold and, thus, a single tracker value:
+
+    % number of samples corresponding to breath-hold
+    % (enables auto-estimation of the time window corresponding to the breath-hold):
+    nSamplesApnea = Img.Hdr.MrProt.lTotalScanTimeSec/dtTracker ;
+
+    % extract a single scalar
+    pInterp = ProbeTracking.selectmedianmeasurement( pTracker, nSamplesApnea ) ;
+
+else
+    % determine intersystem (image acq. to respiratory tracker) delays
+
+    gridSize = Img.getgridsize() ;
+    
+    % % ------
+    % % bandpass filter images?
+    % 
+    % frequencyCutoff = [ 0 0.6 ] ;
+    %
+    % for iRow = 1 : gridSize(1) 
+    %     for iColumn = 1 : gridSize(2)  
+    %         for iSlice = 1 : gridSize(3)
+    %         Field.img( iRow, iColumn, 1, : ) = ...
+    %             bpfilt( squeeze( Img.img(iRow, iColumn, iSlice,:) ), frequencyCutoff(1), frequencyCutoff(2), 1/dtAcq, false ) ;
+    %         end
+    %     end
+    % end
+        
+    % ------
+    % Interpolate img across time to match the interval of the physio recording 
+    tInterp = [ 0: dtTracker : tAcq(end) ]' ;
+
+    imgInterp = zeros( [ gridSize length(tInterp) ] ) ;
+
+    for iRow = 1 : gridSize(1) 
+        for iColumn = 1 : gridSize(2)  
+            for iSlice = 1 : gridSize(3)
+                imgInterp( iRow, iColumn, iSlice, : ) = interp1( tAcq, squeeze( Img.img( iRow, iColumn, iSlice, :) ), tInterp, 'linear' ) ; 
+            end
+        end
+    end
+    
+    % Assume the entire img series occurs somewhere within the tTracker window.
+    % given that we assign tInterp(1) = 0, 
+    % the delay time (tInterp' = tTracker' - t_delay) is necessarily positive, 
+    % and less than max(tTracker) - max(tInterp)
+
+    maxLag = round(( max( tTracker ) - max( tInterp ) )/dt) ;
+
+    T_delay = nan( gridSize ) ;
+    C       = zeros( [gridSize 1] ) ;
+    
+    % reliable region:
+    mask  = ( sum( Field.Hdr.MaskingImage, 4 ) == nAcq ) ;
+
+    ShimUse.customdisplay( 'Estimating probe-to-image delay...')
+    % ------
+    % X-corr
+    for iRow = 1 : Field.Hdr.Rows 
+        for iColumn = 1 : Field.Hdr.Columns  
+             if mask( iRow, iColumn )
+
+                [c, lags] = xcorr( pTracker, imgInterp(iRow,iColumn,:), maxLag ) ;
+
+                % truncate to positive delay times
+                c    = c( lags >=0 ) ;
+                lags = lags( lags >=0 ) ;
+                
+                [maxC, iMax] = max(abs(c)) ;
+                t_xcorr = dt*lags ;
+                t_delay = t_xcorr( iMax ) ;
+
+                C(iRow, iColumn, 1, 1:length(c)) = c ;
+                T_delay(iRow, iColumn) = t_delay ;
+            end
+        end
+    end
+
+    % the median should be more robust than the average for determining the delay
+    % once noise + uncorrelated voxels are taken into consideration
+    t_medianDelay = median( T_delay( mask ) ) ;
+
+    ShimUse.customdisplay( ['Estimated delay: ' num2str( t_medianDelay )] ) ;
+        
+    response = input(['Is the current estimate satisfactory? ' ...
+            '0 to manually specify delay; 1 (or enter) to accept & continue: ']) ;
+
+    if ~response
+        
+        figure
+        imagesc( mask .* median( imgInterp, 4 ) ) ;
+        title('Median field') ;
+        ShimUse.customdisplay( 'Choose a voxel to plot its field time-course: ' ) ;
+
+        isVoxelInReliableRegion = false ;
+
+        while ~isVoxelInReliableRegion
+            iRow = input( ['Enter the voxel image row: ' ] ) 
+            iCol = input( ['Enter the voxel image column: ' ] )
+            
+            isVoxelInReliableRegion = mask( iRow, iCol ) ;
+            
+            if ~isVoxelInReliableRegion
+                ShimUse.customdisplay( 'Selected voxel lies outside the reliable region. Choose again' ) ;
+            end
+        end
+        
+        figure; 
+        subplot(121); plot( tTracker, pTracker ); 
+        xlabel('Time (s)') ; ylabel('Amplitude (a.u.)') ; 
+        title('Physio signal') ;
+        
+        subplot(122); plot( tInterp, squeeze(imgInterp(iRow,iCol,:)) ) ;
+        xlabel('Time (s)') ; ylabel('Field (Hz)') ; 
+        title(['Field at voxel [' num2str(iRow) ',' num2str(iCol) ']' ]) ;
+
+        isDelayValid = false ;
+        while ~isDelayValid
+            t_delay = input(['Enter the delay (between 0-' num2str(maxLag) ' s) in units of seconds: '] ) 
+            
+            isDelayValid = ( t_delay >= 0 ) & ( t_delay <= maxLag ) ;
+            
+            if ~isDelayValid
+                ShimUse.customdisplay( 'Given delay exceeds the expected range. Choose again' ) ;
+            end
+        end 
+    else
+        t_delay = t_medianDelay ;
+    end
+
+    %  % % figure; subplot(121); plot( squeeze( Field.img(50,40,1,:) ) ); subplot(122); plot( Field.Aux.Tracker.Data.p )
+    %  % figure; subplot(121); plot( tTracker, pTracker ); subplot(122); plot( tAcq, squeeze( Field.img(50,30,:)) )
+    %  figure; subplot(121); plot( tTracker, pTracker ); subplot(122); plot( tAcq, squeeze( Field.img(50,40,:)) )
+    %  hold on; plot( tInterp, squeeze(imgInterp(50,40,:)) )
+    %  % figure; subplot(121); plot( tTracker, pTracker ); subplot(122); plot( tAcq, squeeze( Field.img(40,40,:)) )
+    %  % figure; subplot(121); plot( tTracker, pTracker ); subplot(122); plot( tAcq, squeeze( Field.img(30,40,:)) )
+    %
+    %  meanMag = repmat(mean(Shim.Data.Img{1,1,1}.img,4) ,[1 1 1 200]) ;
+    %  stdMag  = repmat(std(Shim.Data.Img{1,1,1}.img,[],4) ,[1 1 1 200]) ;
+    % zScore = ( Shim.Data.Img{1,1,1}.img - meanMag ) ./ stdMag ;
+    % zMask = ( sum( abs(zScore) < 1, 4 ) >=199 ) ;    
+    %
+    % t_medianDelay = median( T_delay( mask & zMask ) ) 
+
+    [~,iT] = min( abs( tTracker - t_delay ) ) ;
+
+    % Finally, interpolate pTracker to the acquired image times:
+    tp = tTracker( iT:iT+length(tInterp)-1 ) -tTracker(iT) ;
+
+    % NOTE: tp(end) can be slightly < tAcq(end)  
+    % Using 'extrap' to avoid an interpolated p terminating with NaN's
+    Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p = interp1( tp, pTracker( iT:iT+length(tInterp)-1 ), tAcq, 'linear', 'extrap' ) ;
+    Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.t = tAcq ;
+
+    if any( isnan(Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p) )
+        warning('Interpolated probe recording contains nonnumeric values. Check inputs. (E.g. Shim.Data.Img{ }: Entries should be ordered by acquisition time)' ) ;
+    end
+
+    % used in nonlinear shim optimization:
+    Shim.Params.pMax     = max( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ) ;
+    Shim.Params.pMin     = min( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ) ;
+    
+    % for posterity (might be useful?):
+    Shim.Params.imgDelay = t_delay ;    
+
+end
+
+end
+% =========================================================================
+% =========================================================================
 function ImgCopy = copy(Img)
 %COPY 
 % 
@@ -838,7 +1038,7 @@ Img.Hdr.SeriesDescription = ['phase_unwrapped_' Options.unwrapper ] ;
 
 end
 % =========================================================================
-function [] = write( Img, saveDirectory, imgFormat )
+function [] = write( Img, saveDirectory, imgFormat, isSavingSingleNiis )
 %WRITE Ma(t)-R-dI(com)
 % 
 % Write MaRdI image object to DICOM and/or NifTI
@@ -850,6 +1050,7 @@ function [] = write( Img, saveDirectory, imgFormat )
 %   WRITE( Img )
 %   WRITE( Img, saveDirectory )
 %   WRITE( Img, saveDirectory, imgFormat ) 
+%   WRITE( Img, saveDirectory, imgFormat, isSavingSingleNiis ) 
 %
 %   Inputs
 %
@@ -860,13 +1061,18 @@ function [] = write( Img, saveDirectory, imgFormat )
 %       'nii' (creating temporary DICOMs which are deleted after the system call to dcm2niix)
 %       'both' (does not delete the DICOMs)
 %
+%   isSavingSingleNiis (boolean):
+%       false [default] : DICOMs are combined into single NifTI file
+%       true : Separate .nii output for each image (passes '-s y' argument to dcm2niix)
+%
 %.....
 %
 % Adapted from dicom_write_volume.m (D.Kroon, University of Twente, 2009)
 % https://www.mathworks.com/matlabcentral/fileexchange/27941-dicom-toolbox?focused=5189263&tab=function
 
-DEFAULT_SAVEDIRECTORY = './tmp' ;
-DEFAULT_IMGFORMAT     = 'dcm' ;
+DEFAULT_SAVEDIRECTORY      = './tmp' ;
+DEFAULT_IMGFORMAT          = 'dcm' ;
+DEFAULT_ISSAVINGSINGLENIIS = false ;
 
 if nargin < 2 || isempty(saveDirectory)
     saveDirectory = DEFAULT_SAVEDIRECTORY ;
@@ -874,6 +1080,10 @@ end
 
 if nargin < 3 || isempty(imgFormat)
     imgFormat = DEFAULT_IMGFORMAT ;
+end
+
+if nargin < 4 || isempty(isSavingSingleNiis)
+    isSavingSingleNiis = DEFAULT_ISSAVINGSINGLENIIS ;
 end
 
 fprintf(['\n Writing images to: ' saveDirectory ' ... \n'])
@@ -971,8 +1181,16 @@ end
 
 %-------
 if ~strcmp( imgFormat, 'dcm' )
-    system(['dcm2niix ' saveDirectory]) ;
-    
+
+    if isSavingSingleNiis
+        list = MaRdI.findimages( saveDirectory ) ;
+        for iImg = 1 : size( list, 1 )
+            system(['dcm2niix -s y -f %f_%r ' list{iImg}]) ;
+        end
+    else
+        system(['dcm2niix ' saveDirectory]) ;
+    end
+
     if strcmp( imgFormat, 'nii' )
         delete( [saveDirectory '/*.dcm'] ) ;
     end
