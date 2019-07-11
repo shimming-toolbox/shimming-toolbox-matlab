@@ -41,6 +41,7 @@ float measure_gain(uint8_t b, uint8_t c) {
 }
 
 bool calibrate_channel(uint8_t b, uint8_t c) {
+
 //  Serial.println();
 //  Serial.print("Calibrating board: "); Serial.print(b); Serial.print(" CH: "); Serial.print(c+1);
   bool isCalibrationSuccessful = false ;
@@ -132,5 +133,109 @@ bool calibratedaccompensation()
 
   Serial.println(isCalibrationSuccessful);
   return isCalibrationSuccessful ;
+}
+
+bool readfivedigitcurrent( uint16_t &current ) 
+{
+// Reads 5 digits from serial comprising a current value scaled between
+// [0:65535] 
+//
+// Returns TRUE if successful
+
+    String inString = "";
+    uint8_t nBytesRead = 0;
+    int inByte;
+    long D[5] ; // data buffer
+    
+    while( nBytesRead < 5 )
+    {
+       if ( Serial.available() > 0 ) 
+        {
+            inByte = Serial.read();
+
+            if ( !isDigit( (char)inByte ) )
+            {
+                Serial.println(false); return false;
+            }
+            inString = (char)inByte ;
+            D[nBytesRead] = inString.toInt() ;
+            nBytesRead = nBytesRead + 1 ;
+        }
+    }
+    
+    current = uint16_t(D[0]*10000 + D[1]*1000 + D[2]*100 + D[3]*10 + D[4]) ;
+    
+    if ( ( (D[0]*10000 + D[1]*1000 + D[2]*100 + D[3]*10 + D[4]) < 0 ) || 
+            ( (D[0]*10000 + D[1]*1000 + D[2]*100 + D[3]*10 + D[4]) > 65535 ) )
+        return false;
+    else
+        return true;
+}
+
+uint16_t ampstodac( uint8_t iChannel, float current ) 
+{
+    return uint16_t( DAC_BITSPERVOLT * ( current*dacGain[iChannel]*float(DAC_PREAMP_RESISTANCE) + float( DAC_VREF ) + dacOffset[iChannel] )/1000.0  ) ;
+}
+
+void setshimbufferbychannel( uint8_t iCh, float current )
+{
+    currentsBuffer[iCh] = current ;
+    dacBuffer[iCh] = ampstodac( iCh, currentsBuffer[iCh] ) ;
+//    LTC2656Write(WRITE_AND_UPDATE, channelMap[iCh],
+//    Dac.writeChannel( iCh, dacBuffer[iCh] );  
+}
+
+float uint16toamps( uint16_t uint16current ) 
+{
+// Input: current scaled between [0, 65535], 
+// Output: current as float in units of amperes 
+    return ( float(uint16current) - 32768.0 )/DAC_BITSPERAMP ;
+}
+
+bool usersetallshims() 
+{
+// Reads sequentially from serial 5 digits X SHIM_NCHANNELS 
+// where each consecutive 5 digits represents the channel's
+// shim current scaled to be between [0:65535]
+// 
+// Updates shim buffer upon completion
+
+    bool isCurrentReadSuccessful = false;
+    uint16_t inputCurrents [ NUM_B * NUM_C ] ;
+
+    for( uint8_t iCh = 0; iCh < (NUM_B * NUM_C); iCh++ )
+    {
+        isCurrentReadSuccessful = readfivedigitcurrent( inputCurrents[iCh] ) ;
+
+        if ( !isCurrentReadSuccessful )
+        {
+            Serial.println(false); return false; 
+        }
+    }
+
+    for( uint8_t iCh = 0; iCh < (NUM_B * NUM_C); iCh++ )
+    {
+        setshimbufferbychannel( iCh, uint16toamps( inputCurrents[iCh] ) ) ;
+    }   
+
+    return isCurrentReadSuccessful ; 
+}
+
+bool usersetandloadallshims() 
+{
+// Reads sequentially from serial 5 digits X SHIM_NCHANNELS 
+// where each consecutive 5 digits represents the channel's
+// shim current scaled to be between [0:65535]
+// 
+// Updates the shim buffer + outputs DAC values upon completion
+//
+// Returns TRUE if successful
+
+    bool isReadSuccessful = false ;
+    isReadSuccessful = usersetallshims() ; 
+    //loadallshims() ;
+    Serial.println(isReadSuccessful);
+    return isReadSuccessful;
+        
 }
 

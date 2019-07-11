@@ -15,12 +15,24 @@ void setup() {
       gain[b][c] = -1.6;
     }
   }
-  //Initialize DAC
+  //Initialize DAC communication
   selectNone();
   delay(100);
   selectDAC();
   delay(100);
   selectNone();
+
+      // reset DAC correction terms 
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+  {
+    isChannelCalibrationSuccessful[iCh] = false ;
+    dacGain[iCh]   = 1.0 ;
+    dacOffset[iCh] = 0 ; 
+  }
+
+  userresetallshims( ) ;
+  // system heartbeat prints TRUE to indicate system is responsive
+  usergetsystemheartbeat() ;
 
 }
 
@@ -29,19 +41,27 @@ void loop() {
   if (Serial.available() > 0) {
     incomingByte = Serial.read();
     switch (incomingByte) {
-      
-      case 'c':
-        calibratedaccompensation();
+
+      case 'h': // prints TRUE/FALSE \n
+        usergetsystemheartbeat();
         break;
 
       case 's'://zero all channels
         userresetallshims( ) ;
         break;
 
+      case 'a': // prints TRUE/FALSE \n set shim currents
+        usersetandloadallshims();
+        break;
+        
       case 'q':// Print all channel currents in A
         usergetallchannelcurrents();
         break;
-        
+
+      case 'c':
+        calibratedaccompensation();
+        break;
+
       case 'g'://used to set DAC values
         selectBoard(0);
         float crt_val = Serial.parseFloat();
@@ -51,10 +71,8 @@ void loop() {
         }
         Serial.println();
         break;
-        
-      case 'h': // prints TRUE/FALSE \n
-        usergetsystemheartbeat();
-        break;
+
+
     }
   }
 }

@@ -3,6 +3,29 @@
 #define NUM_B 1//number of boards
 #define NUM_C 8//number of channesl per board
 
+// power supply:
+const float AMP_MAXCURRENTPERCHANNEL = 2.5 ; // [units: amps]
+const float AMP_CURRENTRANGE         = 2*AMP_MAXCURRENTPERCHANNEL ; // [units: amps]
+
+// 3 terms describing DAC hardware:
+const uint8_t DAC_RESOLUTION         = 16 ; // 16-bit
+const int16_t DAC_VREF               = 1250 ; // [units: mV]
+const int16_t DAC_PREAMP_RESISTANCE  = 220 ; // [units: milli-Ohms]
+
+// 3 derived terms for convenience:
+const uint16_t DAC_RANGE_VOUT        = 2*DAC_VREF ; // [units: mV]
+const float DAC_BITSPERAMP           = ( pow( 2.0, float(DAC_RESOLUTION) ) - 1.0 )/AMP_CURRENTRANGE ; // = 13107 [units: bit-counts/A] 
+const uint16_t DAC_BITSPERVOLT       = (1000* pow( 2.0, float(DAC_RESOLUTION) ) - 1.0 )/DAC_RANGE_VOUT ; // = 26214 [units: bit-counts/V]
+
+// 
+float dacOffset [ NUM_B * NUM_C ] ; // [units: mV]
+float dacGain [ NUM_B * NUM_C ] ; // [unitless]
+
+float currentsBuffer [ NUM_B * NUM_C ] ; // [units: A] 
+uint16_t dacBuffer [ NUM_B * NUM_C ] ; // same as currentsBuffer but converted to DAC count
+
+bool isChannelCalibrationSuccessful [ NUM_B * NUM_C ] ;
+
 boolean board_address[8][3] = {{LOW, LOW, HIGH},
   {HIGH, HIGH, HIGH},
   {LOW, HIGH, HIGH},
