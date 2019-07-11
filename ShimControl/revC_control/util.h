@@ -42,8 +42,8 @@ float measure_gain(uint8_t b, uint8_t c) {
 
 bool calibrate_channel(uint8_t b, uint8_t c) {
 
-//  Serial.println();
-//  Serial.print("Calibrating board: "); Serial.print(b); Serial.print(" CH: "); Serial.print(c+1);
+  //  Serial.println();
+  //  Serial.print("Calibrating board: "); Serial.print(b); Serial.print(" CH: "); Serial.print(c+1);
   bool isCalibrationSuccessful = false ;
   zeroPoint[b][c] = 0;
   delay(1);
@@ -135,107 +135,234 @@ bool calibratedaccompensation()
   return isCalibrationSuccessful ;
 }
 
-bool readfivedigitcurrent( uint16_t &current ) 
+bool readfivedigitcurrent( uint16_t &current )
 {
-// Reads 5 digits from serial comprising a current value scaled between
-// [0:65535] 
-//
-// Returns TRUE if successful
+  // Reads 5 digits from serial comprising a current value scaled between
+  // [0:65535]
+  //
+  // Returns TRUE if successful
 
-    String inString = "";
-    uint8_t nBytesRead = 0;
-    int inByte;
-    long D[5] ; // data buffer
-    
-    while( nBytesRead < 5 )
+  String inString = "";
+  uint8_t nBytesRead = 0;
+  int inByte;
+  long D[5] ; // data buffer
+
+  while ( nBytesRead < 5 )
+  {
+    if ( Serial.available() > 0 )
     {
-       if ( Serial.available() > 0 ) 
-        {
-            inByte = Serial.read();
+      inByte = Serial.read();
 
-            if ( !isDigit( (char)inByte ) )
-            {
-                Serial.println(false); return false;
-            }
-            inString = (char)inByte ;
-            D[nBytesRead] = inString.toInt() ;
-            nBytesRead = nBytesRead + 1 ;
-        }
+      if ( !isDigit( (char)inByte ) )
+      {
+        Serial.println(false); return false;
+      }
+      inString = (char)inByte ;
+      D[nBytesRead] = inString.toInt() ;
+      nBytesRead = nBytesRead + 1 ;
     }
-    
-    current = uint16_t(D[0]*10000 + D[1]*1000 + D[2]*100 + D[3]*10 + D[4]) ;
-    
-    if ( ( (D[0]*10000 + D[1]*1000 + D[2]*100 + D[3]*10 + D[4]) < 0 ) || 
-            ( (D[0]*10000 + D[1]*1000 + D[2]*100 + D[3]*10 + D[4]) > 65535 ) )
-        return false;
-    else
-        return true;
+  }
+
+  current = uint16_t(D[0] * 10000 + D[1] * 1000 + D[2] * 100 + D[3] * 10 + D[4]) ;
+
+  if ( ( (D[0] * 10000 + D[1] * 1000 + D[2] * 100 + D[3] * 10 + D[4]) < 0 ) ||
+       ( (D[0] * 10000 + D[1] * 1000 + D[2] * 100 + D[3] * 10 + D[4]) > 65535 ) )
+    return false;
+  else
+    return true;
 }
 
-uint16_t ampstodac( uint8_t iChannel, float current ) 
+uint16_t ampstodac( uint8_t iChannel, float current )
 {
-    return uint16_t( DAC_BITSPERVOLT * ( current*dacGain[iChannel]*float(DAC_PREAMP_RESISTANCE) + float( DAC_VREF ) + dacOffset[iChannel] )/1000.0  ) ;
+  return uint16_t( DAC_BITSPERVOLT * ( current * dacGain[iChannel] * float(DAC_PREAMP_RESISTANCE) + float( DAC_VREF ) + dacOffset[iChannel] ) / 1000.0  ) ;
 }
 
 void setshimbufferbychannel( uint8_t iCh, float current )
 {
-    currentsBuffer[iCh] = current ;
-    dacBuffer[iCh] = ampstodac( iCh, currentsBuffer[iCh] ) ;
-    selectBoard(board_order[iCh]);
-    LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]],dacBuffer[iCh]);
+  currentsBuffer[iCh] = current ;
+  dacBuffer[iCh] = ampstodac( iCh, currentsBuffer[iCh] ) ;
+  selectBoard(board_order[iCh]);
+  LTC2656Write(WRITE_TO_INPUT, channelMap[channel_order[iCh]], dacBuffer[iCh]);
 }
 
-float uint16toamps( uint16_t uint16current ) 
+float uint16toamps( uint16_t uint16current )
 {
-// Input: current scaled between [0, 65535], 
-// Output: current as float in units of amperes 
-    return ( float(uint16current) - 32768.0 )/DAC_BITSPERAMP ;
+  // Input: current scaled between [0, 65535],
+  // Output: current as float in units of amperes
+  return ( float(uint16current) - 32768.0 ) / DAC_BITSPERAMP ;
 }
 
-bool usersetallshims() 
+bool usersetallshims()
 {
-// Reads sequentially from serial 5 digits X SHIM_NCHANNELS 
-// where each consecutive 5 digits represents the channel's
-// shim current scaled to be between [0:65535]
-// 
-// Updates shim buffer upon completion
+  // Reads sequentially from serial 5 digits X SHIM_NCHANNELS
+  // where each consecutive 5 digits represents the channel's
+  // shim current scaled to be between [0:65535]
+  //
+  // Updates shim buffer upon completion
 
-    bool isCurrentReadSuccessful = false;
-    uint16_t inputCurrents [ NUM_B * NUM_C ] ;
+  bool isCurrentReadSuccessful = false;
+  uint16_t inputCurrents [ NUM_B * NUM_C ] ;
 
-    for( uint8_t iCh = 0; iCh < (NUM_B * NUM_C); iCh++ )
+  for ( uint8_t iCh = 0; iCh < (NUM_B * NUM_C); iCh++ )
+  {
+    isCurrentReadSuccessful = readfivedigitcurrent( inputCurrents[iCh] ) ;
+
+    if ( !isCurrentReadSuccessful )
     {
-        isCurrentReadSuccessful = readfivedigitcurrent( inputCurrents[iCh] ) ;
-
-        if ( !isCurrentReadSuccessful )
-        {
-            Serial.println(false); return false; 
-        }
+      Serial.println(false); return false;
     }
+  }
 
-    for( uint8_t iCh = 0; iCh < (NUM_B * NUM_C); iCh++ )
-    {
-        setshimbufferbychannel( iCh, uint16toamps( inputCurrents[iCh] ) ) ;
-    }   
+  for ( uint8_t iCh = 0; iCh < (NUM_B * NUM_C); iCh++ )
+  {
+    setshimbufferbychannel( iCh, uint16toamps( inputCurrents[iCh] ) ) ;
+  }
 
-    return isCurrentReadSuccessful ; 
+  return isCurrentReadSuccessful ;
 }
 
-bool usersetandloadallshims() 
+void loadallshims()
 {
-// Reads sequentially from serial 5 digits X SHIM_NCHANNELS 
-// where each consecutive 5 digits represents the channel's
-// shim current scaled to be between [0:65535]
-// 
-// Updates the shim buffer + outputs DAC values upon completion
-//
-// Returns TRUE if successful
+  // Write shim buffer entries of all channels to DAC
+  // update DAC register for remaining channel + update all simultaneously
 
-    bool isReadSuccessful = false ;
-    isReadSuccessful = usersetallshims() ; 
-    //loadallshims() ;
-    Serial.println(isReadSuccessful);
-    return isReadSuccessful;
+  // update DAC registers except for last channel
+  for ( uint8_t iCh = 0; iCh < ((NUM_B * NUM_C) - 1); iCh++ ) {
+    selectBoard(board_order[iCh]);
+    LTC2656Write(WRITE_TO_INPUT, channelMap[channel_order[iCh]], dacBuffer[iCh]);
+  }
+  // update DAC register for remaining channel + update all simultaneously
+  selectBoard(board_order[(NUM_B * NUM_C) - 1]);
+  LTC2656Write(WRITE_TO_INPUT_UPDATE_ALL, channelMap[channel_order[(NUM_B * NUM_C) - 1]], dacBuffer[(NUM_B * NUM_C) - 1]);
+}
+
+
+bool usersetandloadallshims()
+{
+  // Reads sequentially from serial 5 digits X SHIM_NCHANNELS
+  // where each consecutive 5 digits represents the channel's
+  // shim current scaled to be between [0:65535]
+  //
+  // Updates the shim buffer + outputs DAC values upon completion
+  //
+  // Returns TRUE if successful
+
+  bool isReadSuccessful = false ;
+  isReadSuccessful = usersetallshims() ;
+  loadallshims() ;
+  Serial.println(isReadSuccessful);
+  return isReadSuccessful;
+
+}
+
+
+bool calibratedaccompensation()
+{
+// Determine the DAC voltage offsets and gain corrections for each channel
+// 
+// Prints a bool for each channel, TRUE if calibration was succesful
+//
+// Returns TRUE if all channels successful
+  bool isCalibrationSuccessful = false ;
+  bool isChannelCalibrationSuccessful [NUM_B * NUM_C] ;
+
+  float offsetError0 [NUM_B * NUM_C] ; // uncorrected
+  float offsetError1 [NUM_B * NUM_C] ; // corrected
+  float gainError0 [NUM_B * NUM_C] ; // uncorrected
+  float gainError1 [NUM_B * NUM_C] ; // corrected
+
+  float currentRequested;
+  float currentsRead [ NUM_B * NUM_C ];   
+  float currentCorrected ;
+
+  // reset DAC correction terms 
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+  {
+    isChannelCalibrationSuccessful[iCh] = false ;
+    dacGain[iCh]   = 1.0 ;
+    dacOffset[iCh] = 0 ; 
+  }
+
+  // determine DAC offset correction
+  currentRequested = 0.0 ;
+  // attempt to set all channels to 0.0 A
+  resetallshims(); 
+  
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+  {
+    int16_t voltageRead = querychannelvoltage( iCh ) ;
+    currentsRead[iCh]   = querychannelcurrent( iCh ) ;
+    dacOffset[iCh]      = voltageRead - DAC_VREF ;  
+  }
+
+  // reset channels, now with the dac offsets adjusted
+  resetallshims() ; 
+  
+  // error of original vs. adjusted currents: 
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+  {
+    currentCorrected = querychannelcurrent( iCh )  ;
+
+    offsetError0[iCh] = abs( currentRequested - currentsRead[iCh] ) ;
+    offsetError1[iCh] = abs( currentRequested - currentCorrected ) ;
+  }
+  
+  // Determine DAC gain compensation 
+  currentRequested = 1.0 ;
+  
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+    setshimbufferbychannel( iCh, currentRequested ) ;
+
+  rampallshims();
+    
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+  {
+    currentsRead[iCh] = querychannelcurrent( iCh ) ;
+    dacGain[iCh]      = currentRequested/currentsRead[iCh] ; 
+  }
+  // update shims with dac correction in place & buffer still set at 1.0 A
+  rampallshims();
+    
+  // pause to ensure query is accurate (some latency exists)
+  delay(1);
+  
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+  {
+    currentCorrected = querychannelcurrent( iCh ) ;
+
+    // error of original vs. adjusted currents: 
+    gainError0[iCh] = abs( currentRequested - currentsRead[iCh] );
+    gainError1[iCh] = abs( currentRequested - currentCorrected ) ;
+  }
+ 
+  rampdownallshims() ;
+ 
+  // check adjusted results have lower error: 
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+  { 
+    // add 1.0 mV (~ADC precision) as tolerance for offset error 
+    if( ( offsetError1[iCh] <= offsetError0[iCh] + 1.0 ) & ( gainError1[iCh] <= gainError0[iCh] ) )
+    {
+        isChannelCalibrationSuccessful[iCh] = true ;
+        Serial.println( isChannelCalibrationSuccessful[iCh] ) ;
+    }
+    else
+    {
+        isChannelCalibrationSuccessful[iCh] = false ;
+        Serial.println( isChannelCalibrationSuccessful[iCh] ) ;
+    }
+  }
+
+    uint8_t iCh ;
+
+    for( iCh = 0; iCh < NUM_B * NUM_C; iCh++)
+        if ( !isChannelCalibrationSuccessful[iCh] )
+            break;
+
+    if ( iCh == NUM_B * NUM_C )
+        isCalibrationSuccessful = true;
+      
+    return isCalibrationSuccessful ; 
         
 }
 
