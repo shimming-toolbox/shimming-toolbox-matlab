@@ -98,13 +98,13 @@ void usergetsystemheartbeat()
   Serial.println( true );
 }
 
-void usergetallchannelcurrents()
-{
-  for (int b = 0; b < NUM_B; b++) {
-    selectBoard(b);
-    print_all();
-  }
-}
+//void usergetallchannelcurrents()
+//{
+//  for (int b = 0; b < NUM_B; b++) {
+//    selectBoard(b);
+//    print_all();
+//  }
+//}
 
 bool userresetallshims()
 {
@@ -113,27 +113,27 @@ bool userresetallshims()
   Serial.println(true); return true;
 }
 
-bool calibratedaccompensation()
-{
-
-  bool isCalibrationSuccessful = true ;
-  int SHIM_NCHANNELS = NUM_B * NUM_C;
-  bool isChannelCalibrationSuccessful [SHIM_NCHANNELS] ;
-  int iCh = 0 ;
-  for (int b = 0; b < NUM_B; b++) {
-    for (int c = 0; c < NUM_C; c++) {
-      selectBoard(b);
-      isChannelCalibrationSuccessful[iCh] = calibrate_channel(b, c);
-      iCh = iCh + 1;
-    }
-  }
-  for ( iCh = 0; iCh < SHIM_NCHANNELS; iCh++)
-    if ( !isChannelCalibrationSuccessful[iCh])
-      isCalibrationSuccessful = false ;
-
-  Serial.println(isCalibrationSuccessful);
-  return isCalibrationSuccessful ;
-}
+//bool calibratedaccompensation()
+//{
+//
+//  bool isCalibrationSuccessful = true ;
+//  int SHIM_NCHANNELS = NUM_B * NUM_C;
+//  bool isChannelCalibrationSuccessful [SHIM_NCHANNELS] ;
+//  int iCh = 0 ;
+//  for (int b = 0; b < NUM_B; b++) {
+//    for (int c = 0; c < NUM_C; c++) {
+//      selectBoard(b);
+//      isChannelCalibrationSuccessful[iCh] = calibrate_channel(b, c);
+//      iCh = iCh + 1;
+//    }
+//  }
+//  for ( iCh = 0; iCh < SHIM_NCHANNELS; iCh++)
+//    if ( !isChannelCalibrationSuccessful[iCh])
+//      isCalibrationSuccessful = false ;
+//
+//  Serial.println(isCalibrationSuccessful);
+//  return isCalibrationSuccessful ;
+//}
 
 bool readfivedigitcurrent( uint16_t &current )
 {
@@ -255,14 +255,98 @@ bool usersetandloadallshims()
 
 }
 
+uint16_t querychannelvoltage( uint8_t iChannel )
+{ // return single channel voltage [units: mV]
+  selectBoard(board_order[iChannel]);
+  return ADC_MILLIVOLTSPERBIT * LTC1863ReadSlow(channelMap_ADC[channel_order[iChannel]]);
+}
+
+float querychannelcurrent( uint8_t iChannel )
+{ // return single channel current [units: A]
+  return ( float(querychannelvoltage( iChannel )) - float(DAC_VREF) ) / float(DAC_PREAMP_RESISTANCE) ;
+}
+
+void rampallshims()
+{
+  // Ramp all shims up to their buffered current values in 100 increments over 1.0 s
+
+  float nCurrentDivisions = 100 ;
+  float pause = 1.0 / nCurrentDivisions ; // max at 1.0 s
+
+  float currents0[ NUM_B * NUM_C ] ;
+  float currents1[ NUM_B * NUM_C ] ;
+  float currentIncrements[ NUM_B * NUM_C ] ;
+
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
+  {
+    currents0[ iCh ]  = querychannelcurrent( iCh ) ;
+    currents1[ iCh ]  = currentsBuffer[ iCh ] ;
+    currentIncrements[ iCh ] = ( currents1[iCh] - currents0[iCh] ) / nCurrentDivisions ;
+  }
+
+  for ( uint8_t iCurrent = 1; iCurrent <= nCurrentDivisions; iCurrent++ )
+  {
+    for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
+    {
+      setshimbufferbychannel( iCh, currents0[ iCh ] + iCurrent * currentIncrements[ iCh ] ) ;
+    }
+    loadallshims() ;
+    delayMicroseconds(pause) ;
+  }
+}
+
+void rampdownallshims( void )
+{
+  // Ramps down all channels to 0 A in increments over 1 s
+
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
+  {
+    currentsBuffer[iCh] = 0.0 ;
+    dacBuffer[iCh] = ampstodac( iCh, currentsBuffer[iCh] ) ;
+  }
+  rampallshims();
+}
+
+void loadshimbychannel( uint8_t iCh )
+{
+  // Write shim buffer of single channel to DAC
+  selectBoard(board_order[iCh]);
+  LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]], dacBuffer[iCh]);
+}
+
+void setandloadshimbychannel( uint8_t iCh, float current )
+{
+    setshimbufferbychannel( iCh, current ) ;
+    loadshimbychannel( iCh ) ;
+}
+
+void rampshimbychannel( uint8_t iCh ) 
+{
+// Ramp single channel up to its buffered current value in 100 increments over 1.0 s
+    
+    float nCurrentDivisions = 100 ;
+    float pause = 1.0/nCurrentDivisions ; // max at 1.0 s 
+    
+    float current0 = querychannelcurrent( iCh ) ;
+    float current1 = currentsBuffer[ iCh ] ;
+    
+    float currentIncrement = ( current1 - current0 )/nCurrentDivisions ;
+   
+    for( uint8_t iCurrent = 1; iCurrent <= nCurrentDivisions; iCurrent++ )
+    { 
+        setandloadshimbychannel( iCh, current0 + iCurrent*currentIncrement ) ;
+        delayMicroseconds(pause);
+    }
+}
+
 
 bool calibratedaccompensation()
 {
-// Determine the DAC voltage offsets and gain corrections for each channel
-// 
-// Prints a bool for each channel, TRUE if calibration was succesful
-//
-// Returns TRUE if all channels successful
+  // Determine the DAC voltage offsets and gain corrections for each channel
+  //
+  // Prints a bool for each channel, TRUE if calibration was succesful
+  //
+  // Returns TRUE if all channels successful
   bool isCalibrationSuccessful = false ;
   bool isChannelCalibrationSuccessful [NUM_B * NUM_C] ;
 
@@ -272,97 +356,235 @@ bool calibratedaccompensation()
   float gainError1 [NUM_B * NUM_C] ; // corrected
 
   float currentRequested;
-  float currentsRead [ NUM_B * NUM_C ];   
+  float currentsRead [ NUM_B * NUM_C ];
   float currentCorrected ;
 
-  // reset DAC correction terms 
-  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+  // reset DAC correction terms
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
     isChannelCalibrationSuccessful[iCh] = false ;
     dacGain[iCh]   = 1.0 ;
-    dacOffset[iCh] = 0 ; 
+    dacOffset[iCh] = 0 ;
   }
 
   // determine DAC offset correction
   currentRequested = 0.0 ;
   // attempt to set all channels to 0.0 A
-  resetallshims(); 
-  
-  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+  resetallshims();
+
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
     int16_t voltageRead = querychannelvoltage( iCh ) ;
     currentsRead[iCh]   = querychannelcurrent( iCh ) ;
-    dacOffset[iCh]      = voltageRead - DAC_VREF ;  
+    dacOffset[iCh]      = voltageRead - DAC_VREF ;
   }
 
   // reset channels, now with the dac offsets adjusted
-  resetallshims() ; 
-  
-  // error of original vs. adjusted currents: 
-  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+  resetallshims() ;
+
+  // error of original vs. adjusted currents:
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
     currentCorrected = querychannelcurrent( iCh )  ;
 
     offsetError0[iCh] = abs( currentRequested - currentsRead[iCh] ) ;
     offsetError1[iCh] = abs( currentRequested - currentCorrected ) ;
   }
-  
-  // Determine DAC gain compensation 
+
+  // Determine DAC gain compensation
   currentRequested = 1.0 ;
-  
-  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
     setshimbufferbychannel( iCh, currentRequested ) ;
 
   rampallshims();
-    
-  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
     currentsRead[iCh] = querychannelcurrent( iCh ) ;
-    dacGain[iCh]      = currentRequested/currentsRead[iCh] ; 
+    dacGain[iCh]      = currentRequested / currentsRead[iCh] ;
   }
   // update shims with dac correction in place & buffer still set at 1.0 A
   rampallshims();
-    
+
   // pause to ensure query is accurate (some latency exists)
   delay(1);
-  
-  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
+
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
     currentCorrected = querychannelcurrent( iCh ) ;
 
-    // error of original vs. adjusted currents: 
+    // error of original vs. adjusted currents:
     gainError0[iCh] = abs( currentRequested - currentsRead[iCh] );
     gainError1[iCh] = abs( currentRequested - currentCorrected ) ;
   }
- 
+
   rampdownallshims() ;
- 
-  // check adjusted results have lower error: 
-  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)  
-  { 
-    // add 1.0 mV (~ADC precision) as tolerance for offset error 
-    if( ( offsetError1[iCh] <= offsetError0[iCh] + 1.0 ) & ( gainError1[iCh] <= gainError0[iCh] ) )
+
+  // check adjusted results have lower error:
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
+  {
+    // add 1.0 mV (~ADC precision) as tolerance for offset error
+    if ( ( offsetError1[iCh] <= offsetError0[iCh] + 1.0 ) & ( gainError1[iCh] <= gainError0[iCh] ) )
     {
-        isChannelCalibrationSuccessful[iCh] = true ;
-        Serial.println( isChannelCalibrationSuccessful[iCh] ) ;
+      isChannelCalibrationSuccessful[iCh] = true ;
+      Serial.println( isChannelCalibrationSuccessful[iCh] ) ;
     }
     else
     {
-        isChannelCalibrationSuccessful[iCh] = false ;
-        Serial.println( isChannelCalibrationSuccessful[iCh] ) ;
+      isChannelCalibrationSuccessful[iCh] = false ;
+      Serial.println( isChannelCalibrationSuccessful[iCh] ) ;
     }
   }
 
+  uint8_t iCh ;
+
+  for ( iCh = 0; iCh < NUM_B * NUM_C; iCh++)
+    if ( !isChannelCalibrationSuccessful[iCh] )
+      break;
+
+  if ( iCh == NUM_B * NUM_C )
+    isCalibrationSuccessful = true;
+
+  return isCalibrationSuccessful ;
+
+}
+
+bool usersetandrampallshims()
+{
+  // Reads sequentially from serial 5 digits X SHIM_NCHANNELS
+  // where each consecutive 5 digits represents the channel's
+  // shim current scaled to be between [0:65535]
+  //
+  // Updates the shim buffer and ramps current up over 1.0 s
+  //
+  // Returns TRUE if successful
+  bool isReadSuccessful = false ;
+  isReadSuccessful = usersetallshims() ;
+  rampallshims() ;
+  Serial.println(isReadSuccessful);  return isReadSuccessful;
+}
+
+bool usersetandloadshimbychannel( void )
+{
+  // Read from serial the channel index [0:SHIM_NCHANNELS] and 5 digit uint16
+  // current val.  and set the single channel's current buffer
+  //
+  // Returns TRUE if successful
+
+  String inString = "";
+  uint8_t nBytesRead = 0;
+  int inByte;
+  uint8_t iCh = 0;
+  long D ; // data buffer
+  uint16_t current ;
+  bool isCurrentReadSuccessful ;
+
+  // read channel index
+  while ( nBytesRead < 1 )
+  {
+    if ( Serial.available() > 0 )
+    {
+      inByte = Serial.read();
+
+      if ( !isDigit( (char)inByte ) )
+      {
+        Serial.println(false); return false;
+      }
+
+      inString = (char)inByte ;
+      D = inString.toInt() ;
+      nBytesRead = nBytesRead + 1 ;
+
+    }
+  }
+
+  iCh = uint8_t(D) ;
+  if ( ( iCh < 0 ) || iCh >= NUM_B * NUM_C )
+  {
+    Serial.println(false); return false;
+  }
+
+  isCurrentReadSuccessful = readfivedigitcurrent( current ) ;
+
+  if ( !isCurrentReadSuccessful )
+  {
+    Serial.println(false); return false ;
+  }
+  else
+  {
+    setandloadshimbychannel( iCh, uint16toamps( current ) ) ;
+    Serial.println(true); return true;
+  }
+
+}
+
+void usergetallchannelcurrents() 
+{
+// Print all channel currents in A
+    for (uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
+        Serial.println( querychannelcurrent( iCh ), 5 ) ;
+}
+
+
+
+bool usersetandrampshimbychannelasfloat( void ) 
+{
+// This function takes significantly longer than usersetandloadshimbychannel()
+// and effectively produces the same result (setting the DAC buffer for a single shim
+// channel and ramping up to it over 1.0 s) However, it may be more convenient
+// for debugging:
+//
+// Rather than reading the channel current as a 5-digit scaled unsigned int,
+// the input should be the channel index [0:SHIM_NCHANNELS-1] followed by the
+// requested current, input as a single float in amperes.
+//
+// Returns TRUE if successful
     uint8_t iCh ;
+    float current ;
 
-    for( iCh = 0; iCh < NUM_B * NUM_C; iCh++)
-        if ( !isChannelCalibrationSuccessful[iCh] )
-            break;
+    iCh = uint8_t( Serial.parseInt() ) ;
 
-    if ( iCh == NUM_B * NUM_C )
-        isCalibrationSuccessful = true;
-      
-    return isCalibrationSuccessful ; 
-        
+    if ( ( iCh < 0 ) || iCh >= NUM_B * NUM_C )
+    {
+        Serial.println(false); return false;
+    }
+    
+    current = Serial.parseFloat() ; // [units: A]
+    if ( abs(current) <= AMP_MAXCURRENTPERCHANNEL )
+    {    
+        setshimbufferbychannel( iCh, current ) ;
+        rampshimbychannel( iCh ) ;
+        Serial.println(true); return true;
+    }
+    else 
+    {    
+        Serial.println(false); return false;
+    }    
+    
+}
+
+bool userrampdownallshims() 
+{
+// same as resetallshims() but prints+returns true when finished 
+// same as rampdownallshim() but prints+returns true when finished 
+    rampdownallshims();
+    Serial.println(true); return true;
+}
+
+void usergetallchannelvoltages( void ) 
+{
+// Print all channel voltages in mV
+    for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
+        Serial.println( querychannelvoltage( iCh ) ) ;  
+}
+
+void usergetdaccompensationcoefficients( void ) 
+{
+    for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ ) 
+    {
+        Serial.println( dacOffset[ iCh ], 5 ); 
+        Serial.println( dacGain[ iCh ], 5 ); 
+    }
 }
 

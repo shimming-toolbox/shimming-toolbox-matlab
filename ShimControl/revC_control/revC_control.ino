@@ -32,9 +32,9 @@ void setup() {
       if (channels_used[b][c] != -1) {
         channel_order[i] = channels_used[b][c];
         board_order[i] = b;
-//        Serial.print("Channel no. :"); Serial.print(i); Serial.print(" --- channel order: "); Serial.print(channel_order[i]); Serial.print(" --- board order: ");Serial.print(board_order[i]); //Used for debug only
+        //        Serial.print("Channel no. :"); Serial.print(i); Serial.print(" --- channel order: "); Serial.print(channel_order[i]); Serial.print(" --- board order: ");Serial.print(board_order[i]); //Used for debug only
         i = i + 1;
-//        Serial.println();
+        //        Serial.println();
       } else {
         break;
       }
@@ -68,35 +68,63 @@ void loop() {
     incomingByte = Serial.read();
     switch (incomingByte) {
 
+      case 'a': // prints TRUE/FALSE \n
+        usersetandloadallshims();
+        break;
+
+      case 'b': // prints TRUE/FALSE \n
+        usersetandrampallshims();
+        break;
+
+      case 'c':  // prints TRUE/FALSE \n for each shim channel
+        calibratedaccompensation();
+        break;
+
+      case 'e': // prints TRUE/FALSE \n
+        usersetandloadshimbychannel();
+        break;
+
+      case 'f': // prints TRUE/FALSE \n
+        usersetandrampshimbychannelasfloat();
+        break;
+
       case 'h': // prints TRUE/FALSE \n
         usergetsystemheartbeat();
         break;
 
-      case 's'://zero all channels
-        userresetallshims() ;
-        break;
-
-      case 'a': // prints TRUE/FALSE \n set shim currents
-        usersetandloadallshims();
-        break;
-
-      case 'q':// Print all channel currents in A
+      case 'q':  // prints 5-digit precision channel current [units: A] \n for each shim channel
         usergetallchannelcurrents();
         break;
 
-      case 'c':
-        calibratedaccompensation();
+      case 'r': // prints TRUE/FALSE \n
+        userrampdownallshims( ) ;
         break;
 
-      case 'g'://used to set DAC values
-        selectBoard(0);
-        float crt_val = Serial.parseFloat();
-        Serial.print("Write DAC: "); Serial.print(crt_val); Serial.print(" A");
-        for (int i = 0; i < 8; i++) {
-          LTC2656Write(WRITE_AND_UPDATE, channelMap[i], computeDacVal_I(crt_val + 0.1 * i, 0, i));
-        }
-        Serial.println();
+      case 's': // prints TRUE/FALSE \n
+        userresetallshims( ) ; // FOR DEBUGGING ONLY - otherwise use 'r' to ramp-down
         break;
+
+      case 'v':   // prints uint16_t channel voltage [units: mV] \n for each shim channel
+        usergetallchannelvoltages();
+        break;
+
+      case 'u': // prints 5-digit precision DAC offset (float) \n  DAC gain \n for each shim channel
+        usergetdaccompensationcoefficients() ;
+        break;
+
+        //      case 'z': // prints TRUE/FALSE \n
+        //        resetFunc();
+        //        break;
+
+        //      case 'g'://used to set DAC values
+        //        selectBoard(0);
+        //        float crt_val = Serial.parseFloat();
+        //        Serial.print("Write DAC: "); Serial.print(crt_val); Serial.print(" A");
+        //        for (int i = 0; i < 8; i++) {
+        //          LTC2656Write(WRITE_AND_UPDATE, channelMap[i], computeDacVal_I(crt_val + 0.1 * i, 0, i));
+        //        }
+        //        Serial.println();
+        //        break;
 
 
     }

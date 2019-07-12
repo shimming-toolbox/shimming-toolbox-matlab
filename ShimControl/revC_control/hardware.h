@@ -1,4 +1,6 @@
 #include <t3spi.h>
+#include "wiring.h"
+#undef round
 
 #define NUM_B 1//number of boards
 #define NUM_C 8//number of channesl per board
@@ -6,6 +8,13 @@
 // power supply:
 const float AMP_MAXCURRENTPERCHANNEL = 2.5 ; // [units: amps]
 const float AMP_CURRENTRANGE         = 2*AMP_MAXCURRENTPERCHANNEL ; // [units: amps]
+
+// 3 terms describing ADC hardware:
+const uint8_t ADC_RESOLUTION         = 12 ; // 12-bit
+const float   ADC_RANGE_VOUT         = 2.048 ; // for GAIN_TWO setting [units: volts]
+
+// 1 derived term for convenience:
+const uint16_t ADC_MILLIVOLTSPERBIT  = round( 1000*2.0*ADC_RANGE_VOUT/( pow( 2.0, float(ADC_RESOLUTION) ) - 1.0 ) ) ; // = 1 [uints: mV/bit-count]
 
 // 3 terms describing DAC hardware:
 const uint8_t DAC_RESOLUTION         = 16 ; // 16-bit
@@ -17,7 +26,7 @@ const uint16_t DAC_RANGE_VOUT        = 2*DAC_VREF ; // [units: mV]
 const float DAC_BITSPERAMP           = ( pow( 2.0, float(DAC_RESOLUTION) ) - 1.0 )/AMP_CURRENTRANGE ; // = 13107 [units: bit-counts/A] 
 const uint16_t DAC_BITSPERVOLT       = (1000* pow( 2.0, float(DAC_RESOLUTION) ) - 1.0 )/DAC_RANGE_VOUT ; // = 26214 [units: bit-counts/V]
 
-// 
+// DAC software gain&offset
 float dacOffset [ NUM_B * NUM_C ] ; // [units: mV]
 float dacGain [ NUM_B * NUM_C ] ; // [unitless]
 
