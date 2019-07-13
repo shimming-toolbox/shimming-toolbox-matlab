@@ -717,8 +717,17 @@ function [F] = resliceimg( Img, X_1, Y_1, Z_1, varargin )
 %
 %   See HELP scatteredInterpolant
 
+F = [] ;
+
 DEFAULT_INTERPOLATIONMETHOD  = 'linear' ;
 DEFAULT_ISFORMINGINTERPOLANT = true ;
+
+[X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
+
+if MaRdI.compareimggrids( X_0, Y_0, Z_0, X_1, Y_1, Z_1 ) 
+    warning('Voxel positions are already identical. Not interpolating.');
+    return ;
+end
 
 if nargin < 5
 
@@ -750,7 +759,6 @@ nImgVolumesDim4 = size(Img.img, 4 ) ;
 nImgVolumesDim5 = size(Img.img, 5 ) ;
 nImgVolumes     = nImgVolumesDim4 * nImgVolumesDim5 ;
 
-[X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
 
 if length( size(X_1) ) == 2 % interpolating down to 2d single-slice
     gridSizeInterpolated = [ size(X_1) 1 ] ;
@@ -1208,26 +1216,6 @@ end
 % =========================================================================
 methods(Access=protected)
 % =========================================================================
-function isSame = compareimggrids( Img1, Img2 )
-%COMPAREIMGGRIDS 
-%
-% isSame = COMPAREIMGGRIDS( Img1, Img2 )
-%
-% Returns TRUE if voxel positions of Img1 and Img2 are identical
-
-[X1, Y1, Z1] = Img1.getvoxelpositions ;
-[X2, Y2, Z2] = Img2.getvoxelpositions ;
-
-if ( numel(size(X1)) ~= numel(size(X2)) ) || any( size(X1) ~= size(X2) ) || any( X1(:) ~= X2(:) ) || any( Y1(:) ~= Y2(:) ) || any( Z1(:) ~= Z2(:) )
-    isSame = false ;
-elseif ( all(X1(:) == X2(:) ) && all( Y1(:) == Y2(:) ) && all( Z1(:) == Z2(:) ) ) 
-    isSame = true ;
-else
-    error('Unexpected result: Check conditions apparently insufficient. Modify code')
-end
-
-end
-% =========================================================================
 function [] = scalephasetofrequency( Img, undoFlag )
 %SCALEPHASETOFREQUENCY
 %
@@ -1618,6 +1606,44 @@ end
 % =========================================================================
 % =========================================================================
 methods(Static)
+% =========================================================================
+function isSame = compareimggrids( varargin )
+%COMPAREIMGGRIDS 
+%
+% isSame = COMPAREIMGGRIDS( Img1, Img2 )
+% isSame = COMPAREIMGGRIDS( X1, Y1, Z1, X2, Y2, Z2 )
+%
+% Returns TRUE if voxel positions of Img1 and Img2 are identical
+
+%% -------
+% check & parse inputs
+assert( nargin >= 2, 'Function requires at least 2 input arguments. See HELP MaRdI.compareimggrids' ) 
+
+if isa( varargin{1}, 'MaRdI' ) && isa( varargin{2}, 'MaRdI' )
+    [X1, Y1, Z1] = varargin{1}.getvoxelpositions ;
+    [X2, Y2, Z2] = varargin{2}.getvoxelpositions ;
+elseif ( nargin ==6 ) && all( cellfun( @isnumeric, varargin ) )
+    X1 = varargin{1} ;
+    Y1 = varargin{2} ;
+    Z1 = varargin{3} ;
+    X2 = varargin{4} ;
+    Y2 = varargin{5} ;
+    Z2 = varargin{6} ;
+else
+    error('See HELP MaRdI.compareimggrids ')
+end
+
+%% -------
+% compare grid positions
+if ( numel(size(X1)) ~= numel(size(X2)) ) || any( size(X1) ~= size(X2) ) || any( X1(:) ~= X2(:) ) || any( Y1(:) ~= Y2(:) ) || any( Z1(:) ~= Z2(:) )
+    isSame = false ;
+elseif ( all(X1(:) == X2(:) ) && all( Y1(:) == Y2(:) ) && all( Z1(:) == Z2(:) ) ) 
+    isSame = true ;
+else
+    error('Unexpected result: Check conditions apparently insufficient. Modify code')
+end
+
+end
 % =========================================================================
 function list = findimages( imgDir )
 %FINDIMAGES
