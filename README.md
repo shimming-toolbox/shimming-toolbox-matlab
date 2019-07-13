@@ -52,7 +52,8 @@ export PATH=$PATH:/Applications/MATLAB_R2015a.app/bin/
 To use the optional Abdul-Rahman 3D phase unwrapper, binaries must be compiled from the source code found in /external/source/
 
 
-## Getting started (from scratch)
+## Getting started 
+**(from scratch)**
 
 To use this library for optimizing a given shim system, that system needs to be defined. This definition occurs via two distinct classes:
 
@@ -91,7 +92,8 @@ The class *ShimUse()* provides the generic user interface for the shim experimen
 
 *ShimCom()* defines the lower-level communication methods with the shim hardware (e.g. *ShimCom.getchanneloutput()* and *ShimCom.setandloadallshims()*). It is another abstract class, and each shim system requires a corresponding subclass (e.g. *ShimCom_MyNewShim()* which both inherits from *ShimCom()*, and defines, for itself, the abstract methods of *ShimCom()*.
 
-### SOP: Experimental How-to
+## SOP 
+**Experimental How-to**
 
 - Control room
    - Connect sensor probe to station
