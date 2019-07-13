@@ -709,11 +709,13 @@ function [F] = resliceimg( Img, X_1, Y_1, Z_1, varargin )
 %   [F] = RESLICEIMG( Img, X, Y, Z, interpolationMethod ) 
 %   [F] = RESLICEIMG( Img, X, Y, Z, F ) 
 %   
-%   X, Y, Z MUST refer to X, Y, Z patient coordinates (i.e. of the DICOM
+%   X, Y, Z must refer to X, Y, Z patient coordinates (i.e. of the DICOM
 %   reference coordinate system)
 %   
 %   Optional interpolationMethod is a string supported by the scatteredInterpolant constructor.
 %   F is the object of type 'scatteredInterpolant' used for interpolation.
+%
+%   See HELP scatteredInterpolant
 
 DEFAULT_INTERPOLATIONMETHOD  = 'linear' ;
 DEFAULT_ISFORMINGINTERPOLANT = true ;
@@ -740,31 +742,33 @@ elseif nargin == 5
     end
 
 end
-% change this to accomodate multiple measurements:
-nImgStacks = size(Img.img, 4) ;
+
+assert( (ndims(Img.img) > 1) && (ndims(Img.img) <= 5), ...
+    'Dimensions of input Img.img must be >= 2, and <= 5') ;
+
+nImgVolumesDim4 = size(Img.img, 4 ) ;
+nImgVolumesDim5 = size(Img.img, 5 ) ;
+nImgVolumes     = nImgVolumesDim4 * nImgVolumesDim5 ;
 
 [X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
 
-if length( size(X_1) ) == 2 
-
-    isInterpolatingToSingleSlice = true ; 
+if length( size(X_1) ) == 2 % interpolating down to 2d single-slice
     gridSizeInterpolated = [ size(X_1) 1 ] ;
-
 elseif length( size(X_1) ) == 3
-
-    isInterpolatingToSingleSlice = false ; 
     gridSizeInterpolated = size(X_1) ;
-
 end
 
-imgInterpolated  = zeros( [gridSizeInterpolated nImgStacks]) ;
+imgInterpolated  = zeros( [gridSizeInterpolated nImgVolumesDim4 nImgVolumesDim5] ) ;
 
-img0 = Img.img( :,:,:, 1 ) ;
+img0 = Img.img( :,:,:, 1, 1 ) ;
 
+%% -------
+% Interpolation
 tic
 
 if isFormingInterpolant 
-    disp( ['Forming interpolant (may take ~1 min)...']) ;
+    disp( 'Forming interpolant...' )
+    disp( '(Computation time depends on input image size. This may take a few minutes.)' ) ;
     F    = scatteredInterpolant( [X_0(:) Y_0(:) Z_0(:)], img0(:), interpolationMethod, 'none'  ) ;
 end
 
@@ -772,19 +776,22 @@ img1 = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
 
 imgInterpolated(:,:,:, 1 ) = reshape( img1, gridSizeInterpolated ) ;
 
+for iImgDim5 = 1 : nImgVolumesDim5
+    for iImgDim4 = 2 : nImgVolumesDim4
 
-for iImgStack = 2 : nImgStacks     
-    disp( ['Reslicing image stack...' num2str(iImgStack) ' of ' num2str(nImgStacks) ]) ;
+        iImgVolume = iImgDim4*iImgDim5 ;
+        disp( ['Reslicing image volume...' num2str(iImgVolume) ' of ' num2str(nImgVolumes) ]) ;
     
-    % replace samples with those of the next img stack 
-    img0     = Img.img(:,:,:, iImgStack ) ;
+        % replace voxel values with those of the next img volume
+        img0     = Img.img(:,:,:, iImgDim4, iImgDim5 ) ;
 
-    F.Values = img0(:) ;
+        F.Values = img0(:) ;
    
-    img1  = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
+        img1  = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
     
-    imgInterpolated(:,:,:, iImgStack ) = reshape( img1, gridSizeInterpolated ) ;
+        imgInterpolated(:,:,:, iImgDim4, iImgDim5 ) = reshape( img1, gridSizeInterpolated ) ;
 
+    end
 end
 
 toc
@@ -794,7 +801,7 @@ Img.img = imgInterpolated ;
 % interp3/griddata replaces array entries with NaN
 Img.img( isnan( Img.img ) ) = 0 ; 
 
-% ------------------------------------------------------------------------
+%% -----------------------------------------------------------------------
 
 % ------------------------------------------------------------------------
 % Update header
