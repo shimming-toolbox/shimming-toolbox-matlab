@@ -420,27 +420,6 @@ Shim.Model.dcCurrentOffsets = X*shimFieldOffset ;
 
 end
 % =========================================================================
-function [] = interpolatetoimggrid( Shim, Field )
-%INTERPOLATETOIMGGRID 
-%
-% [] = INTERPOLATETOIMGGRID( Shim, Field )
-%
-% Interpolates Shim.img (reference maps) to the grid (voxel positions) of
-% MaRdI-type Img
-% 
-% i.e.
-%
-%   [X,Y,Z] = Field.getvoxelpositions ;
-%   Shim.resliceimg( X, Y, Z ) ;
-
-% check if voxel positions already happen to coincide. if they do, don't interpolate (time consuming).
-if ~Shim.compareimggrids( Field )
-    [X,Y,Z] = Field.getvoxelpositions ;
-    Shim.resliceimg( X, Y, Z ) ;
-end
-
-end
-% =========================================================================
 function [] = setoriginalfield( Shim, Field, currents )
 %SETORIGINALFIELD 
 %
@@ -461,7 +440,9 @@ end
 Shim.Model.currents = currents ;
 Shim.Field = Field.copy() ;
 
-Shim.interpolatetoimggrid( Shim.Field ) ;
+% Interpolates Shim.img (reference maps) to the grid (voxel positions) of Field
+Shim.resliceimg( Shim.Field ) ;
+
 Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
 
 if ~isempty( Shim.Aux )  
