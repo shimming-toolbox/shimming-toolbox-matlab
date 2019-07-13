@@ -740,19 +740,24 @@ elseif nargin == 5
     end
 
 end
-
+% change this to accomodate multiple measurements:
 nImgStacks = size(Img.img, 4) ;
 
 [X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
 
 if length( size(X_1) ) == 2 
-    % interpolating volume down to a single slice:
-    gridSizeInterpolated = [ size(X_1) 1 nImgStacks ] ;
+
+    isInterpolatingToSingleSlice = true ; 
+    gridSizeInterpolated = [ size(X_1) 1 ] ;
+
 elseif length( size(X_1) ) == 3
-    gridSizeInterpolated = [ size(X_1) nImgStacks ] ;
+
+    isInterpolatingToSingleSlice = false ; 
+    gridSizeInterpolated = size(X_1) ;
+
 end
 
-imgInterpolated  = zeros( gridSizeInterpolated ) ;
+imgInterpolated  = zeros( [gridSizeInterpolated nImgStacks]) ;
 
 img0 = Img.img( :,:,:, 1 ) ;
 
@@ -765,11 +770,7 @@ end
 
 img1 = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
 
-if length( size(X_1) ) == 2
-    imgInterpolated(:,:,1, 1 ) = reshape( img1, [ size(X_1) 1] ) ;
-elseif length( size(X_1) ) == 3
-    imgInterpolated(:,:,:, 1 ) = reshape( img1, size(X_1) ) ;
-end
+imgInterpolated(:,:,:, 1 ) = reshape( img1, gridSizeInterpolated ) ;
 
 
 for iImgStack = 2 : nImgStacks     
@@ -782,11 +783,7 @@ for iImgStack = 2 : nImgStacks
    
     img1  = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
     
-    if length( size(X_1) ) == 2
-        imgInterpolated(:,:,1, iImgStack ) = reshape( img1, [ size(X_1) 1] ) ;
-    elseif length( size(X_1) ) == 3
-        imgInterpolated(:,:,:, iImgStack ) = reshape( img1, size(X_1) ) ;
-    end
+    imgInterpolated(:,:,:, iImgStack ) = reshape( img1, gridSizeInterpolated ) ;
 
 end
 
