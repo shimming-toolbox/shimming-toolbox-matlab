@@ -46,7 +46,7 @@ classdef MaRdI < matlab.mixin.SetGet
 % ..... 
 % RESLICEIMG()
 %   griddata takes too long (possible solution: write interp function in cpp?)
-%   Clean up 
+%   rename to regridimg()?
 %
 % ..... 
 % WRITE()
@@ -229,6 +229,7 @@ end
 function [pInterp] = associatetrackerdata( Img, pTracker, tTracker )
 %ASSOCIATETRACKERDATA
 
+error('TODO: Ryan');
 % number of acquisitions
 nAcq = size( Img.img, 5 ) ;
 
