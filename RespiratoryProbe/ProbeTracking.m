@@ -614,7 +614,10 @@ if Params.isPlottingInRealTime
 
 end
 
+Audio = audiorecorder() ;
+
 isRecording = Aux1.beginrecording() ;
+
 if isRecording
     display( ['Recording from probe 1/' num2str(nProbes) '...'] ) ;
 else
@@ -635,6 +638,9 @@ end
 % (e.g. 100 Hz) poses a problem (computer can't seem to keep up with the incoming samples).
 % solution is to update the display ~every so often~ (e.g. 4x per second seems OK)
 nSamplesBetweenRefresh = (1/Params.refreshRate)/(Aux1.Specs.dt/1000) ;
+
+record(Audio) ;
+display( ['Recording audio...'] ) ;
 
 while ( iSample < nSamples ) && ~StopButton.Stop()
 
@@ -670,9 +676,16 @@ if isDualTracking
     Aux2.stoprecording() ;
 end
 
+stop(Audio) ;
+
+figure
+plot( getaudiodata( Audio ) ) ;
+title('Audio recording') ;
+xlabel('Sample index');
+
 % ------- 
 if Params.isSavingData
-    Aux1.saverecording( Params.filename )
+    Aux1.saverecording( Params.filename, Audio )
 
     if isDualTracking
         Aux2.saverecording( )
@@ -682,7 +695,7 @@ end
 end
 
 %% ========================================================================
-function [] = saverecording( Aux, logFilename )
+function [] = saverecording( Aux, logFilename, Audio )
 %SAVERECORDING
 %
 %   SAVERECORDING( Aux )
@@ -695,15 +708,15 @@ end
 ShimUse.customdisplay( ['\n----- Saving physio recording -----\n'] );
 ShimUse.customdisplay( ['Filename:  ' logFilename '\n'] );
 
-% fid = fopen( [ logFilename '.dat' ], 'w') ;
-% fprintf( fid, '%f  %f\n', ...
-%     [ Aux.Data.startTime Aux.Data.pRaw;
-%       Aux.Data.endTime Aux.Data.p ] ) ;
-% fclose(fid) ;
-
 Data = Aux.Data ;
 
 Data.probeType = Aux.Specs.probeType ;
+
+if nargin == 3
+    Data.Audio = [] ;
+    Data.Audio.data = getaudiodata( Audio ) ;
+    Data.Audio.sampleRate = Audio.SampleRate ;
+end
 
 save( logFilename, 'Data' ) ;
 
