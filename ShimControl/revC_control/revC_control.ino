@@ -48,6 +48,7 @@ void setup() {
   delay(100);
   selectNone();
 
+
   // reset DAC correction terms
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
@@ -72,10 +73,6 @@ void loop() {
         usersetandloadallshims();
         break;
 
-      case 'b': // prints TRUE/FALSE \n
-        usersetandrampallshims();
-        break;
-
       case 'c':  // prints TRUE/FALSE \n for each shim channel
         calibratedaccompensation();
         break;
@@ -85,7 +82,7 @@ void loop() {
         break;
 
       case 'f': // prints TRUE/FALSE \n
-        usersetandrampshimbychannelasfloat();
+        usersetandloadshimbychannelasfloat();
         break;
 
       case 'h': // prints TRUE/FALSE \n
@@ -97,11 +94,7 @@ void loop() {
         break;
 
       case 'r': // prints TRUE/FALSE \n
-        userrampdownallshims( ) ;
-        break;
-
-      case 's': // prints TRUE/FALSE \n
-        userresetallshims( ) ; // FOR DEBUGGING ONLY - otherwise use 'r' to ramp-down
+        userresetallshims( ) ;
         break;
 
       case 'v':   // prints uint16_t channel voltage [units: mV] \n for each shim channel
@@ -110,6 +103,9 @@ void loop() {
 
       case 'u': // prints 5-digit precision DAC offset (float) \n  DAC gain \n for each shim channel
         usergetdaccompensationcoefficients() ;
+        break;
+      case 'w':
+        //pushcurrentchannel();
         break;
 
         //      case 'z': // prints TRUE/FALSE \n

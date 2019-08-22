@@ -1,93 +1,18 @@
 
-
-/******************************************************/
-/******************* FUNCTIONS FOR REVC ***************/
-/******************************************************/
-
-uint16_t computeDacVal_V(float voltage, int b, int c) {
-  return uint16_t((65535.0 * (voltage - zeroPoint[b][c]) / 5.0));
-}
-
-uint16_t computeDacVal_I(float current, int b, int c) {
-  return uint16_t((65535.0 * (current / gain[b][c] + 2.5 - zeroPoint[b][c]) / 5.0));
-}
-
-float computeOutI(uint16_t dacVal) {
-  return ((float(dacVal) * 4.096 / 4096.0) - 1.25) / 10 / 0.2;
-}
-
-void print_all() { // Print all channel currents in A
-  for (int i = 0; i < 7; i++) {
-    uint16_t data = LTC1863ReadSlow(i);
-    Serial.print(computeOutI(data), 5);
-  }
-  Serial.println();
-}
-
-float measure_gain(uint8_t b, uint8_t c) {
-  //jump to 2.0 first so output returns nutral;
-  selectBoard(b);
-  delay(1);
-  LTC2656Write(WRITE_AND_UPDATE, channelMap[c], computeDacVal_V(2.0, 0, 0));
-  delayMicroseconds(1000);
-  uint16_t out_2v0 = LTC1863ReadSlow(c, 50);
-  //    Serial.println(computeOutI(out_2v0),5);
-  LTC2656Write(WRITE_AND_UPDATE, channelMap[c], computeDacVal_V(2.5, 0, 0));
-  delayMicroseconds(1000);
-  uint16_t out_2v5 = LTC1863ReadSlow(c, 50);
-  //    Serial.println(computeOutI(out_2v5),5);
-
-  return (computeOutI(out_2v5) - computeOutI(out_2v0)) / (0.5);
-}
-
-bool calibrate_channel(uint8_t b, uint8_t c) {
-
-  //  Serial.println();
-  //  Serial.print("Calibrating board: "); Serial.print(b); Serial.print(" CH: "); Serial.print(c+1);
-  bool isCalibrationSuccessful = false ;
-  zeroPoint[b][c] = 0;
-  delay(1);
-  gain[b][c] = measure_gain(b, c);
-  if (abs(gain[b][c] + 1.62) > 0.5) {
-    //    Serial.println(" failed (gain)");
-    calibrationStatus[b][c] = false;
-    isCalibrationSuccessful = false ;
-  } else {
-  }
-  //  Serial.print("gain: ");
-  //  Serial.println(gain[b][c]);
-  for (int i = 0; i < 10; i++) {
-    float output_offset_I = computeOutI(LTC1863ReadSlow(c));
-    //    Serial.print("iteration: ");
-    //    Serial.println(i);
-    //    Serial.println(output_offset_I,5);
-    if (abs(output_offset_I) <= 0.001) {
-      calibrationStatus[b][c] = true;
-      isCalibrationSuccessful = true ;
-    }
-    zeroPoint[b][c] = zeroPoint[b][c] + (output_offset_I / gain[b][c]);
-    //    Serial.print("next: ");
-    //    Serial.println(zeroPoint[b][c],5);
-    LTC2656Write(WRITE_AND_UPDATE, channelMap[c], computeDacVal_I(0, b, c));
-    delay(10);
-  }
-  //  Serial.println("failed (cal)");
-  calibrationStatus[b][c] = false;
-  zeroPoint[b][c] = 0;
-  LTC2656Write(WRITE_AND_UPDATE, channelMap[c], computeDacVal_I(0, b, c));
-  isCalibrationSuccessful = false;
-  return isCalibrationSuccessful ;
-}
-
 /******************************************************/
 /******************* FUNCTIONS FROM ACDC **************/
 /******************************************************/
+uint16_t ampstodac( uint8_t iChannel, float current )
+{
+  return uint16_t( DAC_BITSPERVOLT * ( current * dacGain[iChannel] * float(DAC_PREAMP_RESISTANCE) + float( DAC_VREF ) + dacOffset[iChannel] ) / 1000.0  ) ;
+}
+
 void resetallshims( )
 {
   for (int b = 0; b < NUM_B; b++) {
     for (int c = 0; c < NUM_C; c++) {
       selectBoard(b);
-      LTC2656Write(WRITE_AND_UPDATE, channelMap[c], computeDacVal_I(0, b, c));
+      LTC2656Write(WRITE_AND_UPDATE, channelMap[c], ampstodac(c, 0));
     }
   }
 }
@@ -98,42 +23,12 @@ void usergetsystemheartbeat()
   Serial.println( true );
 }
 
-//void usergetallchannelcurrents()
-//{
-//  for (int b = 0; b < NUM_B; b++) {
-//    selectBoard(b);
-//    print_all();
-//  }
-//}
-
 bool userresetallshims()
 {
   // same as resetallshims() but prints+returns true when finished
   resetallshims();
   Serial.println(true); return true;
 }
-
-//bool calibratedaccompensation()
-//{
-//
-//  bool isCalibrationSuccessful = true ;
-//  int SHIM_NCHANNELS = NUM_B * NUM_C;
-//  bool isChannelCalibrationSuccessful [SHIM_NCHANNELS] ;
-//  int iCh = 0 ;
-//  for (int b = 0; b < NUM_B; b++) {
-//    for (int c = 0; c < NUM_C; c++) {
-//      selectBoard(b);
-//      isChannelCalibrationSuccessful[iCh] = calibrate_channel(b, c);
-//      iCh = iCh + 1;
-//    }
-//  }
-//  for ( iCh = 0; iCh < SHIM_NCHANNELS; iCh++)
-//    if ( !isChannelCalibrationSuccessful[iCh])
-//      isCalibrationSuccessful = false ;
-//
-//  Serial.println(isCalibrationSuccessful);
-//  return isCalibrationSuccessful ;
-//}
 
 bool readfivedigitcurrent( uint16_t &current )
 {
@@ -172,10 +67,7 @@ bool readfivedigitcurrent( uint16_t &current )
     return true;
 }
 
-uint16_t ampstodac( uint8_t iChannel, float current )
-{
-  return uint16_t( DAC_BITSPERVOLT * ( current * dacGain[iChannel] * float(DAC_PREAMP_RESISTANCE) + float( DAC_VREF ) + dacOffset[iChannel] ) / 1000.0  ) ;
-}
+
 
 void setshimbufferbychannel( uint8_t iCh, float current )
 {
@@ -258,54 +150,27 @@ bool usersetandloadallshims()
 uint16_t querychannelvoltage( uint8_t iChannel )
 { // return single channel voltage [units: mV]
   selectBoard(board_order[iChannel]);
-  return ADC_MILLIVOLTSPERBIT * LTC1863ReadSlow(channelMap_ADC[channel_order[iChannel]]);
+
+  return ADC_MILLIVOLTSPERBIT * LTC1863ReadSlow(channelMap_ADC[channel_order[iChannel]]) / float(R_L);
 }
 
 float querychannelcurrent( uint8_t iChannel )
-{ // return single channel current [units: A]
-  return ( float(querychannelvoltage( iChannel )) - float(DAC_VREF) ) / float(DAC_PREAMP_RESISTANCE) ;
-}
 
-void rampallshims()
-{
-  // Ramp all shims up to their buffered current values in 100 increments over 1.0 s
-
-  float nCurrentDivisions = 100 ;
-  float pause = 1.0 / nCurrentDivisions ; // max at 1.0 s
-
-  float currents0[ NUM_B * NUM_C ] ;
-  float currents1[ NUM_B * NUM_C ] ;
-  float currentIncrements[ NUM_B * NUM_C ] ;
-
-  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
-  {
-    currents0[ iCh ]  = querychannelcurrent( iCh ) ;
-    currents1[ iCh ]  = currentsBuffer[ iCh ] ;
-    currentIncrements[ iCh ] = ( currents1[iCh] - currents0[iCh] ) / nCurrentDivisions ;
+{ Serial.print("CH ");Serial.print(iChannel+1);Serial.print(" ---> ");
+  // return single channel current [units: A]
+//  const float   R_L                    = 2.00;
+//  const float   R_OS                   = 10.00;
+  if (iChannel == 7) {
+//    Serial.println(R_L);
+    return ( float(querychannelvoltage( iChannel ))  - float(DAC_VREF)) / float(DAC_PREAMP_RESISTANCE) / float(R_L) ;
   }
-
-  for ( uint8_t iCurrent = 1; iCurrent <= nCurrentDivisions; iCurrent++ )
+  else
   {
-    for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
-    {
-      setshimbufferbychannel( iCh, currents0[ iCh ] + iCurrent * currentIncrements[ iCh ] ) ;
-    }
-    loadallshims() ;
-    delayMicroseconds(pause) ;
+//    Serial.println(R_OS);
+    return ( float(querychannelvoltage( iChannel ))  - float(DAC_VREF)) / float(DAC_PREAMP_RESISTANCE) / float(R_OS);
   }
 }
 
-void rampdownallshims( void )
-{
-  // Ramps down all channels to 0 A in increments over 1 s
-
-  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
-  {
-    currentsBuffer[iCh] = 0.0 ;
-    dacBuffer[iCh] = ampstodac( iCh, currentsBuffer[iCh] ) ;
-  }
-  rampallshims();
-}
 
 void loadshimbychannel( uint8_t iCh )
 {
@@ -316,33 +181,13 @@ void loadshimbychannel( uint8_t iCh )
 
 void setandloadshimbychannel( uint8_t iCh, float current )
 {
-    setshimbufferbychannel( iCh, current ) ;
-    loadshimbychannel( iCh ) ;
+  setshimbufferbychannel( iCh, current ) ;
+  loadshimbychannel( iCh ) ;
 }
-
-void rampshimbychannel( uint8_t iCh ) 
-{
-// Ramp single channel up to its buffered current value in 100 increments over 1.0 s
-    
-    float nCurrentDivisions = 100 ;
-    float pause = 1.0/nCurrentDivisions ; // max at 1.0 s 
-    
-    float current0 = querychannelcurrent( iCh ) ;
-    float current1 = currentsBuffer[ iCh ] ;
-    
-    float currentIncrement = ( current1 - current0 )/nCurrentDivisions ;
-   
-    for( uint8_t iCurrent = 1; iCurrent <= nCurrentDivisions; iCurrent++ )
-    { 
-        setandloadshimbychannel( iCh, current0 + iCurrent*currentIncrement ) ;
-        delayMicroseconds(pause);
-    }
-}
-
 
 bool calibratedaccompensation()
 {
-  // Determine the DAC voltage offsets and gain corrections for each channel
+  //   Determine the DAC voltage offsets and gain corrections for each channel
   //
   // Prints a bool for each channel, TRUE if calibration was succesful
   //
@@ -358,7 +203,6 @@ bool calibratedaccompensation()
   float currentRequested;
   float currentsRead [ NUM_B * NUM_C ];
   float currentCorrected ;
-
   // reset DAC correction terms
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
@@ -377,49 +221,50 @@ bool calibratedaccompensation()
     int16_t voltageRead = querychannelvoltage( iCh ) ;
     currentsRead[iCh]   = querychannelcurrent( iCh ) ;
     dacOffset[iCh]      = voltageRead - DAC_VREF ;
+
   }
 
   // reset channels, now with the dac offsets adjusted
   resetallshims() ;
 
+
   // error of original vs. adjusted currents:
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
     currentCorrected = querychannelcurrent( iCh )  ;
-
     offsetError0[iCh] = abs( currentRequested - currentsRead[iCh] ) ;
     offsetError1[iCh] = abs( currentRequested - currentCorrected ) ;
   }
 
   // Determine DAC gain compensation
-  currentRequested = 1.0 ;
+  currentRequested = 0.5 ;
 
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
-    setshimbufferbychannel( iCh, currentRequested ) ;
-
-  rampallshims();
-
+  { LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]], ampstodac(iCh, currentRequested)) ;
+  }
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
     currentsRead[iCh] = querychannelcurrent( iCh ) ;
     dacGain[iCh]      = currentRequested / currentsRead[iCh] ;
+    LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]], ampstodac(iCh, currentRequested)) ;
+    // update shims with dac correction in place & buffer still set at 1.0 A
   }
-  // update shims with dac correction in place & buffer still set at 1.0 A
-  rampallshims();
 
+
+  resetallshims() ;
   // pause to ensure query is accurate (some latency exists)
-  delay(1);
+  delay(50);
 
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
-    currentCorrected = querychannelcurrent( iCh ) ;
 
+    currentCorrected = querychannelcurrent( iCh ) ;
     // error of original vs. adjusted currents:
     gainError0[iCh] = abs( currentRequested - currentsRead[iCh] );
     gainError1[iCh] = abs( currentRequested - currentCorrected ) ;
   }
 
-  rampdownallshims() ;
+  resetallshims();
 
   // check adjusted results have lower error:
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
@@ -450,20 +295,6 @@ bool calibratedaccompensation()
 
 }
 
-bool usersetandrampallshims()
-{
-  // Reads sequentially from serial 5 digits X SHIM_NCHANNELS
-  // where each consecutive 5 digits represents the channel's
-  // shim current scaled to be between [0:65535]
-  //
-  // Updates the shim buffer and ramps current up over 1.0 s
-  //
-  // Returns TRUE if successful
-  bool isReadSuccessful = false ;
-  isReadSuccessful = usersetallshims() ;
-  rampallshims() ;
-  Serial.println(isReadSuccessful);  return isReadSuccessful;
-}
 
 bool usersetandloadshimbychannel( void )
 {
@@ -519,72 +350,220 @@ bool usersetandloadshimbychannel( void )
 
 }
 
-void usergetallchannelcurrents() 
+void usergetallchannelcurrents()
 {
-// Print all channel currents in A
-    for (uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
-        Serial.println( querychannelcurrent( iCh ), 5 ) ;
+  // Print all channel currents in A
+  Serial.println("-------------");
+  for (uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
+    Serial.println( querychannelcurrent( iCh ), 5 ) ;
+  Serial.println("-------------");
 }
 
-
-
-bool usersetandrampshimbychannelasfloat( void ) 
+void usergetallchannelvoltages( void )
 {
-// This function takes significantly longer than usersetandloadshimbychannel()
-// and effectively produces the same result (setting the DAC buffer for a single shim
-// channel and ramping up to it over 1.0 s) However, it may be more convenient
-// for debugging:
-//
-// Rather than reading the channel current as a 5-digit scaled unsigned int,
-// the input should be the channel index [0:SHIM_NCHANNELS-1] followed by the
-// requested current, input as a single float in amperes.
-//
-// Returns TRUE if successful
-    uint8_t iCh ;
-    float current ;
-
-    iCh = uint8_t( Serial.parseInt() ) ;
-
-    if ( ( iCh < 0 ) || iCh >= NUM_B * NUM_C )
-    {
-        Serial.println(false); return false;
-    }
-    
-    current = Serial.parseFloat() ; // [units: A]
-    if ( abs(current) <= AMP_MAXCURRENTPERCHANNEL )
-    {    
-        setshimbufferbychannel( iCh, current ) ;
-        rampshimbychannel( iCh ) ;
-        Serial.println(true); return true;
-    }
-    else 
-    {    
-        Serial.println(false); return false;
-    }    
-    
+  // Print all channel voltages in mV
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
+    Serial.println( querychannelvoltage( iCh ) ) ;
 }
 
-bool userrampdownallshims() 
-{
-// same as resetallshims() but prints+returns true when finished 
-// same as rampdownallshim() but prints+returns true when finished 
-    rampdownallshims();
+bool usersetandloadshimbychannelasfloat(void)
+{ selectBoard(0);
+  uint8_t iCh ;
+  float current ;
+
+  iCh = uint8_t( Serial.parseInt() );
+  Serial.print("CH: "); Serial.println(iCh);
+  iCh = iCh - 1;
+
+  if ( ( iCh < 0 ) || iCh >= NUM_B * NUM_C )
+  {
+    Serial.println(false); return false;
+  }
+
+  current = Serial.parseFloat() ; // [units: A]
+  Serial.print("Current: "); Serial.println(current);
+  if ( abs(current) <= AMP_MAXCURRENTPERCHANNEL )
+  {
+    LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]], ampstodac(iCh, current)) ;
     Serial.println(true); return true;
+  }
+  else
+  {
+    Serial.println(false); return false;
+  }
+
 }
 
-void usergetallchannelvoltages( void ) 
+void usergetdaccompensationcoefficients( void )
 {
-// Print all channel voltages in mV
-    for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
-        Serial.println( querychannelvoltage( iCh ) ) ;  
+  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
+  {
+    Serial.println( dacOffset[ iCh ], 5 );
+    Serial.println( dacGain[ iCh ], 5 );
+  }
 }
 
-void usergetdaccompensationcoefficients( void ) 
-{
-    for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ ) 
-    {
-        Serial.println( dacOffset[ iCh ], 5 ); 
-        Serial.println( dacGain[ iCh ], 5 ); 
-    }
-}
-
+//uint16_t ampstodac2( uint8_t iChannel, float current , float dacGain, float dacOffset)
+//{
+//  return uint16_t( DAC_BITSPERVOLT * ( current * dacGain * float(DAC_PREAMP_RESISTANCE) + float( DAC_VREF ) + dacOffset ) / 1000.0  ) ;
+//}
+//
+//void calibratedaccompensation2(uint8_t iCh)
+//{
+//  // Determine the DAC voltage offsets and gain corrections for each channel
+//  //
+//  // Prints a bool for each channel, TRUE if calibration was succesful
+//  //
+//  // Returns TRUE if all channels successful
+//  //bool isCalibrationSuccessful = false ;
+//  //bool isChannelCalibrationSuccessful [NUM_B * NUM_C] ;
+//  selectBoard(0);
+//  float offsetError0 ; // uncorrected
+//  float offsetError1 ; // corrected
+//  float gainError0  ; // uncorrected
+//  float gainError1  ; // corrected
+//
+//  float currentRequested;
+//  float currentsRead ;
+//  float currentCorrected ;
+//
+//  // reset DAC correction terms
+//  //  {
+//  //    isChannelCalibrationSuccessful[iCh] = false ;
+//  //    dacGain[iCh]   = 1.0 ;
+//  //    dacOffset[iCsh] = 0 ;
+//  //  }
+//  float dacGain1   = 1.0 ;
+//  float dacOffset1 = 0 ;
+//  // determine DAC offset correction
+//  currentRequested = 0.0 ;
+//  // attempt to set all channels to 0.0 A
+//  resetallshims();
+//
+//  int16_t voltageRead = querychannelvoltage( iCh ) ;
+//  currentsRead   = querychannelcurrent( iCh ) ;
+//  dacOffset1      = voltageRead - DAC_VREF ;
+//
+//  Serial.print("DAC offset: "); Serial.println(dacOffset1);
+//
+//  // reset channels, now with the dac offsets adjusted
+//  resetallshims() ;
+//
+//  // error of original vs. adjusted currents:
+//  iCh = 7;
+//
+//  currentCorrected = querychannelcurrent( iCh )  ;
+//
+//  offsetError0 = abs( currentRequested - currentsRead ) ;
+//  offsetError1 = abs( currentRequested - currentCorrected ) ;
+//
+//  Serial.print("offsetError0: "); Serial.println(offsetError0);
+//  Serial.print("offsetError1: "); Serial.println(offsetError1);
+//
+//  //  // Determine DAC gain compensation
+//  currentRequested = 1.0 ;
+//
+//  LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]], ampstodac2(iCh, currentRequested, dacGain1, dacOffset1)) ;
+//  //
+//  currentsRead = querychannelcurrent( iCh ) ;
+//  dacGain1       = currentRequested / currentsRead ;
+//
+//
+//
+//  Serial.print("dacGain1: "); Serial.println(dacGain1);
+//  LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]], ampstodac2(iCh, currentRequested, dacGain1, dacOffset1)) ;
+//
+//  currentCorrected = querychannelcurrent( iCh ) ;
+//
+//  // error of original vs. adjusted currents:
+//  gainError0 = abs( currentRequested - currentsRead );
+//  gainError1 = abs( currentRequested - currentCorrected ) ;
+//
+//  Serial.print("gainError0: "); Serial.println(gainError0);
+//  Serial.print("gainError1: "); Serial.println(gainError1);
+//  Serial.print("1 amp query:");
+//  usergetallchannelcurrents();
+//  delay(500);
+//  rampdownallshims() ;
+//  delay(500);
+//  Serial.println();
+//  LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]], ampstodac2(iCh, -1, dacGain1, dacOffset1));
+//  Serial.println("-1 amp query:");
+//  usergetallchannelcurrents();
+//  delay(500);
+//  rampdownallshims() ;
+//  delay(500);
+//  Serial.println();
+//  LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]], ampstodac2(iCh, 2, dacGain1, dacOffset1));
+//  Serial.println("2 amp query:");
+//  usergetallchannelcurrents();
+//  delay(500);
+//  rampdownallshims() ;
+//  delay(500);
+//  Serial.println();
+//  LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]], ampstodac2(iCh, -2, dacGain1, dacOffset1));
+//  Serial.println("-2 amp query:");
+//  usergetallchannelcurrents();
+//  delay(500);
+//  rampdownallshims() ;
+//  delay(500);
+//  Serial.println();
+//  LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]], ampstodac2(iCh, 0, dacGain1, dacOffset1));
+//  Serial.println("0 amp query:");
+//  usergetallchannelcurrents();
+//  delay(500);
+//  rampdownallshims() ;
+//  delay(500);
+//  Serial.println();
+//
+//  rampdownallshims() ;
+//
+//
+//  //  }
+//  //  //  // update shims with dac correction in place & buffer still set at 1.0 A
+//  //  //  rampallshims();
+//  //  //
+//  //  //  // pause to ensure query is accurate (some latency exists)
+//  //  delay(1);
+//  //  //
+//  //  //  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
+//  //  {
+//  //    currentCorrected = querychannelcurrent( iCh ) ;
+//  //
+//  //    // error of original vs. adjusted currents:
+//  //    gainError0[iCh] = abs( currentRequested - currentsRead[iCh] );
+//  //    gainError1[iCh] = abs( currentRequested - currentCorrected ) ;
+//  //  }
+//  //  Serial.println(gainError0[iCh]);
+//  //  Serial.println(gainError1[iCh]);
+//  //  //
+//  //  rampdownallshims() ;
+//  //  //
+//  //  //  // check adjusted results have lower error:
+//  //  //  for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
+//  //  //  {
+//  //  //    // add 1.0 mV (~ADC precision) as tolerance for offset error
+//  //  //    if ( ( offsetError1[iCh] <= offsetError0[iCh] + 1.0 ) & ( gainError1[iCh] <= gainError0[iCh] ) )
+//  //  //    {
+//  //  //      isChannelCalibrationSuccessful[iCh] = true ;
+//  //  //      Serial.println( isChannelCalibrationSuccessful[iCh] ) ;
+//  //  //    }
+//  //  //    else
+//  //  //    {
+//  //  //      isChannelCalibrationSuccessful[iCh] = false ;
+//  //  //      Serial.println( isChannelCalibrationSuccessful[iCh] ) ;
+//  //  //    }
+//  //  //  }
+//  //  //
+//  //  //  uint8_t iCh ;
+//  //  //
+//  //  //  for ( iCh = 0; iCh < NUM_B * NUM_C; iCh++)
+//  //  //    if ( !isChannelCalibrationSuccessful[iCh] )
+//  //  //      break;
+//  //  //
+//  //  //  if ( iCh == NUM_B * NUM_C )
+//  //  //    isCalibrationSuccessful = true;
+//  //  //
+//  //  //  return isCalibrationSuccessful ;
+//  //
+//}

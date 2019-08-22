@@ -6,12 +6,14 @@
 #define NUM_C 8//number of channesl per board
 
 // power supply:
-const float AMP_MAXCURRENTPERCHANNEL = 2.5 ; // [units: amps]
+const float AMP_MAXCURRENTPERCHANNEL = 5 ; // [units: amps]
 const float AMP_CURRENTRANGE         = 2*AMP_MAXCURRENTPERCHANNEL ; // [units: amps]
 
 // 3 terms describing ADC hardware:
 const uint8_t ADC_RESOLUTION         = 12 ; // 12-bit
-const float   ADC_RANGE_VOUT         = 2.048 ; // for GAIN_TWO setting [units: volts]
+const float   ADC_RANGE_VOUT         = 4.750 ; 
+const float   R_L                    = 2.00;
+const float   R_OS                   = 10.00;
 
 // 1 derived term for convenience:
 const uint16_t ADC_MILLIVOLTSPERBIT  = round( 1000*2.0*ADC_RANGE_VOUT/( pow( 2.0, float(ADC_RESOLUTION) ) - 1.0 ) ) ; // = 1 [uints: mV/bit-count]
@@ -19,7 +21,7 @@ const uint16_t ADC_MILLIVOLTSPERBIT  = round( 1000*2.0*ADC_RANGE_VOUT/( pow( 2.0
 // 3 terms describing DAC hardware:
 const uint8_t DAC_RESOLUTION         = 16 ; // 16-bit
 const int16_t DAC_VREF               = 1250 ; // [units: mV]
-const int16_t DAC_PREAMP_RESISTANCE  = 220 ; // [units: milli-Ohms]
+const int16_t DAC_PREAMP_RESISTANCE  = 200 ; // [units: milli-Ohms]
 
 // 3 derived terms for convenience:
 const uint16_t DAC_RANGE_VOUT        = 2*DAC_VREF ; // [units: mV]
@@ -81,7 +83,7 @@ volatile uint16_t data_rx[20] = {};
 bool read_in_flight;
 
 LTC2656_ADDRESS channelMap[] = {DAC_E, DAC_F, DAC_G, DAC_H, DAC_A, DAC_B, DAC_C, DAC_D};
-uint8_t channelMap_ADC[] = {0, 4, 1, 5, 2, 6, 3, 7};
+uint8_t channelMap_ADC[] = {0,2,4,6, 1,  3,  5,  7};
 
 float zeroPoint[NUM_B][NUM_C];
 float gain[NUM_B][NUM_C];
