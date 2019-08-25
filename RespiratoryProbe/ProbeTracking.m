@@ -100,6 +100,7 @@ Aux.Log            = []; % memmapfile object pertaining to recording log
 Aux.Data.p         = []; % may be filtered & limited
 Aux.Data.pRaw      = []; % raw measurement
 Aux.Data.t         = []; % measurement time [units: ms]
+Aux.Data.trigger   = []; % measurement time [units: ms]
 
 Aux.Data.startTime = [] ;
 Aux.Data.endTime   = [] ;
@@ -199,17 +200,22 @@ if isa( Aux.Source, 'serial' )
     
     fopen( Aux.Source ) ;
     disp('Connecting to respiratory probe...')
-
+    
+    % wait for Arduino reset then assign sampling period 
+    pause(2) 
+    fprintf( Aux.Source, '%d\n', Aux.Specs.dt ) ;
+    
     iAttempt    = 1 ;
     nAttempsMax = 3 ; 
 
     while( ~isRecording && iAttempt <= nAttempsMax )
 
         disp(['Attempt #' num2str(iAttempt)]);    
-       
-        firstWord = fscanf( Aux.Source, '%u') ;
         
-        if( ~isempty(firstWord) && isnumeric(firstWord) )  
+        tmp = fgetl( Aux.Source ) ;
+        
+        if ~isempty(tmp) 
+            str2num( tmp ) ;
             isRecording = true ;
         end
         
@@ -290,6 +296,7 @@ function [] = clearrecording( Aux )
 
 Aux.Data.pRaw      = [] ;
 Aux.Data.p         = [] ;
+Aux.Data.trigger   = [] ;
 
 Aux.Data.t         = [] ;
 Aux.Data.startTime = [] ;
@@ -314,9 +321,10 @@ function [pRaw, p, t] = getupdate( Aux )
 if isa( Aux.Source, 'serial' ) 
     assert( strcmp( Aux.Source.Status, 'open' ), 'Error: Serial port is closed.' );
 
-    tmp = fscanf( Aux.Source, '%u', [1 1] ) ;
-    
-    Aux.Data.pRaw(end+1) = tmp(end) ;
+    tmp = str2num( fgetl( Aux.Source ) ) ;
+
+    Aux.Data.trigger(end+1) = logical( tmp(1) ) ;
+    Aux.Data.pRaw(end+1)    = tmp(2:end) ;
     
     p = filter_signal( Aux.Specs.probeType, Aux.Data.pRaw ) ;
     p = p(end) ; 
@@ -330,12 +338,13 @@ if isa( Aux.Source, 'serial' )
 % Reading from temp file buffer
 elseif ischar( Aux.Source ) 
 
-    [iSample, pRaw, p, t] = Aux.readupdatefromlogfile( ) ;
+    [iSample, pRaw, p, t, trigger] = Aux.readupdatefromlogfile( ) ;
 
-    Aux.Data.iSample     = iSample ;
-    Aux.Data.pRaw(end+1) = pRaw ;
-    Aux.Data.p(end+1)    = p ;
-    Aux.Data.t(end+1)    = t ;
+    Aux.Data.iSample        = iSample ;
+    Aux.Data.pRaw(end+1)    = pRaw ;
+    Aux.Data.p(end+1)       = p ;
+    Aux.Data.t(end+1)       = t ;
+    Aux.Data.trigger(end+1) = trigger ;
 
 end
 
@@ -396,7 +405,6 @@ function [] = killrecordingdaemon( Aux )
 Aux.Log.Data.isLogging = uint64(0) ; 
 
 end
-
 %% ========================================================================
 function [] = recordandplotphysiosignal( Aux, Params ) 
 %RECORDANDPLOTPHYSIOSIGNAL
@@ -455,7 +463,6 @@ if isSavingData
 end
 
 end
-
 %% ========================================================================
 function [] = recordphysiosignal( Aux1, varargin )
 %RECORDPHYSIOSIGNAL  
@@ -586,6 +593,31 @@ if Params.isPlottingInRealTime
     drawnow limitrate; 
     set(figureHandle,'Visible','on');
    
+    % -----
+    % TTL/Trigger figure 
+    figureHandleTrigger = figure('NumberTitle','off',...
+        'Name','Trigger',...
+        'Color',[0 0 0],'Visible','off');
+        
+    % Set axes
+    axesHandleTrigger = axes('Parent',figureHandleTrigger,...
+        'YGrid','on',...
+        'YColor',[0.9725 0.9725 0.9725],...
+        'XGrid','on',...
+        'XColor',[0.9725 0.9725 0.9725],...
+        'Color',[0 0 0]);
+
+    hold on;
+   
+    plotHandleTrigger = plot(axesHandleTrigger,0,0,'Marker','.','LineWidth',1,'Color',[1 1 0]);
+    
+    title(['Recording: Trigger'],'FontSize',15,'Color',[1 1 0]);
+    ylabel('Trigger','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+    xlabel('Time [s]','FontWeight','bold','FontSize',14,'Color',[1 1 0]);
+
+    drawnow limitrate; 
+    set( figureHandleTrigger,'Visible','on');
+   
     if isDualTracking 
         figureHandle2 = figure('NumberTitle','off',...
             'Name','Physio signal 2',...
@@ -614,8 +646,6 @@ if Params.isPlottingInRealTime
 
 end
 
-Audio = audiorecorder() ;
-
 isRecording = Aux1.beginrecording() ;
 
 if isRecording
@@ -639,9 +669,6 @@ end
 % solution is to update the display ~every so often~ (e.g. 4x per second seems OK)
 nSamplesBetweenRefresh = (1/Params.refreshRate)/(Aux1.Specs.dt/1000) ;
 
-record(Audio) ;
-display( ['Recording audio...'] ) ;
-
 while ( iSample < nSamples ) && ~StopButton.Stop()
 
     iSamplesBetweenRefresh = 0;
@@ -660,7 +687,10 @@ while ( iSample < nSamples ) && ~StopButton.Stop()
     end
 
     if Params.isPlottingInRealTime
+        
         set( plotHandle1,'XData', Aux1.Data.t/1000 ,'YData', Aux1.Data.p ); 
+        set( plotHandleTrigger,'XData', Aux1.Data.t/1000 ,'YData', Aux1.Data.trigger ); 
+
         if isDualTracking
             set( plotHandle2,'XData', Aux2.Data.t/1000 ,'YData', Aux2.Data.p ); 
         end
@@ -676,16 +706,9 @@ if isDualTracking
     Aux2.stoprecording() ;
 end
 
-stop(Audio) ;
-
-figure
-plot( getaudiodata( Audio ) ) ;
-title('Audio recording') ;
-xlabel('Sample index');
-
 % ------- 
 if Params.isSavingData
-    Aux1.saverecording( Params.filename, Audio )
+    Aux1.saverecording( Params.filename )
 
     if isDualTracking
         Aux2.saverecording( )
@@ -695,7 +718,7 @@ end
 end
 
 %% ========================================================================
-function [] = saverecording( Aux, logFilename, Audio )
+function [] = saverecording( Aux, logFilename )
 %SAVERECORDING
 %
 %   SAVERECORDING( Aux )
@@ -712,16 +735,9 @@ Data = Aux.Data ;
 
 Data.probeType = Aux.Specs.probeType ;
 
-if nargin == 3
-    Data.Audio = [] ;
-    Data.Audio.data = getaudiodata( Audio ) ;
-    Data.Audio.sampleRate = Audio.SampleRate ;
-end
-
 save( logFilename, 'Data' ) ;
 
 end
-
 %% ========================================================================
 function [] = resetdaemon( Aux )
 %RESETDAEMON
@@ -755,7 +771,7 @@ filename = fullfile( tempdir, [ Aux.Specs.probeType '_probe_log.dat'] ) ;
 nSamplesMax = 21600000 ;
 
 if f ~= -1
-    fwrite( f, [ zeros(nSamplesMax+4, 2);], 'double' ) ; 
+    fwrite( f, [ zeros(nSamplesMax+4, 3);], 'double' ) ; 
     fclose( f ) ;
 else
     error('MATLAB:demo:send:cannotOpenFile', ...
@@ -768,6 +784,7 @@ Aux.Log = memmapfile( filename, 'Writable', true, 'Format', ...
       'uint64', [1 1], 'isLogging' ;
       'double', [1 1], 'startTime' ;
       'double', [1 1], 'endTime' ;
+      'uint8', [nSamplesMax 1], 'trigger' ;
       'double', [nSamplesMax 1], 'pRaw' ;
       'double', [nSamplesMax 1], 'p' } ) ;
 
@@ -777,7 +794,7 @@ Aux.Log.Data.endTime   = Inf ;
 end
 
 %% ========================================================================
-function [nSamples, pRaw, p, t] = readupdatefromlogfile( Aux )
+function [nSamples, pRaw, p, t, trigger] = readupdatefromlogfile( Aux )
 %READUPDATEFROMLOGFILE
 
 DWELL_TIME     = 0.01 ; % [units: s]
@@ -796,12 +813,12 @@ end
 % it is copied by reference,
 nSamples = double( Aux.Log.Data.nSamples ) ;
 
-pRaw = Aux.Log.Data.pRaw( nSamples ) ;
-p    = Aux.Log.Data.p( nSamples ) ;
-t    = length( Aux.Data.p ) * Aux.Specs.dt ;
+pRaw    = Aux.Log.Data.pRaw( nSamples ) ;
+p       = Aux.Log.Data.p( nSamples ) ;
+t       = length( Aux.Data.p ) * Aux.Specs.dt ;
+trigger = Aux.Log.Data.trigger( nSamples ) ;
  
 end
-
 %% ========================================================================
 function [] = writeupdatetologfile( Aux )
 %WRITEUPDATETOLOGFILE
@@ -809,11 +826,11 @@ function [] = writeupdatetologfile( Aux )
 % update N samples logged
 Aux.Log.Data.nSamples = Aux.Log.Data.nSamples + 1 ;
 
-Aux.Log.Data.pRaw( Aux.Log.Data.nSamples+1 ) = Aux.Data.pRaw(end) ;
-Aux.Log.Data.p( Aux.Log.Data.nSamples+1 )    = Aux.Data.p(end) ;
+Aux.Log.Data.pRaw( Aux.Log.Data.nSamples+1 )    = Aux.Data.pRaw(end) ;
+Aux.Log.Data.p( Aux.Log.Data.nSamples+1 )       = Aux.Data.p(end) ;
+Aux.Log.Data.trigger( Aux.Log.Data.nSamples+1 ) = Aux.Data.trigger(end) ;
    
 end
-
 %% ========================================================================
 function [] = createrecordingdaemon( Aux )
 %CREATERECORDINGDAEMON
@@ -841,7 +858,6 @@ cd( tmpDir ) ;
 Aux.Source = 'logFile' ;
 
 end
-
 %% ========================================================================
 function [] = launchrecordingdaemon( Aux )
 %LAUNCHRECORDINGDAEMON
