@@ -839,7 +839,7 @@ else
     img            = Mag.img(:,:,:,1,:) .* exp( i*Phase.img(:,:,:,1,:) ) ;
     img(:,:,:,2,:) = Mag.img(:,:,:,2,:) .* exp( i*Phase.img(:,:,:,2,:) ) ;
 
-    PhaseDiff.img  = angle( img(:,:,:,1,:) ./ img(:,:,:,2,:) ) ;
+    PhaseDiff.img  = angle( img(:,:,:,2,:) .* conj(img(:,:,:,1,:) ) ) ;
 
     PhaseDiff.Hdr.EchoTime = Phase.echotime(2) - Phase.echotime(1) ; % [units : ms]
 
