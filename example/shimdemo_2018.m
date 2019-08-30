@@ -1,5 +1,10 @@
 function [] = shimdemo_2018( )
 % ACDC SHIM DEMO
+% 
+% THIS SCRIPT IS NOT USABLE
+% - declareshimparamsdemo_201803: ==> does not exist
+% - Protocol breath in/out with apnea
+% - Coil: 
 %
 %
 % =========================================================================
