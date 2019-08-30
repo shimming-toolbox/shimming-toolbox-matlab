@@ -52,7 +52,7 @@ export PATH=$PATH:/Applications/MATLAB_R2015a.app/bin/
 To use the optional Abdul-Rahman 3D phase unwrapper, binaries must be compiled from the source code found in /external/source/
 
 
-## Getting started 
+## Getting started
 **(from scratch)**
 
 To use this library for optimizing a given shim system, that system needs to be defined. This definition occurs via two distinct classes:
@@ -60,7 +60,7 @@ To use this library for optimizing a given shim system, that system needs to be 
 1. **ShimSpecs( )**
 *System specifications: This is essentially a struct container which defines system parameters concerning amplifier, DAC, etc.*
 
-and 
+and
 
 2. **ShimOpt( )**
 *Shim optimization: This class contains a number of methods used to optimize the shim currents for a given field map*
@@ -80,17 +80,17 @@ Once this experimental gradient-echo data is available, one need needs to provid
 TODO cont...
 
 List of available maps:
-- UNF: https://drive.google.com/open?id=0B3k302JPkHwJajNtZ2ViZWhleG8
+- UNF: https://drive.google.com/drive/folders/1DSCTeh9qRCgS55fWLGtsNeYdq8DsRyMg
 
 Download map and copy it under $PATH_REALTIMESHIMMING/data/
 
 ### Interfacing with hardware: **ShimUse( )** and **ShimCom( )**
 
-The class *ShimUse()* provides the generic user interface for the shim experiment and should not depend on the specific shim system. It does, however, require the prior definition of concrete ShimSpecs, ShimOpt, and ShimCom subclasses: 
+The class *ShimUse()* provides the generic user interface for the shim experiment and should not depend on the specific shim system. It does, however, require the prior definition of concrete ShimSpecs, ShimOpt, and ShimCom subclasses:
 
 *ShimCom()* defines the lower-level communication methods with the shim hardware (e.g. *ShimCom.getchanneloutput()* and *ShimCom.setandloadallshims()*). It is another abstract class, and each shim system requires a corresponding subclass (e.g. *ShimCom_MyNewShim()* which both inherits from *ShimCom()*, and defines, for itself, the abstract methods of *ShimCom()*.
 
-## SOP 
+## SOP
 **Experimental How-to**
 
 - Control room
