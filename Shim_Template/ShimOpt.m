@@ -1752,7 +1752,8 @@ for iChannel = 1 : Params.nChannels
         
         fieldMaps( :,:,:, iEcho ) = Field.img ;
 
-        % use 1st echoes for field estimate: if later echoes are >= 50 Hz...
+        % mask out later echoes from field estimate if later echoes deviate
+        % more than 50 Hz from the field map based on the early echoes:
         masks( :,:,:, iEcho, iChannel ) = Field.Hdr.MaskingImage & ( fieldMaps( :,:,:, iEcho ) ~= 0 ) & ( abs( fieldMaps(:,:,:, iEcho ) - fieldMaps(:,:,:, 1) ) < 50 ) ;
         
     end 

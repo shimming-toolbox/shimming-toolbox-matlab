@@ -5,13 +5,17 @@ classdef (Abstract) ShimCom < matlab.mixin.SetGet
 % 
 % Description
 %
-%   SHIMCOM is responsible for all direct communication with the shim system
+%   ShimCom is responsible for all direct communication with the shim system
 %   microcontoller (e.g. setting/querying shim currents). 
 %   Declaration of a ShimCom object immediately opens a serial (Com) port.
 % 
 % .......
 %   
 % Usage
+%    
+%   Note: ShimCom is an Abstract class, i.e. it is not 'used' in itself,
+%   rather, its subclasses (e.g. ShimOpt_Greg) are used when instantiated as
+%   objects.
 %
 %   Shims = ShimCom(  )
 %
@@ -29,14 +33,9 @@ classdef (Abstract) ShimCom < matlab.mixin.SetGet
 %
 %       .Specs
 %
-%    
-%    ShimCom is an Abstract class.
-%
 % =========================================================================
 % Author::ryan.topfer@polymtl.ca
 % =========================================================================
-
-
 
 % *** TODO 
 %   Change 'ComPort' property to 'Bus'? (more general)

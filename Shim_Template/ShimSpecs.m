@@ -1,13 +1,21 @@
 classdef (Abstract) ShimSpecs
-%SHIMSPECS
-% 
-% Shim System Specifications
+%SHIMSPECS - Shim System Specifications
 %
 % .......
+% 
+% Description
+%
+%   ShimSpecs defines all the relevant hardware specifications of a shim system.
 %   
+% .......
+%
 % Usage
 %
-% Specs = ShimSpecs(  )
+%   Note: ShimSpecs is an Abstract class, i.e. it is not 'used' in itself,
+%   rather, its subclasses (e.g. ShimSpecs_Greg) are used when instantiated as
+%   objects.
+%
+%   Specs = ShimSpecs(  )
 %
 %   Specs contains fields
 %
@@ -22,23 +30,9 @@ classdef (Abstract) ShimSpecs
 %
 %       .Dac 
 %           relating to digital-to-analog conversion
-%   
-% =========================================================================
-% Part of series of classes pertaining to shimming:
-%
-%    Tracking
-%    ShimCal
-%    ShimCom
-%    ShimEval
-%    ShimOpt
-%    ShimSpecs
-%    ShimTest 
-%    ShimUse
-%     
-%    ShimSpecs is an Abstract class.
 %
 % =========================================================================
-% Updated::20180821::ryan.topfer@polymtl.ca
+% Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
 properties   
