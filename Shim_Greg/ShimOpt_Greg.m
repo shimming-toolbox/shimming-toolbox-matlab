@@ -1,7 +1,7 @@
 classdef ShimOpt_Greg < ShimOpt
 %SHIMOPT_GREG - Shim Optimization for Ac/Dc 8-channel array (c-spine shim)
 %
-% ShimOpt_Greg is a ShimOpt subclass 
+% ShimOpt_Greg is a ShimOpt subclass. See ShimOpt documentation for usage.
 %     
 % =========================================================================
 % Author::ryan.topfer@polymtl.ca
@@ -58,9 +58,7 @@ end
 %-------
 % associate host MRI 
 if strcmp( Params.InstitutionName, 'IUGM' ) && strcmp( Params.StationName, 'MRC35049' ) 
-
-    Shim.Aux = ShimOpt_IUGM_Prisma_fit( ) ; % Params input??
-
+    Shim.Aux = ShimOpt_IUGM_Prisma_fit(  ) ; % Params input??
 end
 
 end
@@ -119,8 +117,8 @@ function  [ Params ] = assigndefaultparameters( Params )
 % DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_Greg_20190501' ;
-DEFAULT_PROBESPECS              = [] ;
+DEFAULT_PATHTOSHIMREFERENCEMAPS    = [ shimbindir() 'ShimReferenceMaps_Greg' ] ;
+DEFAULT_PROBESPECS                 = [] ;
 
 DEFAULT_INSTITUTIONNAME = 'IUGM' ;
 DEFAULT_STATIONNAME     = 'MRC35049' ;
@@ -129,14 +127,12 @@ if ~myisfield( Params, 'isCalibratingReferenceMaps' ) || isempty(Params.isCalibr
    Params.isCalibratingReferenceMaps = DEFAULT_ISCALIBRATINGREFERENCEMAPS ;
 end
 
-
 if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
    
     if Params.isCalibratingReferenceMaps
         today = datestr( now, 30 ) ;
         today = today(1:8) ; % ignore the time of the day
-        Params.pathToShimReferenceMaps = [ '~/Projects/Shimming/Static/Calibration/Data/' ...
-                        'ShimReferenceMaps_' 'Greg_' today ] ;
+        Params.pathToShimReferenceMaps = [ shimbindir() 'ShimReferenceMaps_Greg'  ] ;
     else
         Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
     end

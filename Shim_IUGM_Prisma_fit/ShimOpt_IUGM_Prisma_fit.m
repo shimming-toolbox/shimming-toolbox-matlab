@@ -1,8 +1,11 @@
 classdef ShimOpt_IUGM_Prisma_fit < ShimOpt
 %SHIMOPT_IUGM_PRISMA_FIT - Shim Optimization for Prisma-fit @ UNF 
 %     
+% ShimOpt_IUGM_Prisma_fit is a ShimOpt subclass. See ShimOpt documentation for
+% usage.
+%
 % =========================================================================
-% Updated::20190528::ryan.topfer@polymtl.ca
+% Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -200,7 +203,7 @@ function  [ Params ] = assigndefaultparameters( Params )
 
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
-DEFAULT_PATHTOSHIMREFERENCEMAPS    = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_IUGM_Prisma_fit_20181022';
+DEFAULT_PATHTOSHIMREFERENCEMAPS    = [ shimbindir() 'ShimReferenceMaps_IUGM_Prisma_fit' ] ;
 DEFAULT_PROBESPECS                 = [] ;
 
 if ~myisfield( Params, 'isCalibratingReferenceMaps' ) || isempty(Params.isCalibratingReferenceMaps)
@@ -212,8 +215,7 @@ if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimR
     if Params.isCalibratingReferenceMaps
         today = datestr( now, 30 ) ;
         today = today(1:8) ; % ignore the time of the day
-        Params.pathToShimReferenceMaps = [ '~/Projects/Shimming/Static/Calibration/Data/' ...
-                        'ShimReferenceMaps_IUGM_Prisma_fit_' today ] ;
+        Params.pathToShimReferenceMaps = [ shimbindir() 'ShimReferenceMaps_IUGM_Prisma_fit' ] ;
     else
         Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
     end

@@ -174,27 +174,30 @@ function  [ Params ] = assigndefaultparameters( Params )
 %
 % DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
 
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/SpineShimReferenceMaps20161007.mat';
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170410.mat';
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170418.mat';
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '/Users/ryan/Projects/Shimming/Static/Calibration/Data/ShimReferenceMapsRri20170706.mat';
-DEFAULT_PROBESPECS              = [] ;
-
-DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
+DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
+DEFAULT_PATHTOSHIMREFERENCEMAPS    = [ shimbindir() 'ShimReferenceMaps_Rriyan' ] ;
+DEFAULT_PROBESPECS                 = [] ;
 
 DEFAULT_INSTITUTIONNAME = 'IUGM' ;
 DEFAULT_STATIONNAME     = 'MRC35049' ;
 
+if ~myisfield( Params, 'isCalibratingReferenceMaps' ) || isempty(Params.isCalibratingReferenceMaps)
+   Params.isCalibratingReferenceMaps = DEFAULT_ISCALIBRATINGREFERENCEMAPS ;
+end
+
 if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
-   Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
+   
+    if Params.isCalibratingReferenceMaps
+        today = datestr( now, 30 ) ;
+        today = today(1:8) ; % ignore the time of the day
+        Params.pathToShimReferenceMaps = [ shimbindir() 'ShimReferenceMaps_Rriyan'  ] ;
+    else
+        Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
+    end
 end
 
 if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
    Params.TrackerSpecs = DEFAULT_PROBESPECS ;
-end
-
-if ~myisfield( Params, 'isInterpolatingReferenceMaps' ) || isempty(Params.isInterpolatingReferenceMaps)
-   Params.isInterpolatingReferenceMaps = DEFAULT_ISINTERPOLATINGREFERENCEMAPS ;
 end
 
 if ~myisfield( Params, 'InstitutionName' ) || isempty(Params.InstitutionName)
@@ -204,6 +207,7 @@ end
 if ~myisfield( Params, 'StationName' ) || isempty(Params.StationName)
    Params.StationName = DEFAULT_STATIONNAME ;
 end
+
 
 end
 % =========================================================================
