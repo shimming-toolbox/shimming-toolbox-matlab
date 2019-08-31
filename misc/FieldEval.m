@@ -33,7 +33,8 @@ classdef FieldEval < MaRdI
 % NOTE
 %
 % FieldEval is a MaRdI subclass [FieldEval < MaRdI]
-%     
+% See MaRdI documentation for additional features.
+%
 % =========================================================================
 % Author::ryan.topfer@polymtl.ca
 % =========================================================================
@@ -54,12 +55,10 @@ Field.Hdrs  = [] ;
 Field.Aux   = [] ;
 Field.Model = [] ;
 
+Params.dummy = [] ;
+
 if nargin ~= 0 
     
-    if nargin == 1
-        Params.dummy = [] ;
-    end
-
     if isa( varargin{1}, 'MaRdI' )
         % convert MaRdI-type Img object to FieldEval
         Img        = varargin{1} ;
