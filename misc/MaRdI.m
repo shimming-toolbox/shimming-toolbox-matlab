@@ -52,9 +52,6 @@ classdef MaRdI < matlab.mixin.SetGet
 % WRITE()
 %   Saving as DICOM (and, by extension, NifTI) not rigorously/fully tested
 % 
-% .....
-% ASSOCIATEAUX()
-%  link Image to corresponding Auxiliary data
 %%
 
 % =========================================================================
@@ -226,23 +223,81 @@ s0 = Img.Hdr.MrProt.sGRADSPEC.alShimCurrent ;
 
 end
 % =========================================================================
-function [pInterp] = associatetrackerdata( Img, pTracker, tTracker )
-%ASSOCIATETRACKERDATA
+function [] = associateaux( Img, Aux )
+%ASSOCIATEAUX - link image to corresponding auxiliary recording object
+%
+%  Usage 
+%
+%   [] = ASSOCIATEAUX( Img, Aux )
+% 
+% .......
+%
+% Description
+%   
+% Function compares an acquired image (typically, a time-series of multiple
+% images) and an auxiliary recording (e.g. respiratory trace, ideally 
+% featuring synchronization triggers) and returns (copies to Img.Aux) an
+% estimate of the Aux recording corresponding to each image measurement.
+%
+% Cases:
+%   
+%   1. Single measurement Aux:
+%       The value is copied across all image time points
+%
+%   2. Single measurement Img:
+%       If Aux possesses multiple measurements, the image is presumed to have
+%       been taken during a breath-hold. In this case, the Aux signal variance
+%       is calculated over a shifting time-window (width = total image
+%       acquisition time) and the median Aux value over the window pertaining
+%       to the least variance is returned. (Length of Aux recording must be >=
+%       total scan time).
+%
+%   3. Img and Aux are both time-series:
+%       Length of Aux recording must be >= length of the image time-series.
+%
+%       3.0: Img and Aux time-points already correspond: 
+%            Aux is simply copied. 
+%
+%       3.1: Aux recording possesses a single synchronization trigger:
+%           The trigger is assumed to correspond to the first image in the time series.
+%           Aux is cropped and linearly interpolated.
+%
+%       3.2: Aux recording possesses multiple synchronization triggers:
+%           NOT IMPLEMENTED
+%
+%       3.3: Aux recording does not possess triggers:
+%           DEPRECATED 
+% .......
 
-error('TODO: Ryan');
-% number of acquisitions
-nAcq = size( Img.img, 5 ) ;
-
-% number of tracker samples
-nSamples = length(pTracker);
-
-if nSamples == 1
-    pInterp = pTracker*ones(nAcq, 1) ;
-    return ;
+if isempty( Aux ) || ~myisfield(Aux, 'Data') || ~myisfield(Aux.Data, 'p') || isempty( Aux.Data.p ) 
+    error('Aux recording is empty.')
 else
-    assert( length(tTracker) == length(pTracker), 'Function expects one sample time-point for each input sample.' )
+    nSamples = length( Aux.Data.p ) ; % number of aux samples
+    nAcq     = size( Img.img, 5 ) ; % number of acquisitions
+    Img.Aux  = Aux.copy() ;
 end
 
+%% -----
+% check if image + aux recording times already coincide:
+if ( nAcq == nSamples ) && ( all( Img.Aux.Data.t == Img.getacquisitiontime() ) )
+    warning('Image and Aux recording times already coincide. Not performing interpolation.') ;
+    return ;
+end
+
+%% -----
+% trivial case
+if nSamples == 1
+    Img.Aux.Data.p       = Aux.Data.p*ones(nAcq, 1) ;
+    Img.Aux.Data.pRaw    = Aux.Data.p*ones(nAcq, 1) ;
+    Img.Aux.Data.t       = Img.getacquisitiontime() ;
+    Img.Aux.Data.trigger = zeros(nAcq, 1) ;
+    return ;
+else
+    assert( length(Aux.Data.t) == length(Aux.Data.p), ...
+        'Function expects one sample time-point for each input sample.' )
+end
+
+% t = 0 will correspond to the first image
 tAcq = Img.getacquisitiontime() ;
 tAcq = tAcq - tAcq(1) ;
 
@@ -250,177 +305,208 @@ tAcq = tAcq - tAcq(1) ;
 dtAcq = median( diff( tAcq ) ) ;
     
 % time between respiratory samples (note: round to ms before scaling to s)
-dtTracker = 0.001*round( ( tTracker(end) - tTracker(1) )/nSamples ) ; % [units: s]
+dtAux = 0.001*round( ( Img.Aux.Data.t(end) - Img.Aux.Data.t(1) )/nSamples ) ; % [units: s]
 
-tTracker  = 0.001*tTracker ; % convert to [units: s]
+Img.Aux.Data.t = 0.001*Img.Aux.Data.t ; % convert to [units: s]
     
-assert( max(tTracker)>=max(tAcq), 'Function expects length of tracker (respiratory) recording to be greater or equal to the image acquisition time.' )
+assert( max(Img.Aux.Data.t)>=max(tAcq), 'Length of Aux recording should be greater or equal to the total image acquisition time.' )
 
+%% ----- 
+% assumed breath-hold case
 if nAcq == 1
     % single image time-point assumed to correspond to a breath-hold and, thus, a single tracker value:
 
     % number of samples corresponding to breath-hold
     % (enables auto-estimation of the time window corresponding to the breath-hold):
-    nSamplesApnea = Img.Hdr.MrProt.lTotalScanTimeSec/dtTracker ;
+    nSamplesApnea = Img.Hdr.MrProt.lTotalScanTimeSec/dtAux ;
 
     % extract a single scalar
-    pInterp = ProbeTracking.selectmedianmeasurement( pTracker, nSamplesApnea ) ;
+    p = ProbeTracking.selectmedianmeasurement( Img.Aux.Data.p, nSamplesApnea ) ;
+    
+    Img.Aux.Data.p       = p*ones(nAcq, 1) ;
+    Img.Aux.Data.pRaw    = p*ones(nAcq, 1) ;
+    Img.Aux.Data.t       = Img.getacquisitiontime() ;
+    Img.Aux.Data.trigger = zeros(nAcq, 1) ;
+    return ;
+end
+
+%% -----
+% determine if aux recording features synchronization trigger pulses
+if ~isempty( Img.Aux.Data.trigger )
+    nTriggers = nnz( Img.Aux.Data.trigger ) ;
+else
+    nTriggers = 0;
+end
+
+if nTriggers > 0 
+    % 1st trigger assumed to correspond to 1st image measurement
+    iTriggers = find( Img.Aux.Data.trigger==1 ) ;
+    
+    % crop recording preceding 1st trigger
+    Img.Aux.Data.p       = Img.Aux.Data.p( iTriggers(1) : end ) ;
+    Img.Aux.Data.pRaw    = Img.Aux.Data.pRaw( iTriggers(1) : end ) ;
+    Img.Aux.Data.trigger = Img.Aux.Data.t( iTriggers(1) : end ) ;
+    
+    Img.Aux.Data.t       = Img.Aux.Data.t( iTriggers(1) : end ) ;
+    Img.Aux.Data.t       = Img.Aux.Data.t - Img.Aux.Data.t(1) ; % 1st trigger occurs at t=0
+
+    if nTriggers == 1
+        %% -----
+        % Interpolate aux recordings across time  
+        tInterp = [ 0: tAcq(end)/(nAcq-1) : tAcq(end) ]' ; % interp1 requires regular grid spacing
+        Img.Aux.Data.p          = interp1( Img.Aux.Data.t, Img.Aux.Data.p, tInterp, 'linear' ) ; 
+        Img.Aux.Data.pRaw       = interp1( Img.Aux.Data.t, Img.Aux.Data.pRaw, tInterp, 'linear' ) ; 
+        Img.Aux.Data.t          = Img.getacquisitiontime() ;
+        Img.Aux.Data.trigger    = zeros(nAcq, 1) ;
+        Img.Aux.Data.trigger(1) = 1 ;
+        return ;
+    elseif nTriggers > 1
+        error('Unimplemented feature: Interpolation for multi-trigger Aux recording. TODO')
+    end
 
 else
-    % determine intersystem (image acq. to respiratory tracker) delays
-
-    gridSize = Img.getgridsize() ;
-    
+    error('Deprecated feature: Associating image and Aux recordings without synchronization trigger pulses via x-correlation. TODO')
+    % % estimate via correlation
+    % % determine intersystem (image acq. to respiratory tracker) delays
+    %
+    % gridSize = Img.getgridsize() ;
+    %
+    % % % ------
+    % % % bandpass filter images?
+    % % 
+    % % frequencyCutoff = [ 0 0.6 ] ;
+    % %
+    % % for iRow = 1 : gridSize(1) 
+    % %     for iColumn = 1 : gridSize(2)  
+    % %         for iSlice = 1 : gridSize(3)
+    % %         Field.img( iRow, iColumn, 1, : ) = ...
+    % %             bpfilt( squeeze( Img.img(iRow, iColumn, iSlice,:) ), frequencyCutoff(1), frequencyCutoff(2), 1/dtAcq, false ) ;
+    % %         end
+    % %     end
+    % % end
+    %     
     % % ------
-    % % bandpass filter images?
-    % 
-    % frequencyCutoff = [ 0 0.6 ] ;
+    % % Interpolate img across time to match the interval of the physio recording 
+    % tInterp = [ 0: dtAux : tAcq(end) ]' ;
+    %
+    % imgInterp = zeros( [ gridSize length(tInterp) ] ) ;
     %
     % for iRow = 1 : gridSize(1) 
     %     for iColumn = 1 : gridSize(2)  
     %         for iSlice = 1 : gridSize(3)
-    %         Field.img( iRow, iColumn, 1, : ) = ...
-    %             bpfilt( squeeze( Img.img(iRow, iColumn, iSlice,:) ), frequencyCutoff(1), frequencyCutoff(2), 1/dtAcq, false ) ;
+    %             imgInterp( iRow, iColumn, iSlice, : ) = interp1( tAcq, squeeze( Img.img( iRow, iColumn, iSlice, :) ), tInterp, 'linear' ) ; 
     %         end
     %     end
     % end
-        
-    % ------
-    % Interpolate img across time to match the interval of the physio recording 
-    tInterp = [ 0: dtTracker : tAcq(end) ]' ;
-
-    imgInterp = zeros( [ gridSize length(tInterp) ] ) ;
-
-    for iRow = 1 : gridSize(1) 
-        for iColumn = 1 : gridSize(2)  
-            for iSlice = 1 : gridSize(3)
-                imgInterp( iRow, iColumn, iSlice, : ) = interp1( tAcq, squeeze( Img.img( iRow, iColumn, iSlice, :) ), tInterp, 'linear' ) ; 
-            end
-        end
-    end
-    
-    % Assume the entire img series occurs somewhere within the tTracker window.
-    % given that we assign tInterp(1) = 0, 
-    % the delay time (tInterp' = tTracker' - t_delay) is necessarily positive, 
-    % and less than max(tTracker) - max(tInterp)
-
-    maxLag = round(( max( tTracker ) - max( tInterp ) )/dt) ;
-
-    T_delay = nan( gridSize ) ;
-    C       = zeros( [gridSize 1] ) ;
-    
-    % reliable region:
-    mask  = ( sum( Field.Hdr.MaskingImage, 4 ) == nAcq ) ;
-
-    ShimUse.customdisplay( 'Estimating probe-to-image delay...')
-    % ------
-    % X-corr
-    for iRow = 1 : Field.Hdr.Rows 
-        for iColumn = 1 : Field.Hdr.Columns  
-             if mask( iRow, iColumn )
-
-                [c, lags] = xcorr( pTracker, imgInterp(iRow,iColumn,:), maxLag ) ;
-
-                % truncate to positive delay times
-                c    = c( lags >=0 ) ;
-                lags = lags( lags >=0 ) ;
-                
-                [maxC, iMax] = max(abs(c)) ;
-                t_xcorr = dt*lags ;
-                t_delay = t_xcorr( iMax ) ;
-
-                C(iRow, iColumn, 1, 1:length(c)) = c ;
-                T_delay(iRow, iColumn) = t_delay ;
-            end
-        end
-    end
-
-    % the median should be more robust than the average for determining the delay
-    % once noise + uncorrelated voxels are taken into consideration
-    t_medianDelay = median( T_delay( mask ) ) ;
-
-    ShimUse.customdisplay( ['Estimated delay: ' num2str( t_medianDelay )] ) ;
-        
-    response = input(['Is the current estimate satisfactory? ' ...
-            '0 to manually specify delay; 1 (or enter) to accept & continue: ']) ;
-
-    if ~response
-        
-        figure
-        imagesc( mask .* median( imgInterp, 4 ) ) ;
-        title('Median field') ;
-        ShimUse.customdisplay( 'Choose a voxel to plot its field time-course: ' ) ;
-
-        isVoxelInReliableRegion = false ;
-
-        while ~isVoxelInReliableRegion
-            iRow = input( ['Enter the voxel image row: ' ] ) 
-            iCol = input( ['Enter the voxel image column: ' ] )
-            
-            isVoxelInReliableRegion = mask( iRow, iCol ) ;
-            
-            if ~isVoxelInReliableRegion
-                ShimUse.customdisplay( 'Selected voxel lies outside the reliable region. Choose again' ) ;
-            end
-        end
-        
-        figure; 
-        subplot(121); plot( tTracker, pTracker ); 
-        xlabel('Time (s)') ; ylabel('Amplitude (a.u.)') ; 
-        title('Physio signal') ;
-        
-        subplot(122); plot( tInterp, squeeze(imgInterp(iRow,iCol,:)) ) ;
-        xlabel('Time (s)') ; ylabel('Field (Hz)') ; 
-        title(['Field at voxel [' num2str(iRow) ',' num2str(iCol) ']' ]) ;
-
-        isDelayValid = false ;
-        while ~isDelayValid
-            t_delay = input(['Enter the delay (between 0-' num2str(maxLag) ' s) in units of seconds: '] ) 
-            
-            isDelayValid = ( t_delay >= 0 ) & ( t_delay <= maxLag ) ;
-            
-            if ~isDelayValid
-                ShimUse.customdisplay( 'Given delay exceeds the expected range. Choose again' ) ;
-            end
-        end 
-    else
-        t_delay = t_medianDelay ;
-    end
-
-    %  % % figure; subplot(121); plot( squeeze( Field.img(50,40,1,:) ) ); subplot(122); plot( Field.Aux.Tracker.Data.p )
-    %  % figure; subplot(121); plot( tTracker, pTracker ); subplot(122); plot( tAcq, squeeze( Field.img(50,30,:)) )
-    %  figure; subplot(121); plot( tTracker, pTracker ); subplot(122); plot( tAcq, squeeze( Field.img(50,40,:)) )
-    %  hold on; plot( tInterp, squeeze(imgInterp(50,40,:)) )
-    %  % figure; subplot(121); plot( tTracker, pTracker ); subplot(122); plot( tAcq, squeeze( Field.img(40,40,:)) )
-    %  % figure; subplot(121); plot( tTracker, pTracker ); subplot(122); plot( tAcq, squeeze( Field.img(30,40,:)) )
     %
-    %  meanMag = repmat(mean(Shim.Data.Img{1,1,1}.img,4) ,[1 1 1 200]) ;
-    %  stdMag  = repmat(std(Shim.Data.Img{1,1,1}.img,[],4) ,[1 1 1 200]) ;
-    % zScore = ( Shim.Data.Img{1,1,1}.img - meanMag ) ./ stdMag ;
-    % zMask = ( sum( abs(zScore) < 1, 4 ) >=199 ) ;    
+    % % Assume the entire img series occurs somewhere within the Aux.Data.t window.
+    % % given that we assign tInterp(1) = 0, 
+    % % the delay time (tInterp' = Aux.Data.t' - t_delay) is necessarily positive, 
+    % % and less than max(Aux.Data.t) - max(tInterp)
     %
-    % t_medianDelay = median( T_delay( mask & zMask ) ) 
-
-    [~,iT] = min( abs( tTracker - t_delay ) ) ;
-
-    % Finally, interpolate pTracker to the acquired image times:
-    tp = tTracker( iT:iT+length(tInterp)-1 ) -tTracker(iT) ;
-
-    % NOTE: tp(end) can be slightly < tAcq(end)  
-    % Using 'extrap' to avoid an interpolated p terminating with NaN's
-    Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p = interp1( tp, pTracker( iT:iT+length(tInterp)-1 ), tAcq, 'linear', 'extrap' ) ;
-    Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.t = tAcq ;
-
-    if any( isnan(Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p) )
-        warning('Interpolated probe recording contains nonnumeric values. Check inputs. (E.g. Shim.Data.Img{ }: Entries should be ordered by acquisition time)' ) ;
-    end
-
-    % used in nonlinear shim optimization:
-    Shim.Params.pMax     = max( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ) ;
-    Shim.Params.pMin     = min( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ) ;
-    
-    % for posterity (might be useful?):
-    Shim.Params.imgDelay = t_delay ;    
+    % maxLag = round(( max( Aux.Data.t ) - max( tInterp ) )/dt) ;
+    %
+    % T_delay = nan( gridSize ) ;
+    % C       = zeros( [gridSize 1] ) ;
+    %
+    % % reliable region:
+    % mask  = ( sum( Field.Hdr.MaskingImage, 4 ) == nAcq ) ;
+    %
+    % ShimUse.customdisplay( 'Estimating probe-to-image delay...')
+    % % ------
+    % % X-corr
+    % for iRow = 1 : Field.Hdr.Rows 
+    %     for iColumn = 1 : Field.Hdr.Columns  
+    %          if mask( iRow, iColumn )
+    %
+    %             [c, lags] = xcorr( Aux.Data.p, imgInterp(iRow,iColumn,:), maxLag ) ;
+    %
+    %             % truncate to positive delay times
+    %             c    = c( lags >=0 ) ;
+    %             lags = lags( lags >=0 ) ;
+    %             
+    %             [maxC, iMax] = max(abs(c)) ;
+    %             t_xcorr = dt*lags ;
+    %             t_delay = t_xcorr( iMax ) ;
+    %
+    %             C(iRow, iColumn, 1, 1:length(c)) = c ;
+    %             T_delay(iRow, iColumn) = t_delay ;
+    %         end
+    %     end
+    % end
+    %
+    % % the median should be more robust than the average for determining the delay
+    % % once noise + uncorrelated voxels are taken into consideration
+    % t_medianDelay = median( T_delay( mask ) ) ;
+    %
+    % ShimUse.customdisplay( ['Estimated delay: ' num2str( t_medianDelay )] ) ;
+    %     
+    % response = input(['Is the current estimate satisfactory? ' ...
+    %         '0 to manually specify delay; 1 (or enter) to accept & continue: ']) ;
+    %
+    % if ~response
+    %     
+    %     figure
+    %     imagesc( mask .* median( imgInterp, 4 ) ) ;
+    %     title('Median field') ;
+    %     ShimUse.customdisplay( 'Choose a voxel to plot its field time-course: ' ) ;
+    %
+    %     isVoxelInReliableRegion = false ;
+    %
+    %     while ~isVoxelInReliableRegion
+    %         iRow = input( ['Enter the voxel image row: ' ] ) 
+    %         iCol = input( ['Enter the voxel image column: ' ] )
+    %         
+    %         isVoxelInReliableRegion = mask( iRow, iCol ) ;
+    %         
+    %         if ~isVoxelInReliableRegion
+    %             ShimUse.customdisplay( 'Selected voxel lies outside the reliable region. Choose again' ) ;
+    %         end
+    %     end
+    %     
+    %     figure; 
+    %     subplot(121); plot( Aux.Data.t, Aux.Data.p ); 
+    %     xlabel('Time (s)') ; ylabel('Amplitude (a.u.)') ; 
+    %     title('Physio signal') ;
+    %     
+    %     subplot(122); plot( tInterp, squeeze(imgInterp(iRow,iCol,:)) ) ;
+    %     xlabel('Time (s)') ; ylabel('Field (Hz)') ; 
+    %     title(['Field at voxel [' num2str(iRow) ',' num2str(iCol) ']' ]) ;
+    %
+    %     isDelayValid = false ;
+    %     while ~isDelayValid
+    %         t_delay = input(['Enter the delay (between 0-' num2str(maxLag) ' s) in units of seconds: '] ) 
+    %         
+    %         isDelayValid = ( t_delay >= 0 ) & ( t_delay <= maxLag ) ;
+    %         
+    %         if ~isDelayValid
+    %             ShimUse.customdisplay( 'Given delay exceeds the expected range. Choose again' ) ;
+    %         end
+    %     end 
+    % else
+    %     t_delay = t_medianDelay ;
+    % end
+    %
+    % [~,iT] = min( abs( Aux.Data.t - t_delay ) ) ;
+    %
+    % % Finally, interpolate Aux.Data.p to the acquired image times:
+    % tp = Aux.Data.t( iT:iT+length(tInterp)-1 ) -Aux.Data.t(iT) ;
+    %
+    % % NOTE: tp(end) can be slightly < tAcq(end)  
+    % % Using 'extrap' to avoid an interpolated p terminating with NaN's
+    % Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p = interp1( tp, Aux.Data.p( iT:iT+length(tInterp)-1 ), tAcq, 'linear', 'extrap' ) ;
+    % Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.t = tAcq ;
+    %
+    % if any( isnan(Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p) )
+    %     warning('Interpolated probe recording contains nonnumeric values. Check inputs. (E.g. Shim.Data.Img{ }: Entries should be ordered by acquisition time)' ) ;
+    % end
+    %
+    % % used in nonlinear shim optimization:
+    % Shim.Params.pMax     = max( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ) ;
+    % Shim.Params.pMin     = min( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ) ;
+    %
+    % % for posterity (might be useful?):
+    % Shim.Params.imgDelay = t_delay ;    
 
 end
 
@@ -761,10 +847,12 @@ nImgVolumesDim5 = size(Img.img, 5 ) ;
 nImgVolumes     = nImgVolumesDim4 * nImgVolumesDim5 ;
 
 
-if length( size(X_1) ) == 2 % interpolating down to 2d single-slice
+if ndims( X_1 ) == 2 % interpolating down to 2d single-slice
     gridSizeInterpolated = [ size(X_1) 1 ] ;
-elseif length( size(X_1) ) == 3
+elseif ndims( X_1 ) == 3
     gridSizeInterpolated = size(X_1) ;
+else
+    error('Expected 2d or 3d target interpolation grid')
 end
 
 imgInterpolated  = zeros( [gridSizeInterpolated nImgVolumesDim4 nImgVolumesDim5] ) ;
@@ -778,27 +866,57 @@ tic
 if isFormingInterpolant 
     disp( 'Forming interpolant...' )
     disp( '(Computation time depends on input image size. This may take a few minutes.)' ) ;
-    F    = scatteredInterpolant( [X_0(:) Y_0(:) Z_0(:)], img0(:), interpolationMethod, 'none'  ) ;
+
+    % The following avoids the error from scatteredInterpolant when one
+    % attempts to form a 3d interpolant from a 2d input: 
+    isValidDim0 = [ numel(unique(X_0(:))) numel(unique(Y_0(:))) numel(unique(Z_0(:))) ] > 1 ;
+    r0          = [X_0(:) Y_0(:) Z_0(:)] ;
+
+    F    = scatteredInterpolant( r0(:, isValidDim0), img0(:), interpolationMethod, 'none'  ) ;
 end
 
-img1 = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
+isValidDim1 = [ numel(unique(X_1(:))) numel(unique(Y_1(:))) numel(unique(Z_1(:))) ] > 1 ;
+r1          = [X_1(:) Y_1(:) Z_1(:)] ;
 
-imgInterpolated(:,:,:, 1 ) = reshape( img1, gridSizeInterpolated ) ;
+if nnz( isValidDim0 ) == 2
+    
+    assert( all( isValidDim1 == isValidDim0 ), ... 
+        'Query points should sit within the same plane as the interpolant points' ) ;
+        
+    % coordinate of interpolant plane along normal dim:
+    qn0 = unique( r0(:, ~isValidDim0) ) ;
+    % coordinate of query plane along same dim:
+    qn1 = unique( r1(:, ~isValidDim1) ) ;
 
-for iImgDim5 = 1 : nImgVolumesDim5
-    for iImgDim4 = 2 : nImgVolumesDim4
+    % This could instead be a warning? (e.g. if the 2d planes are indeed very close, should interp still be performed?)
+    assert( qn0 == qn1, 'Query points should sit within the same plane as the interpolant points' ) ;
+
+    % exclude the coordinate along the normal dim from the interpolation
+    r1 = r1(:, isValidDim1) ; 
+
+end
+    
+img1 = F( r1 ) ;
+
+imgInterpolated(:,:,:, 1, 1) = reshape( img1, gridSizeInterpolated ) ;
+
+for iImgDim4 = 1 : nImgVolumesDim4
+    for iImgDim5 = 1 : nImgVolumesDim5
 
         iImgVolume = iImgDim4*iImgDim5 ;
-        disp( ['Reslicing image volume...' num2str(iImgVolume) ' of ' num2str(nImgVolumes) ]) ;
-    
-        % replace voxel values with those of the next img volume
-        img0     = Img.img(:,:,:, iImgDim4, iImgDim5 ) ;
 
-        F.Values = img0(:) ;
-   
-        img1  = F( [X_1(:) Y_1(:) Z_1(:)] ) ;
+        if iImgVolume > 1
+            disp( ['Reslicing image volume...' num2str(iImgVolume) ' of ' num2str(nImgVolumes) ]) ;
     
-        imgInterpolated(:,:,:, iImgDim4, iImgDim5 ) = reshape( img1, gridSizeInterpolated ) ;
+            % replace voxel values with those of the next img volume
+            img0     = Img.img(:,:,:, iImgDim4, iImgDim5 ) ;
+
+            F.Values = img0(:) ;
+       
+            img1     = F( r1 ) ;
+        
+            imgInterpolated(:,:,:, iImgDim4, iImgDim5 ) = reshape( img1, gridSizeInterpolated ) ;
+        end
 
     end
 end
