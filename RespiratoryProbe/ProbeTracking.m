@@ -113,13 +113,18 @@ if nargin < 1 || isempty( varargin{1} )
 elseif isstruct( varargin{1} )
     Specs = varargin{1} ;
 
-% If daemon (or user) launched: ProbeTracking(PATH_TO_AUX)
 elseif ischar( varargin{1} )
     
     filename = varargin{1} ;
     load( filename ) ;
 
-    if exist('Aux')
+    if exist('Data')
+    % loaded file is Data struct corresponding to an old recording
+        Aux.Data    = Data ;
+        Specs.state = 'inert' ;
+    else
+    % loaded file is itself a ProbeTracking() object to be managed by the daemon session 
+    %
     % Nonurgent TODO:
     %   This form of ProbeTracking() initialization/construction is not to
     %   be called by a user, but rather, from the ProbeTracking() constructor
@@ -128,9 +133,6 @@ elseif ischar( varargin{1} )
     %   https://stackoverflow.com/questions/29671482/private-constructor-in-matlab-oop
         Aux.launchrecordingdaemon() ; % runs continuously in background
         return;
-    else
-        Specs.state = 'inert' ;
-        error('TODO: enable debug mode: previous (raw) recording is loaded and can be processed as if it were a new recording...')
     end
 end
 
@@ -195,6 +197,11 @@ function [isRecording] = beginrecording( Aux )
 % Returns TRUE if successful
 
 isRecording  = false ;
+
+if strcmp( Aux.Specs.state, 'inert' )
+    warning('Invalid command: Aux object is inert and cannot record.')
+    return ;
+end
 
 if isa( Aux.Source, 'serial' )
     
