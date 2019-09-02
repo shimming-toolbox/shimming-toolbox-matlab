@@ -94,7 +94,6 @@ if nargin == 1
         Img.Hdr = MaRdI.dicominfosiemens( imgPath ) ;
 
         %  Add/replace a few Hdr entries:
-        Img.Hdr.NumberOfSlices = uint16( 1 ) ; 
         
         if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
             Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
@@ -176,8 +175,6 @@ if nargin == 1
             
         Img.rescaleimg() ;
 
-        Img.Hdr.NumberOfSlices = size( Img.img, 3 ) ; 
-
         if ~myisfield( Img.Hdr, 'SpacingBetweenSlices' ) 
             Img.Hdr.SpacingBetweenSlices = Img.Hdr.SliceThickness ;
         end
@@ -223,12 +220,13 @@ s0 = Img.Hdr.MrProt.sGRADSPEC.alShimCurrent ;
 
 end
 % =========================================================================
-function [] = associateaux( Img, Aux )
+function [] = associateaux( Img, Aux, Params )
 %ASSOCIATEAUX - link image to corresponding auxiliary recording object
 %
 %  Usage 
 %
 %   [] = ASSOCIATEAUX( Img, Aux )
+%   [] = ASSOCIATEAUX( Img, Aux, Params )
 % 
 % .......
 %
@@ -268,18 +266,55 @@ function [] = associateaux( Img, Aux )
 %       3.3: Aux recording does not possess triggers:
 %           DEPRECATED 
 % .......
+%
+% Params - optional struct for which the following Params.fields are supported
+% 
+% Only used in Case 3 (image time series):
+%
+%   .interpolationMethod    [default = 'linear']
+%       argument to INTERP1(), used to interpolate between Aux samples
+%       (see INTERP1 for other options)
+%
+%   .auxDelay   [default = 0]
+%       estimation of transmission delay inherent in the Aux recording process [units: s]
+ 
+DEFAULT_INTERPOLATIONMETHOD = 'linear' ;
+DEFAULT_AUXDELAY            = 0 ;
 
 if isempty( Aux ) || ~myisfield(Aux, 'Data') || ~myisfield(Aux.Data, 'p') || isempty( Aux.Data.p ) 
     error('Aux recording is empty.')
-else
-    nSamples = length( Aux.Data.p ) ; % number of aux samples
-    nAcq     = size( Img.img, 5 ) ; % number of acquisitions
-    Img.Aux  = Aux.copy() ;
 end
+
+if nargin < 3 || isempty(Params)
+    Params.dummy = [] ;
+end
+
+if ~myisfield( Params, 'interpolationMethod' ) || isempty( Params.interpolationMethod )
+    Params.interpolationMethod = DEFAULT_INTERPOLATIONMETHOD ;
+end
+
+if ~myisfield( Params, 'auxDelay' ) || isempty( Params.auxDelay )
+    Params.auxDelay = DEFAULT_AUXDELAY ;
+end
+
+nSamples = length( Aux.Data.p ) ; % number of aux samples
+tk0      = Img.estimatekorigintime() ;
+tAcq     = Img.getacquisitiontime() ;
+kDelay   = tk0(1) - tAcq(1) ; % delay between acquisition start and image ~content time~ around k-space origin
+
+if size( tk0, 1 ) > 1
+    warning( 'Img contains multiple slices. Returned Aux recording will be associated with the 1st slice.') 
+elseif size( tk0, 2 ) > 1
+    warning( 'Img contains multiple echoes. Returned Aux recording will be associated with the 1st echo.') 
+end
+
+tk0      = squeeze( tk0(1,1,:) )' ;
+nAcq     = size( Img.img, 5 ) ; % number of acquisitions
+Img.Aux  = Aux.copy() ;
 
 %% -----
 % check if image + aux recording times already coincide:
-if ( nAcq == nSamples ) && ( all( Img.Aux.Data.t == Img.getacquisitiontime() ) )
+if ( nAcq == nSamples ) && ( all( Img.Aux.Data.t == tk0 ) )
     warning('Image and Aux recording times already coincide. Not performing interpolation.') ;
     return ;
 end
@@ -287,29 +322,28 @@ end
 %% -----
 % trivial case
 if nSamples == 1
-    Img.Aux.Data.p       = Aux.Data.p*ones(nAcq, 1) ;
-    Img.Aux.Data.pRaw    = Aux.Data.p*ones(nAcq, 1) ;
-    Img.Aux.Data.t       = Img.getacquisitiontime() ;
-    Img.Aux.Data.trigger = zeros(nAcq, 1) ;
+    Img.Aux.Data.p       = Aux.Data.p*ones(1 , nAcq) ;
+    Img.Aux.Data.pRaw    = Aux.Data.p*ones(1, nAcq) ;
+    Img.Aux.Data.t       = tk0 ;
+    Img.Aux.Data.trigger = zeros(1, nAcq) ;
     return ;
 else
     assert( length(Aux.Data.t) == length(Aux.Data.p), ...
         'Function expects one sample time-point for each input sample.' )
 end
 
-% t = 0 will correspond to the first image
-tAcq = Img.getacquisitiontime() ;
-tAcq = tAcq - tAcq(1) ;
+% shifted image origin times (t = 0 will correspond to the first image):
+tImg = tk0 - tk0(1) ;
 
 % time between images 
-dtAcq = median( diff( tAcq ) ) ;
+dtImg = median( diff( tImg ) ) ;
     
 % time between respiratory samples (note: round to ms before scaling to s)
 dtAux = 0.001*round( ( Img.Aux.Data.t(end) - Img.Aux.Data.t(1) )/nSamples ) ; % [units: s]
 
 Img.Aux.Data.t = 0.001*Img.Aux.Data.t ; % convert to [units: s]
     
-assert( max(Img.Aux.Data.t)>=max(tAcq), 'Length of Aux recording should be greater or equal to the total image acquisition time.' )
+assert( max(Img.Aux.Data.t)>=max(tImg), 'Length of Aux recording should be greater or equal to the total image acquisition time.' )
 
 %% ----- 
 % assumed breath-hold case
@@ -323,10 +357,10 @@ if nAcq == 1
     % extract a single scalar
     p = ProbeTracking.selectmedianmeasurement( Img.Aux.Data.p, nSamplesApnea ) ;
     
-    Img.Aux.Data.p       = p*ones(nAcq, 1) ;
-    Img.Aux.Data.pRaw    = p*ones(nAcq, 1) ;
-    Img.Aux.Data.t       = Img.getacquisitiontime() ;
-    Img.Aux.Data.trigger = zeros(nAcq, 1) ;
+    Img.Aux.Data.p       = p*ones(1 , nAcq) ;
+    Img.Aux.Data.pRaw    = p*ones(1, nAcq) ;
+    Img.Aux.Data.t       = tk0 ;
+    Img.Aux.Data.trigger = zeros(1, nAcq) ;
     return ;
 end
 
@@ -339,26 +373,29 @@ else
 end
 
 if nTriggers > 0 
-    % 1st trigger assumed to correspond to 1st image measurement
+    % NOTE: 1st trigger assumed to correspond to 1st recorded value of the 1st
+    % acquisition. However, the image 'content' (around k=0) will generally
+    % occur sometime later (exceptions include spiral imaging)
+     
     iTriggers = find( Img.Aux.Data.trigger==1 ) ;
     
-    % crop recording preceding 1st trigger
-    Img.Aux.Data.p       = Img.Aux.Data.p( iTriggers(1) : end ) ;
-    Img.Aux.Data.pRaw    = Img.Aux.Data.pRaw( iTriggers(1) : end ) ;
-    Img.Aux.Data.trigger = Img.Aux.Data.t( iTriggers(1) : end ) ;
-    
-    Img.Aux.Data.t       = Img.Aux.Data.t( iTriggers(1) : end ) ;
-    Img.Aux.Data.t       = Img.Aux.Data.t - Img.Aux.Data.t(1) ; % 1st trigger occurs at t=0
+    % % crop superfluous recording preceding 1st trigger
+    % Img.Aux.Data.p       = Img.Aux.Data.p( iTriggers(1) : end ) ;
+    % Img.Aux.Data.pRaw    = Img.Aux.Data.pRaw( iTriggers(1) : end ) ;
+    % Img.Aux.Data.trigger = Img.Aux.Data.t( iTriggers(1) : end ) ;
+    % Img.Aux.Data.t       = Img.Aux.Data.t( iTriggers(1) : end ) ;
 
+    % shift in time s.t. t=0 corresponds to 1st image content time:
+    Img.Aux.Data.t       = Img.Aux.Data.t - Img.Aux.Data.t( iTriggers(1) ) - kDelay - Params.auxDelay ; 
+    
     if nTriggers == 1
         %% -----
         % Interpolate aux recordings across time  
-        tInterp = [ 0: tAcq(end)/(nAcq-1) : tAcq(end) ]' ; % interp1 requires regular grid spacing
-        Img.Aux.Data.p          = interp1( Img.Aux.Data.t, Img.Aux.Data.p, tInterp, 'linear' ) ; 
-        Img.Aux.Data.pRaw       = interp1( Img.Aux.Data.t, Img.Aux.Data.pRaw, tInterp, 'linear' ) ; 
-        Img.Aux.Data.t          = Img.getacquisitiontime() ;
-        Img.Aux.Data.trigger    = zeros(nAcq, 1) ;
-        Img.Aux.Data.trigger(1) = 1 ;
+        tInterp              = [ 0: tImg(end)/(nAcq-1) : tImg(end) ]' ; % interp1 requires regular grid spacing
+        Img.Aux.Data.p       = interp1( Img.Aux.Data.t, Img.Aux.Data.p, tInterp, Params.interpolationMethod )' ; 
+        Img.Aux.Data.pRaw    = interp1( Img.Aux.Data.t, Img.Aux.Data.pRaw, tInterp, Params.interpolationMethod )' ; 
+        Img.Aux.Data.t       = tk0 ;
+        Img.Aux.Data.trigger = zeros(1, nAcq) ;
         return ;
     elseif nTriggers > 1
         error('Unimplemented feature: Interpolation for multi-trigger Aux recording. TODO')
@@ -526,8 +563,12 @@ ImgCopy.img  = Img.img;
 ImgCopy.Hdr  = Img.Hdr ;
 ImgCopy.Hdrs = Img.Hdrs ;
 
-if ~isempty( Img.Aux ) && myisfield( Img.Aux, 'Tracker' ) 
-    ImgCopy.Aux.Tracker = Img.Aux.Tracker.copy() ;
+if ~isempty( Img.Aux ) 
+    if isa( Img.Aux, 'ProbeTracking' ) 
+        ImgCopy.Aux = Img.Aux.copy() ;
+    else
+        error('Expected Img.Aux to be of type ProbeTracking') ;
+    end
 end
 
 end
@@ -609,27 +650,180 @@ function [t] = getacquisitiontime( Img )
 % 
 % t = GETACQUISITIONTIME( Img )
 %
-% Returns the value of AcquisitionTime from the Siemens DICOM header as a
-% double in units of seconds. t is a vector if Img is a time series
-% acquisition, in which case, t - t(1) yields the time elapsed since the first
-% acquisition. 
+% Returns an an array of doubles, derived from the AcquisitionTime field in
+% Siemens DICOM header, in units of seconds. 
+% 
+% dimensions of t: [ nSlices x nEchoes x nMeasurements ]
+%
+% t - t(1) yields the elapsed time since acquisition of the 1st k-space point
+% in the series.
+%
+% For EPI MOSAIC (which has a single AcquisitionTime value for each volume),
+% t( iSlice ) = AcquisitionTime (first slice) + iSlice*(volumeTR/nSlices)
 
-nSlices = Img.Hdr.NumberOfSlices ;
+
+nSlices = Img.getnumberofslices() ;
+nEchoes = length( Img.echotime ) ;
 
 if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
-    nVolumes = ( Img.Hdr.MrProt.lRepetitions + 1) ;
+    nMeasurements = ( Img.Hdr.MrProt.lRepetitions + 1) ;
 else
-    nVolumes = 1;
+    nMeasurements = 1;
 end
 
-assert( ( nSlices == size( Img.img, 3 ) ) & ( nVolumes == size( Img.img, 5 ) ), 'Invalid .Hdr' ) ;
+assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ;
 
-t = zeros( nSlices, nVolumes ) ;
+t = zeros( nSlices, nEchoes, nMeasurements ) ;
 
-for iSlice = 1 : nSlices
-    for iVolume = 1 : nVolumes
-        t_iAcq = Img.Hdrs{iSlice,1,iVolume}.AcquisitionTime ;
-        t(iSlice, iVolume) = str2double( t_iAcq(1:2) )*60*60 + str2double( t_iAcq(3:4) )*60 + str2double( t_iAcq(5:end) ) ;
+if isempty(strfind( Img.Hdrs{1}.ImageType, 'MOSAIC' ) )
+    
+    for iMeasurement = 1 : nMeasurements
+        for iEcho = 1 : nEchoes 
+            for iSlice = 1 : nSlices
+                t_iAcq = Img.Hdrs{iSlice,iEcho,iMeasurement}.AcquisitionTime ;
+                t_iAcq = str2double( t_iAcq(1:2) )*60*60 + str2double( t_iAcq(3:4) )*60 + str2double( t_iAcq(5:end) ) ;
+
+                t(iSlice, iEcho, iMeasurement) = t_iAcq ;
+            end
+        end
+    end
+
+else % special case for EPI MOSAIC (single DICOM header for multiple slices)
+   
+    sliceOrder = Img.Hdr.MrProt.sSliceArray.alSliceAcqOrder ;
+    sliceMeasurementDuration = Img.Hdr.RepetitionTime/1000/nSlices ; % [units: s]
+
+    for iMeasurement = 1 : nMeasurements
+        for iEcho = 1 : nEchoes 
+            for iSlice = 1 : nSlices
+                t_iAcq = Img.Hdrs{1,iEcho,iMeasurement}.AcquisitionTime  ;
+                t_iAcq = str2double( t_iAcq(1:2) )*60*60 + str2double( t_iAcq(3:4) )*60 + str2double( t_iAcq(5:end) ) ;
+                t_iAcq = t_iAcq + sliceOrder(iSlice)*sliceMeasurementDuration ;
+                t(iSlice, iEcho, iMeasurement) = t_iAcq ;
+            end
+        end
+    end
+
+end
+
+end
+% =========================================================================
+function [t0] = estimatekorigintime( Img ) 
+%ESTIMATEKORIGINTIME
+% 
+% t0 = ESTIMATEKORIGINTIME( Img )
+%
+% Returns an estimate of when the k-space origin of an image was sampled
+% relative to the AcquisitionTime (field in Siemens DICOM header) as a double
+% in units of seconds. 
+% 
+% See also: MaRdI.getacquisitiontime()
+% 
+% NOTE: This is a crude estimate and only the case of Cartesian k-space
+% sampling, beginning at the k_min periphery, has been considered in the
+% current implementation!
+ 
+nSlices = Img.getnumberofslices() ;
+nEchoes = length( Img.echotime ) ;
+
+if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
+    nMeasurements = ( Img.Hdr.MrProt.lRepetitions + 1) ;
+else
+    nMeasurements = 1;
+end
+
+assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ;
+
+tAcq = Img.getacquisitiontime() ;
+
+% Estimate time from excitation to k-space origin:
+dt = 0; % [units: s]
+
+if Img.Hdr.MrProt.sKSpace.ucTrajectory == 1
+    
+    if ~strcmp( Img.Hdr.ScanningSequence, 'EPI' )
+    % NOTE: The Siemens DICOM field SliceMeasurementDuration appears to be a misnomer:
+    % Rather, it (usually?) refers to the duration of an entire volume. 
+        dt = Img.Hdr.Img.SliceMeasurementDuration/1000 ; % [units: s]
+    else
+    % *Exception*: Apparently EPI are handled differently as said DICOM field
+    % is oddly large (probably includes dummy volumes?)
+        dt = Img.Hdr.RepetitionTime/1000/nSlices ; % [units: s]
+    end
+    
+    pf = Img.getpartialfourierfactors() ;
+    
+    % NOTE: Probably incorrect...?
+    dt = dt*( 1 - ( pf(2)*pf(3) )/2 ) ;
+
+else    
+    display('Estimating time at which the k-space origin was sampled')
+    warning(' Current strategy is simplistic and likely wrong for certain encoding trajectories.')
+    dt = 0 ;
+end
+
+assert( dt >= 0, 'Unexpected value for time-to-origin since excitation (AcquisitionTime). See code + check DICOM entries are valid.' )
+
+t0 = tAcq + dt ;
+
+end
+% =========================================================================
+function [nSlices] = getnumberofslices( Img ) 
+%GETNUMBEROFSLICES  Returns number of acquired slices
+% 
+% nSlices = GETNUMBEROFSLICES( Img ) 
+%
+% NOTE: nSlices is not necessarily equal to size( Img.img, 3).
+% e.g. For a 3d (slab) encoding, GETNUMBEROFSLICES returns 1. 
+
+nSlices = Img.Hdr.MrProt.sSliceArray.lSize ;
+
+end
+% =========================================================================
+function [pff] = getpartialfourierfactors( Img ) 
+%GETPARTIALFOURIERFACTORS  Returns fraction of k-space coverage in each dim
+% 
+% pff = GETPARTIALFOURIERFACTORS( Img ) 
+% 
+% Returns 3-element vector of partial Fourier factors in read, phase (in-plane),
+% and partition (slice) encoding directions.
+%
+% NOTE:
+% Siemens uses an enumeration scheme to store Partial Fourier info in the DICOM header:
+%
+% pff --> Siemens DICOM Hdr entry 
+% 4/8 --> 0x1  = 1
+% 5/8 --> 0x2  = 2
+% 6/8 --> 0x4  = 4
+% 7/8 --> 0x8  = 8
+% 8/8 --> 0x10 = 16 (i.e. no partial Fourier)
+% 
+% See: https://github.com/malaterre/GDCM/blob/master/Source/DataDictionary/CSAHeader.xml
+
+dcmFields = { 'Img.Hdr.MrProt.sKSpace.ucReadoutPartialFourier' ;
+              'Img.Hdr.MrProt.sKSpace.ucPhasePartialFourier' ;
+              'Img.Hdr.MrProt.sKSpace.ucSlicePartialFourier' ; } ;
+
+pfAsInt = [ Img.Hdr.MrProt.sKSpace.ucReadoutPartialFourier
+            Img.Hdr.MrProt.sKSpace.ucPhasePartialFourier
+            Img.Hdr.MrProt.sKSpace.ucSlicePartialFourier ]' ;
+
+pff     = [ 1 1 1 ] ;
+
+for iDim = 1 : 3
+    switch pfAsInt(iDim)
+        case 1
+            pff(iDim) = 4/8 ;
+        case 2
+            pff(iDim) = 5/8 ;
+        case 4
+            pff(iDim) = 6/8 ;
+        case 8
+            pff(iDim) = 7/8 ;
+        case 16
+            pff(iDim) = 1 ;
+        otherwise
+            error( [ 'Unexpected value of ' num2str( pfAsInt(iDim) ) ' in ' dicomFields{iDim} ] ) ;
     end
 end
 
@@ -661,17 +855,22 @@ end
 function fieldOfView = getfieldofview( Img )
 %GETFIELDOFVIEW
 % 
-% fov = getfieldofview( Img ) ;
+% fov = GETFIELDOFVIEW( Img ) ;
 %
 % Returns field of view in units of mm : [Row Column Slice] dimensions
 fieldOfView = [ Img.Hdr.PixelSpacing(1) * double( Img.Hdr.Rows ), ...
                 Img.Hdr.PixelSpacing(2) * double( Img.Hdr.Columns ), ...
-                Img.Hdr.SpacingBetweenSlices * double( Img.Hdr.NumberOfSlices ) ] ;
+                Img.Hdr.SpacingBetweenSlices * size( Img.img, 3 ) ] ;
 end
 % =========================================================================
 function gridSize = getgridsize( Img )
 %GETGRIDSIZE
-gridSize = double( [ Img.Hdr.Rows, Img.Hdr.Columns, Img.Hdr.NumberOfSlices ] ) ;
+% 
+% gridSize = GETGRIDSIZE( Img ) 
+
+gridSize = size( Img.img ) ;
+gridSize = gridSize(1:3) ;
+
 end
 % =========================================================================
 function GYRO = getgyromagneticratio( Img )
@@ -719,7 +918,7 @@ assert( ~myisfield( Img.Hdr, 'AnatomicalOrientationType' ) || ...
         
 [iRows,iColumns,iSlices] = ndgrid( [0:1:Img.Hdr.Rows-1], ...
                   [0:1:Img.Hdr.Columns-1], ...
-                  [0:1:(Img.Hdr.NumberOfSlices-1)] ) ; 
+                  [0:1:(size(Img.img,3)-1)] ) ; 
 
 iRows    = double(iRows);
 iColumns = double(iColumns);
@@ -973,9 +1172,8 @@ Img.Hdr.ImageOrientationPatient(3) = dz/Img.Hdr.PixelSpacing(2) ;
 
 %-------
 % Slices
-Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
 
-if Img.Hdr.NumberOfSlices > 1
+if size( Img.img, 3 ) > 1
     Img.Hdr.SpacingBetweenSlices = ( (X_1(1,1,2) - X_1(1,1,1))^2 + ...
                                      (Y_1(1,1,2) - Y_1(1,1,1))^2 + ...
                                      (Z_1(1,1,2) - Z_1(1,1,1))^2 ) ^(0.5) ;
@@ -1256,7 +1454,6 @@ Hdr.PixelSpacing            = Img.Hdr.PixelSpacing ;
 
 Hdr.ImageOrientationPatient = Img.Hdr.ImageOrientationPatient ;
 Hdr.SliceLocation           = Img.Hdr.SliceLocation ; 
-Hdr.NumberOfSlices          = Img.Hdr.NumberOfSlices ; 
 
 Hdr.AcquisitionMatrix       = Img.Hdr.AcquisitionMatrix ; 
 Hdr.RepetitionTime          = Img.Hdr.RepetitionTime ; 
@@ -1267,7 +1464,7 @@ Hdr.InPlanePhaseEncodingDirection  = Img.Hdr.InPlanePhaseEncodingDirection ;
 
 [rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 
-nSlices       = Img.Hdr.NumberOfSlices ;
+nSlices       = size( Img.img, 3 ) ;
 nEchoes       = numel( Img.echotime ) ;
 nAcquisitions = numel( Img.getacquisitiontime ) ;
 
@@ -1467,18 +1664,16 @@ function Img = reshapemosaic( Img )
 
 assert( ~isempty(strfind( Img.Hdr.ImageType, 'MOSAIC' ) ), 'Corrupt image header?' ) ;       
 
-Img.Hdr.NumberOfSlices = Img.Hdr.Private_0019_100a ;
-
-nImgPerLine = ceil( sqrt( double(Img.Hdr.NumberOfSlices) ) ); % always nImgPerLine x nImgPerLine tiles
+nImgPerLine = ceil( sqrt( Img.getnumberofslices() ) ); % always nImgPerLine x nImgPerLine tiles
 
 nRows    = size(Img.img, 1) / nImgPerLine; 
 nColumns = size(Img.img, 2) / nImgPerLine; 
 nEchoes  = size(Img.img, 4) ;  
 nVolumes = size(Img.img, 5) ;
 
-img = zeros([nRows nColumns Img.Hdr.NumberOfSlices nEchoes nVolumes], class(Img.img));
+img = zeros([nRows nColumns Img.getnumberofslices() nEchoes nVolumes], class(Img.img));
 
-for iImg = 1 : double(Img.Hdr.NumberOfSlices)
+for iImg = 1 : Img.getnumberofslices()
 
     % 2nd slice is tile(1,2)
     r = floor((iImg-1)/nImgPerLine) * nRows + (1:nRows);     
@@ -1631,7 +1826,6 @@ end
 % Update header
 Img.Hdr.Rows                 = size(Img.img, 1) ;
 Img.Hdr.Columns              = size(Img.img, 2) ;       
-Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
 
 end
 % =========================================================================
@@ -1686,7 +1880,6 @@ end
 % Update header
 Img.Hdr.Rows                 = size(Img.img, 1) ;
 Img.Hdr.Columns              = size(Img.img, 2) ;       
-Img.Hdr.NumberOfSlices       = size(Img.img, 3) ;
 
 if ~strcmp( padDirection, 'post' )
 % update image position 
