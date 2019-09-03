@@ -36,12 +36,6 @@ classdef MaRdI < matlab.mixin.SetGet
 % =========================================================================
 
 %% ========================================================================
-% *** TODO
-% General naming convention for methods returning some image parameter:
-%   begin method name with 'get...', or just the parameter name?
-%   e.g. getechotime() vs. echotime() ?
-%   the latter has the advantage of reading as if it is the property itself,
-%   whereas the former makes explicit that this is a call to a method...
 %
 % ..... 
 % RESLICEIMG()
@@ -663,7 +657,7 @@ function [t] = getacquisitiontime( Img )
 
 
 nSlices = Img.getnumberofslices() ;
-nEchoes = length( Img.echotime ) ;
+nEchoes = length( Img.getechotime() ) ;
 
 if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
     nMeasurements = ( Img.Hdr.MrProt.lRepetitions + 1) ;
@@ -724,7 +718,7 @@ function [t0] = estimatekorigintime( Img )
 % current implementation!
  
 nSlices = Img.getnumberofslices() ;
-nEchoes = length( Img.echotime ) ;
+nEchoes = length( Img.getechotime() ) ;
 
 if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
     nMeasurements = ( Img.Hdr.MrProt.lRepetitions + 1) ;
@@ -829,14 +823,14 @@ end
 
 end
 % =========================================================================
-function [echoTime] = echotime( Img, iEcho ) 
-%ECHOTIME
+function [echoTime] = getechotime( Img, iEcho ) 
+%GETECHOTIME
 % 
-% TE = ECHOTIME( Img )
-% TE = ECHOTIME( Img, iEcho )
+% TE = GETECHOTIME( Img )
+% TE = GETECHOTIME( Img, iEcho )
 %
 % Returns vector of echo times in units of ms.
-% If 2nd argument (echo index iEcho) is provided, ECHOTIME returns the TE of
+% If 2nd argument (echo index iEcho) is provided, GETECHOTIME returns the TE of
 % the corresponding echo.
 
 if nargin == 1
@@ -1465,7 +1459,7 @@ Hdr.InPlanePhaseEncodingDirection  = Img.Hdr.InPlanePhaseEncodingDirection ;
 [rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 
 nSlices       = size( Img.img, 3 ) ;
-nEchoes       = numel( Img.echotime ) ;
+nEchoes       = numel( Img.getechotime() ) ;
 nAcquisitions = numel( Img.getacquisitiontime ) ;
 
 nImg = nSlices*nEchoes*nAcquisitions ;

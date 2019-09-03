@@ -21,7 +21,7 @@ classdef ShimCom_Greg < ShimCom
 %    ShimCom_Greg is a ShimCom subclass.
 %
 % =========================================================================
-% Updated::20181028::ryan.topfer@polymtl.ca
+% Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -101,7 +101,7 @@ isSet = logical( str2num( fgetl( Shim.ComPort ) ) )
 end
 % =========================================================================
 function [] = setandloadallshims( Shim, currents )
-%SETANDLOADALLSHIM
+%SETANDLOADALLSHIMS
 % 
 % [] = SETANDLOADALLSHIMS( Shim, currents ) 
 %
@@ -316,8 +316,8 @@ end
 function [current] = currenttostring( Shim, current )
 %CURRENTTOSTRING 
 %
-% Scale current (float in amperes) to uint16, convert to string, and if the resulting length is < 5,
-% pad with leading '0':
+% Scale current (float in amperes) to uint16, convert to string, and if the
+% resulting length is < 5, pad with leading '0':
 
 assert( numel(current) == 1, '1 channel at a time...' ) ;
 

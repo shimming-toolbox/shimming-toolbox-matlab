@@ -68,7 +68,6 @@ function [] = interpolatetoimggrid( Shim, Field )
 %   Shim.resliceimg( X, Y, Z ) ;
 %
 % NOTE
-%   On how this method differs from that of the parent class ShimOpt:
 %
 %   The patient coordinate system is defined by the initial (laser) placement
 %   of the subject. After the 1st localizer (for which the Z=0 position will
@@ -104,12 +103,8 @@ end
 
 % -------
 % check if voxel positions already happen to coincide. if they do, don't interpolate (time consuming).
-if ( numel(size(X)) ~= numel(size(X0)) ) || any( size(X) ~= size(X0) ) || any( X0(:) ~= X(:) ) || any( Y0(:) ~= Y(:) ) || any( Z0(:) ~= Z(:) )
+if ~MaRdI.compareimggrids( X, Y, Z, X0, Y0, Z0 )
     Shim.resliceimg( X, Y, Z ) ;
-else
-    % voxel positions already coincide,
-    % i.e.
-    assert( all(X0(:) == X(:) ) && all( Y0(:) == Y(:) ) && all( Z0(:) == Z(:) ) ) ;
 end
 
 end
@@ -338,9 +333,7 @@ function [ shimValues  ] = converttomultipole( shimValues )
 %   AdjValidate -shim -info
 % to convert a vector of shim settings in those units into the "multipole" values
 % which are used in the Siemens GUI display (i.e. Shim3d)
-%
-%TODO
-%   Refactor and move the method to ShimCom_IUGM_Prisma_fit() 
+
 
 nChannels = numel( shimValues ) ;
 

@@ -6,9 +6,12 @@
 % Author: ryan.topfer@polymtl.ca
 % =========================================================================
 
+
+
+
 % paths to DICOM folders:
-pathToMag   = '/Users/ryan/Projects/Shimming/Acdc/20190511_Ismrm/data/acdc_69/13-realtime_fieldmap' ;
-pathToPhase = '/Users/ryan/Projects/Shimming/Acdc/20190511_Ismrm/data/acdc_69/14-realtime_fieldmap' ;
+pathToMag   = '/Users/ryan/Projects/Shimming/Acdc/20190511_Ismrm/data/acdc_70/22-realtime_fieldmap_deepBreath' ;
+pathToPhase = '/Users/ryan/Projects/Shimming/Acdc/20190511_Ismrm/data/acdc_70/23-realtime_fieldmap_deepBreath' ;
 
 %% -------
 % Define a few processing parameters 
@@ -27,8 +30,15 @@ Field = FieldEval( pathToMag, pathToPhase, Params ) ;
 %
 % Field.assessfielddistribution()
 % Field.getacquisitiontime()
+% Field.resliceimg()
 %
 % etc.
+
+% e.g. interpolate field maps to match voxel positions of another image:
+pathToT2w = '/Users/ryan/Projects/Shimming/Acdc/20190511_Ismrm/data/acdc_70/24-T2w_1mm' ;
+
+T2w = MaRdI( pathToT2w ) ;
+
 
 % e.g. create NifTI output
 % 

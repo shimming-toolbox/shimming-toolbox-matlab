@@ -161,8 +161,8 @@ ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
 
     %%-----
     % dB/dI linear 'Current-to-Field' operator
-    Shim.img              = RefMaps.Shim.img ;
-    Shim.Hdr              = RefMaps.Shim.Hdr ;
+    Shim.img     = RefMaps.Shim.img ;
+    Shim.Hdr     = RefMaps.Shim.Hdr ;
 
     Shim.Ref.img = Shim.img ;
     Shim.Ref.Hdr = Shim.Hdr ;
@@ -1002,7 +1002,9 @@ DEFAULT_ISSAVINGRESULTSTABLE           = true ;
 DEFAULT_MINTXFREQUENCY = 123100100 ; % [units: Hz]
 DEFAULT_MAXTXFREQUENCY = 123265000 ; % [units: Hz]
 
-
+dbstop in ShimOpt at 1008
+%% -----
+% Check inputs + assign parameters 
 if nargin < 1
     error('Function requires at least 1 argument: a ShimOpt instance')
 elseif nargin == 1 || isempty( Params ) 
@@ -1023,35 +1025,58 @@ if ~myisfield(Params, 'maxNegativeTxFrequencyShift') || isempty( Params.maxNegat
     Params.maxNegativeTxFrequencyShift = DEFAULT_MINTXFREQUENCY - double(Shim.Field.Hdr.ImagingFrequency)*1E6 ;
 end
 
-assert( ~isempty( Shim.Aux ) )
-
-% total active channels across systems
-Params.nActiveChannels = 1 + Shim.System.Specs.Amp.nActiveChannels + Shim.Aux.System.Specs.Amp.nActiveChannels ; % +1 for freq. adjust
-
-if ~myisfield(Params, 'activeStaticChannelsMask') || isempty( Params.activeStaticChannelsMask )
-    Params.activeStaticChannelsMask = [ DEFAULT_ISOPTIMIZINGSTATICTXFREQUENCY ; ...
-                                        Shim.System.Specs.Amp.staticChannels(:) ; ...
-                                        Shim.Aux.System.Specs.Amp.staticChannels(:) ; ] ;
-end
+if ~isempty( Shim.Aux )
+    % total active channels across systems
+    Params.nActiveChannels = 1 + Shim.System.Specs.Amp.nActiveChannels + Shim.Aux.System.Specs.Amp.nActiveChannels ; % +1 for freq. adjust
     
-if ~myisfield(Params, 'activeDynamicChannelsMask') || isempty( Params.activeDynamicChannelsMask )
-    Params.activeDynamicChannelsMask = [ DEFAULT_ISOPTIMIZINGDYNAMICTXFREQUENCY ; ...
-                                         Shim.System.Specs.Amp.dynamicChannels(:) ; ...
-                                         Shim.Aux.System.Specs.Amp.dynamicChannels(:) ; ] ;
-end
+    if ~myisfield(Params, 'activeStaticChannelsMask') || isempty( Params.activeStaticChannelsMask )
+        Params.activeStaticChannelsMask = [ DEFAULT_ISOPTIMIZINGSTATICTXFREQUENCY ; ...
+                                            Shim.System.Specs.Amp.staticChannels(:) ; ...
+                                            Shim.Aux.System.Specs.Amp.staticChannels(:) ; ] ;
+    end
+        
+    if ~myisfield(Params, 'activeDynamicChannelsMask') || isempty( Params.activeDynamicChannelsMask )
+        Params.activeDynamicChannelsMask = [ DEFAULT_ISOPTIMIZINGDYNAMICTXFREQUENCY ; ...
+                                             Shim.System.Specs.Amp.dynamicChannels(:) ; ...
+                                             Shim.Aux.System.Specs.Amp.dynamicChannels(:) ; ] ;
+    end
+    
+    if ~myisfield(Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectionPerChannel ) 
+       
+        % 'tmp' because this is technically a TODO: 
+        % since the optimization solves for the Tx frequency *shift*, it can shift
+        % up or down relative to Larmor.  For now, limit the max shift equally
+        % in both up/down directions, but in the future both should be specifically
+        % accounted for (only comes into play in checknonlinearconstraints_static() )
+        % (in practice the limits of this tmp solution seem unlikely to arise, i.e. adjusting f0 by many kHz?)
+        tmpMaxFreqShift = min(abs( [ Params.maxPositiveTxFrequencyShift Params.maxNegativeTxFrequencyShift ] )) ;
 
+        Params.maxCorrectionPerChannel = [ tmpMaxFreqShift ; Shim.System.Specs.Amp.maxCurrentPerChannel ; Shim.Aux.System.Specs.Amp.maxCurrentPerChannel ]; 
 
-if ~myisfield(Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectionPerChannel ) 
-   
-    % 'tmp' because this is a TODO: 
-    % since the optimization solves for the Tx frequency *shift*, it can shift
-    % up or down relative to Larmor.  For now, I'll limit the max shift equally
-    % in both up/down directions, but in the future both should be specifically
-    % accounted for (only comes into play in checknonlinearconstraints_static() )
-    tmpMaxFreqShift = min(abs( [ Params.maxPositiveTxFrequencyShift Params.maxNegativeTxFrequencyShift ] )) ;
+    end
 
-    Params.maxCorrectionPerChannel = [ tmpMaxFreqShift ; Shim.System.Specs.Amp.maxCurrentPerChannel ; Shim.Aux.System.Specs.Amp.maxCurrentPerChannel ]; 
+else
+    % total active channels across systems
+    Params.nActiveChannels = 1 + Shim.System.Specs.Amp.nActiveChannels ; % +1 for freq. adjust
+    
+    if ~myisfield(Params, 'activeStaticChannelsMask') || isempty( Params.activeStaticChannelsMask )
+        Params.activeStaticChannelsMask = [ DEFAULT_ISOPTIMIZINGSTATICTXFREQUENCY ; ...
+                                            Shim.System.Specs.Amp.staticChannels(:) ; ] ;
+    end
+        
+    if ~myisfield(Params, 'activeDynamicChannelsMask') || isempty( Params.activeDynamicChannelsMask )
+        Params.activeDynamicChannelsMask = [ DEFAULT_ISOPTIMIZINGDYNAMICTXFREQUENCY ; ...
+                                             Shim.System.Specs.Amp.dynamicChannels(:) ; ] ;
+    end
+    
+    if ~myisfield(Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectionPerChannel ) 
+       
+        % see todo note above for ~isempty(Shim.Aux) case:
+        tmpMaxFreqShift = min(abs( [ Params.maxPositiveTxFrequencyShift Params.maxNegativeTxFrequencyShift ] )) ;
 
+        Params.maxCorrectionPerChannel = [ tmpMaxFreqShift ; Shim.System.Specs.Amp.maxCurrentPerChannel ; ]; 
+
+    end
 end
 
 if ~myisfield(Params, 'minCorrectionPerChannel') || isempty( Params.minCorrectionPerChannel ) 
@@ -1060,12 +1085,11 @@ end
 
 assert( ( length( Params.maxCorrectionPerChannel ) == length( Params.minCorrectionPerChannel ) ) && ...
         ( length( Params.maxCorrectionPerChannel ) == Params.nActiveChannels ), ...
-    'Shim system limits (Params.maxCorrectionPerChannel and Params.minCorrectionPerChannel) must possess an entry for each shim channel (primary and, if in use, auxiliary shims).' ) ;
+    'Shim system limits (Params.maxCorrectionPerChannel and Params.minCorrectionPerChannel) must possess an entry for the TX frequency followed by entries for each shim channel (primary and, if in use, auxiliary shims).' ) ;
 
-% set min/max static correction to 0 for inactive static channels
-% NOTE some elements of Params.min/maxCorrectionPerChannel may be +/- Inf
-% (so don't just multiply by the logical array activeChannelsMask --> yields
-% NaN!)
+% Set min/max static correction to 0 for inactive static channels
+% NB: some elements of Params.min/maxCorrectionPerChannel may be +/-Inf (so
+% don't just multiply by the logical array activeChannelsMask --> yields NaN!)
 Params.minStaticCorrectionPerChannel = zeros( size( Params.activeStaticChannelsMask ) ) ;
 Params.minStaticCorrectionPerChannel( Params.activeStaticChannelsMask ) = Params.minCorrectionPerChannel( Params.activeStaticChannelsMask ) ;
 
@@ -1099,15 +1123,25 @@ end
 
 if Params.isRealtimeShimming
 
-    assert( myisfield( Shim.Field.Model, 'Riro') && ~isempty( Shim.Field.Model.Riro.img ) ) 
+    assert( myisfield( Shim.Field.Model, 'Riro') && ~isempty( Shim.Field.Model.Riro.img ), ...
+        'Real-time shim optimization requires a valid FieldEval object pertaining to respiration-induced resonance offsets (RIRO) in Shim.Field.Model.Riro.img' ) ;
+   
+    if ~myisfield(Params, 'pMax') || isempty( Params.pMax ) 
+        pMax = Shim.Field.Model.Riro.Aux.Specs.limits(2) ;
+    else
+        pMax = Params.pMax ; % max relevant/recorded pressure (e.g. ~inspired state)
+    end
     
-    pMax = Params.pMax ; % max relevant/recorded pressure (e.g. ~inspired state)
-    pMin = Params.pMin ; % min relevant/recorded pressure (e.g. ~expired state) 
-    dp   = Shim.Field.Model.Riro.Aux.Tracker.Data.p ; % delta pressure shift to which input Riro has been scaled
+    if ~myisfield(Params, 'pMin') || isempty( Params.pMin ) 
+        pMin = Shim.Field.Model.Riro.Aux.Specs.limits(2) ;
+    else
+        pMin = Params.pMin ; % min relevant/recorded pressure (e.g. ~expired state) 
+    end
+
+    dp = Shim.Field.Model.Riro.Aux.Data.p ; % delta pressure shift to which input Riro.img has been scaled
     % i.e. Riro = dp * ( Inspired_Field - Expired_Field )/( inspired_pressure - expired_pressure )
     
 end
-
 
 
 nImg = numel( Shim.Field.img(:) ) ; % number of voxels
