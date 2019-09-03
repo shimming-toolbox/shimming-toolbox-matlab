@@ -9,7 +9,7 @@ function shimDir = shimbindir( )
 % the corresponding entry in this function with the appropriate directory.
 
 % change this if the reference map binaries are to be stored elsewhere:
-shimDir = '~/Matlab/shimReferenceMaps/' ;
+shimDir = '~/Matlab/shimming/shimReferenceMaps/' ;
 
 assert( exist(shimDir) == 7, 'Shim binary directory not found.' ) ;
 
