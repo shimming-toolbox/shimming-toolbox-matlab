@@ -49,16 +49,15 @@ end
 
 Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
-if (nargin == 2) && (~isempty(Field))
-    
-    Shim.setoriginalfield( Field ) ;
-
-end
 
 %-------
 % associate host MRI 
 if strcmp( Params.InstitutionName, 'IUGM' ) && strcmp( Params.StationName, 'MRC35049' ) 
     Shim.Aux = ShimOpt_IUGM_Prisma_fit(  ) ; % Params input??
+end
+
+if (nargin == 2) && (~isempty(Field))
+    Shim.setoriginalfield( Field ) ;
 end
 
 end
