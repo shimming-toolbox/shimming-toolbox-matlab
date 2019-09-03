@@ -921,10 +921,10 @@ else
     if nargin < 2
         PredictedRiro = Shim.Field.getriro( ) ;
         % (dp: recorded inspired - expired pressure difference)
-        dp = Shim.Field.Model.Riro.Aux.Tracker.Data.p ; 
+        dp = Shim.Field.Model.Riro.Aux.Data.p ; 
     else
         PredictedRiro = Shim.Field.getriro( p ) ;
-        dp = Shim.Field.Aux.Tracker.debias( p ) ; 
+        dp = Shim.Field.Aux.debias( p ) ; 
     end
     
     Shim.Model.riro   = dp*Shim.forwardmodelshimcorrection( Shim.Model.couplingCoefficients ) ;
@@ -1003,7 +1003,6 @@ DEFAULT_ISSAVINGRESULTSTABLE           = true ;
 DEFAULT_MINTXFREQUENCY = 123100100 ; % [units: Hz]
 DEFAULT_MAXTXFREQUENCY = 123265000 ; % [units: Hz]
 
-dbstop in ShimOpt at 1008
 %% -----
 % Check inputs + assign parameters 
 if nargin < 1
@@ -1453,10 +1452,10 @@ if Params.isSavingResultsTable
     Params.colormap     = 'default' ;
     
     Params.filename     = [Params.mediaSaveDir '/field_Dc_s' num2str(Params.imgSlice)] ;
-    MaRdI.savefigure( Params.validityMask(:,:, Params.imgSlice ).* Shim.Field.img(:,:,Params.imgSlice), Params ) ;
+    MaRdI.savefigure( Params.assessmentVoi(:,:, Params.imgSlice ).* Shim.Field.img(:,:,Params.imgSlice), Params ) ;
     
     Params.filename     = [Params.mediaSaveDir '/fieldShimmed_Dc_s' num2str(Params.imgSlice)] ;
-    MaRdI.savefigure( Params.validityMask(:,:, Params.imgSlice ).*PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
+    MaRdI.savefigure( Params.assessmentVoi(:,:, Params.imgSlice ).*PredictedShimmedField.img(:,:,Params.imgSlice), Params ) ;
         
     NiiOptions.filename = [Params.mediaSaveDir 'fieldB0'] ;
     nii( Shim.Field.img, NiiOptions ) ;
@@ -1476,10 +1475,10 @@ if Params.isSavingResultsTable
        
         Params.scaling      = [ -dp dp ]/3 ;
         Params.filename     = [Params.mediaSaveDir '/riro_s' num2str(Params.imgSlice)] ;
-        MaRdI.savefigure( Params.validityMask(:,:, Params.imgSlice ).*Shim.Field.Model.Riro.img(:,:,Params.imgSlice), Params ) ;
+        MaRdI.savefigure( Params.assessmentVoi(:,:, Params.imgSlice ).*Shim.Field.Model.Riro.img(:,:,Params.imgSlice), Params ) ;
 
         Params.filename     = [Params.mediaSaveDir '/riroShimmed_s' num2str(Params.imgSlice)] ;
-        MaRdI.savefigure( Params.validityMask(:,:, Params.imgSlice ).*PredictedShimmedRiro.img(:,:,Params.imgSlice), Params ) ;
+        MaRdI.savefigure( Params.assessmentVoi(:,:, Params.imgSlice ).*PredictedShimmedRiro.img(:,:,Params.imgSlice), Params ) ;
         
 
         NiiOptions.filename = [Params.mediaSaveDir 'riro'] ;
