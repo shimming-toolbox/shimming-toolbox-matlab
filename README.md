@@ -24,6 +24,8 @@ Before running this software you will need to install the following dependencies
 
 To install, download (or `git clone`) this repository and add this folder (with sub-folders) to the Matlab path.
 
+Create the folder '~/Matlab/shimming/' and copy into it the contents [here](https://drive.google.com/open?id=15mZNpsuuNweMUO6H2iWdf5DxA4sQ_aYR)
+
 For certain features (e.g. recording from a respiratory sensor in "daemon mode"),
 the Matlab path should be configured automatically at session start-up by adding the following lines to '~/startup.m'
 (create the file if it does not exist):
