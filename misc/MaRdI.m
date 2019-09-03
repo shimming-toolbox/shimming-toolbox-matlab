@@ -868,12 +868,19 @@ fieldOfView = [ Img.Hdr.PixelSpacing(1) * double( Img.Hdr.Rows ), ...
 end
 % =========================================================================
 function gridSize = getgridsize( Img )
-%GETGRIDSIZE
+%GETGRIDSIZE    Image dimensions as 3-element vector (rows, columns, slices)
 % 
 % gridSize = GETGRIDSIZE( Img ) 
 
 gridSize = size( Img.img ) ;
-gridSize = gridSize(1:3) ;
+
+if numel( gridSize ) < 2
+    error('Img.img should be at least 2d') ;
+elseif numel( gridSize ) < 3
+    gridSize = [gridSize 1] ;
+else
+    gridSize = gridSize(1:3) ;
+end
 
 end
 % =========================================================================
