@@ -21,11 +21,13 @@ classdef MaRdI < matlab.mixin.SetGet
 %
 %   .Aux
 %       Aux-objects: auxiliary measurements (e.g. respiratory ProbeTracking)
+%       By default .Aux is empty. To fill it, call Img.associateaux( Aux ) with a valid
+%       Aux object. For more info, type: help MaRdI.associateaux( )
 % 
 % In addition to the read-only properties
 %
 %    .Hdr 
-%       The full Siemens DICOM header corresponding to Img.img(:,:,1) 
+%       The full Siemens DICOM header corresponding to Img.img(:,:,1,1,1) 
 %
 %    .Hdrs 
 %       Cell array of (truncated) DICOM headers courtesy of dicominfo().
@@ -747,8 +749,16 @@ if Img.Hdr.MrProt.sKSpace.ucTrajectory == 1
     
     pf = Img.getpartialfourierfactors() ;
     
-    % NOTE: Probably incorrect...?
-    dt = dt*( 1 - ( pf(2)*pf(3) )/2 ) ;
+    if all( pf == 1 )
+        dt = dt/2 ;
+    else
+        switch Img.Hdr.MRAcquisitionType 
+            case '2D'
+                dt = dt*( 3/2 - pf(2) ) ; 
+            case '3D' % not sure what the function is here...
+                error('Not implemented!') ;
+        end
+    end
 
 else    
     display('Estimating time at which the k-space origin was sampled')
