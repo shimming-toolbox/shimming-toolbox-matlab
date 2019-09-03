@@ -18,7 +18,7 @@ Probe = ProbeTracking( '~/Matlab/shimming/example/acdc_78p/20190825T202139_press
 %
 %   Loading this file will add struct called Data to the Matlab workspace
 %
-%   load('/Users/ryan/Projects/Shimming/Acdc/202004_Ismrm/data/acdc_78p/20190825T202139_pressureProbeRec.mat')
+%   load('~/Matlab/shimming/example/acdc_78p/20190825T202139_pressureProbeRec.mat')
 % 
 %   Required is a script that takes the Siemens PMU recording as input and returns a file/struct equivalent to this. 
 %
