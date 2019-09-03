@@ -70,7 +70,7 @@ Field = FieldEval.modelfield( Fields ) ;
 Params = [] ;
 Shims  = ShimOpt_Greg( Params, Field ) ;
 
-% define the target region for shimming with a binary mask (same size as Field.img)
+% define the target region for shimming with a binary mask (same size as fieldB0.nii)
 %
 % by default, it will be the intersection of Field.Hdr.MaskingImage (where
 % reliable field values exist) and Shims.getshimsupport() (where shim reference
