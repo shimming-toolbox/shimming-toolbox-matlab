@@ -1261,7 +1261,14 @@ function [Field] = modelfield( Fields, Params )
 %       respectively containing the FieldEval objects corresponding to the
 %       'inspired' and 'expired' acquisitions.
 %
-% Params: (optional parameters struct with the following entries):
+% Params: 
+%   Optional parameters struct can possess any of the following entries:
+%
+%   .maxAbsField [default = 600]
+%       maximum absolute field value a voxel can possess in units of Hz to be deemed reliable
+%
+%   .maxAbsFieldDifference [default = 150]
+%       maximum absolute field value a voxel can possess in units of Hz to be deemed reliable
 %
 %   pDc : DC auxiliary pressure reading corresponding to the mean respiratory state 
 %   
