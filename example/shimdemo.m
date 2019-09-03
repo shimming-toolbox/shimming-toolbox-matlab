@@ -1,4 +1,5 @@
-% Example script to perform offline shim optimization based on Siemens gradient echo (time-series) data
+% Example script to perform offline shim optimization based on Siemens gradient
+% echo (time-series) data
 
 %% -----
 % load gradient echo time series:
@@ -31,12 +32,12 @@ Probe = ProbeTracking( '~/Matlab/shimming/example/acdc_78p/20190825T202139_press
 %   Data.t       : time points associated with each signal value     [units: ms]
 %
 %   Data.trigger : vector whose entries are equal to 1 when Data.t featured a trigger, and 0 otherwise
-%                  more precisely, Data.trigger(i) = 1 when a trigger occurred *within* the preceding time interval Data.t( i-1 : Data.t )
+%                  more precisely, Data.trigger(i) = 1 when a trigger occurred *within* the preceding time interval Data.t( i-1 : i )
 
 %% -----
 % link respiratory recording to field maps:
 %
-% Fields.associateaux( Probe, Params ) will return Field.Aux : 
+% Fields.associateaux( Probe, Params ) returns Field.Aux : 
 % a respiratory recording object (like Probe itself) but with its corresponding
 % Data. subfields now corresponding to the image times
 %
