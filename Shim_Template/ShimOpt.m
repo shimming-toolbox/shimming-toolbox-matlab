@@ -441,7 +441,8 @@ Shim.Model.currents = currents ;
 Shim.Field = Field.copy() ;
 
 % Interpolates Shim.img (reference maps) to the grid (voxel positions) of Field
-Shim.resliceimg( Shim.Field ) ;
+[X,Y,Z] = Shim.Field.getvoxelpositions() ;
+Shim.resliceimg( X, Y, Z ) ;
 
 Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
 
