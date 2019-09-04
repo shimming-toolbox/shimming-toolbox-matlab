@@ -84,23 +84,17 @@ Shims  = ShimOpt_Greg( Params, Field ) ;
 shimVoi = Shims.getshimsupport() & Shims.Aux.getshimsupport() & Shims.Field.Hdr.MaskingImage ;
 Shims.setshimvolumeofinterest( shimVoi ) ;
 
-% Define which shim terms are to be included in the static shim:
-% e.g.
-%   Tx-freq adjustment ; none of the 8 multi-coil channels ; all 8 Prisma shim terms:
-Params.activeStaticChannelsMask = [ true ; false(8, 1) ; true(8, 1) ] ;
-% Note: To know which element of this vector list corresponds to which gradient/shim element, you can run:
+% Define which terms are to be included in the static shim optimization (boolean vector):
+%   [TX_FREQ ; CUSTOM_COIL ; SIEMENS_COIL ]
+% Where:
+%   - TX_FREQ is the Tx frequency of the MR sytem (obtained via frequency adjustement routine)
+%   - CUSTOM_COIL: Vector comprising each shim element. The name of each element is stored in: Shims.System.Specs.Id.channelNames  
+%   - SIEMENS_COIL: Vector comprising the gradient+shim elements. The name of each element is stored in: Shims.Aux.System.Specs.Id.channelNames
 % 
-% >> Shims.System.Specs.Id.channelNames
-% ans =
-%   8×1 cell array
-%     {'Ch1'}
-%     {'Ch2'}
-%     {'Ch3'}
-%     {'Ch4'}
-%     {'Ch5'}
-%     {'Ch6'}
-%     {'Ch7'}
-%     {'Ch8'}
+% NOTE: 
+% If the "Shims" object is instantiated directly using the Siemens coil (Shims = ShimOpt_IUGM_Prisma_fit())
+% then the .Aux does not exist, and the vector becomes: 
+%   [TX_FREQ ; SIEMENS_COIL ]
 
 % Activate real-time shimming
 Params.isRealtimeShimming = 1 ;
