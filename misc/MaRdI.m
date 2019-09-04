@@ -1436,6 +1436,7 @@ Img = rescaleimg( Img, true ) ;
 
 %-------
 % write Hdr
+Hdr.NumberOfSlices          = size( Img.img, 3 ) ;
 
 % Make random series number
 SN                          = round(rand(1)*1000);
