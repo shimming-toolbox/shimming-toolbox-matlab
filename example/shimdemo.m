@@ -66,11 +66,14 @@ Field = FieldEval.modelfield( Fields ) ;
 
 
 %% -----
-% create a ShimOpt object corresponding to the hardware
+% Create a ShimOpt object corresponding to the hardware
 Params = [] ;
 Shims  = ShimOpt_Greg( Params, Field ) ;
 
-% define the target region for shimming with a binary mask (same size as the Matlab variable: Field.img)
+% The Shims.Aux contains the ShimOpt object of the Siemens Gradient+Shim coils (called: ShimOpt_IUGM_Prisma_fit), which is used for joint optimization.
+% Note: If you instanciate Shims directly using using ShimOpt_IUGM_Prisma_fit, then the .Aux field will be empty.
+% 
+% Define the target region for shimming with a binary mask (same size as the Matlab variable: Field.img)
 %
 % by default, it will be the intersection of Field.Hdr.MaskingImage (where
 % reliable field values exist) and Shims.getshimsupport() (where shim reference
