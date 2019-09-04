@@ -86,6 +86,21 @@ Params.isRealtimeShimming = 1 ;
 % e.g.
 %   Tx-freq adjustment ; none of the 8 multi-coil channels ; all 8 Prisma shim terms:
 Params.activeStaticChannelsMask = [ true ; false(8, 1) ; true(8, 1) ] ;
+% Note: To know which element of this vector list corresponds to which gradient/shim element, each hardware "X" has a 
+% "ShimSpecs_X" class defined, with the subfield .Id.channelNames() that has channel info. Example:
+% 
+% >> Specs = ShimSpecs_IUGM_Prisma_fit;
+% >> Specs.Id.channelNames
+% ans =
+%   8×1 cell array
+%     {'X'  }
+%     {'Y'  }
+%     {'Z'  }
+%     {'A20'}
+%     {'A21'}
+%     {'B21'}
+%     {'A22'}
+%     {'B22'}
 
 Params.isRealtimeShimming = 1 ;
 % Define which shim terms are to be included in the real-time shim:
