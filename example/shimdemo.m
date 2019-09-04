@@ -81,7 +81,6 @@ Shims  = ShimOpt_Greg( Params, Field ) ;
 shimVoi = Shims.getshimsupport() & Shims.Aux.getshimsupport() & Shims.Field.Hdr.MaskingImage ;
 Shims.setshimvolumeofinterest( shimVoi ) ;
 
-Params.isRealtimeShimming = 1 ;
 % Define which shim terms are to be included in the static shim:
 % e.g.
 %   Tx-freq adjustment ; none of the 8 multi-coil channels ; all 8 Prisma shim terms:
@@ -100,6 +99,7 @@ Params.activeStaticChannelsMask = [ true ; false(8, 1) ; true(8, 1) ] ;
 %     {'Ch7'}
 %     {'Ch8'}
 
+% Activate real-time shimming
 Params.isRealtimeShimming = 1 ;
 % Define which shim terms are to be included in the real-time shim:
 % e.g.
