@@ -1,15 +1,39 @@
 classdef ShimUse < matlab.mixin.SetGet
 %SHIMUSE - Shim Use
 %
+% A high-level user interface to operate the shim system. 
+% 
 % .......
-% 
-% Description
-% 
-% ShimUse is a high-level user interface to operate the shim system. 
+%   
+% Usage
 %
+% Shims = ShimUse(  )
+% Shims = ShimUse( ShimParams )
+% Shims = ShimUse( ShimParams, ProbeParams )
+%
+% Shims contains public properties:
+%
+%    .Aux
+%       Object of type ProbeTracking (for tracking respiration (proxy for dynamic delta B0))
+%
+%    .Com
+%       Object of type ShimCom (for communication with shim amplifiers)
+%
+%    .Data
+%       .Aux
+%           Cell array of 'inert' ProbeTracking objects (i.e. copies of what Shims.Aux has already recorded).
+%
+%       .Img  
+%           Cell array of MaRdI-type objects (i.e. 'training data' for shim optimization)
+%
+%    .Opt
+%       Object of type ShimOpt (for optimizing shim currents)
+%
+%    .Params
+%       Struct of misellaneous parameters 
 %
 % =========================================================================
-% Updated::20190505::ryan.topfer@polymtl.ca
+% Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -28,9 +52,10 @@ classdef ShimUse < matlab.mixin.SetGet
 % =========================================================================
 
 properties   
+    Aux;
     Com;
-    Opt;
     Data;
+    Opt;
     Params;
 end
 
@@ -38,7 +63,7 @@ end
 % =========================================================================
 methods
 % =========================================================================
-function Shim = ShimUse( Params )
+function Shim = ShimUse( ShimParams, ProbeParams )
 %SHIMUSE   
 
 Shim.Opt      = [];
@@ -47,18 +72,26 @@ Shim.Data.Img = [];
 Shim.Data.Aux = [];
 Shim.Params   = [];
 
-if nargin < 1
-    Params.dummy = [];
+if nargin < 2
+    ProbeParams.dummy = [];
+    
+    if nargin < 1
+        ShimParams.dummy  = [];
+    end
 end
 
-Shim.Params = ShimUse.assigndefaultparameters( Params ) ;
+Shim.Params = ShimUse.assigndefaultparameters( ShimParams ) ;
+
+Shim.Aux    = ProbeTracking( ProbeParams )
 
 switch Shim.Params.trainingMode
     case 'breath-hold'
         % to record (in this order): (1) normal breathing; (2) breath-hold insp; (3) breath-hold exp
-        Shim.Data.Aux.Tracker = cell( 1, 1, Shim.Params.nTrainingSeries + 1 ) ; 
+        Shim.Data.Aux = cell( Shim.Params.nTrainingSeries + 1, 1 ) ; 
+        Shim.Params.physioSignalFilenames = cell( Shim.Params.nTrainingSeries + 1, 1 ) ;
     case 'free breathing'
-        Shim.Data.Aux.Tracker = cell( 1, 1, Shim.Params.nTrainingSeries ) ; 
+        Shim.Data.Aux = cell( Shim.Params.nTrainingSeries, 1 ) ; 
+        Shim.Params.physioSignalFilenames = cell( Shim.Params.nTrainingSeries, 1 ) ;
 end
 
 if Shim.Params.isConfirmingDataLoadDir
@@ -130,7 +163,7 @@ function [] = delete( Shim )
 % DELETE( Shim )
 % 
 % Destructor method: 
-% calls Shim.Com.delete( ) and Shim.Opt.delete( ) 
+% calls Shim.Aux.delete(), Shim.Com.delete( ), and  Shim.Opt.delete( ) 
 % (also suspends command log (i.e. 'diary') ).
 
 % SAVE PARAMS  
@@ -141,8 +174,10 @@ if Shim.Params.isLoggingCommands
     diary off
 end
 
+Shim.Aux.delete();
 Shim.Opt.delete();
 Shim.Com.delete();
+
 clear Shim ;
 
 end
@@ -161,9 +196,9 @@ Params.runTime             = 5*60 ; % [units: s], max runTime = 5 min.
 switch Shim.Params.trainingMode
     case 'breath-hold'
         if nargin < 2
-
-            iTrainingFrame = ...
-            input( ['Enter number corresponding to training acquisition/recording type: (1) Inspired breath-hold; (2) Expired breath-hold; (3) Breathing. \n'] ) ;
+            
+            disp('Enter number corresponding to training acquisition/recording type: ')
+            iTrainingFrame = input( ['(1) Inspired breath-hold; (2) Expired breath-hold; (3) Breathing. \n'] ) ;
 
             if isempty(iTrainingFrame)
                 iTrainingFrame = 3 ;
@@ -180,22 +215,22 @@ Params.physioSignalFilename = [ Shim.Params.dataLoadDir datestr(now,30) '-physio
 % -------
 % begin physio tracking
 % if iTrainingFrame == 3
-%     Shim.Opt.Tracker.calibratelimiting( Params ) ;
+%     Shim.Aux.calibratelimiting( Params ) ;
 % else
-    Shim.Opt.Tracker.recordandplotphysiosignal( Params ) ;
+    Shim.Aux.recordandplotphysiosignal( Params ) ;
 % end
 
 Shim.Params.physioSignalFilenames{iTrainingFrame} = Params.physioSignalFilename ;
 
-Shim.Data.Aux.Tracker{iTrainingFrame} = Shim.Opt.Tracker.copy() ;
+Shim.Data.Aux{iTrainingFrame} = Shim.Aux.copy() ;
 
 
 % TODO 
 %
 % sort field map image files and associate physio signal reading with corresponding FieldEval object
 %
-% each MaRdI obj. has Aux. field (i.e. Mag.Aux.Tracker )
-% ---> Tracker recordings should be saved there 
+% each MaRdI obj. has Aux. field (i.e. Mag.Aux )
+% ---> Aux recordings should be saved there 
 %(but with a reference retained in Shim.Data.Aux, which may have more tracking recordings than images?)
 
 end
@@ -203,14 +238,12 @@ end
 function [Fields] = getprocessedfieldmaps( Shim )
 %GETPROCESSEDFIELDMAPS
 
-assert( size( Shim.Data.Img, 2 ) == 3 ) ;
+assert( size( Shim.Data.Img, 2 ) == 3, 'Could not find processed field maps in Shim.Data.Img' ) ;
 
 Fields = cell(Shim.Params.nTrainingSeries, 1) ; 
 
 for iSeries = 1 : Shim.Params.nTrainingSeries
- 
-    Fields{iSeries} = Shim.Data.Img{1, 3, iSeries} ;
-
+    Fields{iSeries} = Shim.Data.Img{1, 3, iSeries}.copy() ;
 end
 
 end
@@ -346,9 +379,9 @@ end
 % =========================================================================
 function [] = associatetrackerdata( Shim, iSeries )
 %ASSOCIATETRACKERDATA
-
-Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker = [] ;
-Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker = Shim.Data.Aux.Tracker{ iSeries }.copy() ;
+%
+error('DEPRECATED')
+Shim.Data.Img{ 1, 3, iSeries }.Aux = Shim.Data.Aux{ iSeries }.copy() ;
 
 % number of acquisitions
 nAcq = size( Shim.Data.Img{ 1, 3, iSeries }.img, 4 ) ;
@@ -358,11 +391,11 @@ if  nAcq == 1
 
     % number of samples corresponding to breath-hold
     % (enables auto-estimation of the time window corresponding to the breath-hold):
-    nSamplesApnea = (1000*Shim.Data.Img{1,1,iSeries}.Hdr.MrProt.lTotalScanTimeSec)/Shim.Opt.Tracker.Specs.dt ;
+    nSamplesApnea = (1000*Shim.Data.Img{1,1,iSeries}.Hdr.MrProt.lTotalScanTimeSec)/Shim.Aux.Specs.dt ;
 
     % extract a single scalar
-    Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p = ...
-        ProbeTracking.selectmedianmeasurement( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p, nSamplesApnea ) ;
+    Shim.Data.Img{ 1, 3, iSeries }.Aux.Data.p = ...
+        ProbeTracking.selectmedianmeasurement( Shim.Data.Img{ 1, 3, iSeries }.Aux.Data.p, nSamplesApnea ) ;
 
 else
     % ------
@@ -375,8 +408,8 @@ else
     % time between images 
     dtAcq = median( diff( tAcq ) ) ;
 
-    pt      = Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ;
-    tGlobal = Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.t ;
+    pt      = Shim.Data.Img{ 1, 3, iSeries }.Aux.Data.p ;
+    tGlobal = Shim.Data.Img{ 1, 3, iSeries }.Aux.Data.t ;
 
     % time interval between respiratory samples:
     dt = 0.001*round( ( tGlobal(end) - tGlobal(1) )/length(tGlobal) ) ; % [units: s]
@@ -501,7 +534,7 @@ else
         t_delay = t_medianDelay ;
     end
 
-    %  % % figure; subplot(121); plot( squeeze( Field.img(50,40,1,:) ) ); subplot(122); plot( Field.Aux.Tracker.Data.p )
+    %  % % figure; subplot(121); plot( squeeze( Field.img(50,40,1,:) ) ); subplot(122); plot( Field.Aux.Data.p )
     %  % figure; subplot(121); plot( tGlobal, pt ); subplot(122); plot( tAcq, squeeze( Field.img(50,30,:)) )
     %  figure; subplot(121); plot( tGlobal, pt ); subplot(122); plot( tAcq, squeeze( Field.img(50,40,:)) )
     %  hold on; plot( tInterp, squeeze(imgInterp(50,40,:)) )
@@ -522,16 +555,16 @@ else
 
     % NOTE: tp(end) can be slightly < tAcq(end)  
     % Using 'extrap' to avoid an interpolated p terminating with NaN's
-    Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p = interp1( tp, pt( iT:iT+length(tInterp)-1 ), tAcq, 'linear', 'extrap' ) ;
-    Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.t = tAcq ;
+    Shim.Data.Img{ 1, 3, iSeries }.Aux.Data.p = interp1( tp, pt( iT:iT+length(tInterp)-1 ), tAcq, 'linear', 'extrap' ) ;
+    Shim.Data.Img{ 1, 3, iSeries }.Aux.Data.t = tAcq ;
 
-    if any( isnan(Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p) )
+    if any( isnan(Shim.Data.Img{ 1, 3, iSeries }.Aux.Data.p) )
         warning('Interpolated probe recording contains nonnumeric values. Check inputs. (E.g. Shim.Data.Img{ }: Entries should be ordered by acquisition time)' ) ;
     end
 
     % used in nonlinear shim optimization:
-    Shim.Params.pMax     = max( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ) ;
-    Shim.Params.pMin     = min( Shim.Data.Img{ 1, 3, iSeries }.Aux.Tracker.Data.p ) ;
+    Shim.Params.pMax     = max( Shim.Data.Img{ 1, 3, iSeries }.Aux.Data.p ) ;
+    Shim.Params.pMin     = min( Shim.Data.Img{ 1, 3, iSeries }.Aux.Data.p ) ;
     
     % for posterity (might be useful?):
     Shim.Params.imgDelay = t_delay ;    
@@ -552,7 +585,7 @@ function [] = processtrainingdata( Shim )
 % If the corresponding [respiratory] tracker measurements for a given training
 % frame (iSeries) are available in:
 % 
-% Shim.Data.Aux.Tracker{ iSeries } 
+% Shim.Data.Aux{ iSeries } 
 % 
 % then the user is prompted to extract the median (most representative) value
 % corresponding to the actual breath-hold (generally the full recording extends
@@ -560,24 +593,20 @@ function [] = processtrainingdata( Shim )
 %
 % This scalar value is then entered in: 
 %
-% Shim.Data.Img{1,3,iSeries}.Aux.Tracker.Data.p
+% Shim.Data.Img{1,3,iSeries}.Aux.Data.p
 
 Shim.Data.Img(1,3,:) = cell(1,1) ; % 3rd column for field maps
 
 for iSeries = 1 : Shim.Params.nTrainingSeries
 
-    ImgArray         = cell( 1, 2 ) ;
-    ImgArray{ 1, 1 } = Shim.Data.Img{ 1, 1, iSeries } ; % mag
-    ImgArray{ 1, 2 } = Shim.Data.Img{ 1, 2, iSeries } ; % phase
- 
-    % -------
-    Shim.Data.Img{ 1, 3, iSeries } = FieldEval.mapfield( ImgArray, Shim.Params ) ;
+    Field = FieldEval.mapfield( Shim.Data.Img{ 1, 1, iSeries }, Shim.Data.Img{ 1, 2, iSeries }, Shim.Params ) ;
 
     % associate field measurements to tracker values 
-    if ~isempty( Shim.Data.Aux.Tracker{ 1, 1, iSeries } )
-        Shim.associatetrackerdata( iSeries ) ;
+    if ~isempty( Shim.Data.Aux{ iSeries } )
+        Field.associateaux( Shim.Data.Aux{ iSeries }, Shim.Params ) ;
     end
     
+    Shim.Data.Img{ 1, 3, iSeries } = Field.copy() ;
 end
 
 switch Shim.Params.trainingMode
@@ -586,11 +615,11 @@ switch Shim.Params.trainingMode
         return;
     
     case 'breath-hold'
-        if ~isempty( Shim.Data.Aux.Tracker{ 1, 1, Shim.Params.nTrainingSeries + 1 } )
+        if ~isempty( Shim.Data.Aux{ Shim.Params.nTrainingSeries + 1 } )
            
             % this is assumed to be a free breathing recording
             % i.e. trainingFrame 1 = inspired; 2 = expired.
-            Shim.Params.pBreathing = Shim.Data.Aux.Tracker{ 1,1, Shim.Params.nTrainingSeries + 1 }.Data.p ;
+            Shim.Params.pBreathing = Shim.Data.Aux{ Shim.Params.nTrainingSeries + 1 }.Data.p ;
 
             Shim.Params.pDc  = median( Shim.Params.pBreathing ) ;
             % TODO extract min + max amplitudes across ALL recordings instead?
@@ -662,7 +691,7 @@ function [] = runrealtimeshim( Shim, Params )
 %
 % [] = RUNREALTIMESHIM( Shim, Params  )
 
-% assert( strcmp( Shim.Opt.Tracker.ComPort.Status, 'closed' ), ...
+% assert( strcmp( Shim.Aux.ComPort.Status, 'closed' ), ...
 %     'Error: Serial port is open/in use.' );
 
 if ~myisfield( Shim.Params, 'dataLoadDir' )
@@ -738,16 +767,16 @@ if  ~myisfield( Params, 'txDelay' ) || isempty(Params.txDelay)
 end
 
 % ------- 
-Shim.Opt.Tracker.clearrecording() ;
+Shim.Aux.clearrecording() ;
 
-nSamples = Params.runTime / (Shim.Opt.Tracker.Specs.dt/1000) ;
+nSamples = Params.runTime / (Shim.Aux.Specs.dt/1000) ;
 iSample  = 0 ; 
 
 iSamplesBetweenUpdates = 0;
 
 if strcmp( class( Shim.Com ), 'ShimComRri' )
-    nSamplesBetweenUpdates = ... % CHANGE THIS LINE FOR ACDC --REFERS TO RRI/MXD
-        Shim.Com.Specs.Com.mxdUpdatePeriod/(Shim.Opt.Tracker.Specs.dt/1000)
+    nSamplesBetweenUpdates = ... 
+        Shim.Com.Specs.Com.mxdUpdatePeriod/(Shim.Aux.Specs.dt/1000)
 
     updatePeriod = Shim.Com.Specs.Com.mxdUpdatePeriod ;
 
@@ -755,7 +784,7 @@ else
    
    updatePeriod  = Shim.Com.Specs.Com.updatePeriod ;
     
-   nSamplesBetweenUpdates = updatePeriod/( Shim.Opt.Tracker.Specs.dt/1000 ) ;
+   nSamplesBetweenUpdates = updatePeriod/( Shim.Aux.Specs.dt/1000 ) ;
 
 end
 
@@ -809,7 +838,7 @@ Shim.Com.getallchanneloutputs
 % ------- 
 StopButton = stoploop({'Stop recording'}) ;
 
-isTracking = Shim.Opt.Tracker.beginrecording(); 
+isTracking = Shim.Aux.beginrecording(); 
 
 if isTracking
 
@@ -823,7 +852,7 @@ if isTracking
         for iSamplesBetweenUpdates = 1 : nSamplesBetweenUpdates 
 
             iSample = iSample + 1 ;
-            Shim.Opt.Tracker.getupdate() ;
+            Shim.Aux.getupdate() ;
 
         end
 
@@ -831,7 +860,7 @@ if isTracking
         updateIndices(iUpdate) = iUpdate ;
         updateTimes(iUpdate)   = updatePeriod * iUpdate ;
 
-        currents = Shim.Opt.computerealtimeupdate( Shim.Opt.Tracker.Data.p(end) ) ;
+        currents = Shim.Opt.computerealtimeupdate( Shim.Aux.Data.p(end) ) ;
         
         % currents = limitcurrents( currents ) ;
         
@@ -842,22 +871,22 @@ if isTracking
         currentsNorm(iUpdate) = norm(currents) ;
         
         if Params.isPlottingInRealTime
-            % set(plotHandle,'YData',Shim.Opt.Tracker.Data.p,'XData',Shim.Opt.Tracker.Data.t);
+            % set(plotHandle,'YData',Shim.Aux.Data.p,'XData',Shim.Aux.Data.t);
             set(plotHandle,'XData',updateTimes, 'YData', currentsNorm);
         end
 
     end
 
-    Shim.Opt.Tracker.stoprecording() ;
+    Shim.Aux.stoprecording() ;
     Shim.Com.resetallshims() ;
 
-    sampleTimes = (Shim.Opt.Tracker.Specs.dt/1000)*ones(size(Shim.Opt.Tracker.Data.p)) ;
+    sampleTimes = (Shim.Aux.Specs.dt/1000)*ones(size(Shim.Aux.Data.p)) ;
 
     % ------- 
     if Params.isSavingData
         baseFilename = [ Params.dataSaveDir datestr(now,30) '-physioSignal-RTShimming' ] ;
-        p = Shim.Opt.Tracker.Data.p ;
-        t = Shim.Opt.Tracker.Data.t ;
+        p = Shim.Aux.Data.p ;
+        t = Shim.Aux.Data.t ;
         save( baseFilename, 'currentsIssued', 'updateTimes', 'p', 't' )
     end
 
@@ -937,7 +966,7 @@ function [ Params ] = assigndefaultparameters( Params )
 %
 % DEFAULT_ISCONNECTINGTOSHIM = true ; 
 
-DEFAULT_ISCONNECTINGTOSHIM = true ; 
+DEFAULT_ISCONNECTINGTOSHIM      = true ; 
 
 DEFAULT_ISCONFIRMINGDATALOADDIR = true ; 
 
@@ -1060,9 +1089,8 @@ function [] = writeadjvalidatebat( outputDir, shimValues )
 % shimValues(1:3) are the x,y, and z gradient terms [units : micro-T/m]
 % shimValues(4:8) are the 2nd order shim terms [units : micro-T/m^2]
 %
-
 %TODO
-%   Move the method to ShimCom_IUGM_Prisma_fit() 
+%   Move method to ShimCom_IUGM_Prisma_fit() 
 
 assert( length(shimValues) == 8 )
 
