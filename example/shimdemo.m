@@ -18,7 +18,7 @@ Probe = ProbeTracking( '~/Matlab/shimming/example/acdc_78p/20190825T202139_press
 %
 %   Loading this file will add struct called Data to the Matlab workspace
 %
-%   load('/Users/ryan/Projects/Shimming/Acdc/202004_Ismrm/data/acdc_78p/20190825T202139_pressureProbeRec.mat')
+%   load('~/Matlab/shimming/example/acdc_78p/20190825T202139_pressureProbeRec.mat')
 % 
 %   Required is a script that takes the Siemens PMU recording as input and returns a file/struct equivalent to this. 
 %
@@ -66,11 +66,14 @@ Field = FieldEval.modelfield( Fields ) ;
 
 
 %% -----
-% create a ShimOpt object corresponding to the hardware
+% Create a ShimOpt object corresponding to the hardware
 Params = [] ;
 Shims  = ShimOpt_Greg( Params, Field ) ;
 
-% define the target region for shimming with a binary mask (same size as Field.img)
+% The Shims.Aux contains the ShimOpt object of the Siemens Gradient+Shim coils (called: ShimOpt_IUGM_Prisma_fit), which is used for joint optimization.
+% Note: If you instanciate Shims directly using using ShimOpt_IUGM_Prisma_fit, then the .Aux field will be empty.
+% 
+% Define the target region for shimming with a binary mask (same size as the Matlab variable: Field.img)
 %
 % by default, it will be the intersection of Field.Hdr.MaskingImage (where
 % reliable field values exist) and Shims.getshimsupport() (where shim reference
@@ -81,12 +84,19 @@ Shims  = ShimOpt_Greg( Params, Field ) ;
 shimVoi = Shims.getshimsupport() & Shims.Aux.getshimsupport() & Shims.Field.Hdr.MaskingImage ;
 Shims.setshimvolumeofinterest( shimVoi ) ;
 
-Params.isRealtimeShimming = 1 ;
-% Define which shim terms are to be included in the static shim:
-% e.g.
-%   Tx-freq adjustment ; none of the 8 multi-coil channels ; all 8 Prisma shim terms:
-Params.activeStaticChannelsMask = [ true ; false(8, 1) ; true(8, 1) ] ;
+% Define which terms are to be included in the static shim optimization (boolean vector):
+%   [TX_FREQ ; CUSTOM_COIL ; SIEMENS_COIL ]
+% Where:
+%   - TX_FREQ is the Tx frequency of the MR sytem (obtained via frequency adjustement routine)
+%   - CUSTOM_COIL: Vector comprising each shim element. The name of each element is stored in: Shims.System.Specs.Id.channelNames  
+%   - SIEMENS_COIL: Vector comprising the gradient+shim elements. The name of each element is stored in: Shims.Aux.System.Specs.Id.channelNames
+% 
+% NOTE: 
+% If the "Shims" object is instantiated directly using the Siemens coil (Shims = ShimOpt_IUGM_Prisma_fit())
+% then the .Aux does not exist, and the vector becomes: 
+%   [TX_FREQ ; SIEMENS_COIL ]
 
+% Activate real-time shimming
 Params.isRealtimeShimming = 1 ;
 % Define which shim terms are to be included in the real-time shim:
 % e.g.
