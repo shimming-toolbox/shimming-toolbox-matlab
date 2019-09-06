@@ -46,13 +46,12 @@ elseif ~isempty( Params.pathToShimReferenceMaps )
 
 end
 
-Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
-
 %-------
 % associate host MRI 
 if strcmp( Params.InstitutionName, 'IUGM' ) && strcmp( Params.StationName, 'MRC35049' ) 
     Shim.Aux = ShimOpt_IUGM_Prisma_fit(  ) ; % Params input??
 end
+
 if ~isempty( Field )
     Shim.setoriginalfield( Field ) ;
 end
@@ -114,7 +113,6 @@ function  [ Params ] = assigndefaultparameters( Params )
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
 DEFAULT_PATHTOSHIMREFERENCEMAPS    = [ shimbindir() 'ShimReferenceMaps_Greg' ] ;
-DEFAULT_PROBESPECS                 = [] ;
 
 DEFAULT_INSTITUTIONNAME = 'IUGM' ;
 DEFAULT_STATIONNAME     = 'MRC35049' ;
@@ -132,10 +130,6 @@ if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimR
     else
         Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
     end
-end
-
-if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
-   Params.TrackerSpecs = DEFAULT_PROBESPECS ;
 end
 
 if ~myisfield( Params, 'InstitutionName' ) || isempty(Params.InstitutionName)

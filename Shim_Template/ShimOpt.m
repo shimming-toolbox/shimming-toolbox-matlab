@@ -21,10 +21,6 @@ classdef (Abstract) ShimOpt < FieldEval
 %           File path to .mat containing shim reference maps (ie basis fields) &
 %           .Hdr info
 %
-%       .TrackerSpecs 
-%           Parameters struct for ProbeTracking(). 
-%           Type HELP ProbeTracking for more information.
-%
 % Outputs
 %
 %   Shim possesses the following properties:
@@ -46,24 +42,23 @@ classdef (Abstract) ShimOpt < FieldEval
 %               When Shim does not itself refer to the scanner shims, then .Aux 
 %               is a ShimOpt object corresponding to the MRI host system.
 %       
-%       .Tracker
-%           A ProbeTracking-type object (device should be connected during
-%           ShimOpt instantiation if the user intends to do real-time shimming).
-%
 %       .Model
 %           .currents  
 %               Optimal shim current vector (i)
 %               [units A]
+%
 %           .field     
 %               Optimal shim field from projection of i onto reference maps (Ai)
 %               [units Hz]
+%
 %           .couplingCoefficients
-%               For realtime shimming, relates vector relating field to tracker
-%               measurement (.Tracker.Data.p)
+%               For realtime shimming, vector relating shim correction to
+%               respiratory state measurement (e.g. ProbeTracking.Data.p)
 %               [units: Hz/Pa (Probe), or Hz/rad (Nav) ]
+%
 %           .dcCurrentsOffsets
 %               For realtime shimming, vector of "y-intercept" currents 
-%               (i.e. currents when Tracker.Data.p = 0)
+%               (e.g currents when ProbeTracking.Data.p = 0)
 %               [units A]
 %
 %       .System
@@ -84,17 +79,6 @@ classdef (Abstract) ShimOpt < FieldEval
 
 % =========================================================================
 % *** TODO 
-%
-% .....
-%   .Tracker
-%
-%   Should be optional // ShimOpt constructor should not 
-%   necessarily instantiate a ProbeTracking type object, eliciting a msg
-%   "Error: Device not found..." if it isn't connected.
-%   
-%   --> implement   
-%
-%       bool ProbeTracking.checkconnection( )
 %
 % .....
 % ASSESSSHIMVOLUME()
@@ -118,7 +102,6 @@ properties
     Field ; % object of type FieldEval
     % Model ; % Modeled quantities for shimming
     ShimmedField; % object of type FieldEval 
-    Tracker;
     System; %
 end
 properties( Hidden = true )
@@ -166,9 +149,6 @@ ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
     Shim.Ref.Hdr = Shim.Hdr ;
 
 end
-
-Shim.Tracker = [] ;
-% Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
 if ~isempty( Field ) 
     Shim.setoriginalfield( Field ) ;
@@ -244,14 +224,7 @@ function [] = delete( Shim )
 %DELETE  
 % 
 % DELETE( Shim )
-% 
-% Destructor. Calls Probe.deletecomport( ) followed by clear Shim
-
-if ~isempty( Shim.Tracker )
-    Shim.Tracker.delete();
-end
-
-clear Shim ;
+ 
 
 end
 % =========================================================================
@@ -268,7 +241,6 @@ end
 % ShimCopy.Model  = Shim.Model ;
 % ShimCopy.System = Shim.System ;
 %
-% ShimCopy.Tracker = Shim.Tracker.copyinert() ;
 % ShimCopy.Aux     = Shim.Aux.copy() ;
 %
 % end
@@ -289,8 +261,10 @@ end
 function Params = calibraterealtimeupdates( Shim, Params )
 %CALIBRATEREALTIMEUPDATES
 % 
-% CALIBRATEREALTIMEUPDATES asks user to select the median tracker measurement
-% from the measurement logs corresponding to the inspired & expired field maps.
+% CALIBRATEREALTIMEUPDATES asks user to select the intervals of a pair of
+% respiratory recordings (e.g. ProbeTracking.Data.t ) corresponding to inspired
+% and expired field maps acquisitions.
+%
 % From these, and the associated optimal currents for the 2 respiratory states,
 % the following function calls are made:
 %
@@ -315,6 +289,9 @@ function Params = calibraterealtimeupdates( Shim, Params )
 % The returned Params struct has additional fields (Params.Inspired.medianP,
 % and Params.Expired.medianP) corresponding to the user-selected medians (e.g.
 % pressures)
+%
+% NOTE : Possibly deprecated
+warning('Possibly deprecated function call: ShimOpt.calibraterealtimeupdates') 
 
 if ~myisfield( Params, 'Inspired' ) || ~myisfield( Params, 'Expired' )
     error( 'See HELP ShimOpt.calibraterealtimeupdates' ) ;
@@ -329,7 +306,7 @@ if ~myisfield( Params.Inspired, 'medianP' ) || ~myisfield( Params.Expired, 'medi
         'Determine median measurement over inspired apnea : \n \n '] ) ;
 
     Params.Inspired.medianP = ...
-        Shim.Tracker.userselectmedianmeasurement( Params.Inspired.measurementLog ) ; 
+        ProbeTracking.selectmedianmeasurement( Params.Inspired.measurementLog ) ; 
 
     ShimUse.customdisplay( ...
         ['Median measurement : ' num2str( Params.Inspired.medianP )] ) ;
@@ -338,7 +315,7 @@ if ~myisfield( Params.Inspired, 'medianP' ) || ~myisfield( Params.Expired, 'medi
         'Determine median measurement over expired apnea : \n \n '] ) ;
 
     Params.Expired.medianP = ...
-        Shim.Tracker.userselectmedianmeasurement( Params.Expired.measurementLog ) ; 
+        ProbeTracking.selectmedianmeasurement( Params.Expired.measurementLog ) ; 
 
     ShimUse.customdisplay( ...
         ['Median measurement : ' num2str( Params.Expired.medianP )] ) ;
@@ -518,7 +495,7 @@ function UO = getupdateoperator( Shim )
 %
 % UO = GETUPDATEOPERATOR( Shim ) ;
 %
-%   where UO * Shim.Tracker.Data.p = currentsUpdate
+%   where UO * respiratory_measurement = currentsUpdate
 
 A = Shim.getshimoperator ;
 M = Shim.gettruncationoperator ;
@@ -1829,10 +1806,6 @@ DEFAULT_STATIONNAME     = 'MRC35049' ;
 
 if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
    Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
-end
-
-if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
-   Params.TrackerSpecs = DEFAULT_TRACKERSPECS ;
 end
 
 if ~myisfield( Params, 'InstitutionName' ) || isempty(Params.InstitutionName)
