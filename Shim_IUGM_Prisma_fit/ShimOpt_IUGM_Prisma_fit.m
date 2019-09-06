@@ -12,8 +12,8 @@ classdef ShimOpt_IUGM_Prisma_fit < ShimOpt
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOpt_IUGM_Prisma_fit( Params, Field )
-%SHIMOPTACDC - Shim Optimization
+function Shim = ShimOpt_IUGM_Prisma_fit( varargin )
+%SHIMOPT - Shim Optimization
 
 Shim.img   = [] ;
 Shim.Hdr   = [] ;
@@ -23,9 +23,7 @@ Shim.Aux   = [] ;
 Shim.System.Specs    = ShimSpecs_IUGM_Prisma_fit();
 Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
 
-if nargin < 1 || isempty( Params ) 
-    Params.dummy = [] ;
-end
+[ Field, Params ] = ShimOpt.parseinput( varargin ) ;
 
 Params = ShimOpt_IUGM_Prisma_fit.assigndefaultparameters( Params ) ;
 
@@ -46,10 +44,8 @@ end
 Params.TrackerSpecs.state = 'inert' ;
 Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
-if (nargin == 2) && (~isempty(Field))
-    
+if ~isempty( Field ) 
     Shim.setoriginalfield( Field ) ;
-
 end
 
 end

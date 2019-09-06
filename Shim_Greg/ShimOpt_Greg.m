@@ -17,7 +17,7 @@ classdef ShimOpt_Greg < ShimOpt
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOpt_Greg( Params, Field )
+function Shim = ShimOpt_Greg( varargin )
 
 Shim.img   = [] ;
 Shim.Hdr   = [] ;
@@ -27,9 +27,8 @@ Shim.Aux   = [] ;
 Shim.System.Specs    = ShimSpecs_Greg() ; 
 Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
 
-if nargin < 1 || isempty( Params ) 
-    Params.dummy = [] ;
-end
+
+[ Field, Params ] = ShimOpt.parseinput( varargin ) ;
 
 Params = ShimOpt_Greg.assigndefaultparameters( Params ) ;
 
@@ -49,14 +48,12 @@ end
 
 Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
-
 %-------
 % associate host MRI 
 if strcmp( Params.InstitutionName, 'IUGM' ) && strcmp( Params.StationName, 'MRC35049' ) 
     Shim.Aux = ShimOpt_IUGM_Prisma_fit(  ) ; % Params input??
 end
-
-if (nargin == 2) && (~isempty(Field))
+if ~isempty( Field )
     Shim.setoriginalfield( Field ) ;
 end
 

@@ -128,7 +128,7 @@ end
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOpt( Params, Field )
+function Shim = ShimOpt( varargin )
 %SHIMOPT - Shim Optimization
 
 Shim.img    = [] ;
@@ -138,9 +138,7 @@ Shim.Model  = [] ;
 Shim.Aux    = [] ;
 Shim.System = [] ;
 
-if nargin < 1 || isempty( Params ) 
-    Params.dummy = [] ;
-end
+[ Field, Params ] = ShimOpt.parseinput( varargin ) ;
 
 Params = ShimOpt.assigndefaultparameters( Params ) ;
 
@@ -169,12 +167,11 @@ ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
 
 end
 
-Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
+Shim.Tracker = [] ;
+% Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
-if (nargin == 2) && (~isempty(Field))
-    
+if ~isempty( Field ) 
     Shim.setoriginalfield( Field ) ;
-
 end
 
 end
@@ -1635,7 +1632,6 @@ end
 % =========================================================================
 % =========================================================================
 methods(Access=protected)
-
 % =========================================================================
 
 end
@@ -1807,13 +1803,13 @@ img = dBdI .* repmat( Hdr.MaskingImage, [1 1 1 Params.nChannels] ) ;
 end
 % =========================================================================
 % =========================================================================
-
 end
+
 % =========================================================================
 % =========================================================================
 methods(Static=true, Hidden=true)
 % =========================================================================
-function  [ Params ] = assigndefaultparameters( Params )
+function [ Params ] = assigndefaultparameters( Params )
 %ASSIGNDEFAULTPARAMETERS  
 % 
 % Params = ASSIGNDEFAULTPARAMETERS( Params )
@@ -1862,6 +1858,40 @@ disp(['Saving shim reference maps for future use: '])
 disp( Params.pathToShimReferenceMaps ) ;
 
 save( Params.pathToShimReferenceMaps, 'img', 'Hdr' ) ;
+
+end
+% =========================================================================
+function [ Field, Params ] = parseinput( Inputs )
+%PARSEINPUT
+% 
+% Simple parser returns the optional user inputs Field and Params irrespective
+% of their input order (convenient).
+%
+% [ Field, Params ] = PARSEINPUT( Inputs )
+
+Field  = [] ;
+Params = [] ;
+
+nArgin = length( Inputs ) ;
+
+if (nArgin > 0)
+    if (nArgin <= 2)
+        for iArg = 1 : nArgin
+            switch class( Inputs{iArg} ) 
+                case 'struct'
+                    Params = Inputs{iArg} ;
+                case 'FieldEval'
+                    Field = Inputs{iArg} ;
+            end
+        end
+    else
+        error('Too many input arguments. Should be <=2. See help ShimOpt') ;
+    end
+end
+
+if isempty( Params ) 
+    Params.dummy = [] ;
+end
 
 end
 % =========================================================================

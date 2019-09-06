@@ -23,7 +23,7 @@ classdef ShimOpt_Rriyan < ShimOpt
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOpt_Rriyan( Params, Field )
+function Shim = ShimOpt_Rriyan( varargin )
 %SHIMOPT_RRYAN - Shim Optimization
 
 Shim.img   = [] ;
@@ -34,9 +34,7 @@ Shim.Aux   = [] ;
 Shim.System.Specs    = ShimSpecs_Rriyan();
 Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
 
-if nargin < 1 || isempty( Params ) 
-    Params.dummy = [] ;
-end
+[ Field, Params ] = ShimOpt.parseinput( varargin ) ;
 
 Params = ShimOpt_Rriyan.assigndefaultparameters( Params )
 
@@ -56,19 +54,16 @@ end
 
 Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
-if (nargin == 2) && (~isempty(Field))
-    
-    Shim.setoriginalfield( Field ) ;
-
-end
-
 %-------
 % associate host MRI 
 if strcmp( Params.InstitutionName, 'IUGM' ) && strcmp( Params.StationName, 'MRC35049' ) 
-
     Shim.Aux = ShimOpt_IUGM_Prisma_fit( ) ; % Params input??
-
 end
+
+if ~isempty(Field)
+    Shim.setoriginalfield( Field ) ;
+end
+
 
 end
 % =========================================================================
