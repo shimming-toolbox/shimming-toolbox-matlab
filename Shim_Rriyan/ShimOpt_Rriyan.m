@@ -16,7 +16,6 @@ classdef ShimOpt_Rriyan < ShimOpt
 % properties % defined in parent class ShimOpt 
     % Field ; % object of type MaRdI
     % Model ;
-    % Tracker ; % object of type ProbeTracking
 % end
 
 % =========================================================================
@@ -52,7 +51,6 @@ elseif ~isempty( Params.pathToShimReferenceMaps )
 
 end
 
-Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
 
 %-------
 % associate host MRI 
@@ -171,7 +169,6 @@ function  [ Params ] = assigndefaultparameters( Params )
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
 DEFAULT_PATHTOSHIMREFERENCEMAPS    = [ shimbindir() 'ShimReferenceMaps_Rriyan' ] ;
-DEFAULT_PROBESPECS                 = [] ;
 
 DEFAULT_INSTITUTIONNAME = 'IUGM' ;
 DEFAULT_STATIONNAME     = 'MRC35049' ;
@@ -189,10 +186,6 @@ if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimR
     else
         Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
     end
-end
-
-if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
-   Params.TrackerSpecs = DEFAULT_PROBESPECS ;
 end
 
 if ~myisfield( Params, 'InstitutionName' ) || isempty(Params.InstitutionName)

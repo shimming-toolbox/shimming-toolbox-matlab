@@ -41,9 +41,6 @@ elseif ~isempty(Params.pathToShimReferenceMaps)
 
 end
 
-Params.TrackerSpecs.state = 'inert' ;
-Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
-
 if ~isempty( Field ) 
     Shim.setoriginalfield( Field ) ;
 end
@@ -195,7 +192,6 @@ function  [ Params ] = assigndefaultparameters( Params )
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
 DEFAULT_PATHTOSHIMREFERENCEMAPS    = [ shimbindir() 'ShimReferenceMaps_IUGM_Prisma_fit' ] ;
-DEFAULT_PROBESPECS                 = [] ;
 
 if ~myisfield( Params, 'isCalibratingReferenceMaps' ) || isempty(Params.isCalibratingReferenceMaps)
    Params.isCalibratingReferenceMaps = DEFAULT_ISCALIBRATINGREFERENCEMAPS ;
@@ -211,10 +207,6 @@ if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimR
         Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
     end
 
-end
-
-if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
-   Params.TrackerSpecs = DEFAULT_PROBESPECS ;
 end
 
 end
