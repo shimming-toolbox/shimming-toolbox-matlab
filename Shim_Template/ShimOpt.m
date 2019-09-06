@@ -1117,57 +1117,54 @@ if Params.isRealtimeShimming
     
 end
 
+%% -----
+% define optimization terms:
 
-nImg = numel( Shim.Field.img(:) ) ; % number of voxels
+nVoxels = Shim.Field.getnumberofvoxels() ; 
 
-% -------
+%% -----
 % define matrix of data-weighting coefficients for the static optimization: W0
 if ~myisfield( Params, 'dataWeights' ) || isempty( Params.dataWeights ) 
-
-    W0 = speye( nImg, nImg ) ;
-
+    W0 = speye( nVoxels, nVoxels ) ;
 else
+    assert( numel( Params.dataWeights ) == nVoxels, ...
+        'Params.dataWeights must have the same number of elements (voxels) as Shim.Field.img' )
 
-    assert( numel( Params.dataWeights ) == nImg ) 
-
-    if ( size( Params.dataWeights, 1 ) ~= nImg ) || ( size( Params.dataWeights, 2) ~= nImg )
+    if ( size( Params.dataWeights, 1 ) ~= nVoxels ) || ( size( Params.dataWeights, 2) ~= nVoxels )
         
-        W0 = spdiags( Params.dataWeights(:), 0, nImg, nImg ) ;
+        W0 = spdiags( Params.dataWeights(:), 0, nVoxels, nVoxels ) ;
 
     end
-
 end
 
 % truncated (VOI-masked) weighting operator for static shim: MW0
 MW0 = Shim.gettruncationoperator()*W0 ; 
 
+%% -----
+% define matrix of data-weighting coefficients for real-time (RIRO) correction: W1
 if Params.isRealtimeShimming 
-    % define matrix of data-weighting coefficients for real-time (RIRO) correction: W1
     if ~myisfield( Params, 'dataWeightsRiro' ) || isempty( Params.dataWeightsRiro ) 
-
         W1 = W0 ;
-
     else
+        assert( numel( Params.dataWeightsRiro ) == nVoxels, ... 
+            'Params.dataWeightsRiro must have the same number of elements (voxels) as Shim.Field.img' )
 
-        assert( numel( Params.dataWeightsRiro ) == nImg ) 
-
-        if ( size( Params.dataWeightsRiro, 1 ) ~= nImg ) || ( size( Params.dataWeightsRiro, 2) ~= nImg )
+        if ( size( Params.dataWeightsRiro, 1 ) ~= nVoxels ) || ( size( Params.dataWeightsRiro, 2) ~= nVoxels )
             
-            W1 = spdiags( Params.dataWeightsRiro(:), 0, nImg, nImg ) ;
+            W1 = spdiags( Params.dataWeightsRiro(:), 0, nVoxels, nVoxels ) ;
 
         end
-
     end
 
-    % truncated (VOI-masked) weighting operator for static shim: MW0
+    % truncated (VOI-masked) weighting operator for riro shim: MW1
     MW1 = Shim.gettruncationoperatorriro()*W1 ; 
 end
 
-% -------
+%% -----
 % define off-resonance correction operator : A
 
 % global resonance offset operator (Tx frequency) : A_tx
-A_tx = ones( nImg, 1 ) ;
+A_tx = ones( nVoxels, 1 ) ;
 
 % primary shim (i.e. current-to-field) operator ('mc' since it's likely a multi-coil array) : A_mc
 A_mc = Shim.getshimoperator() ; 
