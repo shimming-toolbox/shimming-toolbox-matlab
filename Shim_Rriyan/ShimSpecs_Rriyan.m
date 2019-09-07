@@ -41,6 +41,14 @@ methods
 function Shim = ShimSpecs_Rriyan(  )
 %SHIMSPECS - Shim System Specifications 
 
+Shim.Id.systemName   = 'Rriyan' ;
+Shim.Id.channelNames = cell(24,1) ;
+Shim.Id.channelUnits = cell(24,1) ;
+
+for iCh = 1 : 24 
+    Shim.Id.channelNames(iCh) = { ['Ch' num2str(iCh) ] } ; 
+    Shim.Id.channelUnits(iCh) = { '[A]' } ; 
+end
     
 Shim.Com.baudRate    = 57600 ;  
 Shim.Com.readTimeout = 500 ; %[units: ms] 

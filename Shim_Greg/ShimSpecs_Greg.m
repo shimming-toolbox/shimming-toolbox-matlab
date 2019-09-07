@@ -43,9 +43,11 @@ function Shim = ShimSpecs_Greg(  )
 
 Shim.Id.systemName   = 'Greg' ;
 Shim.Id.channelNames = cell(8,1) ;
+Shim.Id.channelUnits = cell(8,1) ;
 
 for iCh = 1 :8 
     Shim.Id.channelNames(iCh) = { ['Ch' num2str(iCh) ] } ; 
+    Shim.Id.channelUnits(iCh) = { '[A]' } ; 
 end
     
 Shim.Com.baudRate      = 115200 ;

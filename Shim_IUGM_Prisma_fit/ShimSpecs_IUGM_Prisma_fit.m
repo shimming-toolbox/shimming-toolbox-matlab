@@ -18,6 +18,8 @@ function Shim = ShimSpecs_IUGM_Prisma_fit(  )
 
 Shim.Id.systemName   = 'IUGM_Prisma_fit' ;
 Shim.Id.channelNames = { 'X' ; 'Y' ; 'Z' ; 'A20' ; 'A21' ; 'B21' ; 'A22' ; 'B22' } ;
+Shim.Id.channelUnits = { '[micro-T/m]' ; '[micro-T/m]'; '[micro-T/m]'; 
+    '[micro-T/m^2]' ; '[micro-T/m^2]' ; '[micro-T/m^2]' ; '[micro-T/m^2]' ; '[micro-T/m^2]' ; } ;
 
 Shim.Com = [] ;  
 

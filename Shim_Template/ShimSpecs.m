@@ -53,8 +53,11 @@ function Shim = ShimSpecs(  )
 
 Shim.Id.systemName   = 'Rriyan' ;
 Shim.Id.channelNames = cell(24,1) ;
+Shim.Id.channelUnits = cell(24,1) ;
+
 for iCh = 1 : 24
     Shim.Id.channelNames(iCh) = { ['Ch' num2str(iCh) ] } ; 
+    Shim.Id.channelUnits(iCh) = { '[A]' } ; 
 end
 
 % ------- 
