@@ -772,6 +772,15 @@ t0 = tAcq + dt ;
 
 end
 % =========================================================================
+function [f0] = getimagingfrequency( Img ) 
+%GETIMAGINGFREQUENCY    returns Larmor frequency in Hz
+% 
+% f0 = GETIMAGINGFREQUENCY( Img ) ;  
+
+f0 = Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency ;
+
+end
+% =========================================================================
 function [nSlices] = getnumberofslices( Img ) 
 %GETNUMBEROFSLICES  Returns number of acquired slices
 % 
