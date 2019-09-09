@@ -1,7 +1,8 @@
-function isFieldResult = myisfield (inStruct, fieldName)
+function isFieldResult = myisfield (StructObjIn, fieldName )
 %MYISFIELD
-% myisfield( Obj, fieldName)
-% Obj is the name of the structure or an array of structures to search
+% myisfield( Obj, fieldName )
+%
+% Obj is the name of the structure, object, or an array of structures to search
 % fieldName is the name of the field for which the function searches
 % -> Returns TRUE if fieldName exists
 % -> Returns FALSE otherwise
@@ -33,20 +34,29 @@ function isFieldResult = myisfield (inStruct, fieldName)
 % ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 % POSSIBILITY OF SUCH DAMAGE.
 
-% Updated::20181003::ryan.topfer@polymtl.ca
+% Updated::ryan.topfer@polymtl.ca
+
+if ( nargin ~= 2 ) || ~( isstruct( StructObjIn ) || isobject( StructObjIn ) ) || ~ischar( fieldName )
+    help(mfilename); 
+    return; 
+end
+
 isFieldResult = false;
-if isempty(inStruct)
+
+if isempty(StructObjIn)
     return
-end
-f = fieldnames(inStruct(1));
-for i=1:length(f)
-if(strcmp(f{i},strtrim(fieldName)))
-isFieldResult = true;
-return;
-elseif isstruct(inStruct(1).(f{i}))
-isFieldResult = myisfield(inStruct(1).(f{i}), fieldName);
-if isFieldResult
-return;
-end
-end
+else
+    fieldNames = fieldnames(StructObjIn(1));
+
+    for i=1:length(fieldNames)
+        if strcmp( fieldNames{i}, strtrim(fieldName) )
+            isFieldResult = true;
+            return;
+        elseif isstruct( StructObjIn(1).(fieldNames{i}) )
+            isFieldResult = myisfield( StructObjIn(1).(fieldNames{i}), fieldName );
+            if isFieldResult
+                return;
+            end
+        end
+    end
 end
