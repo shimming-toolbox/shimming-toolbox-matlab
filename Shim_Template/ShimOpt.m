@@ -100,7 +100,7 @@ classdef (Abstract) ShimOpt < FieldEval
 
 properties
     Field ; % object of type FieldEval
-    % Model ; % Modeled quantities for shimming
+    % Model ; % Modeled quantities for shimming (property inherited from FieldEval)
     ShimmedField; % object of type FieldEval 
     System; %
 end
@@ -970,7 +970,7 @@ DEFAULT_ISOPTIMIZINGAUX                = false ;
 DEFAULT_ISREALTIMESHIMMING             = false ;
 
 DEFAULT_MEDIASAVEDIR                   = [ './shimopt_results_' datestr(now,30) '/' ] ;
-DEFAULT_ISDISPLAYINGRESULTS            = true ;
+DEFAULT_ISDISPLAYINGRESULTS            = false ;
 DEFAULT_ISSAVINGRESULTSTABLE           = true ;
 
 % TODO: Create new class to handle all Tx related aspects
@@ -1120,8 +1120,9 @@ if Params.isRealtimeShimming
         pMin = Params.pMin ; % min relevant/recorded pressure (e.g. ~expired state) 
     end
 
-    dp = Shim.Field.Model.Riro.Aux.Data.p ; % delta pressure shift to which input Riro.img has been scaled
-    % i.e. Riro = dp * ( Inspired_Field - Expired_Field )/( inspired_pressure - expired_pressure )
+    % dp : delta pressure shift to which input Riro.img has been scaled
+    % e.g. Riro = dp * ( Inspired_Field - Expired_Field )/( inspired_pressure - expired_pressure )
+    dp = Shim.Field.Model.Riro.Aux.Data.p ; 
     
 end
 
@@ -1275,7 +1276,6 @@ else
     b  = MW0*-bx0 ;
 end
     
-dbstop in ShimOpt at 1296
 %%-------------------------------------------------------------------------------
 % perform optimization 
 %--------------------------------------------------------------------------------
@@ -1334,6 +1334,9 @@ Shim.Model.Tx.imagingFrequency    = fo0 + (Shim.Field.Hdr.ImagingFrequency*1E6) 
 
 Shim.Model.currents               = i0 ;
 
+Corrections.activeStaticChannelsMask  = Params.activeStaticChannelsMask ;
+Corrections.activeDynamicChannelsMask = Params.activeDynamicChannelsMask ;
+
 %% -----
 % replace inactive static terms with their initial values:
 
@@ -1364,85 +1367,31 @@ if Params.isRealtimeShimming
     end
 end
 
+PredictedShimmedField = Shim.predictshimmedfield() ;
+
 %%-------------------------------------------------------------------------------
 % results summary 
 %--------------------------------------------------------------------------------
-%   TODO: clean up
-
-T = table ;
-
-
-% [table units: mA]
-i0 = i0*1000 ;     
-
-if Params.isRealtimeShimming
-    di = di*1000 ;
-else
-    dfo = 0 ;
-    di  = zeros( size( i0 ) ) ;
-    diAux = zeros( size( i0Aux ) ) ;
-end
-
-x0 = [ fo0; i0; i0Aux; ] ;
-dx = [ dfo; di; diAux; ] ;
-
-Correction_Term = {'Tx Freq. (Hz)'} ;
-
-for iCh = 1 : length(i0)
-    Correction_Term(end+1) = { [ Shim.System.Specs.Id.systemName ' ' Shim.System.Specs.Id.channelNames{iCh} ' (mA)'] } ;
-end
-
-for iCh = 1 : length(i0Aux)  
-    Correction_Term(end+1) = { [ Shim.Aux.System.Specs.Id.systemName ' ' Shim.Aux.System.Specs.Id.channelNames{iCh} ' (D.U.)'] } ;
-end
-
-Original = [ round( Shim.Field.Hdr.ImagingFrequency*1E6, 9, 'significant' ) ; ... 
-             round( 1000*Shim.System.currents ) ; ... % [units: mA] 
-             round(Shim.Aux.System.currents, 4, 'significant') ] ; 
-
-Optimal = [ round( Shim.Model.Tx.imagingFrequency, 9, 'significant' ) ; ...
-            round(i0) ; ...
-            round(i0Aux, 4, 'significant') ] ; 
-
-Optimal( ~Params.activeStaticChannelsMask ) = NaN ;
-
-Update  = [ round( fo0, 6, 'significant' ) ; ...
-            round(i0 - 1000*Shim.System.currents) ; ...
-            round((i0Aux - Shim.Aux.System.currents), 4, 'significant') ] ;
-
-Update( ~Params.activeStaticChannelsMask )  = NaN ;
-
-Realtime       = round( dx, 4, 'significant' ) ;
-
-% relative power: RIRO / static
-relativePower = 100*(dx./x0).^2 ;
-relativePower( isnan( relativePower ) ) = 0 ;
-
-Relative_Power = round( relativePower, 4, 'significant' ) ;
-
-
-T.Correction_Term = char( Correction_Term ) ;
-T.Original        = Original ;
-T.Optimal         = Optimal ;
-T.Update          = Update ;
-T.Realtime        = Realtime ;
-T.Relative_Power  = Relative_Power ;
-
-if Params.isDisplayingResults
-    fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
-    T    
-end
+T = tableoptimizationresults( Corrections ) ;
 
 if Params.isSavingResultsTable
-    
-    writetable( T, [ Params.mediaSaveDir '/shimSystemStats' ]  ) ;
+    writetable( T, [ Params.mediaSaveDir '/shimSystemStats.csv' ]  ) ;
 
-    filename = [ Params.mediaSaveDir '/fieldStats_original' ] ;
-    Shim.Field.assessfielddistribution( Params.assessmentVoi, filename ) ;
-    
-    PredictedShimmedField = Shim.predictshimmedfield() ;
-    filename = [ Params.mediaSaveDir '/fieldStats_shimmedPrediction' ] ;
-    PredictedShimmedField.assessfielddistribution( Params.assessmentVoi, filename ) ;
+    Shim.Field.assessfielddistribution( Params.assessmentVoi, [ Params.mediaSaveDir '/fieldStats_original.csv' ] ) ;
+    PredictedShimmedField.assessfielddistribution( Params.assessmentVoi, [ Params.mediaSaveDir '/fieldStats_shimmedPrediction.csv' ] ) ;
+end
+
+
+%%-------------------------------------------------------------------------------
+
+%--------------------------------------------------------------------------------
+
+if Params.isDisplayingResults
+
+    if exist(T)     
+        fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
+        T
+    end 
 
     Params.imgSlice     = round( size( Shim.Field.img, 3 )/2 ) ; 
     
@@ -1495,6 +1444,10 @@ if Params.isSavingResultsTable
     pause(5)
     close all
 end
+
+%%-------------------------------------------------------------------------------
+% Local functions
+%--------------------------------------------------------------------------------
 
 function [f, df] = shimcost( x )
     
@@ -1633,8 +1586,144 @@ end
 
 end %splitsolutionvector
 
+function [T] = tableoptimizationresults( Corrections )
+%TABLEOPTIMIZATIONRESULTS      Table of shim results
+%
+% T = TABLEOPTIMIZATIONRESULTS( Corrections )
+%
+% T is a table where the 1st column contains the shim terms (channel names [+
+% units]), 2nd column contains their original settings, 3rd is the optimal
+% (static) shim terms, and 4th the optimal - original difference.
+%
+% Terms excluded from the optimization are assigned entries of NaN.
+%
+% If realtime shimming was enabled, the 5th column contains entries with its
+% corresponding correction term's units, per unit (respiratory) probe
+% intensity.  (e.g. 0.01 A/probe-unit-intensity). The 6th column contains the
+% squared ratio of a channel's real-time correction (scaled by the probe RMS
+% intensity) to its static correction, multiplied by 100%.
+%
+% e.g. T =
+% 
+% Correction_Term  | Original  | Optimal | Update | Realtime | Relative_Power
+%   Tx Freq. [Hz]  | 123259218 |   NaN   |  NaN   |    NaN   |       0
+%    Ch.1    [A]   |    0      |  1.23   |  1.23  |   0.01   |     0.05
+%         .        |    .      |    .    |   .    |    .     |      .
+%         .        |    .      |    .    |   .    |    .     |      .
+%         .        |    .      |    .    |   .    |    .     |      .
+
+T = table ;
+
+Correction_Term = {'Tx Freq. [Hz]'} ;
+
+for iCh = 1 : Shim.System.Specs.Amp.nActiveChannels 
+    Correction_Term(end+1) = { [ Shim.System.Specs.Id.systemName ' ' ...
+                                 Shim.System.Specs.Id.channelNames{iCh} ' ' ...
+                                 Shim.System.Specs.Id.channelUnits{iCh}  ] } ;
+end
+    
+Original = [ Shim.Field.getimagingfrequency ; Shim.System.currents ; ] ;
+
+if isa( Shim.Aux, 'ShimOpt' )
+
+    for iCh = 1 : Shim.Aux.System.Specs.Amp.nActiveChannels 
+        Correction_Term(end+1) = { [ Shim.Aux.System.Specs.Id.systemName ' ' ...
+                                     Shim.Aux.System.Specs.Id.channelNames{iCh} ' ' ...
+                                     Shim.Aux.System.Specs.Id.channelUnits{iCh}  ] } ;
+    end
+
+    Original = [ Original ;  Shim.Aux.System.currents ;  ] ;
+end
+
+nChannelsTotal = length( Original ) ;
+
+if length( Corrections.static ) < nChannelsTotal 
+   % append NaNs to indicate Aux channels were excluded from the optimization
+   Optimal = [ Corrections.static ; nan(nChannelsTotal - length(Corrections.static), 1) ] ;
+   activeStaticChannelsMask  = [ Corrections.activeStaticChannelsMask; false(nChannelsTotal - length(Corrections.static), 1) ] ;
+   activeDynamicChannelsMask = [ Corrections.activeDynamicChannelsMask ; false(nChannelsTotal - length(Corrections.static), 1) ] ;
+else
+   Optimal = [ Corrections.static ] ;
+   activeStaticChannelsMask  = Corrections.activeStaticChannelsMask ;
+   activeDynamicChannelsMask = Corrections.activeDynamicChannelsMask ;
+end
+
+Optimal( ~activeStaticChannelsMask ) = NaN ;
+
+Update = Optimal - Original ;
+
+if myisfield( Corrections, 'realtime' ) 
+    Realtime = Corrections.realtime ;
+    Realtime( ~activeDynamicChannelsMask ) = NaN ;
+
+    Relative_Power = 100*( ( ( Shim.Field.Model.Riro.Aux.Data.p * Realtime )./Optimal ).^2 ) ;
+    Relative_Power( isnan( Relative_Power ) ) = 0 ;
+    
+    T.Correction_Term = char( Correction_Term ) ;
+    T.Original        = round( Original, 3 ) ;
+    T.Optimal         = round( Optimal, 3 ) ;
+    T.Update          = round( Update, 3 ) ;
+    T.Realtime        = round( Realtime, 5, 'significant' ) ;
+    T.Relative_Power  = round( Relative_Power, 5, 'significant' ) ;
+else
+    T.Correction_Term = char( Correction_Term ) ;
+    T.Original        = round( Original, 3 ) ;
+    T.Optimal         = round( Optimal, 3 ) ;
+    T.Update          = round( Update, 3 ) ;
+end
+
+end %tableoptimizationresults()
+
 
 end %optimizeshimcurrents()
+% =========================================================================
+function [T] = tableshim( Shim, Corrections )
+%TABLESHIM      Table of shim terms
+%
+% T = TABLESHIM( Shim )
+% T = TABLESHIM( Shim, Corrections )
+%
+% When the only input argument is a ShimOpt-type object, T is a table where
+% the first column contains the shim terms (channel names), and the second column 
+% contains their current setting. 
+%
+% e.g. T =
+%
+% Correction_Term  | Original 
+%   Tx Freq. [Hz]  | 123259218
+%    Ch.1    [A]   |    0
+%         .        |    .
+%         .        |    .
+%         .        |    .
+%    Ch.N    [A]   |    0
+ 
+Correction_Term = {'Tx Freq. [Hz]'} ;
+
+for iCh = 1 : Shim.System.Specs.Amp.nActiveChannels 
+    Correction_Term(end+1) = { [ Shim.System.Specs.Id.systemName ' ' ...
+                                 Shim.System.Specs.Id.channelNames{iCh} ' ' ...
+                                 Shim.System.Specs.Id.channelUnits{iCh}  ] } ;
+end
+    
+Original = [ Shim.Field.getimagingfrequency ; Shim.System.currents ; ] ;
+
+if isa( Shim.Aux, 'ShimOpt' )
+
+    for iCh = 1 : Shim.Aux.System.Specs.Amp.nActiveChannels 
+        Correction_Term(end+1) = { [ Shim.Aux.System.Specs.Id.systemName ' ' ...
+                                     Shim.Aux.System.Specs.Id.channelNames{iCh} ' ' ...
+                                     Shim.Aux.System.Specs.Id.channelUnits{iCh}  ] } ;
+    end
+
+    Original = [ Original ;  Shim.Aux.System.currents ;  ] ;
+end
+
+T = table ;
+    
+T.Correction_Term = char( Correction_Term ) ;    
+T.Original        = round( Original, 3 ) ;
+
+end
 % =========================================================================
 
 end
