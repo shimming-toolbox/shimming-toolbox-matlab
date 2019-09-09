@@ -839,36 +839,33 @@ Shim.Model.field   = Shim.forwardmodelshimcorrection( shimCurrentsUpdate ) ;
 
 PredictedField.img = PredictedField.img + Shim.Model.field ;
 
-if ~isempty(Shim.Model.Tx.imagingFrequency)
+if myisfield( Shim.Model, 'Tx' ) && myisfieldfilled( Shim.Model.Tx, 'imagingFrequency' ) 
     
-    % frequency shift
-    df0 = Shim.Model.Tx.imagingFrequency - (Shim.Field.Hdr.ImagingFrequency*1E6) ; % [units: Hz]
+    df0 = Shim.Model.Tx.imagingFrequency - Shim.Field.getimagingfrequency() ; % frequency shift [units: Hz]
     
     if ( abs( df0 ) > 0.1 )
         PredictedField.Hdr.ImagingFrequency = Shim.Model.Tx.imagingFrequency*1E-6 ;  % [units: MHz]
         PredictedField.img = PredictedField.img + df0 ;
     end
-
 end
 
-if ~isempty(Shim.Aux.Model.currents)
+if isa( Shim.Aux, 'ShimOpt' ) && myisfield( Shim.Aux, 'Model' ) && myisfieldfilled( Shim.Aux.Model, 'currents' )
 
-    auxCurrentsUpdate = Shim.Aux.Model.currents - Shim.Aux.System.currents ;
-
+    auxCurrentsUpdate    = Shim.Aux.Model.currents - Shim.Aux.System.currents ;
     Shim.Aux.Model.field = Shim.Aux.forwardmodelshimcorrection( auxCurrentsUpdate ) ;
-
-    PredictedField.img = PredictedField.img + Shim.Aux.Model.field ;
-
+    PredictedField.img   = PredictedField.img + Shim.Aux.Model.field ;
 end
 
 end
 % =========================================================================
 function [ PredictedRiro ] = predictshimmedriro( Shim, p )
-%PREDICTSHIMMEDRIRO
+%PREDICTSHIMMEDRIRO     
 %
 % [PredictedRiro] = PREDICTSHIMMEDRIRO( Shim ) ;
+% [PredictedRiro] = PREDICTSHIMMEDRIRO( Shim, dp ) ;
 % 
-% Returns FieldEval-type object(s) 
+% Returns a FieldEval-type object
+
 %
 % PredictedRiro.img  = ( Shim.Field.Model.Riro.img + Shim.Model.riro ) ;
 %
@@ -884,13 +881,10 @@ PredictedRiro = [] ;
 assert( ~isempty( Shim.Field.Model.Riro ) && ~isempty( Shim.Field.Model.Riro.img ), ...
     'Requires input model of respiration-induced reference offset (RIRO) in Shim.Field.Model.Riro' ) ;
 
-
-if ~myisfield( Shim.Model, 'couplingCoefficients' ) || isempty( Shim.Model.couplingCoefficients ) 
-    
-    warning('No RIRO correction: Returning input model RIRO')
-
+if ~myisfieldfilled( Shim.Model, 'couplingCoefficients' )  
+    warning('No RIRO correction: Returning input model RIRO') ;
+    PredictedRiro = Shim.Field.Model.Riro.copy() ;
 else    
-    
     % all field + correction terms scaled by dp :
     if nargin < 2
         PredictedRiro = Shim.Field.getriro( ) ;
@@ -904,21 +898,17 @@ else
     Shim.Model.riro   = dp*Shim.forwardmodelshimcorrection( Shim.Model.couplingCoefficients ) ;
     PredictedRiro.img = PredictedRiro.img + Shim.Model.riro ;
 
-    if ~isempty(Shim.Model.Tx.couplingCoefficients) && ( Shim.Model.Tx.couplingCoefficients ~= 0 )
-       
-       warning('Untested: TX RIRO adjustment') 
-
+    if myisfield( Shim.Model, 'Tx' ) && myisfieldfilled( Shim.Model.Tx, 'couplingCoefficients' ) 
+        if ( Shim.Model.Tx.couplingCoefficients ~= 0 )  
+           warning('Untested: TX RIRO adjustment') 
+        end
        PredictedRiro.img = PredictedRiro.img + dp*Shim.Model.Tx.couplingCoefficients ;
-
     end
 
-    if myisfield( Shim.Aux.Model, 'couplingCoefficients' ) && ~isempty( Shim.Aux.Model.couplingCoefficients )
-
+    if isa( Shim.Aux, 'ShimOpt' ) && myisfieldfilled( Shim.Aux.Model, 'couplingCoefficients' ) 
         Shim.Aux.Model.riro = dp*Shim.Aux.forwardmodelshimcorrection( Shim.Aux.Model.couplingCoefficients ) ;
         PredictedRiro.img   = PredictedRiro.img + Shim.Aux.Model.riro ;
-
     end
-
 end
 
 end
@@ -1369,6 +1359,10 @@ end
 
 PredictedShimmedField = Shim.predictshimmedfield() ;
 
+if Params.isRealtimeShimming
+    PredictedShimmedRiro = Shim.predictshimmedriro() ;
+end
+
 %%-------------------------------------------------------------------------------
 % results summary 
 %--------------------------------------------------------------------------------
@@ -1378,9 +1372,15 @@ if Params.isSavingResultsTable
     writetable( T, [ Params.mediaSaveDir '/shimSystemStats.csv' ]  ) ;
 
     Shim.Field.assessfielddistribution( Params.assessmentVoi, [ Params.mediaSaveDir '/fieldStats_original.csv' ] ) ;
-    PredictedShimmedField.assessfielddistribution( Params.assessmentVoi, [ Params.mediaSaveDir '/fieldStats_shimmedPrediction.csv' ] ) ;
-end
 
+    PredictedShimmedField.assessfielddistribution( Params.assessmentVoi, [ Params.mediaSaveDir '/fieldStats_shimmedPrediction.csv' ] ) ;
+
+    if Params.isRealtimeShimming
+        Shim.Field.Model.Riro.assessfielddistribution( Params.assessmentVoi, [ Params.mediaSaveDir '/riroStats_original' ] ) ;
+
+        PredictedShimmedRiro.assessfielddistribution( Params.assessmentVoi, [ Params.mediaSaveDir '/riroStats_shimmedPrediction' ] ) ;
+    end
+end
 
 %%-------------------------------------------------------------------------------
 
@@ -1388,10 +1388,8 @@ end
 
 if Params.isDisplayingResults
 
-    if exist(T)     
-        fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
-        T
-    end 
+    fprintf(['\n' '-----\t' 'Optimization Results' '\t-----' '\n\n']) ;
+    display(T)
 
     Params.imgSlice     = round( size( Shim.Field.img, 3 )/2 ) ; 
     
@@ -1417,14 +1415,6 @@ if Params.isDisplayingResults
     nii( PredictedShimmedField.img, NiiOptions ) ;
     
     if Params.isRealtimeShimming
-
-        filename = [ Params.mediaSaveDir '/riroStats_original' ] ;
-        Shim.Field.Model.Riro.assessfielddistribution( Params.assessmentVoi, filename ) ;
-
-        PredictedShimmedRiro = Shim.predictshimmedriro() ;
-
-        filename = [ Params.mediaSaveDir '/riroStats_shimmedPrediction' ] ;
-        PredictedShimmedRiro.assessfielddistribution( Params.assessmentVoi, filename ) ;
        
         Params.scaling      = [ -dp dp ]/3 ;
         Params.filename     = [Params.mediaSaveDir '/riro_s' num2str(Params.imgSlice)] ;
@@ -1433,7 +1423,6 @@ if Params.isDisplayingResults
         Params.filename     = [Params.mediaSaveDir '/riroShimmed_s' num2str(Params.imgSlice)] ;
         MaRdI.savefigure( Params.assessmentVoi(:,:, Params.imgSlice ).*PredictedShimmedRiro.img(:,:,Params.imgSlice), Params ) ;
         
-
         NiiOptions.filename = [Params.mediaSaveDir 'riro'] ;
         nii( Shim.Field.Model.Riro.img, NiiOptions ) ;
         
