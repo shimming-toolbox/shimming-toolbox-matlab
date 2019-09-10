@@ -773,11 +773,28 @@ t0 = tAcq + dt ;
 end
 % =========================================================================
 function [f0] = getimagingfrequency( Img ) 
-%GETIMAGINGFREQUENCY    returns Larmor frequency in Hz
+%GETIMAGINGFREQUENCY    Returns Larmor frequency in Hz
 % 
 % f0 = GETIMAGINGFREQUENCY( Img ) ;  
 
 f0 = Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency ;
+
+end
+% =========================================================================
+function [imgType] = getimagetype( Img ) 
+%GETIMAGETYPE   Returns image type as string 
+% 
+% imgType = GETIMAGETYPE( Img )
+%
+% Returns either 'PHASE', 'MAGNITUDE', or 'UNKNOWN'
+
+if strfind( Img.Hdr.ImageType, '\P\' )
+    imgType = 'PHASE' ;
+elseif strfind( Img.Hdr.ImageType, '\M\' )
+    imgType = 'MAGNITUDE' ;
+else
+    imgType = 'UNKNOWN' ;
+end
 
 end
 % =========================================================================
@@ -988,6 +1005,34 @@ function h = getvoxelspacing( Img )
 %   this not necessarily the same as Hdr.SliceThickness).    
 
 h = [ Img.Hdr.PixelSpacing(1) Img.Hdr.PixelSpacing(2) Img.Hdr.SpacingBetweenSlices ] ;
+
+end
+% =========================================================================
+function [isMag] = ismagnitude( Img )
+%ISMAGNITUDE    Returns TRUE if Img is a magnitude image, FALSE otherwise.
+% 
+% isMag = ISMAGNITUDE( Img )
+
+switch Img.getimagetype()
+    case 'MAGNITUDE'
+        isMag = true ;
+    otherwise
+        isMag = false ;
+end
+
+end
+% =========================================================================
+function [isPhase] = isphase( Img )
+%ISPHASE    Returns TRUE if Img is a phase image, FALSE otherwise.
+%
+% isPhase = ISPHASE( Img )
+
+switch Img.getimagetype()
+    case 'PHASE'
+        isPhase = true ;
+    otherwise
+        isPhase = false ;
+end
 
 end
 % =========================================================================
