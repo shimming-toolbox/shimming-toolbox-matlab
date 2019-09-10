@@ -321,14 +321,12 @@ function [mask] = getvaliditymask( Field, maxAbsField )
 % mask = GETVALIDITYMASK( Field, maxAbsField ) 
 %
 % .......................
-%   
 %
 % maxAbsField 
 %   maximum absolute voxel value assumed to represent an accurate field
 %   measurement. Voxels with abs-values greater than this might stem from
 %   errors in the unwrapping.  [default: 500 Hz]
-%
-% (Set to Inf to ignore the criterion)
+%   (Set to Inf to ignore the criterion)
 
 DEFAULT_MAXABSFIELD        = 500 ;
 
