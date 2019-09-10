@@ -1,4 +1,4 @@
-classdef (Abstract) ShimOpt < FieldEval 
+classdef (Abstract) ShimOpt < MaRdI 
 %SHIMOPT - Shim Optimization
 %
 % .......
@@ -15,7 +15,8 @@ classdef (Abstract) ShimOpt < FieldEval
 %       A FieldEval-type object pertaining to the field map to be targetted by
 %       shimming.
 %
-%   Params can have the following fields
+%   Params 
+%       A struct of parameters that can possess the following fields:
 %
 %       .pathToShimReferenceMaps
 %           File path to .mat containing shim reference maps (ie basis fields) &
@@ -71,7 +72,7 @@ classdef (Abstract) ShimOpt < FieldEval
 %
 % NOTE
 %
-% ShimOpt is a FieldEval subclass [ShimOpt < FieldEval < MaRdI]
+% ShimOpt is a MaRdI subclass [ShimOpt < MaRdI]
 %     
 % =========================================================================
 % Author: ryan.topfer@polymtl.ca
@@ -100,7 +101,7 @@ classdef (Abstract) ShimOpt < FieldEval
 
 properties
     Field ; % object of type FieldEval
-    % Model ; % Modeled quantities for shimming (property inherited from FieldEval)
+    Model ; % Modeled quantities for shimming 
     ShimmedField; % object of type FieldEval 
     System; %
 end
