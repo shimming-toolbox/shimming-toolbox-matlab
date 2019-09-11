@@ -1614,23 +1614,28 @@ function [] = scalephasetofrequency( Img, undoFlag )
 %   Phase = scalephasetofrequency( Field, -1 )
 %   
 %   The 'undo' mode with -1 as the 2nd argument scales from Hz back to rad
-% .....
-%
-% UnwrappedPhase.Hdr.EchoTime              [units: ms]
 
-scalingFactor = 1/( 2*pi*Img.Hdr.EchoTime*(1E-3)  ) ;
+assert( ~Img.ismagnitude(), 'Input cannot be a magnitude image' ) ;
+
+te = Img.getechotime()*(1E-3) ;
 
 if (nargin < 2) || (undoFlag ~= -1)
-    assert( strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0000H' ) )
-
-    Img.img       = scalingFactor * Img.img ;
+    assert( Img.isphase() && strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0000H' ), ...
+        'Expected Phase Img input with voxel values in radians' ) ;
+    
+    scalingFactors = 1/(2*pi*te) ;
     Img.Hdr.PixelComponentPhysicalUnits = '0005H' ; % i.e. Hz
 
 elseif (undoFlag == -1)
-    assert( strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0005H' ) )
-
-    Img.img       = (scalingFactor^-1 )* Img.img ;
+    assert( strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0005H' ), ...
+        'Expected Field Img input with voxel values in Hz' )
+    
+    scalingFactors = 2*pi*te ;
     Img.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
+end
+
+for iEcho = 1 : numel(te) 
+    Img.img(:,:,:,iEcho,:) = scalingFactors(iEcho) * Img.img(:,:,:,iEcho,:) ;
 end
 
 end
