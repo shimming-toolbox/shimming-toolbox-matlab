@@ -870,7 +870,7 @@ function [echoTime] = getechotime( Img, iEcho )
 % the corresponding echo.
 
 if nargin == 1
-    if strcmp( Img.Hdr.SequenceName, '*fm2d2' ) && ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) )
+    if strcmp( Img.Hdr.SequenceName, '*fm2d2' ) && Img.isphase() 
         echoTime = ( Img.Hdr.MrProt.alTE(2) - Img.Hdr.MrProt.alTE(1) )/1000  ;
     else
         nEchoes  = size( Img.img, 4 ) ;
@@ -1383,7 +1383,6 @@ if ~myisfield( Options, 'threshold') || isempty(Options.threshold)
     Options.threshold = DEFAULT_THRESHOLD ;
 end
 
-
 if myisfield( Phase.Hdr.MrProt, 'lRepetitions' ) 
     nVolumes = (Phase.Hdr.MrProt.lRepetitions + 1) ;
 else
@@ -1392,42 +1391,50 @@ end
 
 assert( nVolumes == size( Phase.img, 5 ) ) ;
 
+nEchoes = length( Phase.getechotime() ) ;
+
 for iVolume = 1 : nVolumes
 
     display(['Unwrapping volume ' num2str(iVolume) ' of ' num2str(nVolumes) ] ) ;    
 
-    switch Options.unwrapper
+    for iEcho = 1 : nEchoes
+        
+        if nEchoes > 1
+            display(['Unwrapping echo ' num2str(iEcho) ' of ' num2str(nEchoes) ] ) ;    
+        end
 
-        case 'AbdulRahman_2007'
-            
-            Phase.img(:,:,:,1, iVolume) = unwrap3d( Phase.img(:,:,:,1, iVolume), logical(Phase.Hdr.MaskingImage(:,:,:,1, iVolume)), Options ) ;
+        switch Options.unwrapper
 
-        case 'FslPrelude'
+            case 'AbdulRahman_2007'
+                
+                Phase.img(:,:,:,iEcho, iVolume) = unwrap3d( Phase.img(:,:,:,iEcho, iVolume), logical(Phase.Hdr.MaskingImage(:,:,:,iEcho, iVolume)), Options ) ;
 
-            if myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage)
-                Options.mask = single( Phase.Hdr.MaskingImage(:,:,:,1,iVolume) ) ;
-            end
-            
-            Options.voxelSize = Phase.getvoxelspacing() ;   
+            case 'FslPrelude'
 
-            Phase.img(:,:,:,1, iVolume) = prelude( Phase.img(:,:,:,1, iVolume), Mag.img(:,:,:,1, iVolume), Options ) ;
+                if myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage)
+                    Options.mask = single( Phase.Hdr.MaskingImage(:,:,:,iEcho,iVolume) ) ;
+                end
+                
+                Options.voxelSize = Phase.getvoxelspacing() ;   
 
-        case {'Sunwrap', 'sunwrap'}
-            
-            iMag      = Mag.img(:,:,:,1,iVolume) ;
-            iMag      = iMag./max(iMag(:)) ;
-            Phase.img(:,:,:,1, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,1,iVolume) ), Options.threshold ) ;
+                Phase.img(:,:,:,iEcho, iVolume) = prelude( Phase.img(:,:,:,iEcho, iVolume), Mag.img(:,:,:,iEcho, iVolume), Options ) ;
 
-        otherwise
-            error('Unrecognized "Options.unwrapper" input') ;
+            case {'Sunwrap', 'sunwrap'}
+                
+                iMag      = Mag.img(:,:,:,iEcho,iVolume) ;
+                iMag      = iMag./max(iMag(:)) ;
+                Phase.img(:,:,:,iEcho, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,iEcho,iVolume) ), Options.threshold ) ;
+
+            otherwise
+                error('Unrecognized "Options.unwrapper" input') ;
+        end
     end
-
 end
 
 Phase.img = double( Phase.img ) ;
 
 % update header
-Img.Hdr.ImageType         = 'DERIVED\SECONDARY' ; 
+Img.Hdr.ImageType         = 'DERIVED\SECONDARY\P\' ; 
 Img.Hdr.SeriesDescription = ['phase_unwrapped_' Options.unwrapper ] ; 
 
 end
