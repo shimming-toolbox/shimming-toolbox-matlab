@@ -609,34 +609,37 @@ if nargin < 3 || isempty(Params)
     Params.dummy = [] ;
 end
 
-if ~myisfield( Params, 'kernelSize' ) || isempty( Params.kernelSize )
-    Params.kernelSize = DEFAULT_KERNELSIZE ;
-end
+Params = assignifempty( Params, 'kernelSize', DEFAULT_KERNELSIZE ) ;
+Params = assignifempty( Params, 'method', DEFAULT_METHOD ) ;
 
-if ~myisfield( Params, 'method' ) || isempty( Params.method )
-    Params.method = DEFAULT_METHOD ;
-end
+nVolumes = Img.getnumberofmeasurements() ;
+nEchoes  = Img.getechotime() ;
 
 if nargin < 2 || isempty( weights )
-    weights = ones( Img.getgridsize() ) ;
+    weights = [ ones( Img.getgridsize() ) nEchoes nVolumes ] ;
 else
-    assert( all( size(weights) == Img.getgridsize() ), ...
-        'weights and image volume must possess the same dimensions, i.e. Img.getgridsize()' ) ;
+    assert( all( size(weights) == size(Img.img) ), ...
+        'Filter weights and image volume must possess the same dimensions' ) ;
 end
 
-switch Params.method
+for iVolume = 1 : nVolumes
+    for iEcho = 1 : nEchoes
 
-    case 'median'
+        img = Img.img(:,:,:, iEcho, iVolume ) ;
+        w   = weights(:,:,:, iEcho, iVolume ) ;
 
-        Img.img( ~weights ) = NaN ; % medfilt3() will ignore these values
-        Img.img = medfilt3( Img.img, Params.kernelSize ) ; 
-        Img.img( ~weights ) = 0 ;
-    
-    otherwise
+        switch Params.method
+            case 'median'
+                img( ~w ) = NaN ; % medfilt3() will ignore these values
+                img = medfilt3( img, Params.kernelSize ) ; 
+                img( ~w ) = 0 ;
+            otherwise 
+                weightsSmoothed = smooth3( w, Params.method, Params.kernelSize ) ;
+                Img.img = smooth3( w .* img, Params.method, Params.kernelSize ) ./ weightsSmoothed ; 
+        end
         
-        weightsSmoothed = smooth3( weights, Params.method, Params.kernelSize ) ;
-        Img.img = smooth3( weights .* Img.img, Params.method, Params.kernelSize ) ./ weightsSmoothed ; 
-
+        Img.img(:,:,:, iEcho, iVolume) = img ;
+    end
 end
 
 end
@@ -794,6 +797,30 @@ elseif strfind( Img.Hdr.ImageType, '\M\' )
     imgType = 'MAGNITUDE' ;
 else
     imgType = 'UNKNOWN' ;
+end
+
+end
+% =========================================================================
+function [nVolumes] = getnumberofmeasurements( Img )
+%GETNUMBEROFMEASUREMENTS    Returns the number of measurements
+%
+% n = GETNUMBEROFMEASUREMENTS( Img )
+%
+% NOTE
+%
+% GETNUMBEROFMEASUREMENTS( Img ) is equivalent to n = size( Img.img, 5 ),
+% however GETNUMBEROFMEASUREMENTS also checks the DICOM header in Img.Hdr and
+% issues a warning if n differs from the expected value
+% (Img.Hdr.MrProt.lRepetitions +1).
+
+nVolumes = size( Img.img, 5 ) ;
+
+if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
+    % number of measurements according to hdr:
+    nVolumesHdr = Img.Hdr.MrProt.lRepetitions + 1 ;
+    if nVolumes ~= nVolumesHdr
+        warning([ num2str(nVolumes) ' image volumes have been loaded, however the DICOM Hdr indicates ' num2str(nVolumesHdr) ' were acquired.'] ) ;
+    end 
 end
 
 end
@@ -1375,23 +1402,10 @@ if nargin < 2
     end
 end
 
-if nargin == 2 || ~myisfield( Options, 'unwrapper') || isempty(Options.unwrapper)
-    Options.unwrapper = DEFAULT_UNWRAPPER ;
-end
+Options = assignifempty( Options, 'threshold', DEFAULT_THRESHOLD ) ;
 
-if ~myisfield( Options, 'threshold') || isempty(Options.threshold)
-    Options.threshold = DEFAULT_THRESHOLD ;
-end
-
-if myisfield( Phase.Hdr.MrProt, 'lRepetitions' ) 
-    nVolumes = (Phase.Hdr.MrProt.lRepetitions + 1) ;
-else
-    nVolumes = 1;
-end
-
-assert( nVolumes == size( Phase.img, 5 ) ) ;
-
-nEchoes = length( Phase.getechotime() ) ;
+nVolumes = Phase.getnumberofmeasurements() ;
+nEchoes  = length( Phase.getechotime() ) ;
 
 for iVolume = 1 : nVolumes
 
