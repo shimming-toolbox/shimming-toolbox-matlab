@@ -105,25 +105,7 @@ void loop() {
       case 'u': // prints 5-digit precision DAC offset (float) \n  DAC gain \n for each shim channel
         usergetdaccompensationcoefficients() ;
         break;
-      case 'w':
-        //pushcurrentchannel();
-        break;
-
-        //      case 'z': // prints TRUE/FALSE \n
-        //        resetFunc();
-        //        break;
-
-        //      case 'g'://used to set DAC values
-        //        selectBoard(0);
-        //        float crt_val = Serial.parseFloat();
-        //        Serial.print("Write DAC: "); Serial.print(crt_val); Serial.print(" A");
-        //        for (int i = 0; i < 8; i++) {
-        //          LTC2656Write(WRITE_AND_UPDATE, channelMap[i], computeDacVal_I(crt_val + 0.1 * i, 0, i));
-        //        }
-        //        Serial.println();
-        //        break;
-
-
+      ;
     }
   }
 }
