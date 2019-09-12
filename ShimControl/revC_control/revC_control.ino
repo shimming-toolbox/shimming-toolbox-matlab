@@ -60,6 +60,7 @@ void setup() {
   userresetallshims( ) ;
   // system heartbeat prints TRUE to indicate system is responsive
   usergetsystemheartbeat() ;
+  userresetallshims( ) ;
 
 }
 
