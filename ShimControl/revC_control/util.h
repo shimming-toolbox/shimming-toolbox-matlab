@@ -156,7 +156,7 @@ uint16_t querychannelvoltage( uint8_t iChannel )
 
 float querychannelcurrent( uint8_t iChannel )
 
-{ Serial.print("CH ");Serial.print(iChannel+1);Serial.print(" ---> ");
+{ 
   // return single channel current [units: A]
 //  const float   R_L                    = 2.00;
 //  const float   R_OS                   = 10.00;
@@ -215,6 +215,7 @@ bool calibratedaccompensation()
   currentRequested = 0.0 ;
   // attempt to set all channels to 0.0 A
   resetallshims();
+  delay(1000);
 
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
@@ -226,6 +227,7 @@ bool calibratedaccompensation()
 
   // reset channels, now with the dac offsets adjusted
   resetallshims() ;
+  delay(1000);
 
 
   // error of original vs. adjusted currents:
@@ -253,7 +255,7 @@ bool calibratedaccompensation()
 
   resetallshims() ;
   // pause to ensure query is accurate (some latency exists)
-  delay(50);
+  delay(1000);
 
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
   {
@@ -265,6 +267,7 @@ bool calibratedaccompensation()
   }
 
   resetallshims();
+  delay(1000);
 
   // check adjusted results have lower error:
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
@@ -353,10 +356,10 @@ bool usersetandloadshimbychannel( void )
 void usergetallchannelcurrents()
 {
   // Print all channel currents in A
-  Serial.println("-------------");
+//  Serial.println("-------------");
   for (uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
     Serial.println( querychannelcurrent( iCh ), 5 ) ;
-  Serial.println("-------------");
+//  Serial.println("-------------");
 }
 
 void usergetallchannelvoltages( void )
