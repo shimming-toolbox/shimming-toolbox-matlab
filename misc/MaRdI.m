@@ -1405,7 +1405,7 @@ end
 Options = assignifempty( Options, 'threshold', DEFAULT_THRESHOLD ) ;
 
 nVolumes = Phase.getnumberofmeasurements() ;
-nEchoes  = length( Phase.getechotime() ) ;
+nEchoes  = size( Phase.img(), 4 ) ;
 
 for iVolume = 1 : nVolumes
 
@@ -1637,7 +1637,7 @@ if (nargin < 2) || (undoFlag ~= -1)
     assert( Img.isphase() && strcmp( Img.Hdr.PixelComponentPhysicalUnits, '0000H' ), ...
         'Expected Phase Img input with voxel values in radians' ) ;
     
-    scalingFactors = 1/(2*pi*te) ;
+    scalingFactors = 1./(2*pi*te) ;
     Img.Hdr.PixelComponentPhysicalUnits = '0005H' ; % i.e. Hz
 
 elseif (undoFlag == -1)
