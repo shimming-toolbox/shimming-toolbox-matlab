@@ -569,6 +569,75 @@ end
 
 end
 % =========================================================================
+function [t0] = estimatekorigintime( Img ) 
+%ESTIMATEKORIGINTIME
+% 
+% t0 = ESTIMATEKORIGINTIME( Img )
+%
+% Returns an estimate of when the k-space origin of an image was sampled
+% relative to the AcquisitionTime (field in Siemens DICOM header) as a double
+% in units of seconds. 
+% 
+% See also: MaRdI.getacquisitiontime()
+% 
+% NOTE: This is a crude estimate and only the case of Cartesian k-space
+% sampling, beginning at the k_min periphery, has been considered in the
+% current implementation!
+ 
+nSlices = Img.getnumberofslices() ;
+nEchoes = length( Img.getechotime() ) ;
+
+if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
+    nMeasurements = ( Img.Hdr.MrProt.lRepetitions + 1) ;
+else
+    nMeasurements = 1;
+end
+
+assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ;
+
+tAcq = Img.getacquisitiontime() ;
+
+% Estimate time from excitation to k-space origin:
+dt = 0; % [units: s]
+
+if Img.Hdr.MrProt.sKSpace.ucTrajectory == 1
+    
+    if ~strcmp( Img.Hdr.ScanningSequence, 'EPI' )
+    % NOTE: The Siemens DICOM field SliceMeasurementDuration appears to be a misnomer:
+    % Rather, it (usually?) refers to the duration of an entire volume. 
+        dt = Img.Hdr.Img.SliceMeasurementDuration/1000 ; % [units: s]
+    else
+    % *Exception*: Apparently EPI are handled differently as said DICOM field
+    % is oddly large (probably includes dummy volumes?)
+        dt = Img.Hdr.RepetitionTime/1000/nSlices ; % [units: s]
+    end
+    
+    pf = Img.getpartialfourierfactors() ;
+    
+    if all( pf == 1 )
+        dt = dt/2 ;
+    else
+        switch Img.Hdr.MRAcquisitionType 
+            case '2D'
+                dt = dt*( 3/2 - pf(2) ) ; 
+            case '3D' % not sure what the function is here...
+                error('Not implemented!') ;
+        end
+    end
+
+else    
+    display('Estimating time at which the k-space origin was sampled')
+    warning(' Current strategy is simplistic and likely wrong for certain encoding trajectories.')
+    dt = 0 ;
+end
+
+assert( dt >= 0, 'Unexpected value for time-to-origin since excitation (AcquisitionTime). See code + check DICOM entries are valid.' )
+
+t0 = tAcq + dt ;
+
+end
+% =========================================================================
+% =========================================================================
 function [] = filter( Img, weights, Params )
 %FILTER
 %
@@ -704,74 +773,6 @@ else % special case for EPI MOSAIC (single DICOM header for multiple slices)
     end
 
 end
-
-end
-% =========================================================================
-function [t0] = estimatekorigintime( Img ) 
-%ESTIMATEKORIGINTIME
-% 
-% t0 = ESTIMATEKORIGINTIME( Img )
-%
-% Returns an estimate of when the k-space origin of an image was sampled
-% relative to the AcquisitionTime (field in Siemens DICOM header) as a double
-% in units of seconds. 
-% 
-% See also: MaRdI.getacquisitiontime()
-% 
-% NOTE: This is a crude estimate and only the case of Cartesian k-space
-% sampling, beginning at the k_min periphery, has been considered in the
-% current implementation!
- 
-nSlices = Img.getnumberofslices() ;
-nEchoes = length( Img.getechotime() ) ;
-
-if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
-    nMeasurements = ( Img.Hdr.MrProt.lRepetitions + 1) ;
-else
-    nMeasurements = 1;
-end
-
-assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ;
-
-tAcq = Img.getacquisitiontime() ;
-
-% Estimate time from excitation to k-space origin:
-dt = 0; % [units: s]
-
-if Img.Hdr.MrProt.sKSpace.ucTrajectory == 1
-    
-    if ~strcmp( Img.Hdr.ScanningSequence, 'EPI' )
-    % NOTE: The Siemens DICOM field SliceMeasurementDuration appears to be a misnomer:
-    % Rather, it (usually?) refers to the duration of an entire volume. 
-        dt = Img.Hdr.Img.SliceMeasurementDuration/1000 ; % [units: s]
-    else
-    % *Exception*: Apparently EPI are handled differently as said DICOM field
-    % is oddly large (probably includes dummy volumes?)
-        dt = Img.Hdr.RepetitionTime/1000/nSlices ; % [units: s]
-    end
-    
-    pf = Img.getpartialfourierfactors() ;
-    
-    if all( pf == 1 )
-        dt = dt/2 ;
-    else
-        switch Img.Hdr.MRAcquisitionType 
-            case '2D'
-                dt = dt*( 3/2 - pf(2) ) ; 
-            case '3D' % not sure what the function is here...
-                error('Not implemented!') ;
-        end
-    end
-
-else    
-    display('Estimating time at which the k-space origin was sampled')
-    warning(' Current strategy is simplistic and likely wrong for certain encoding trajectories.')
-    dt = 0 ;
-end
-
-assert( dt >= 0, 'Unexpected value for time-to-origin since excitation (AcquisitionTime). See code + check DICOM entries are valid.' )
-
-t0 = tAcq + dt ;
 
 end
 % =========================================================================
@@ -1341,37 +1342,37 @@ timeStd = std( Img.img, 0, 5 ) ;
 
 end
 % =========================================================================
-function Phase = unwrapphase( Phase, Mag, Options )
+function [] = unwrapphase( Phase, varargin )
 %UNWRAPPHASE
 %
 % Interface to SUNWRAP, to FSL prelude, or to Abdul-Rahman's path-based phase unwrapper
 %
-%   Phase = UNWRAPPHASE( Phase )
-%   Phase = UNWRAPPHASE( Phase, Mag )
-%   Phase = UNWRAPPHASE( Phase, Mag, Options )
+%   [] = UNWRAPPHASE( Phase )
+%   [] = UNWRAPPHASE( Phase, Mag )
+%   [] = UNWRAPPHASE( Phase, Mag, Options )
 %   
 %   Phase and Mag are objects of type MaRdI.
 %
-%    .......................
-%    To call SUNWRAP [default if nargin ==2 ]
+% .......................
+% To call SUNWRAP 
 %    
-%    Options.unwrapper = 'Sunwrap'
+%   Options.unwrapper = 'Sunwrap'
 %
-%       See HELP SUNWRAP for more details.
+%   See HELP SUNWRAP for more details.
 % 
-%       Maier F, et al. Robust Phase Unwrapping for MR Temperature Imaging
-%       Using a Magnitude-Sorted List, Multi-Clustering Algorithm. Magn Reson
-%       Med, 73:1662-1668,2015.
+%   Maier F, et al. Robust Phase Unwrapping for MR Temperature Imaging Using a
+%   Magnitude-Sorted List, Multi-Clustering Algorithm. Magn Reson Med,
+%   73:1662-1668,2015.
 %
-%    .......................
-%    To call FSL Prelude   
+% .......................
+% To call FSL Prelude   
 % 
-%    Options.unwrapper = 'FslPrelude'
+%   Options.unwrapper = 'FslPrelude'
 %
-%       See HELP PRELUDE for description of Options 
+%   See HELP PRELUDE for description of Options 
 %   
-%    .......................
-%    To call the Abdul-Rahman unwrapper [default if ( nargin == 1) && size(Phase.img,3) > 1] 
+% .......................
+% To call the Abdul-Rahman unwrapper [default if ( nargin == 1) && size(Phase.img,3) > 1] 
 % 
 %    Options.unwrapper = 'AbdulRahman_2007'
 %
@@ -1388,7 +1389,21 @@ function Phase = unwrapphase( Phase, Mag, Options )
 % check inputs, assign defaults:
 assert( strcmp( Phase.Hdr.PixelComponentPhysicalUnits, '0000H' ), 'SCALEPHASE2RAD() before unwrapping.' ) ;
 
-DEFAULTS.threshold = 0.0 ;
+if nargin > 1
+    for iArg = 1 : length( varargin )
+        switch class( varargin{iArg} )
+            case 'MaRdI'
+                Mag = varargin{iArg} ;
+                assert( Mag.ismagnitude(), 'See HELP MaRdI.unwrapphase' ) ;
+            case 'struct'
+                Options = varargin{iArg} ;
+            otherwise
+                error('Unrecognized input. See HELP MaRdI.unwrapphase') ;
+        end
+    end
+end
+
+DEFAULTS.threshold = 0.001 ;
 
 if ( size( Phase.img, 3 ) > 1 )
     DEFAULTS.unwrapper = 'AbdulRahman_2007' ;    
@@ -1397,22 +1412,44 @@ else
 end
 
 Options.dummy = [];
-
-Options = assignifempty( Options, DEFAULTS ) ;
+Options       = assignifempty( Options, DEFAULTS ) ;
 
 if ( size( Phase.img, 3 ) == 1 ) && strcmp( Options.unwrapper, 'AbdulRahman_2007' )
-    warning('Options.unwrapper = AbdulRahman_2007 is not compatible with 2d phase images. Sunwrap will be used instead.') ;
+    warning('Options.unwrapper = AbdulRahman_2007 is incompatible with 2d images. Using Sunwrap method.') ;
     Options.unwrapper = 'Sunwrap' ;
 end
-    
-if nargin < 2 
-    assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
-            'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
+
+if ~any( strcmp( Options.unwrapper, {'Sunwrap','sunwrap','FslPrelude','AbdulRahman_2007'} ) )
+    error('Unrecognized "Options.unwrapper" input. See HELP MaRdI.unwrapphase') ;
 end
 
 %% ------
 nVolumes = Phase.getnumberofmeasurements() ;
 nEchoes  = size( Phase.img(), 4 ) ;
+
+if ~exist( 'Mag' )
+    assert( strcmp( Options.unwrapper, 'AbdulRahman_2007' ), ...
+        ['Missed required input: corresponding Magnitude MaRdI-object. ' ...
+        ' (Applies to Sunwrap and FslPrelude cases.) See HELP MaRdI.unwrapphase'] ) ;
+
+    assert( myisfieldfilled( Phase.Hdr, 'MaskingImage' ), ...
+        ['Either a logical masking array must be defined in Phase.Hdr.MaskingImage ' ...
+         'OR the input must include the corresponding Magnitude image. See HELP MaRdI.unwrapphase'] ) ;
+
+else
+    assert( Phase.iscoincident( Mag ), ['Inputs Mag.img and Phase.img must correspond '...
+        '(voxel positions, number of echoes, and number of measurements should all be identical'] )
+
+    if strcmp( Options.unwrapper, 'AbdulRahman_2007' ) && ~myisfieldfilled( Phase.Hdr, 'MaskingImage' )
+        for iVolume = 1 : nVolumes
+            for iEcho = 1 : nEchoes
+                mag = Mag.img(:,:,:,iEcho,iVolume) ;
+                mag = mag./max(mag(:)) ;
+                Phase.Hdr.MaskingImage(:,:,:,iEcho,iVolume) = mag > Options.threshold ;
+            end
+        end
+    end
+end
 
 for iVolume = 1 : nVolumes
 
@@ -1446,8 +1483,6 @@ for iVolume = 1 : nVolumes
                 iMag      = iMag./max(iMag(:)) ;
                 Phase.img(:,:,:,iEcho, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,iEcho,iVolume) ), Options.threshold ) ;
 
-            otherwise
-                error('Unrecognized "Options.unwrapper" input') ;
         end
     end
 end
@@ -1512,7 +1547,7 @@ fprintf(['\n Writing images to: ' saveDirectory ' ... \n'])
 
 [~,~,~] = mkdir( saveDirectory ) ;
 
-Img = rescaleimg( Img, true ) ;
+rescaleimg( Img, true ) ;
 
 [X,Y,Z] = Img.getvoxelpositions() ;
 
@@ -1626,6 +1661,31 @@ end
 % =========================================================================
 methods(Access=protected)
 % =========================================================================
+function isSame = iscoincident( Img1, Img2 )
+%ISCOINCIDENT   Check coincidence of 2 images 
+% 
+% isSame = ISCOINCIDENT( Img1, Img2 )
+%
+% Returns TRUE if Img1 and Img2 possess coincident voxel positions, echo times,
+% and number of measurements/volumes
+%
+% TODO: Check additional properties + add outputs for each?
+
+assert( ( nargin == 2 ) && isa( Img2, 'MaRdI' ), 'Missed required input: 2 MaRdI-objects' )
+
+isSame = false ;
+
+if MaRdI.compareimggrids( Img1, Img2 ) && all( size( Img1.img ) == size( Img2.img ) ) 
+     
+    isSame = true ;
+
+    if ~strcmp( Img1.Hdr.SeriesDescription, Img2.Hdr.SeriesDescription )
+        warning('A computation is being performed based on images acquired in seperate series.')
+    end
+end
+
+end    
+% =========================================================================
 function [] = scalephasetofrequency( Img, undoFlag )
 %SCALEPHASETOFREQUENCY
 %
@@ -1701,16 +1761,15 @@ s = Img.Hdr.Img.SliceNormalVector ;
 
 end 
 % =========================================================================
-function Img = rescaleimg( Img, isUndoing )
+function [] = rescaleimg( Img, isUndoing )
 %RESCALEIMG
 %
 % []=RESCALEIMG( Img ) 
 % []=RESCALEIMG( Img, isUndoing ) 
 %
-% Currently only alters phase images (+ Hdr) by rescaling to radians. Mag. is unaffected.
+% Only alters phase images (+ Hdr) by rescaling to radians. Mag. is unaffected.
 
-if isempty( strfind( Img.Hdr.ImageType, '\P\' ) )
-    % not a phase image
+if ~Img.isphase() 
     return;
 end
 
