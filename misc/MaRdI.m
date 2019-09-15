@@ -1384,26 +1384,33 @@ function Phase = unwrapphase( Phase, Mag, Options )
 %
 %    .......................
 
+%% ------
+% check inputs, assign defaults:
 assert( strcmp( Phase.Hdr.PixelComponentPhysicalUnits, '0000H' ), 'SCALEPHASE2RAD() before unwrapping.' ) ;
 
-DEFAULT_UNWRAPPER = 'Sunwrap' ;
-DEFAULT_THRESHOLD = 0.0 ;
+DEFAULTS.threshold = 0.0 ;
 
-Options.dummy     = [];
-
-if nargin < 2 
-    if ( size( Phase.img, 3 ) > 1 )
-        Options.unwrapper = 'AbdulRahman_2007' ;    
-
-        assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
-            'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
-    else
-        error('See help MaRdI.unwrapphase()') ;
-    end
+if ( size( Phase.img, 3 ) > 1 )
+    DEFAULTS.unwrapper = 'AbdulRahman_2007' ;    
+else
+    DEFAULTS.unwrapper = 'Sunwrap' ;
 end
 
-Options = assignifempty( Options, 'threshold', DEFAULT_THRESHOLD ) ;
+Options.dummy = [];
 
+Options = assignifempty( Options, DEFAULTS ) ;
+
+if ( size( Phase.img, 3 ) == 1 ) && strcmp( Options.unwrapper, 'AbdulRahman_2007' )
+    warning('Options.unwrapper = AbdulRahman_2007 is not compatible with 2d phase images. Sunwrap will be used instead.') ;
+    Options.unwrapper = 'Sunwrap' ;
+end
+    
+if nargin < 2 
+    assert( myisfield( Phase.Hdr, 'MaskingImage') && ~isempty(Phase.Hdr.MaskingImage), ...
+            'No Magnitude data provided: Options.unwrapper = AbdulRahman_2007. Logical masking array must be defined in Phase.Hdr.MaskingImage ' ) ;
+end
+
+%% ------
 nVolumes = Phase.getnumberofmeasurements() ;
 nEchoes  = size( Phase.img(), 4 ) ;
 
