@@ -1,5 +1,6 @@
 #include "hardware.h"
 #include "util.h"
+#define HWSERIAL Serial3
 
 int8_t channels_used[NUM_B][NUM_C]  =
 {
@@ -8,12 +9,12 @@ int8_t channels_used[NUM_B][NUM_C]  =
 
 void setup() {
   initIO();
-  Serial.begin(115200);
+  HWSERIAL.begin(115200);
   spiInit();
   selectBoard(0);
   delay(100);
-  while (!Serial) ;
-  Serial.println("ready to use");
+  while (!HWSERIAL) ;
+  HWSERIAL.println("ready to use");
   for (int b = 0; b < NUM_B; b++) {
     selectBoard(b);
     for (int c = 0; c < NUM_C; c++) {
@@ -32,9 +33,7 @@ void setup() {
       if (channels_used[b][c] != -1) {
         channel_order[i] = channels_used[b][c];
         board_order[i] = b;
-        //        Serial.print("Channel no. :"); Serial.print(i); Serial.print(" --- channel order: "); Serial.print(channel_order[i]); Serial.print(" --- board order: ");Serial.print(board_order[i]); //Used for debug only
         i = i + 1;
-        //        Serial.println();
       } else {
         break;
       }
@@ -66,8 +65,8 @@ void setup() {
 
 void loop() {
   char incomingByte;
-  if (Serial.available() > 0) {
-    incomingByte = Serial.read();
+  if (HWSERIAL.available() > 0) {
+    incomingByte = HWSERIAL.read();
     switch (incomingByte) {
 
       case 'a': // prints TRUE/FALSE \n
