@@ -385,9 +385,9 @@ warning( 'Serial port device name may change depending on the host computer.' )
 
 if ismac
    % portName = '/dev/cu.usbserial' ;          % USB to serial adapter
-    %portName = '/dev/tty.usbserial' ;          % USB to serial adapter
+    portName = '/dev/tty.usbserial' ;          % USB to serial adapter
     % portName = '/dev/tty.usbmodem14101' ; % direct USB to Arduino
-     portName = '/dev/tty.usbmodem48679001' ; % direct USB to Arduino
+    % portName = '/dev/tty.usbmodem48679001' ; % direct USB to Arduino
 elseif isunix
     portName = '/dev/ttyUSB0' ;   
 elseif ispc

@@ -59,7 +59,7 @@ for iCh = 1 :8
     Shim.Id.channelNames(iCh) = { ['Ch' num2str(iCh) ] } ; 
 end
     
-Shim.Com.baudRate    = 115200 ;  
+Shim.Com.baudRate    = 9600 ;  
 % Shim.Com.readTimeout = 500 ; %[units: ms] 
 
 Shim.Com.dataBits    = 8 ;

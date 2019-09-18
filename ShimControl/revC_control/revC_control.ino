@@ -9,7 +9,7 @@ int8_t channels_used[NUM_B][NUM_C]  =
 
 void setup() {
   initIO();
-  HWSERIAL.begin(115200);
+  HWSERIAL.begin(9600, SERIAL_8N1);
   spiInit();
   selectBoard(0);
   delay(100);
