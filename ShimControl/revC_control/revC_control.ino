@@ -1,6 +1,6 @@
 #include "hardware.h"
 #include "util.h"
-#define HWSERIAL Serial3
+
 
 int8_t channels_used[NUM_B][NUM_C]  =
 {
@@ -9,12 +9,13 @@ int8_t channels_used[NUM_B][NUM_C]  =
 
 void setup() {
   initIO();
-  HWSERIAL.begin(9600, SERIAL_8N1);
+  Serial3.begin(9600, SERIAL_8N1);
   spiInit();
   selectBoard(0);
   delay(100);
-  while (!HWSERIAL) ;
-  HWSERIAL.println("ready to use");
+  while (!Serial3) ;
+  Serial3.println("ready to use");
+  
   for (int b = 0; b < NUM_B; b++) {
     selectBoard(b);
     for (int c = 0; c < NUM_C; c++) {
@@ -33,7 +34,9 @@ void setup() {
       if (channels_used[b][c] != -1) {
         channel_order[i] = channels_used[b][c];
         board_order[i] = b;
+        //        Serial.print("Channel no. :"); Serial.print(i); Serial.print(" --- channel order: "); Serial.print(channel_order[i]); Serial.print(" --- board order: ");Serial.print(board_order[i]); //Used for debug only
         i = i + 1;
+        //        Serial.println();
       } else {
         break;
       }
@@ -65,11 +68,11 @@ void setup() {
 
 void loop() {
   char incomingByte;
-  if (HWSERIAL.available() > 0) {
-    incomingByte = HWSERIAL.read();
+  if (Serial3.available() > 0) {
+    incomingByte = Serial3.read();
     switch (incomingByte) {
 
-      case 'a': // prints TRUE/FALSE \n
+      case 'a': // prints TRUE/FALSE \n       
         usersetandloadallshims();
         break;
 
@@ -104,7 +107,7 @@ void loop() {
       case 'u': // prints 5-digit precision DAC offset (float) \n  DAC gain \n for each shim channel
         usergetdaccompensationcoefficients() ;
         break;
-      ;
+        ;
     }
   }
 }

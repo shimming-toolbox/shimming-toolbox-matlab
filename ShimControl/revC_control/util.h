@@ -1,4 +1,4 @@
-#define HWSERIAL Serial3
+
 /******************************************************/
 /******************* FUNCTIONS FROM ACDC **************/
 /******************************************************/
@@ -20,14 +20,14 @@ void resetallshims( )
 void usergetsystemheartbeat()
 {
   //simple query to ensure system is responsive
-  HWSERIAL.println( true );
+  Serial3.println( true );
 }
 
 bool userresetallshims()
 {
   // same as resetallshims() but prints+returns true when finished
   resetallshims();
-  HWSERIAL.println(true); return true;
+  Serial3.println(true); return true;
 }
 
 bool readfivedigitcurrent( uint16_t &current )
@@ -44,13 +44,13 @@ bool readfivedigitcurrent( uint16_t &current )
 
   while ( nBytesRead < 5 )
   {
-    if ( HWSERIAL.available() > 0 )
+    if ( Serial3.available() > 0 )
     {
-      inByte = HWSERIAL.read();
+      inByte = Serial3.read();
 
       if ( !isDigit( (char)inByte ) )
       {
-        HWSERIAL.println(false); return false;
+        Serial3.println(false); return false;
       }
       inString = (char)inByte ;
       D[nBytesRead] = inString.toInt() ;
@@ -101,7 +101,7 @@ bool usersetallshims()
 
     if ( !isCurrentReadSuccessful )
     {
-      HWSERIAL.println(false); return false;
+      Serial3.println(false); return false;
     }
   }
 
@@ -142,7 +142,7 @@ bool usersetandloadallshims()
   bool isReadSuccessful = false ;
   isReadSuccessful = usersetallshims() ;
   loadallshims() ;
-  HWSERIAL.println(isReadSuccessful);
+  Serial3.println(isReadSuccessful);
   return isReadSuccessful;
 
 }
@@ -161,12 +161,12 @@ float querychannelcurrent( uint8_t iChannel )
 //  const float   R_L                    = 2.00;
 //  const float   R_OS                   = 10.00;
   if (iChannel == 7) {
-//    Serial.println(R_L);
+//    Serial3.println(R_L);
     return ( float(querychannelvoltage( iChannel ))  - float(DAC_VREF)) / float(DAC_PREAMP_RESISTANCE) / float(R_L) ;
   }
   else
   {
-//    Serial.println(R_OS);
+//    Serial3.println(R_OS);
     return ( float(querychannelvoltage( iChannel ))  - float(DAC_VREF)) / float(DAC_PREAMP_RESISTANCE) / float(R_OS);
   }
 }
@@ -276,12 +276,12 @@ bool calibratedaccompensation()
     if ( ( offsetError1[iCh] <= offsetError0[iCh] + 1.0 ) & ( gainError1[iCh] <= gainError0[iCh] ) )
     {
       isChannelCalibrationSuccessful[iCh] = true ;
-      HWSERIAL.println( isChannelCalibrationSuccessful[iCh] ) ;
+      Serial3.println( isChannelCalibrationSuccessful[iCh] ) ;
     }
     else
     {
       isChannelCalibrationSuccessful[iCh] = false ;
-      HWSERIAL.println( isChannelCalibrationSuccessful[iCh] ) ;
+      Serial3.println( isChannelCalibrationSuccessful[iCh] ) ;
     }
   }
 
@@ -317,13 +317,13 @@ bool usersetandloadshimbychannel( void )
   // read channel index
   while ( nBytesRead < 1 )
   {
-    if ( HWSERIAL.available() > 0 )
+    if ( Serial3.available() > 0 )
     {
-      inByte = HWSERIAL.read();
+      inByte = Serial3.read();
 
       if ( !isDigit( (char)inByte ) )
       {
-        HWSERIAL.println(false); return false;
+        Serial3.println(false); return false;
       }
 
       inString = (char)inByte ;
@@ -336,19 +336,19 @@ bool usersetandloadshimbychannel( void )
   iCh = uint8_t(D) ;
   if ( ( iCh < 0 ) || iCh >= NUM_B * NUM_C )
   {
-    HWSERIAL.println(false); return false;
+    Serial3.println(false); return false;
   }
 
   isCurrentReadSuccessful = readfivedigitcurrent( current ) ;
 
   if ( !isCurrentReadSuccessful )
   {
-    HWSERIAL.println(false); return false ;
+    Serial3.println(false); return false ;
   }
   else
   {
     setandloadshimbychannel( iCh, uint16toamps( current ) ) ;
-    HWSERIAL.println(true); return true;
+    Serial3.println(true); return true;
   }
 
 }
@@ -356,17 +356,17 @@ bool usersetandloadshimbychannel( void )
 void usergetallchannelcurrents()
 {
   // Print all channel currents in A
-//  Serial.println("-------------");
+//  Serial3.println("-------------");
   for (uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++)
-    HWSERIAL.println( querychannelcurrent( iCh ), 5 ) ;
-//  Serial.println("-------------");
+    Serial3.println( querychannelcurrent( iCh ), 5 ) ;
+//  Serial3.println("-------------");
 }
 
 void usergetallchannelvoltages( void )
 {
   // Print all channel voltages in mV
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
-    HWSERIAL.println( querychannelvoltage( iCh ) ) ;
+    Serial3.println( querychannelvoltage( iCh ) ) ;
 }
 
 bool usersetandloadshimbychannelasfloat(void)
@@ -374,25 +374,25 @@ bool usersetandloadshimbychannelasfloat(void)
   uint8_t iCh ;
   float current ;
 
-  iCh = uint8_t( HWSERIAL.parseInt() );
-  HWSERIAL.print("CH: "); HWSERIAL.println(iCh);
+  iCh = uint8_t( Serial3.parseInt() );
+  Serial3.print("CH: "); Serial3.println(iCh);
   iCh = iCh - 1;
 
   if ( ( iCh < 0 ) || iCh >= NUM_B * NUM_C )
   {
-    HWSERIAL.println(false); return false;
+    Serial3.println(false); return false;
   }
 
-  current = HWSERIAL.parseFloat() ; // [units: A]
-  HWSERIAL.print("Current: "); HWSERIAL.println(current);
+  current = Serial3.parseFloat() ; // [units: A]
+  Serial3.print("Current: "); Serial3.println(current);
   if ( abs(current) <= AMP_MAXCURRENTPERCHANNEL )
   {
     LTC2656Write(WRITE_AND_UPDATE, channelMap[channel_order[iCh]], ampstodac(iCh, current)) ;
-    HWSERIAL.println(true); return true;
+    Serial3.println(true); return true;
   }
   else
   {
-    HWSERIAL.println(false); return false;
+    Serial3.println(false); return false;
   }
 
 }
@@ -401,8 +401,8 @@ void usergetdaccompensationcoefficients( void )
 {
   for ( uint8_t iCh = 0; iCh < NUM_B * NUM_C; iCh++ )
   {
-    HWSERIAL.println( dacOffset[ iCh ], 5 );
-    HWSERIAL.println( dacGain[ iCh ], 5 );
+    Serial3.println( dacOffset[ iCh ], 5 );
+    Serial3.println( dacGain[ iCh ], 5 );
   }
 }
 
