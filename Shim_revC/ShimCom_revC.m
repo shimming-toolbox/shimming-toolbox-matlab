@@ -203,6 +203,7 @@ function [] = closecomport( Shim )
 % Close serial communication port 
 
 fclose(Shim.ComPort);
+fclose(instrfindall);
 
 end
 % =========================================================================
