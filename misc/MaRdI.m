@@ -960,6 +960,38 @@ function nVoxels = getnumberofvoxels( Img )
 nVoxels = prod( Img.getgridsize( ) ) ;
 end
 % =========================================================================
+function mask = getreliabilitymask( Mag, threshold )
+%GETRELIABILITYMASK
+% 
+%  mask = getreliabilitymask( Mag )
+%  mask = getreliabilitymask( Mag, threshold )
+% 
+%  For each echo and each measurement, GETRELIABILITYMASK normalizes
+%  Mag.img(:,:,:,iEcho,iMeasurement) and returns a logical mask wherein
+%  elements are assigned TRUE whenever the corresponding normalized magnitude
+%  voxel is > threshold
+%
+%  By default, threshold = 0.01
+
+assert( Mag.ismagnitude(), 'Function expected magnitude image input' ) ;
+
+DEFAULTS.threshold = 0.01 ;
+
+if ( nargin == 1 ) || isempty( threshold )
+    threshold = DEFAULTS.threshold ;
+end
+
+mask = false( size( Mag.img ) ) ;
+
+for iVolume = 1 : size( mask, 5 ) 
+    for iEcho = 1 : size( mask, 4 ) 
+        mag = Mag.img(:,:,:,iEcho, iVolume) ;
+        mask(:,:,:,iEcho,iVolume) = ( mag./max(mag(:)) ) > threshold ;
+    end
+end
+
+end
+% =========================================================================
 function [X,Y,Z] = getvoxelpositions( Img )
 % GETVOXELPOSITIONS
 % 
@@ -1316,6 +1348,39 @@ end
 
 end
 % =========================================================================
+function [] = setmaskingimage( Img, mask )
+%SETMASKINGIMAGE
+% 
+% [] = SETMASKINGIMAGE( Img, mask ) 
+%
+% Copies valid mask (a logical array of 1's and 0's) to Img.Hdr.MaskingImage
+%
+% To be valid, mask must either be the same size as Img.img OR the same size as
+% Img.getgridsize() (i.e. the size of a single image volume of a
+% multi-echo/multi-measurement stack), in which case, the single mask is simply
+% copied such that the assigned Img.Hdr.MaskingImage always possesses the same
+% dimensions as Img.img
+
+assert( nargin == 2, 'Function requires at least 2 input arguments. See HELP MaRdI.setmaskingimage' ) ;
+
+if ~islogical( mask )
+    assert( numel(mask) == ( nnz( mask(:) == 0 ) + nnz( mask(:) == 1 ) ), ...
+        'Input mask must consist exclusively of zeros and ones. See HELP MaRdI.setmaskingimage' ) ;
+    mask = logical(mask) ;
+end
+
+if ndims( Img.img ) == ndims( mask ) && all( size(Img.img) == size( mask ) )
+    Img.Hdr.MaskingImage = mask ;
+elseif ndims( Img.img ) > ndims( mask ) && ...
+       ( numel( Img.getgridsize() ) == numel( size( mask ) ) ) && ...
+       ( all( Img.getgridsize() == size( mask ) ) ) % single mask provided
+    Img.Hdr.MaskingImage = repmat( mask, [1 1 1 size(Img.img, 4) size(Img.img, 5)] ) ;
+else 
+    error('Input mask and Img.img should possess the same dimensions' ) ;
+end
+
+end
+% =========================================================================
 function timeAverage = timeaverage( Img )
 %TIMEAVERAGE
 % 
@@ -1345,45 +1410,42 @@ end
 function [] = unwrapphase( Phase, varargin )
 %UNWRAPPHASE
 %
-% Interface to SUNWRAP, to FSL prelude, or to Abdul-Rahman's path-based phase unwrapper
+% Interface to SUNWRAP, to FSL Prelude, or to Abdul-Rahman's path-based phase unwrapper
+%
+% .......
+%   
+% Usage
 %
 %   [] = UNWRAPPHASE( Phase )
 %   [] = UNWRAPPHASE( Phase, Mag )
 %   [] = UNWRAPPHASE( Phase, Mag, Options )
 %   
 %   Phase and Mag are objects of type MaRdI.
-%
-% .......................
-% To call SUNWRAP 
-%    
-%   Options.unwrapper = 'Sunwrap'
-%
-%   See HELP SUNWRAP for more details.
 % 
-%   Maier F, et al. Robust Phase Unwrapping for MR Temperature Imaging Using a
-%   Magnitude-Sorted List, Multi-Clustering Algorithm. Magn Reson Med,
-%   73:1662-1668,2015.
+%   Options is a struct that can contain the following fields:
 %
-% .......................
-% To call FSL Prelude   
+%   .unwrapper 
+%       == 'AbdulRahman_2007' [default if Phase.img is 3D] : 
+%           calls UNWRAP3D. 
+%           Not permitted if Phase.img is 2D (will default to SUNWRAP)
+%           If Mag is supplied, Phase.Hdr.MaskingImage must
+%           See HELP UNWRAP3D for description of permitted Options 
+%
+%       == 'Sunwrap' [default if Phase.img is 2D] : 
+%           calls SUNWRAP. See HELP SUNWRAP for more details.
+%
+%       == 'FslPrelude' : calls PRELUDE. 
+%           See HELP PRELUDE for description of permitted Options 
 % 
-%   Options.unwrapper = 'FslPrelude'
+%   .threshold  [default = 0.01] 
+%       Relative threshold of Mag.img used to define the unwrapping region in
+%       the SUNWRAP case and for the other 2 cases when Phase.Hdr.MaskingImage
+%       is undefined (Mag.getreliabilitymask() is called).
 %
-%   See HELP PRELUDE for description of Options 
-%   
-% .......................
-% To call the Abdul-Rahman unwrapper [default if ( nargin == 1) && size(Phase.img,3) > 1] 
-% 
-%    Options.unwrapper = 'AbdulRahman_2007'
-%
-%       Phase is an object of type MaRdI and must have defined Phase.Hdr.MaskingImage
-%       See HELP UNWRAP3D for description of Options 
-%
-%       Abdul-Rahman H, et al. Fast and robust three-dimensional best path
-%       phase unwrapping algorithm. Applied Optics, Vol. 46, No. 26, pp.
-%       6623-6635, 2007.
-%
-%    .......................
+%   NOTE: UNWRAP3D and PRELUDE support an Options.mask input to which
+%   Phase.Hdr.MaskingImage will always be assigned. To assign the mask
+%   manually, run Phase.setmaskingimage before calling Phase.unwrapphase. 
+
 
 %% ------
 % check inputs, assign defaults:
@@ -1403,24 +1465,24 @@ if nargin > 1
     end
 end
 
-DEFAULTS.threshold = 0.001 ;
+DEFAULTS.threshold = 0.01 ;
 
 if ( size( Phase.img, 3 ) > 1 )
+    is3d = true ;
     DEFAULTS.unwrapper = 'AbdulRahman_2007' ;    
 else
+    is3d = false ;
     DEFAULTS.unwrapper = 'Sunwrap' ;
 end
 
 Options.dummy = [];
 Options       = assignifempty( Options, DEFAULTS ) ;
 
-if ( size( Phase.img, 3 ) == 1 ) && strcmp( Options.unwrapper, 'AbdulRahman_2007' )
-    warning('Options.unwrapper = AbdulRahman_2007 is incompatible with 2d images. Using Sunwrap method.') ;
-    Options.unwrapper = 'Sunwrap' ;
-end
-
 if ~any( strcmp( Options.unwrapper, {'Sunwrap','sunwrap','FslPrelude','AbdulRahman_2007'} ) )
     error('Unrecognized "Options.unwrapper" input. See HELP MaRdI.unwrapphase') ;
+elseif strcmp( Options.unwrapper, 'AbdulRahman_2007' ) && ( size( Phase.img, 3 ) == 1 )
+    warning('Options.unwrapper = AbdulRahman_2007 is incompatible with 2d images. Using Sunwrap method.') ;
+    Options.unwrapper = 'Sunwrap' ;
 end
 
 %% ------
@@ -1438,19 +1500,17 @@ if ~exist( 'Mag' )
 
 else
     assert( Phase.iscoincident( Mag ), ['Inputs Mag.img and Phase.img must correspond '...
-        '(voxel positions, number of echoes, and number of measurements should all be identical'] )
+        '(respective voxel positions and number of measurements should be identical'] )
 
-    if strcmp( Options.unwrapper, 'AbdulRahman_2007' ) && ~myisfieldfilled( Phase.Hdr, 'MaskingImage' )
-        for iVolume = 1 : nVolumes
-            for iEcho = 1 : nEchoes
-                mag = Mag.img(:,:,:,iEcho,iVolume) ;
-                mag = mag./max(mag(:)) ;
-                Phase.Hdr.MaskingImage(:,:,:,iEcho,iVolume) = mag > Options.threshold ;
-            end
-        end
+    if any( strcmp( Options.unwrapper, {'FslPrelude', 'AbdulRahman_2007'} ) ) && ~myisfieldfilled( Phase.Hdr, 'MaskingImage' )
+        mask = Mag.getreliabilitymask( Options.threshold ) ; 
+        % indexing for potential bug, e.g. in Siemens dual echo field mapping, where nEchoes magnitude input > nEchoes phase input...
+        % TODO: find a more elegant way of handling this...
+        Phase.setmaskingimage( mask(:,:,:,1:nEchoes,1:nVolumes) ) ; 
     end
 end
 
+%% ------
 for iVolume = 1 : nVolumes
 
     display(['Unwrapping volume ' num2str(iVolume) ' of ' num2str(nVolumes) ] ) ;    
@@ -1488,6 +1548,31 @@ for iVolume = 1 : nVolumes
 end
 
 Phase.img = double( Phase.img ) ;
+
+%% -----
+% if time series, correct for potential 2pi wraps between time points:
+if nVolumes > 1
+    display('Correcting for potential temporal phase wraps...')
+
+    for iEcho = 1 : nEchoes
+        % correct temporal wraps by comparing to phaseEstimate:
+        phaseEstimate = median( Phase.img(:,:,:,iEcho,:),  5, 'omitnan' ) ;
+
+        % normalize the estimate so its spatial median is within [-pi,pi]
+        tmpMask = logical( prod( Phase.Hdr.MaskingImage(:,:,:,iEcho,:), 5 ) ) ;
+        n       = round( median( phaseEstimate(tmpMask) )/pi ) ;
+        phaseEstimate = phaseEstimate - n*pi ;
+
+        % Wherever the absolute deviation from the estimate exceeds pi,
+        % correct the measurement by adding the appropriate pi-multiple:
+        for iVolume = 1 : nVolumes
+            dPhase = phaseEstimate - Phase.img( :,:,:,iEcho,iVolume )  ;
+            n      = ( abs(dPhase) > pi ) .* round( dPhase/pi ) ;
+            Phase.img( :,:,:,iEcho,iVolume ) = Phase.img(:,:,:,iEcho,iVolume ) + n*pi ;
+        end
+    end
+end
+
 
 % update header
 Img.Hdr.ImageType         = 'DERIVED\SECONDARY\P\' ; 
@@ -1666,7 +1751,7 @@ function isSame = iscoincident( Img1, Img2 )
 % 
 % isSame = ISCOINCIDENT( Img1, Img2 )
 %
-% Returns TRUE if Img1 and Img2 possess coincident voxel positions, echo times,
+% Returns TRUE if Img1 and Img2 possess coincident voxel positions
 % and number of measurements/volumes
 %
 % TODO: Check additional properties + add outputs for each?
@@ -1675,7 +1760,7 @@ assert( ( nargin == 2 ) && isa( Img2, 'MaRdI' ), 'Missed required input: 2 MaRdI
 
 isSame = false ;
 
-if MaRdI.compareimggrids( Img1, Img2 ) && all( size( Img1.img ) == size( Img2.img ) ) 
+if MaRdI.compareimggrids( Img1, Img2 )  
      
     isSame = true ;
 
