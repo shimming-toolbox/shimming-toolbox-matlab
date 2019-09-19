@@ -321,7 +321,7 @@ function [current] = currenttostring( Shim, current )
 assert( numel(current) == 1, '1 channel at a time...' ) ;
 
 % shift current to be >=0... then multiply by scaling factor
-current = num2str( uint16( ( current/2 + Shim.Specs.Amp.maxCurrentPerChannel(1) ) ...
+current = num2str( uint16( ( current + Shim.Specs.Amp.maxCurrentPerChannel(1) ) ...
     *65535/(2*Shim.Specs.Amp.maxCurrentPerChannel(1) ) ) ) ;
 
 for i0 = numel(current)+1 : 5

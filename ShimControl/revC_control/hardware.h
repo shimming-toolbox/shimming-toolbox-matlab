@@ -6,7 +6,7 @@
 #define NUM_C 8//number of channesl per board
 
 // power supply:
-const float AMP_MAXCURRENTPERCHANNEL = 5 ; // [units: amps]
+const float AMP_MAXCURRENTPERCHANNEL = 2.5 ; // [units: amps]
 const float AMP_CURRENTRANGE         = 2*AMP_MAXCURRENTPERCHANNEL ; // [units: amps]
 
 // 3 terms describing ADC hardware:
