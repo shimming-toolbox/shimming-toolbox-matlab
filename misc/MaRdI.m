@@ -1465,7 +1465,8 @@ if nargin > 1
     end
 end
 
-DEFAULTS.threshold = 0.01 ;
+DEFAULTS.threshold     = 0.01 ;
+DEFAULTS.isLinearizing = false ;
 
 if ( size( Phase.img, 3 ) > 1 )
     is3d = true ;
@@ -1502,13 +1503,38 @@ else
     assert( Phase.iscoincident( Mag ), ['Inputs Mag.img and Phase.img must correspond '...
         '(respective voxel positions and number of measurements should be identical'] )
 
-    if any( strcmp( Options.unwrapper, {'FslPrelude', 'AbdulRahman_2007'} ) ) && ~myisfieldfilled( Phase.Hdr, 'MaskingImage' )
+    if ~myisfieldfilled( Phase.Hdr, 'MaskingImage' )
         mask = Mag.getreliabilitymask( Options.threshold ) ; 
         % indexing for potential bug, e.g. in Siemens dual echo field mapping, where nEchoes magnitude input > nEchoes phase input...
         % TODO: find a more elegant way of handling this...
         Phase.setmaskingimage( mask(:,:,:,1:nEchoes,1:nVolumes) ) ; 
     end
 end
+
+if ( nEchoes > 1 ) && Options.isLinearizing
+    % phase evolution between 1st 2 echoes, to be used to correct 2*pi offsets
+    % of individual echoes after unwrapping
+    PhaseDiff      = Phase.copy() ;
+
+    img            = Mag.img(:,:,:,1,:) .* exp( i*Phase.img(:,:,:,1,:) ) ;
+    img(:,:,:,2,:) = Mag.img(:,:,:,2,:) .* exp( i*Phase.img(:,:,:,2,:) ) ;
+
+    PhaseDiff.img  = angle( img(:,:,:,2,:) .* conj(img(:,:,:,1,:) ) ) ;
+
+    PhaseDiff.Hdr.EchoTime = Phase.getechotime(2) - Phase.getechotime(1) ; % [units : ms]
+
+    mask = Phase.Hdr.MaskingImage(:,:,:,1,:) & Phase.Hdr.MaskingImage(:,:,:,2,:) ;
+    PhaseDiff.setmaskingimage( logical( mask ) & ~isnan( PhaseDiff.img ) ) ;
+
+    PhaseDiff.unwrapphase( Mag, Options ) ;
+
+    % if PhaseDiff is not centered around 0, shift it:
+    mask      = PhaseDiff.Hdr.MaskingImage(:,:,:,1,:) ;
+    phaseDiff = PhaseDiff.img(:,:,:,1,:) ; 
+    n         = round( median( phaseDiff(mask) )/pi ) ;
+    PhaseDiff.img(:,:,:,1,:) = PhaseDiff.img(:,:,:,1,:) - n*pi ;
+end    
+
 
 %% ------
 for iVolume = 1 : nVolumes
@@ -1544,13 +1570,45 @@ for iVolume = 1 : nVolumes
                 Phase.img(:,:,:,iEcho, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,iEcho,iVolume) ), Options.threshold ) ;
 
         end
+
+        if ( iEcho == 1 ) && Options.isLinearizing
+            % if phase(TE1) is not centered around 0, shift it:
+            mask  = Phase.Hdr.MaskingImage(:,:,:,1,iVolume) ;
+            phase = Phase.img(:,:,:,iEcho,iVolume) ; 
+            n     = round( median( phase(mask) )/pi ) ;
+            if n ~= 0
+                display('Centering phase of 1st echo to sit between [-pi,pi]') 
+                Phase.img(:,:,:,iEcho,iVolume) = Phase.img(:,:,:,iEcho,iVolume) - n*pi*double(mask) ;
+            end
+        end
+
     end
+
+    if ( nEchoes > 1 ) && Options.isLinearizing
+    %% -----
+    % Correct inter-echo wraps  
+        for iEcho = 1 : nEchoes 
+            % (assuming phase(TE=0) offset = 0):
+            phaseEstimate = (Phase.getechotime(iEcho)/PhaseDiff.Hdr.EchoTime)*PhaseDiff.img ;
+
+            err = phaseEstimate - Phase.img(:,:,:,iEcho,iVolume) ;
+            err = median( err( Phase.Hdr.MaskingImage(:,:,:,iEcho,iVolume ) ) ) ; 
+
+            % When the median deviation between estimate and unwrapped
+            % measurement exceeds pi, correct the measurement by adding the
+            % appropriate pi-multiple:
+            n  = ( abs(err) > pi ) .* round( err/pi )  ;
+
+            Phase.img(:,:,:,iEcho,iVolume) = Phase.img(:,:,:,iEcho,iVolume) + n*pi*Phase.Hdr.MaskingImage(:,:,:,iEcho,iVolume ) ;
+        end
+    end
+
 end
 
 Phase.img = double( Phase.img ) ;
 
 %% -----
-% if time series, correct for potential 2pi wraps between time points:
+% if time series, correct for potential wraps between time points:
 if nVolumes > 1
     display('Correcting for potential temporal phase wraps...')
 
@@ -1573,7 +1631,7 @@ if nVolumes > 1
     end
 end
 
-
+%% -----
 % update header
 Img.Hdr.ImageType         = 'DERIVED\SECONDARY\P\' ; 
 Img.Hdr.SeriesDescription = ['phase_unwrapped_' Options.unwrapper ] ; 
