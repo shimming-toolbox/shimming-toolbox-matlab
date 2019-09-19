@@ -696,14 +696,9 @@ function [Field] = mapfield( varargin )
 %       'AbdulRahman_2007' [default for 3d image volume], calls unwrap3d( ), which wraps to the Abdul-Rahman binary
 %       'FslPrelude', calls prelude( ), which wraps to FSL-prelude 
 
-DEFAULT_THRESHOLD    = 0.01 ;
-DEFAULT_UNWRAPPER_2D = 'Sunwrap' ; 
-DEFAULT_UNWRAPPER_3D = 'AbdulRahman_2007' ;
-
-assert( ( nargin >= 2 ) && ...
-        isa( varargin{1}, 'MaRdI' ) || ischar( varargin{1} ) && ...
-        isa( varargin{2}, 'MaRdI' ) || ischar( varargin{2} ), ...
-        'Invalid input.' ) ;
+%% -----
+% parse inputs
+assert( nargin >= 2, 'Not enough input arguments.' ) ;
 
 for iImg = 1 : 2
     if isa( varargin{iImg}, 'MaRdI' )
@@ -711,11 +706,13 @@ for iImg = 1 : 2
     elseif ischar( varargin{iImg} )
         display( ['Loading img ' num2str(iImg) ' of 2'] );
         Img = MaRdI( varargin{iImg} ) ;
+    else 
+        error('Invalid input') ;
     end
 
-    if ~isempty( strfind( Img.Hdr.ImageType, '\M\' ) )
+    if Img.ismagnitude() 
         Mag = Img.copy() ;
-    elseif ~isempty( strfind( Img.Hdr.ImageType, '\P\' ) )
+    elseif Img.isphase() 
         Phase = Img.copy() ;
     else
         error('Unexpected image type: Neither magnitude nor phase?') ;
@@ -728,41 +725,24 @@ else
     Params.dummy = [];
 end
 
-if ~myisfield( Params, 'threshold' ) || isempty( Params.threshold ) 
-    Params.threshold = DEFAULT_THRESHOLD ;
-end
+%% -----
+% assign defaults to unassigned parameters
+DEFAULTS.threshold = 0.01 ;
 
-if ~myisfield( Params, 'unwrapper' ) || isempty( Params.unwrapper ) 
-    nSlices = size( Phase.img, 3 ) ;
-    if nSlices == 1
-        Params.unwrapper = DEFAULT_UNWRAPPER_2D ;
-    else
-        Params.unwrapper = DEFAULT_UNWRAPPER_3D ;
-    end
-end
+Params = assignifempty( Params, DEFAULTS ) ;
     
-nEchoes       = length( Phase.getechotime() ) ;
-nMeasurements = size( Phase.img, 5 ) ;
-
 % -------
 % define spatial support for unwrapping
-if ~myisfield( Params, 'mask' ) || isempty( Params.mask )
-
-    Params.mask = true( [Phase.getgridsize() nEchoes nMeasurements] ) ;
-
-    for iMeasurement = 1 : nMeasurements
-        for iEcho = 1 : nEchoes 
-            mag_i = Mag.img(:,:,:,iEcho,iMeasurement) ;
-        
-            Params.mask(:,:,:,iEcho,iMeasurement) = Params.mask(:,:,:,iEcho,iMeasurement) .* ...
-                ( mag_i ./ max( mag_i(:) ) ) >= Params.threshold ; 
-        end
-    end
-
+if ~myisfieldfilled( Params, 'mask' ) 
+    Params.mask = Mag.getreliabilitymask( Params.threshold ) ;
     Params.mask = prod( Params.mask, 4 ) ;
 end
 
 Params.mask = logical( Params.mask ) ;
+
+
+nEchoes       = length( Phase.getechotime() ) ;
+nMeasurements = size( Phase.img, 5 ) ;
 
 % % ------- TODO Add support for separate excitations for each TE
 % if ImgArray{ 1, 2}.Hdr.MrProt.lContrasts == 1 
@@ -832,7 +812,7 @@ if nEchoes == 1
     PhaseDiff = Phase.copy() ;
     PhaseDiff.Hdr.EchoTime = Phase.getechotime() ;
 
-else
+elseif nEchoes == 2
     % -------
     % phase difference image via complex division of first 2 echoes
     PhaseDiff      = Phase.copy() ;
@@ -843,41 +823,17 @@ else
     PhaseDiff.img  = angle( img(:,:,:,2,:) .* conj(img(:,:,:,1,:) ) ) ;
 
     PhaseDiff.Hdr.EchoTime = Phase.getechotime(2) - Phase.getechotime(1) ; % [units : ms]
-
+else
+    error('nEchoes > 2 not supported. TODO') ;
 end
 
-PhaseDiff.Hdr.MaskingImage = logical( Params.mask ) & ~isnan( PhaseDiff.img ) ;
+PhaseDiff.setmaskingimage( logical( Params.mask ) & ~isnan( PhaseDiff.img ) ) ;
 
-% -------
-% 3d path-based unwrapping
-PhaseDiff = PhaseDiff.unwrapphase( Mag, Params ) ;
+PhaseDiff.unwrapphase( Mag, Params ) ;
 
-% if time series, correct for potential 2pi wraps between time points:
-nImg = size( PhaseDiff.img, 5 ) ;
+PhaseDiff.img  = PhaseDiff.img/(2*pi*PhaseDiff.Hdr.EchoTime/1000) ;
+PhaseDiff.Hdr.PixelComponentPhysicalUnits = '0005H' ; % i.e. Hz
 
-if nImg > 1
-    display('Correcting for temporal wraps in field time-series')
-
-    % correct temporal wraps by comparing to phaseEstimate:
-    phaseEstimate = median(PhaseDiff.img,  5, 'omitnan' ) ;
-    % normalize the estimate so its spatial median is within [-pi,pi]
-    tmpMask = logical( prod( Params.mask, 5 ) ) ;
-    n       = round(median(phaseEstimate(tmpMask))/pi) ;
-    phaseEstimate = phaseEstimate - n*pi ;
-
-    % Wherever the absolute deviation from the estimate exceeds pi,
-    % correct the measurement by adding the appropriate pi-multiple:
-    for iImg = 1 : nImg
-        dPhase = phaseEstimate - PhaseDiff.img( :,:,:,1,iImg )  ;
-        n      = ( abs(dPhase) > pi ) .* round( dPhase/pi ) ;
-        PhaseDiff.img( :,:,:,1,iImg ) = PhaseDiff.img(:,:,:,1,iImg ) + n*pi ;
-    end
-    
-end
-
-PhaseDiffInRad = PhaseDiff.copy() ; % PhaseDiffInRad.img : [units: rad]
-
-PhaseDiff.scalephasetofrequency( ) ; % PhaseDiff.img : [units: Hz]
 Field     = FieldEval( PhaseDiff ) ;
 
 if nEchoes > 2
