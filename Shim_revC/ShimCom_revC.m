@@ -47,7 +47,7 @@ Shim.Params.nSendAttemptsMax = 5; % # communication attempts before error
 Shim.opencomport() ;
 
 isAckReceived = Shim.getsystemheartbeat() ;
-
+pause(5);
 if isAckReceived
     isCalibrationSuccessful = Shim.calibratedac() ;
     if ~isCalibrationSuccessful
@@ -90,7 +90,7 @@ assert( ( round(iCh) == iCh ) & ( iCh > 0 ) & ( iCh <= Shim.Specs.Amp.nChannels 
     ['Channel index must be an integer between 1 and ' num2str( Shim.Specs.Amp.nChannels)] ) ;
 
 Shim.Data.output        = Shim.Cmd.setAndLoadShimByChannel ;
-Shim.Data.output(end+1) = num2str( iCh - 1 ) ; % Arduino uses 0-based indexing
+Shim.Data.output(end+1) = num2str( iCh ) ; 
 Shim.Data.output = [Shim.Data.output Shim.currenttostring( current )] ;
 Shim.Data.output
 Shim.sendcmd() ;

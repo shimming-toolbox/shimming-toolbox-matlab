@@ -13,7 +13,6 @@ const float AMP_CURRENTRANGE         = 2*AMP_MAXCURRENTPERCHANNEL ; // [units: a
 const uint8_t ADC_RESOLUTION         = 12 ; // 12-bit
 const float   ADC_RANGE_VOUT         = 4.750 ; 
 const float   R_L                    = 2.00;
-const float   R_OS                   = 10.00;
 
 // 1 derived term for convenience:
 const uint16_t ADC_MILLIVOLTSPERBIT  = round( 1000*2.0*ADC_RANGE_VOUT/( pow( 2.0, float(ADC_RESOLUTION) ) - 1.0 ) ) ; // = 1 [uints: mV/bit-count]
