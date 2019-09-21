@@ -15,13 +15,15 @@ function isFieldFilled = myisfieldfilled( StructObjIn, fieldName )
 %
 % See also: MYISFIELD, ASSIGNIFEMPTY
 
-if ( nargin ~= 2 ) || ~( isstruct( StructObjIn ) || isobject( StructObjIn ) ) || ~ischar( fieldName )
+if ( nargin ~= 2 ) || ~ischar( fieldName ) || ...
+        ~( isempty( StructObjIn) || isstruct( StructObjIn ) || isobject( StructObjIn ) )
     help(mfilename); 
     return; 
 else
     isFieldFilled = false ;
-
-    if myisfield( StructObjIn, fieldName ) ;
+    if isempty( StructObjIn )
+        return ;
+    elseif myisfield( StructObjIn, fieldName ) ;
         if ~isempty( StructObjIn(1).(fieldName) )
             isFieldFilled = true ;
             return ;
