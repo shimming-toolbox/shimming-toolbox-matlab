@@ -719,6 +719,8 @@ for iImg = 1 : 2
     end
 end
 
+assert( exist(Phase), 'Input did not include a Phase image (MaRdI object). See help FieldEval.mapfield' ) 
+
 if isstruct( varargin{end} )
     Params = varargin{end} ;
 else
@@ -739,7 +741,6 @@ if ~myisfieldfilled( Params, 'mask' )
 end
 
 Params.mask = logical( Params.mask ) ;
-
 
 nEchoes       = length( Phase.getechotime() ) ;
 nMeasurements = size( Phase.img, 5 ) ;
