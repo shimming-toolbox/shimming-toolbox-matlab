@@ -106,6 +106,7 @@ properties
     System; %
 end
 properties( Hidden = true )
+    Interpolant ;
     Ref ; % original shim reference maps before interpolation
 end
 % =========================================================================
@@ -223,10 +224,8 @@ end
 % =========================================================================
 function [] = delete( Shim )
 %DELETE  
-% 
-% DELETE( Shim )
- 
-
+% clear Shim 
+clear Shim
 end
 % =========================================================================
 
@@ -964,17 +963,23 @@ DEFAULT_MEDIASAVEDIR                   = [ './shimopt_results_' datestr(now,30) 
 DEFAULT_ISDISPLAYINGRESULTS            = false ;
 DEFAULT_ISSAVINGRESULTSTABLE           = true ;
 
-% TODO: Create new class to handle all Tx related aspects
+% TODO: Create new class to handle all Tx related aspects. These defaults are for the IUGM Prisma fit
 DEFAULT_MINTXFREQUENCY = 123100100 ; % [units: Hz]
 DEFAULT_MAXTXFREQUENCY = 123265000 ; % [units: Hz]
 
 %% -----
 % Check inputs + assign parameters 
-if nargin < 1
-    error('Function requires at least 1 argument: a ShimOpt instance')
-elseif nargin == 1 || isempty( Params ) 
+if nargin == 1 || isempty( Params ) 
     Params.dummy = [] ; % Using default parameters
 end
+
+Params = assignifempty( Params, 'isReturningPseudoInverse', DEFAULT_ISRETURNINGPSEUDOINVERSE ) ;
+Params = assignifempty( Params, 'isRealtimeShimming', DEFAULT_ISREALTIMESHIMMING ) ;
+Params = assignifempty( Params, 'isDisplayingResults', DEFAULT_ISDISPLAYINGRESULTS ) ;
+Params = assignifempty( Params, 'isSavingResultsTable', DEFAULT_ISSAVINGRESULTSTABLE ) ;
+
+Params = assignifempty( Params, 'assessmentVoi', Shim.Field.Hdr.MaskingImage ) ;
+
 
 if isa( Shim.Aux, 'ShimOpt' )
     if ~myisfield(Params, 'isJointOptimization') || isempty( Params.isJointOptimization ) 
@@ -984,19 +989,20 @@ else
     Params.isJointOptimization = false ;
 end
 
-if ~myisfield(Params, 'isReturningPseudoInverse') || isempty( Params.isReturningPseudoInverse ) 
-    Params.isReturningPseudoInverse = DEFAULT_ISRETURNINGPSEUDOINVERSE ; 
-end
+% check imaging frequency
+Params = assignifempty( Params, 'maxTxFrequency', DEFAULT_MAXTXFREQUENCY ) ;
+Params = assignifempty( Params, 'minTxFrequency', DEFAULT_MINTXFREQUENCY ) ;
 
-if ~myisfield(Params, 'maxPositiveTxFrequencyShift') || isempty( Params.maxPositiveTxFrequencyShift )
-    % max + freq. shift relative to original Larmor
-    Params.maxPositiveTxFrequencyShift = DEFAULT_MAXTXFREQUENCY - double(Shim.Field.Hdr.ImagingFrequency)*1E6 ;
-end
+f0 = Shim.Field.getimagingfrequency() ;
 
-if ~myisfield(Params, 'maxNegativeTxFrequencyShift') || isempty( Params.maxNegativeTxFrequencyShift )
-    % max - freq. shift relative to original Larmor
-    Params.maxNegativeTxFrequencyShift = DEFAULT_MINTXFREQUENCY - double(Shim.Field.Hdr.ImagingFrequency)*1E6 ;
-end
+if ( f0 > DEFAULT_MAXTXFREQUENCY ) || ( f0 < DEFAULT_MINTXFREQUENCY )
+    error('Imaging frequency of the input Field is outside the expected range. See input Params.minTxFrequency and Params.maxTxFrequency' ) ;
+end 
+
+% max +/- freq. shift relative to original Larmor
+Params = assignifempty( Params, 'maxPositiveTxFrequencyShift', DEFAULT_MAXTXFREQUENCY - f0 ) ;
+Params = assignifempty( Params, 'maxNegativeTxFrequencyShift', DEFAULT_MINTXFREQUENCY - f0 ) ;
+
 
 if Params.isJointOptimization 
     % total active channels across systems
@@ -1052,9 +1058,7 @@ else
     end
 end
 
-if ~myisfield(Params, 'minCorrectionPerChannel') || isempty( Params.minCorrectionPerChannel ) 
-    Params.minCorrectionPerChannel = -Params.maxCorrectionPerChannel ; 
-end
+Params = assignifempty( Params, 'minCorrectionPerChannel', -Params.maxCorrectionPerChannel ) ;
 
 assert( ( length( Params.maxCorrectionPerChannel ) == length( Params.minCorrectionPerChannel ) ) && ...
         ( length( Params.maxCorrectionPerChannel ) == Params.nActiveChannels ), ...
@@ -1069,30 +1073,14 @@ Params.minStaticCorrectionPerChannel( Params.activeStaticChannelsMask ) = Params
 Params.maxStaticCorrectionPerChannel = zeros( size( Params.activeStaticChannelsMask ) ) ;
 Params.maxStaticCorrectionPerChannel( Params.activeStaticChannelsMask ) = Params.maxCorrectionPerChannel( Params.activeStaticChannelsMask ) ;
 
-if ~myisfield(Params, 'assessmentVoi') || isempty( Params.assessmentVoi )
-    Params.assessmentVoi = Shim.Field.Hdr.MaskingImage ;
-end
-
-if ~myisfield(Params, 'isRealtimeShimming') || isempty( Params.isRealtimeShimming )
-    Params.isRealtimeShimming = DEFAULT_ISREALTIMESHIMMING ;
-end
 
 % if ~myisfield(Params, 'regularizationParameter') || isempty( Params.regularizationParameter ) 
 %     Params.regularizationParameter = DEFAULT_REGULARIZATIONPARAMETER ;
 % end
 
-if ~myisfield(Params, 'mediaSaveDir') || isempty( Params.mediaSaveDir ) 
-    Params.mediaSaveDir = DEFAULT_MEDIASAVEDIR ; 
-end
+Params = assignifempty( Params, 'mediaSaveDir', DEFAULT_MEDIASAVEDIR ) ;
 mkdir( Params.mediaSaveDir ) ;
 
-if ~myisfield(Params, 'isDisplayingResults') || isempty( Params.isDisplayingResults ) 
-    Params.isDisplayingResults = DEFAULT_ISDISPLAYINGRESULTS ; 
-end
-
-if ~myisfield(Params, 'isSavingResultsTable') || isempty( Params.isSavingResultsTable ) 
-    Params.isSavingResultsTable = DEFAULT_ISSAVINGRESULTSTABLE ; 
-end
 
 if Params.isRealtimeShimming
 
@@ -1793,93 +1781,271 @@ end
 end
 % =========================================================================
 function [ img, Hdr ] = mapdbdi( Params )
-%MAPDBDI
+%MAPDBDI    map dB/dI : field shift [Hz] per unit current (A)
 % 
 % [ img, Hdr ] = MAPDBDI( Params ) 
+
 %
-% map dB/dI --- change in field [Hz] per unit current (A)
 % 
 % Params
-%   .reliabilityMask 
-%       binary array indicating where phase unwrapping should take place 
 %
-% TODO
-%   Clean-up + Documentation
+%   For unwrapping (see MaRdI.unwrapphase for details):
+%
+%       .threshold 
+%       .unwrapper
+dbstop in ShimOpt at 1797
+DEFAULTS.unwrapper = 'AbdulRahman_2007' ; 
+DEFAULTS.threshold = 0.05 ; 
 
-img = [] ;
-Hdr = [] ;
+if nargin == 0 || isempty( Params )
+    Params.dummy = [] ;
+end
 
-Mag   = MaRdI( Params.dataLoadDirectories{1} ) ;
-dBdI  = zeros( [ Mag.getgridsize Params.nChannels ] ) ;
-masks = zeros( [ Mag.getgridsize Params.nEchoes Params.nChannels ] ) ;
+Params = assignifempty( Params, DEFAULTS ) ;
 
-for iChannel = 1 : Params.nChannels 
+img   = [] ;
+Hdr   = [] ;
+dBdI  = [] ;
+
+nChannels = size( Params.currents, 1 ) ;
+nCurrents = size( Params.currents, 2 ) ;
+
+assert( nCurrents == 2 )
+
+assert( ( size( Params.dataLoadDirectories, 1 ) == nCurrents ) ...
+    && ( size( Params.dataLoadDirectories, 3 ) == nChannels ), ...
+    'mapdbdi requires 2 calibration currents be defined for each channel, with corresponding image folders defined for each' )
+
+disp( ['Performing shim calibration...' ] )        
+
+
+    Fields = cell( nCurrents, 1, 8 ) ;
+for iChannel = 1 : nChannels 
     
-    disp(['Channel ' num2str(iChannel) ' of ' num2str(Params.nChannels) ] )        
-    
-    TE        = zeros( Params.nEchoes, 1 ) ;
-    fieldMaps = zeros( [ Mag.getgridsize Params.nEchoes ] ) ;
-        
-    Img = cell( Params.nEchoes, 2, Params.nCurrents ) ;
+    disp(['Channel ' num2str(iChannel) ' of ' num2str(nChannels) ] )        
 
-    for iEcho = 1 : Params.nEchoes
-        
-        for iCurrent = 1  : Params.nCurrents
-            % -------
-            % PROCESS GRE FIELD MAPS
-            Img{ iEcho, 1, iCurrent } = MaRdI( Params.dataLoadDirectories{ iEcho, 1, iCurrent, iChannel }  ) ; % mag
-            Img{ iEcho, 2, iCurrent } = MaRdI( Params.dataLoadDirectories{ iEcho, 2, iCurrent, iChannel }  ) ; % phase
+    % for iCurrent = 1  : nCurrents
+    %     Fields{ iCurrent, 1, iChannel } = FieldEval( Params.dataLoadDirectories{ iCurrent, 1, iChannel }, ...
+    %                                                  Params.dataLoadDirectories{ iCurrent, 2, iChannel }, Params  ) ; 
+    % end
+
+    dB = Fields{2,1,iChannel}.img - Fields{1,1,iChannel}.img ;
+    dI = Params.currents(iChannel,2) - Params.currents(iChannel, 1) ;
+
+    dBdI(:,:,:,iChannel) = dB/dI ;
+end
+
+for iChannel = 1 : nChannels 
+    dBdI0 = dBdI(:,:,:,iChannel) ;
+    dBdI2(:,:,:,iChannel) = dBdI0 - dBdI0(iR) ;
+end
+
+for iChannel = 1 : nChannels 
+    
+    disp(['Channel ' num2str(iChannel) ' of ' num2str(nChannels) ] )        
+
+    Img = cell( nCurrents, 2 ) ;
+
+    for iCurrent = 1  : nCurrents
+        Img{ iCurrent, 1 } = MaRdI( Params.dataLoadDirectories{ iCurrent, 1, iChannel }  ) ; % mag
+        Img{ iCurrent, 2 } = MaRdI( Params.dataLoadDirectories{ iCurrent, 2, iChannel }  ) ; % phase
+    end
+    
+    % ASSUMES :
+    %   NO TX FREQUENCY SHIFT BETWEEN ACQUISITIONS
+    % TODO
+    %   adjust Field in the event Tx Freq. changed between scans/shim currents
+    
+    assert( all( Img{1,1}.getechotime() ) == all( Img{2,1}.getechotime() ), ...
+        'Expected identical echo times across acquisitions' )
+    assert( MaRdI.compareimggrids( Img{1,1}, Img{2,1} ), ...
+         'Expected identical voxel positions across acquisitions' )
+
+    if iChannel == 1
+        dBdI    = zeros( [ Img{1,1}.getgridsize Params.nChannels ] ) ;
+        [X,Y,Z] = Img{1,1}.getvoxelpositions() ;
+    else
+        [X1,Y1,Z1] = Img{1,1}.getvoxelpositions ;
+        if ~MaRdI.compareimggrids( X,Y,Z, X1,Y1,Z1)
+            error('Voxel positions should remain constant across all acquisitions' ) ;
         end
-        
-        if Params.nEchoes == 1 % 2 echoes acquired but only 1 input (phase *difference* image)
-            assert( myisfield( Img{ 1, 2, iCurrent }.Hdr.MrProt, 'alTE') && numel( Img{ 1, 2, iCurrent }.Hdr.MrProt.alTE ) >= 2, ...
-               'Expected Siemens FM phase difference image with at least 2 TEs specified in the DICOM header.' )
-            % replace echo time stored in siemens header with the echo time difference between the 1st 2 echoes:       
+    end
 
-            Img{ 1, 2, iCurrent}.Hdr.EchoTime = ... 
-                ( Img{ 1, 2, iCurrent }.Hdr.MrProt.alTE(2) - Img{ 1, 2, iCurrent }.Hdr.MrProt.alTE(1) )/1000 ; % [units : ms]
-        
-        end 
+    TE        = Img{1,1}.getechotime() ;
+    nEchoes   = length( TE ) ;
+    
+    Mag       = Img{ 1, 1 }.copy() ;
+    Phase     = Img{ 1, 2 }.copy() ;
 
-        TE( iEcho ) = Img{ iEcho, 2, 1 }.Hdr.EchoTime ;
+    % complex difference between the 2 acquisitions:
+    Phase.img = angle( ( Img{ 2, 1 }.img .*exp(i*Img{ 2, 2 }.img) ) .* conj( Img{ 1, 1 }.img .*exp(i*Img{ 1, 2 }.img) ) ) ;
 
-        % ASSUMES :
-        %   NO TX FREQUENCY SHIFT BETWEEN ACQUISITIONS
-        % TODO
-        %   adjust Field in the event Tx Freq. changed between scans/shim currents
-        Mag     = Img{ iEcho, 1, 2 }.copy() ;
-        Phase   = Img{ iEcho, 2, 2 }.copy() ;
-        
-        Mag.img = ( Img{ iEcho, 1, 1 }.img + Img{ iEcho, 1, 2 }.img )/2 ;
-        Mag.img = Mag.img./max(Mag.img(:)) ;
-        
-        Phase.img = angle( Img{ iEcho, 1, 2 }.img .*exp(i*Img{ iEcho, 2, 2 }.img) ...
-            .* conj( Img{ iEcho, 1, 1 }.img .*exp(i*Img{ iEcho, 2, 1 }.img) ) ) ;
-        
-        Phase.Hdr.MaskingImage = Mag.img > Params.threshold ;
+    %% -----
+    % create reliability MaskingImage for phase unwrapping based on the magnitude:
+    % average across the 2 acquisitions and normalize
+    Mag.img = ( Img{1,1}.img + Img{2,1}.img )/2 ; 
 
-        Phase.unwrapphase( Mag, Params ) ; 
-        Field = Phase.copy();
-        Field.scalephasetofrequency() ;
+    echoMasks = ones( size( Mag.img ) ) ;
 
-        % convert to Hz/A
-        Field.img = Field.img/( Params.currents( iChannel, 2) - Params.currents( iChannel, 1) ) ;
-        
-        % smoothing: [3x3x3] magnitude-weighted Gaussian filtering
-        Field.filter( Mag.img ) ; 
-        
-        fieldMaps( :,:,:, iEcho ) = Field.img ;
+    for iEcho = 1 : nEchoes
+        tmp = Mag.img(:,:,:,iEcho) ;
+        Mag.img(:,:,:,iEcho) = Mag.img(:,:,:,iEcho) /max( tmp(:) ) ;
 
-        % mask out later echoes from field estimate if later echoes deviate
-        % more than 50 Hz from the field map based on the early echoes:
-        masks( :,:,:, iEcho, iChannel ) = Field.Hdr.MaskingImage & ( fieldMaps( :,:,:, iEcho ) ~= 0 ) & ( abs( fieldMaps(:,:,:, iEcho ) - fieldMaps(:,:,:, 1) ) < 50 ) ;
-        
-    end 
+        echoMasks(:,:,:,iEcho) = TE(iEcho)*ones( Fields.getgridsize() ) < TE_max ;
+        Phase.Hdr.MaskingImage(:,:,:,iEcho) = echoMasks(:,:,:,iEcho) .* ( Mag.img(:,:,:,iEcho) > Params.threshold ) ;
+    end
 
-    fieldMaps( ~masks(:,:,:,:,iChannel) ) = NaN ; 
-    dBdI(:,:,:, iChannel)  = median( fieldMaps, 4, 'omitnan' ) ;
+    Phase.Hdr.MaskingImage = Mag.img > Params.threshold ;
+    
+    Phase.unwrapphase( Mag, Params ) ; 
+
+    Fields = Phase.copy() ;
+    Fields.scalephasetofrequency() ;
+    %% -----
+    % Field.img now contains nEchoes estimates of the field change per
+    % unit-change in shim amplitude along its 4th dimension. 
+    % We now need to combine them, accounting for problem regions where too
+    % much intervoxel dephasing may have occurred
+   
+    % estimate the inter-voxel dephasing 
+
+    % Fields now contains nEchoes estimates of the effective applied field introduced by the shim
+    % before combining the estimates, exclude potential problem regions where excessive intervoxel
+    % dephasing may have occured by using the the applied field estimate at the 1st echo (minimal dephasing):
+    
+    % use the absolute spatial gradient in the phase at the first echo (minimal dephasing)    
+    [Dx, Dy, Dz] = createdifferenceoperators( Fields.getgridsize(), Fields.getvoxelspacing(), 1 ) ; 
+
+    df1   = Fields.img(:,:,:,1 ) ;
+    % effective gradient [units: Hz/mm]
+    Gx_eff = reshape( abs(Dx*df1(:)), Fields.getgridsize() ) ;
+    Gy_eff = reshape( abs(Dy*df1(:)), Fields.getgridsize() ) ;
+    Gz_eff = reshape( abs(Dz*df1(:)), Fields.getgridsize() ) ;
+
+    voxelSpacing = Fields.getvoxelspacing() ;
+
+    % 2pi phase dispersion across a voxel will result in total signal loss;
+    % however, the need for unwrapping imposes a stricter limit on phase
+    % accumulation: wraps cannot occur more frequently than ~ 
+    TE_max = 1000*pi./( voxelSpacing(1)*Gx_eff + voxelSpacing(2)*Gy_eff + voxelSpacing(3)*Gz_eff )/4 ;
+
+    echoWeights = zeros( size( Fields.img ) ) ;
+    
+    for iEcho = 1 : nEchoes
+        % exclude voxels wherever the estimated max TE is exceeded: 
+        echoMask = TE(iEcho)*ones( Fields.getgridsize() ) < TE_max ;
+
+        % average reference map to be weighted by the echo-time x avg. magnitude(TE)
+        echoWeights(:,:,:,iEcho) = TE(iEcho)*echoMask.*Mag.img(:,:,:,iEcho) ;
+    end
+
+    %ESTIMATE + SAVE DBDI SNR
+
+    % Weighted-average of across echoes, converted to Hz/unit-shim:
+    dBdI(:,:,:,iChannel) = sum( echoWeights .* Fields.img, 4 )./sum( echoWeights, 4 )...
+        /( Params.currents( iChannel, 2) - Params.currents( iChannel, 1) ) ;
+    
+    % % smoothing: [3x3x3] magnitude-weighted Gaussian filtering
+    %
+    % Fields.filter( Mag.img ) ; 
+    
+        
+    % for iEcho = 1 : nEchoes
+    %     
+    %
+    %
+    %     
+    %     Mag.img = ( Img{ iEcho, 1, 1 }.img + Img{ iEcho, 1, 2 }.img )/2 ;
+    %     Mag.img = Mag.img./max(Mag.img(:)) ;
+    %     
+    %
+    %
+    %
+    %
+    %     PhaseTE     = Phase{1}.copy() ;
+    %     % extract iEcho
+    %     PhaseTE.img = PhaseTE.img(:,:,:,iEcho) ;
+    %     
+    %     MagTE     = Mag{1}.copy() ;
+    %
+    %
+    % Phase.img = angle( Img{ iEcho, 1, 2 }.img .*exp(i*Img{ iEcho, 2, 2 }.img) ...
+    %     .* conj( Img{ iEcho, 1, 1 }.img .*exp(i*Img{ iEcho, 2, 1 }.img) ) ) ;
+    %
+    %     
+    %     % if Params.nEchoes == 1 % 2 echoes acquired but only 1 input (phase *difference* image)
+    %     %     assert( myisfield( Img{ 1, 2, iCurrent }.Hdr.MrProt, 'alTE') && numel( Img{ 1, 2, iCurrent }.Hdr.MrProt.alTE ) >= 2, ...
+    %     %        'Expected Siemens FM phase difference image with at least 2 TEs specified in the DICOM header.' )
+    %     %     % replace echo time stored in siemens header with the echo time difference between the 1st 2 echoes:       
+    %     %
+    %     %     Img{ 1, 2, iCurrent}.Hdr.EchoTime = ... 
+    %     %         ( Img{ 1, 2, iCurrent }.Hdr.MrProt.alTE(2) - Img{ 1, 2, iCurrent }.Hdr.MrProt.alTE(1) )/1000 ; % [units : ms]
+    %     %
+    %     % end 
+    %
+    %
+    %
+    % for iEcho = 1 : Params.nEchoes
+    %     
+    %     for iCurrent = 1  : Params.nCurrents
+    %         % -------
+    %         % PROCESS GRE FIELD MAPS
+    %         Img{ iEcho, 1, iCurrent } = MaRdI( Params.dataLoadDirectories{ iEcho, 1, iCurrent, iChannel }  ) ; % mag
+    %         Img{ iEcho, 2, iCurrent } = MaRdI( Params.dataLoadDirectories{ iEcho, 2, iCurrent, iChannel }  ) ; % phase
+    %     end
+    %     
+    %     if Params.nEchoes == 1 % 2 echoes acquired but only 1 input (phase *difference* image)
+    %         assert( myisfield( Img{ 1, 2, iCurrent }.Hdr.MrProt, 'alTE') && numel( Img{ 1, 2, iCurrent }.Hdr.MrProt.alTE ) >= 2, ...
+    %            'Expected Siemens FM phase difference image with at least 2 TEs specified in the DICOM header.' )
+    %         % replace echo time stored in siemens header with the echo time difference between the 1st 2 echoes:       
+    %
+    %         Img{ 1, 2, iCurrent}.Hdr.EchoTime = ... 
+    %             ( Img{ 1, 2, iCurrent }.Hdr.MrProt.alTE(2) - Img{ 1, 2, iCurrent }.Hdr.MrProt.alTE(1) )/1000 ; % [units : ms]
+    %     
+    %     end 
+    %
+    %     TE( iEcho ) = Img{ iEcho, 2, 1 }.Hdr.EchoTime ;
+    %
+    %     % ASSUMES :
+    %     %   NO TX FREQUENCY SHIFT BETWEEN ACQUISITIONS
+    %     % TODO
+    %     %   adjust Field in the event Tx Freq. changed between scans/shim currents
+    %     Mag     = Img{ iEcho, 1, 2 }.copy() ;
+    %     Phase   = Img{ iEcho, 2, 2 }.copy() ;
+    %     
+    %     Mag.img = ( Img{ iEcho, 1, 1 }.img + Img{ iEcho, 1, 2 }.img )/2 ;
+    %     Mag.img = Mag.img./max(Mag.img(:)) ;
+    %     
+    %     Phase.img = angle( Img{ iEcho, 1, 2 }.img .*exp(i*Img{ iEcho, 2, 2 }.img) ...
+    %         .* conj( Img{ iEcho, 1, 1 }.img .*exp(i*Img{ iEcho, 2, 1 }.img) ) ) ;
+    %     
+    %     Phase.Hdr.MaskingImage = Mag.img > Params.threshold ;
+    %
+    %     Phase.unwrapphase( Mag, Params ) ; 
+    %     Field = Phase.copy();
+    %     Field.scalephasetofrequency() ;
+    %
+    %     % convert to Hz/A
+    %     Field.img = Field.img/( Params.currents( iChannel, 2) - Params.currents( iChannel, 1) ) ;
+    %     
+    %     % smoothing: [3x3x3] magnitude-weighted Gaussian filtering
+    %     Field.filter( Mag.img ) ; 
+    %     
+    %     fieldMaps( :,:,:, iEcho ) = Field.img ;
+    %
+    %     % mask out later echoes from field estimate if later echoes deviate
+    %     % more than 50 Hz from the field map based on the early echoes:
+    %     masks( :,:,:, iEcho, iChannel ) = Field.Hdr.MaskingImage & ( fieldMaps( :,:,:, iEcho ) ~= 0 ) & ( abs( fieldMaps(:,:,:, iEcho ) - fieldMaps(:,:,:, 1) ) < 50 ) ;
+    %     
+    % end 
+    %
+    % fieldMaps( ~masks(:,:,:,:,iChannel) ) = NaN ; 
+    % dBdI(:,:,:, iChannel)  = median( fieldMaps, 4, 'omitnan' ) ;
 
 end 
+
+snr = mean(abs(Fields.img),4)./std(Fields.img,[],4) ;
+snr = mean(abs(Mag.img),4)./std(Mag.img,[],4) ;
 
 dBdI( ( isnan(dBdI) | isinf(dBdI) ) ) = 0 ;
 
@@ -1887,6 +2053,22 @@ Hdr = Field.Hdr ;
 Hdr.MaskingImage = sum( sum( masks, 4 )>0, 5 ) == Params.nChannels ; % spatial support
 
 img = dBdI .* repmat( Hdr.MaskingImage, [1 1 1 Params.nChannels] ) ;
+
+
+
+
+disp( 'Forming interpolant...' )
+disp( '(Computation time depends on input image size. This may take a few minutes.)' ) ;
+
+% The following avoids the error from scatteredInterpolant when one
+% attempts to form a 3d interpolant from a 2d input: 
+isValidDim0 = [ numel(unique(X(:))) numel(unique(Y(:))) numel(unique(Z(:))) ] > 1 ;
+r0          = [X(:) Y(:) Z(:)] ;
+
+Interpolant = scatteredInterpolant() ;
+Interpolant.Points = r0(:, isValidDim0) ;
+
+
 
 end
 % =========================================================================
@@ -1905,27 +2087,18 @@ function [ Params ] = assigndefaultparameters( Params )
 % Add default parameters fields to Params without replacing values (unless empty)
 %
 % DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
-% DEFAULT_TRACKERSPECS = [] ;
-%
-% DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
+% DEFAULT_INSTITUTIONNAME         = 'IUGM' ;
+% DEFAULT_STATIONNAME             = 'MRC35049' ;
 
-DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
-DEFAULT_TRACKERSPECS            = [] ;
+DEFAULTS.pathToShimReferenceMaps = [] ;
+DEFAULTS.InstitutionName         = 'IUGM' ;
+DEFAULTS.StationName             = 'MRC35049' ;
 
-DEFAULT_INSTITUTIONNAME = 'IUGM' ;
-DEFAULT_STATIONNAME     = 'MRC35049' ;
-
-if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
-   Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
+if ( nargin == 0 ) || isempty( Params )
+    Params.dummy = [] ;
 end
 
-if ~myisfield( Params, 'InstitutionName' ) || isempty(Params.InstitutionName)
-   Params.InstitutionName = DEFAULT_INSTITUTIONNAME ;
-end
-
-if ~myisfield( Params, 'StationName' ) || isempty(Params.StationName)
-   Params.StationName = DEFAULT_STATIONNAME ;
-end
+Params = assignifempty( Params, DEFAULTS ) ;
 
 end
 % =========================================================================
@@ -1985,10 +2158,10 @@ end
 % =========================================================================
 methods(Static=true)
 % =========================================================================
-function [ img, Hdr ] = loadshimreferencemaps( pathToShimReferenceMaps )
+function [ img, Hdr, Interpolant ] = loadshimreferencemaps( pathToShimReferenceMaps )
 %LOADSHIMREFERENCEMAPS
 %
-% [ img, Hdr ] = LOADSHIMREFERENCEMAPS( filename )
+% [ img, Hdr, Interpolant ] = LOADSHIMREFERENCEMAPS( filename )
 
 ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
         'Loading shim reference maps from ' pathToShimReferenceMaps '\n\n']) ;
@@ -2006,6 +2179,12 @@ assert( myisfield( RefMaps, 'img' ) && myisfield( RefMaps, 'Hdr' ), ...
 
 img = RefMaps.img ;
 Hdr = RefMaps.Hdr ;
+
+if myisfieldfilled( RefMaps, 'Interpolant' ) 
+    Interpolant = RefMaps.Interpolant ;
+else
+    Interpolant = [] ;
+end
 
 end
 % =========================================================================
