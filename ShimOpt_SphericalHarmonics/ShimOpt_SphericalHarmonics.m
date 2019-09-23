@@ -11,16 +11,17 @@ classdef ShimOpt_SphericalHarmonics < ShimOpt
 %
 % Defaults 
 % 
-% Params.ordersToGenerate        = [0:2];
+% Params.ordersToGenerate        = [1:2];
 %
 %   Shim contains fields
 % ... TODO : doc
 % =========================================================================
-%
-% ShimOpt is a MaRdI subclass [ShimOpt < MaRdI]
+% 
+% ShimOpt_SphericalHarmonics is a ShimOpt subclass. See ShimOpt documentation
+% for general usage.
 %     
 % =========================================================================
-% Updated::20181017::ryan.topfer@polymtl.ca
+% Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -44,7 +45,6 @@ methods
 function Shim = ShimOpt_SphericalHarmonics( Params, Field )
 %SHIMOPTSHARMONICS - Shim Optimization with spherical harmonic basis set
 % 
-% Params.isGeneratingBasis
 % Params.ordersToGenerate
 
 Shim.img   = [] ;
@@ -53,9 +53,9 @@ Shim.Field = [] ;
 Shim.Model = [] ;
 Shim.Aux   = [] ;
 
-if nargin < 1 || isempty( Params ) 
-    Params.dummy = [] ;
-end
+Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
+
+[ Field, Params ] = ShimOpt.parseinput( varargin ) ;
 
 Shim.Params = ShimOpt_SphericalHarmonics.assigndefaultparameters( Params ) ;
 
@@ -83,15 +83,10 @@ end
 
 Shim.System.Specs = ShimSpecs_Des( Specs ) ;
 
-Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
 
 
-if (nargin > 1) && ~isempty(Field)
-    
+if ~isempty( Field ) 
     Shim.setoriginalfield( Field ) ;
-
-else
-    Shim.Field = [] ;
 end
 
 end
@@ -134,26 +129,10 @@ function [Corrections] = optimizeshimcurrents( Shim, Params )
 %OPTIMIZESHIMCURRENTS 
 %
 % Corrections = OPTIMIZESHIMCURRENTS( Shim, Params )
-%   
-% Params can have the following fields 
-%
-%   .maxCorrectionPerChannel
-%       [default: determined by ShimSpecs_Des property: .Amp.maxCurrentPerChannel]
-%
-%   .minCorrectionPerChannel
-%       [default: -.maxCorrectionPerChannel]
 
 if nargin < 2 
     Params.dummy = [];
 end
-
-% if ~myisfield( Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectionPerChannel ) 
-%     Params.maxCorrectionPerChannel = Shim.System.Specs.Amp.maxCurrentPerChannel ; 
-% end
-%
-% if ~myisfield( Params, 'minCorrectionPerChannel') || isempty( Params.minCorrectionPerChannel ) 
-%     Params.minCorrectionPerChannel = -Params.maxCorrectionPerChannel ; 
-% end
 
 Corrections = optimizeshimcurrents@ShimOpt( Shim, Params ) ;
 
@@ -396,20 +375,9 @@ function  [ Params ] = assigndefaultparameters( Params )
 % 
 % Params = ASSIGNDEFAULTPARAMETERS( Params )
 % 
-% Add default parameters fields to Params without replacing values (unless empty)
-%
-% DEFAULT_PROBESPECS = [] ;
-%
-% DEFAULT_ORDERSTOGENERATE        = [1:2] ;
-
-DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
-DEFAULT_TRACKERSPECS            = [] ;
+% DEFAULT_ORDERSTOGENERATE = [1:2] ;
 
 DEFAULT_ORDERSTOGENERATE        = [1:2] ;
-
-if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
-   Params.TrackerSpecs = DEFAULT_TRACKERSPECS ;
-end
 
 if ~myisfield( Params, 'ordersToGenerate' ) || isempty(Params.ordersToGenerate)
    Params.ordersToGenerate = DEFAULT_ORDERSTOGENERATE ;
