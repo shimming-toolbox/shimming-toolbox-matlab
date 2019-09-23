@@ -1571,13 +1571,13 @@ for iVolume = 1 : nVolumes
 
         end
 
-        if ( iEcho == 1 ) && Options.isLinearizing
+        if ( iEcho == 1 ) 
             % if phase(TE1) is not centered around 0, shift it:
             mask  = Phase.Hdr.MaskingImage(:,:,:,1,iVolume) ;
             phase = Phase.img(:,:,:,iEcho,iVolume) ; 
-            n     = round( median( phase(mask) )/pi ) ;
+            n     = fix( median( phase(mask) )/pi ) ;
             if n ~= 0
-                display('Centering phase of 1st echo to sit between [-pi,pi]') 
+                display( ['Recentering phase of 1st echo to sit between [-pi,pi] (global subtraction of ' num2str(n) 'pi)'] ) 
                 Phase.img(:,:,:,iEcho,iVolume) = Phase.img(:,:,:,iEcho,iVolume) - n*pi*double(mask) ;
             end
         end
@@ -1611,21 +1611,21 @@ Phase.img = double( Phase.img ) ;
 % if time series, correct for potential wraps between time points:
 if nVolumes > 1
     display('Correcting for potential temporal phase wraps...')
-
+    
     for iEcho = 1 : nEchoes
         % correct temporal wraps by comparing to phaseEstimate:
         phaseEstimate = median( Phase.img(:,:,:,iEcho,:),  5, 'omitnan' ) ;
 
         % normalize the estimate so its spatial median is within [-pi,pi]
         tmpMask = logical( prod( Phase.Hdr.MaskingImage(:,:,:,iEcho,:), 5 ) ) ;
-        n       = round( median( phaseEstimate(tmpMask) )/pi ) ;
+        n       = fix( median( phaseEstimate(tmpMask) )/pi ) ;
         phaseEstimate = phaseEstimate - n*pi ;
-
+        
         % Wherever the absolute deviation from the estimate exceeds pi,
         % correct the measurement by adding the appropriate pi-multiple:
         for iVolume = 1 : nVolumes
             dPhase = phaseEstimate - Phase.img( :,:,:,iEcho,iVolume )  ;
-            n      = ( abs(dPhase) > pi ) .* round( dPhase/pi ) ;
+            n      = ( abs(dPhase) > pi ) .* fix( dPhase/pi ) ;
             Phase.img( :,:,:,iEcho,iVolume ) = Phase.img(:,:,:,iEcho,iVolume ) + n*pi ;
         end
     end
