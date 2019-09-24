@@ -719,7 +719,11 @@ for iImg = 1 : 2
     end
 end
 
-assert( exist(Phase), 'Input did not include a Phase image (MaRdI object). See help FieldEval.mapfield' ) 
+if ~exist('Phase') 
+    error('Input did not include Phase image (MaRdI object). See help FieldEval.mapfield' ) 
+elseif ~exist('Mag') 
+    error('Input did not include Magnitude image (MaRdI object). See help FieldEval.mapfield' ) 
+end
 
 if isstruct( varargin{end} )
     Params = varargin{end} ;
