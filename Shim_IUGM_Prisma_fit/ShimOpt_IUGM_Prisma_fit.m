@@ -37,7 +37,6 @@ elseif ~isempty(Params.pathToShimReferenceMaps)
     
     Shim.Ref.img = Shim.img ;
     Shim.Ref.Hdr = Shim.Hdr ;
-
 end
 
 if ~isempty( Field ) 
@@ -208,7 +207,6 @@ end
 function [ img, Hdr, Interpolant ] = calibratereferencemaps( Params )
 %CALIBRATEREFERENCEMAPS
 
-
 % Wraps to .mapdbdi( ) and writes output to disk
 % 
 % [ img, Hdr ] = CALIBRATEREFERENCEMAPS( Params )
@@ -350,12 +348,9 @@ function Params = declarecalibrationparameters( Params )
 % 
 % Initializes parameters for shim reference map construction (aka shim calibration)
 
-disp( ['Preparing shim calibration...' ] )        
-
 %% -----
-%
 DEFAULTS.unwrapper = 'AbdulRahman_2007' ;
-DEFAULTS.threshold = 0.01 ;
+DEFAULTS.threshold = 0.05 ;
 
 Params.dummy = [] ;
 Params = assignifempty( Params, DEFAULTS ) ;
@@ -414,8 +409,8 @@ for iChannel = 1 : nChannels
     disp(['Channel ' num2str(iChannel) ' of ' num2str(nChannels) ] )        
 
     for iCurrent = 1  : nCurrents
-        Mag{ iCurrent, 1, iChannel }   = MaRdI( Params.dataLoadDirectories{ iCurrent, 1, iChannel } )
-        Phase{ iCurrent, 1, iChannel } = MaRdI( Params.dataLoadDirectories{ iCurrent, 2, iChannel } )
+        Mag{ iCurrent, 1, iChannel }   = MaRdI( Params.dataLoadDirectories{ iCurrent, 1, iChannel } ) ;
+        Phase{ iCurrent, 1, iChannel } = MaRdI( Params.dataLoadDirectories{ iCurrent, 2, iChannel } ) ;
 
         %% -----
         % For calibration of Siemens (e.g. Prisma) scanner shims only :
@@ -423,7 +418,7 @@ for iChannel = 1 : nChannels
         % from Siemens DICOM Hdr. 
         [f0,g0,s0] = Mag{ iCurrent, 1, iChannel}.adjvalidateshim( ) ;
         % convert to the 'multipole units' (micro-T/m and micro-T/m^2) of the 3D shim card (Siemens console GUI)
-        shimValues = ShimOpt_IUGM_Prisma_fit.converttomultipole( [g0 ; s0] ) ; 
+        shimValues = ShimSpecs_IUGM_Prisma_fit.converttomultipole( [g0 ; s0] ) ; 
         Params.currents( iChannel, iCurrent ) = shimValues( iChannel ) ; 
     end
 end
@@ -463,32 +458,25 @@ end
 
 %% -----
 % for rapid interpolation of dB/dI to a given image, form the interpolant here + save for future use: 
-disp( 'Forming interpolant...(Computation time depends on input image size. This may take a few minutes.)' )
-[X,Y,Z] = Mag{1,1,1}.getvoxelpositions() ;
-
-% The following avoids the error from scatteredInterpolant when one
-% attempts to form a 3d interpolant from a 2d input: 
-isValidDim0 = [ numel(unique(X(:))) numel(unique(Y(:))) numel(unique(Z(:))) ] > 1 ;
-r0          = [X(:) Y(:) Z(:)] ;
-
-Interpolant = scatteredInterpolant() ;
-Interpolant.Points = r0(:, isValidDim0) ;
+Interpolant = Mag{1,1,1}.getinterpolant() ;
 
 %% -----
-disp( 'Correcting for demodulation: Recentering measured dB/dI to be 0Hz at isocentre...' )
 % Due to the arbitrariness of the excitation/demodulation frequency, the dB/dI
 % maps at this stage are only accurate to within a constant. (For example, if Gx =
 % +1Hz/mm, and the imaging frequency is set to the local frequency at x=1mm,
 % then the resulting field map will possess zero shift there, rather than at
 % isocentre x=0). To correct for this, subtract the measured dB/dI value at
 % isocentre:
+disp( 'Correcting for demodulation: Recentering measured dB/dI to be 0Hz at isocentre...' )
 for iChannel = 1 : nChannels 
+    disp(['Channel ' num2str(iChannel) ' of ' num2str(nChannels) ] )        
     dBdI0 = dBdI(:,:,:,iChannel) ;
     Interpolant.Values = dBdI0(:) ;
     dBdI(:,:,:,iChannel) = dBdI0 - Interpolant([0 0 0]) ;
 end
 
 img = dBdI ;
+img(~mask) = 0 ;
 Hdr = Fields{1,1,1}.Hdr ;
 
 end
@@ -499,7 +487,7 @@ end
 % =========================================================================
 methods(Static)
 % =========================================================================
-function [ shimValues  ] = converttomultipole( shimValues )
+function [ shimValues ] = converttomultipole( shimValues )
 %CONVERTTOMULTIPOLE
 % 
 % shimValues = CONVERTTOMULTIPOLE( shimValues )
