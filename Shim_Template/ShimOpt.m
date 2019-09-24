@@ -720,6 +720,10 @@ function shimSupport = getshimsupport( Shim )
 
 shimSupport = sum(abs(Shim.img),4) > Shim.getnactivechannels()*eps  ;
 
+if myisfieldfilled( Shim.Hdr, 'MaskingImage' )
+    shimSupport = shimSupport & Shim.Hdr.MaskingImage ;
+end
+
 end
 % =========================================================================
 function currents = computerealtimeupdate( Shim, p )
@@ -953,19 +957,20 @@ function [Corrections] = optimizeshimcurrents( Shim, Params )
 %       [default: ones(size(Shim.Field.img))]
 
 % DEFAULT_REGULARIZATIONPARAMETER     = 0; % deprecated
-DEFAULT_ISRETURNINGPSEUDOINVERSE       = false ;
-DEFAULT_ISOPTIMIZINGSTATICTXFREQUENCY  = true ;
-DEFAULT_ISOPTIMIZINGDYNAMICTXFREQUENCY = false ;
-DEFAULT_ISOPTIMIZINGAUX                = false ;
-DEFAULT_ISREALTIMESHIMMING             = false ;
+DEFAULTS.isReturningPseudoInverse       = false ;
+DEFAULTS.isRealtimeShimming             = false ;
+DEFAULTS.isDisplayingResults            = false ;
+DEFAULTS.isSavingResultsTable           = true ;
 
-DEFAULT_MEDIASAVEDIR                   = [ './shimopt_results_' datestr(now,30) '/' ] ;
-DEFAULT_ISDISPLAYINGRESULTS            = false ;
-DEFAULT_ISSAVINGRESULTSTABLE           = true ;
+DEFAULTS.isOptimizingAux                = false ;
+DEFAULTS.mediaSaveDir                   = [ './shimopt_results_' datestr(now,30) '/' ] ;
+
+DEFAULTS.isOptimizingStaticTxFrequency  = false ;
+DEFAULTS.isOptimizingDynamicTxFrequency = false ;
 
 % TODO: Create new class to handle all Tx related aspects. These defaults are for the IUGM Prisma fit
-DEFAULT_MINTXFREQUENCY = 123100100 ; % [units: Hz]
-DEFAULT_MAXTXFREQUENCY = 123265000 ; % [units: Hz]
+DEFAULTS.minTxFrequency = 123100100 ; % [units: Hz]
+DEFAULTS.maxTxFrequency = 123265000 ; % [units: Hz]
 
 %% -----
 % Check inputs + assign parameters 
@@ -973,16 +978,15 @@ if nargin == 1 || isempty( Params )
     Params.dummy = [] ; % Using default parameters
 end
 
-Params = assignifempty( Params, 'isReturningPseudoInverse', DEFAULT_ISRETURNINGPSEUDOINVERSE ) ;
-Params = assignifempty( Params, 'isRealtimeShimming', DEFAULT_ISREALTIMESHIMMING ) ;
-Params = assignifempty( Params, 'isDisplayingResults', DEFAULT_ISDISPLAYINGRESULTS ) ;
-Params = assignifempty( Params, 'isSavingResultsTable', DEFAULT_ISSAVINGRESULTSTABLE ) ;
+Params = assignifempty( Params, 'isReturningPseudoInverse', DEFAULTS.isReturningPseudoInverse ) ;
+Params = assignifempty( Params, 'isRealtimeShimming', DEFAULTS.isRealtimeShimming ) ;
+Params = assignifempty( Params, 'isDisplayingResults', DEFAULTS.isDisplayingResults ) ;
+Params = assignifempty( Params, 'isSavingResultsTable', DEFAULTS.isSavingResultsTable ) ;
 
 Params = assignifempty( Params, 'assessmentVoi', Shim.Field.Hdr.MaskingImage ) ;
 
-
 if isa( Shim.Aux, 'ShimOpt' )
-    if ~myisfield(Params, 'isJointOptimization') || isempty( Params.isJointOptimization ) 
+    if ~myisfieldfilled(Params, 'isJointOptimization')  
         Params.isJointOptimization = true ; 
     end
 else
@@ -990,37 +994,37 @@ else
 end
 
 % check imaging frequency
-Params = assignifempty( Params, 'maxTxFrequency', DEFAULT_MAXTXFREQUENCY ) ;
-Params = assignifempty( Params, 'minTxFrequency', DEFAULT_MINTXFREQUENCY ) ;
+Params = assignifempty( Params, 'maxTxFrequency', DEFAULTS.maxTxFrequency ) ;
+Params = assignifempty( Params, 'minTxFrequency', DEFAULTS.minTxFrequency ) ;
 
 f0 = Shim.Field.getimagingfrequency() ;
 
-if ( f0 > DEFAULT_MAXTXFREQUENCY ) || ( f0 < DEFAULT_MINTXFREQUENCY )
+if ( f0 > DEFAULTS.maxTxFrequency ) || ( f0 < DEFAULTS.minTxFrequency )
     error('Imaging frequency of the input Field is outside the expected range. See input Params.minTxFrequency and Params.maxTxFrequency' ) ;
 end 
 
 % max +/- freq. shift relative to original Larmor
-Params = assignifempty( Params, 'maxPositiveTxFrequencyShift', DEFAULT_MAXTXFREQUENCY - f0 ) ;
-Params = assignifempty( Params, 'maxNegativeTxFrequencyShift', DEFAULT_MINTXFREQUENCY - f0 ) ;
+Params = assignifempty( Params, 'maxPositiveTxFrequencyShift', DEFAULTS.maxTxFrequency - f0 ) ;
+Params = assignifempty( Params, 'maxNegativeTxFrequencyShift', DEFAULTS.minTxFrequency - f0 ) ;
 
 
 if Params.isJointOptimization 
     % total active channels across systems
     Params.nActiveChannels = 1 + Shim.System.Specs.Amp.nActiveChannels + Shim.Aux.System.Specs.Amp.nActiveChannels ; % +1 for freq. adjust
     
-    if ~myisfield(Params, 'activeStaticChannelsMask') || isempty( Params.activeStaticChannelsMask )
-        Params.activeStaticChannelsMask = [ DEFAULT_ISOPTIMIZINGSTATICTXFREQUENCY ; ...
+    if ~myisfieldfilled(Params, 'activeStaticChannelsMask') 
+        Params.activeStaticChannelsMask = [ DEFAULTS.isOptimizingStaticTxFrequency ; ...
                                             Shim.System.Specs.Amp.staticChannels(:) ; ...
                                             Shim.Aux.System.Specs.Amp.staticChannels(:) ; ] ;
     end
         
-    if ~myisfield(Params, 'activeDynamicChannelsMask') || isempty( Params.activeDynamicChannelsMask )
-        Params.activeDynamicChannelsMask = [ DEFAULT_ISOPTIMIZINGDYNAMICTXFREQUENCY ; ...
+    if ~myisfieldfilled(Params, 'activeDynamicChannelsMask') 
+        Params.activeDynamicChannelsMask = [ DEFAULTS.isOptimizingDynamicTxFrequency ; ...
                                              Shim.System.Specs.Amp.dynamicChannels(:) ; ...
                                              Shim.Aux.System.Specs.Amp.dynamicChannels(:) ; ] ;
     end
     
-    if ~myisfield(Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectionPerChannel ) 
+    if ~myisfieldfilled(Params, 'maxCorrectionPerChannel')  
        
         % 'tmp' because this is technically a TODO: 
         % since the optimization solves for the Tx frequency *shift*, it can shift
@@ -1038,17 +1042,17 @@ else
     % total active channels across systems
     Params.nActiveChannels = 1 + Shim.System.Specs.Amp.nActiveChannels ; % +1 for freq. adjust
     
-    if ~myisfield(Params, 'activeStaticChannelsMask') || isempty( Params.activeStaticChannelsMask )
-        Params.activeStaticChannelsMask = [ DEFAULT_ISOPTIMIZINGSTATICTXFREQUENCY ; ...
+    if ~myisfieldfilled(Params, 'activeStaticChannelsMask') 
+        Params.activeStaticChannelsMask = [ DEFAULTS.isOptimizingStaticTxFrequency ; ...
                                             Shim.System.Specs.Amp.staticChannels(:) ; ] ;
     end
         
-    if ~myisfield(Params, 'activeDynamicChannelsMask') || isempty( Params.activeDynamicChannelsMask )
-        Params.activeDynamicChannelsMask = [ DEFAULT_ISOPTIMIZINGDYNAMICTXFREQUENCY ; ...
+    if ~myisfieldfilled(Params, 'activeDynamicChannelsMask') 
+        Params.activeDynamicChannelsMask = [ DEFAULTS.isOptimizingDynamicTxFrequency ; ...
                                              Shim.System.Specs.Amp.dynamicChannels(:) ; ] ;
     end
     
-    if ~myisfield(Params, 'maxCorrectionPerChannel') || isempty( Params.maxCorrectionPerChannel ) 
+    if ~myisfieldfilled(Params, 'maxCorrectionPerChannel')  
        
         % see todo note above for ~isempty(Shim.Aux) case:
         tmpMaxFreqShift = min(abs( [ Params.maxPositiveTxFrequencyShift Params.maxNegativeTxFrequencyShift ] )) ;
@@ -1073,12 +1077,11 @@ Params.minStaticCorrectionPerChannel( Params.activeStaticChannelsMask ) = Params
 Params.maxStaticCorrectionPerChannel = zeros( size( Params.activeStaticChannelsMask ) ) ;
 Params.maxStaticCorrectionPerChannel( Params.activeStaticChannelsMask ) = Params.maxCorrectionPerChannel( Params.activeStaticChannelsMask ) ;
 
-
-% if ~myisfield(Params, 'regularizationParameter') || isempty( Params.regularizationParameter ) 
+% if ~myisfieldfilled(Params, 'regularizationParameter')  
 %     Params.regularizationParameter = DEFAULT_REGULARIZATIONPARAMETER ;
 % end
 
-Params = assignifempty( Params, 'mediaSaveDir', DEFAULT_MEDIASAVEDIR ) ;
+Params = assignifempty( Params, 'mediaSaveDir', DEFAULTS.mediaSaveDir ) ;
 mkdir( Params.mediaSaveDir ) ;
 
 
