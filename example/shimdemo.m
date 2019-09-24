@@ -100,8 +100,8 @@ Shims.setshimvolumeofinterest( shimVoi ) ;
 Params.isRealtimeShimming = 1 ;
 % Define which shim terms are to be included in the real-time shim:
 % e.g.
-%   Tx-freq adjustment ; none of the 8 multi-coil channels ; Prisma gradients, but not the five 2nd order shims: 
-Params.activeDynamicChannelsMask = [ true ; false(8, 1) ; true(3, 1); false(5, 1) ] ;
+%   no Tx-freq adjustment ; none of the 8 multi-coil channels ; Prisma gradients, but not the five 2nd order shims: 
+Params.activeDynamicChannelsMask = [ false ; false(8, 1) ; true(3, 1); false(5, 1) ] ;
 
 %% -----
 % finally, perform the optimization:
