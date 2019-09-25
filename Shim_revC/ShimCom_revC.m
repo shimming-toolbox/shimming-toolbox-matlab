@@ -92,7 +92,6 @@ assert( ( round(iCh) == iCh ) & ( iCh > 0 ) & ( iCh <= Shim.Specs.Amp.nChannels 
 Shim.Data.output        = Shim.Cmd.setAndLoadShimByChannel ;
 Shim.Data.output(end+1) = num2str( iCh ) ; 
 Shim.Data.output = [Shim.Data.output Shim.currenttostring( current )] ;
-Shim.Data.output
 Shim.sendcmd() ;
 
 isSet = logical( str2num( fgetl( Shim.ComPort ) ) ) 
