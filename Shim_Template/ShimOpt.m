@@ -720,9 +720,9 @@ function shimSupport = getshimsupport( Shim )
 
 shimSupport = sum(abs(Shim.img),4) > Shim.getnactivechannels()*eps  ;
 
-if myisfieldfilled( Shim.Hdr, 'MaskingImage' )
-    shimSupport = shimSupport & Shim.Hdr.MaskingImage ;
-end
+% if myisfieldfilled( Shim.Hdr, 'MaskingImage' )
+%     shimSupport = shimSupport & Shim.Hdr.MaskingImage ;
+% end
 
 end
 % =========================================================================
