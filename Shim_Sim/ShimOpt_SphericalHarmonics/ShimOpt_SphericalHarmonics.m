@@ -1,49 +1,66 @@
 classdef ShimOpt_SphericalHarmonics < ShimOpt
 %SHIMOPTSHARMONICS - Shim optimization using spherical harmonic basis
+% 
+% ShimOpt_SphericalHarmonics is a ShimOpt subclass. See ShimOpt documentation
+% for general usage.
 %
 % .......
 % 
 % Usage
 %
-% Shim = ShimOpt_SphericalHarmonics( Params, Field )
+%       Shim = ShimOpt_SphericalHarmonics( Field )
+%       Shim = ShimOpt_SphericalHarmonics( Field, Params )
 % 
-% Field is a MaRdI-type object representing the Field to be shimmed.
+%   As for other ShimOpt objects, Field is a MaRdI-type object representing the
+%   Field to be shimmed. The only difference is the (optional) input struct
+%   Params, for which 2 (mutually exclusive) fields are configurable:
+%   
+%   Params.ordersToGenerate : default = [1:2]
+%       
+%       If set, this generates arbitary/ideal spherical harmonics.
 %
-% Defaults 
-% 
-% Params.ordersToGenerate = [1:2];
+%       .ordersToGenerate is a linear sequence of non-negative integers
+%       specifying the orders of spherical harmonics to be generated and placed
+%       along the 4th dimension of the array Shim.img 
 %
-% =========================================================================
-% 
-% ShimOpt_SphericalHarmonics is a ShimOpt subclass. See ShimOpt documentation
-% for general usage.
+%       e.g. default of [1:2], Shim.img will have 8 shim terms (three
+%       1st-order, five 2nd-order harmonics) with values defined at the
+%       voxel positions of the input Field object. 
+%
+%       For more info, See doc
+%       ShimOpt_SphericalHarmonics.generatebasisfields 
+%
+%
+%   Params.systemName : default = []
+%
+%       If set to 'IUGM_Prisma_fit' or 'HGM_Prisma', the returned Shim object 
+%       possesses analogous terms to the respective Prisma scanner, with identical 
+%       ordering along the 4th dimension of Shim.img, i.e. increments along this
+%       dimension correspond to X, Y, Z, Z2, ZX, ZY, X2-Y2, and XY terms
+%       respectively. The difference between the resulting ShimOpt_SphericalHarmonics
+%       object and the corresponding ShimOpt_x_PrismaX object is that the shim
+%       terms of the former are *ideally* generated as opposed to empirically
+%       mapped.
+%
+% .......
+%
+% NOTE
+%   The essential method GENERATEBASISFIELDS() is based on
+%   calc_spherical_harmonics_arb_points_cz.m by jaystock@nmr.mgh.harvard.edu
 %     
 % =========================================================================
 % Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
-% =========================================================================
-% *** TODO 
-% .....
-% OPTIMIZESHIMCURRENTS()
-%   Run (unconstrained) Cg solver;
-%   If solution achievable given system constraints, return solution;
-%   Else, run fmincon given constraints & return that solution instead;
-%
-% =========================================================================
-
 properties  
-    Params;
 end
 
 % =========================================================================
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOpt_SphericalHarmonics( Params, Field )
+function Shim = ShimOpt_SphericalHarmonics( varargin )
 %SHIMOPTSHARMONICS - Shim Optimization with spherical harmonic basis set
-% 
-% Params.ordersToGenerate
 
 Shim.img   = [] ;
 Shim.Hdr   = [] ;
@@ -51,73 +68,86 @@ Shim.Field = [] ;
 Shim.Model = [] ;
 Shim.Aux   = [] ;
 
-Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
-
 [ Field, Params ] = ShimOpt.parseinput( varargin ) ;
 
-Shim.Params = ShimOpt_SphericalHarmonics.assigndefaultparameters( Params ) ;
+Params = ShimOpt_SphericalHarmonics.assigndefaultparameters( Params ) ;
 
-% =========================================================================
-% Define ShimSpecs for virtual shim system:
-% =========================================================================
-Specs.systemName           = [ 'SphericalHarmonics_' ...
-    num2str(min(Shim.Params.ordersToGenerate)) '-' num2str(max(Shim.Params.ordersToGenerate)) ] ;
+if myisfieldfilled( Params, 'systemName' )
+    switch Params.systemName
+        case 'IUGM_Prisma_fit'
+            Shim.System.Specs = ShimSpecs_IUGM_Prisma_fit() ;
+        case 'HGM_Prisma'
+            Shim.System.Specs = ShimSpecs_HGM_Prisma() ;
+        otherwise
+            error('Unimplemented system: Params.systemName must either be "IUGM_Prisma_fit" or "HGM_Prisma"') ;
+    end
+else  
+    % Define ShimSpecs for the virtual shim system:
+    Specs.systemName           = [ 'SphericalHarmonics_' ...
+        num2str(min(Params.ordersToGenerate)) '-' num2str(max(Params.ordersToGenerate)) ] ;
 
-Specs.nChannels            = 0 ;
-for iOrder = 1 : length( Shim.Params.ordersToGenerate )
-    Specs.nChannels = Specs.nChannels + 2*Shim.Params.ordersToGenerate(iOrder) + 1 ;
+    Specs.nChannels            = 0 ;
+    for iOrder = 1 : length( Params.ordersToGenerate )
+        Specs.nChannels = Specs.nChannels + 2*Params.ordersToGenerate(iOrder) + 1 ;
+    end
+    Specs.nActiveChannels      = Specs.nChannels ;
+
+    Specs.maxCurrentPerChannel = Inf*ones( Specs.nChannels, 1 ) ;
+    Specs.staticChannels       = true( Specs.nChannels, 1 ) ;
+    Specs.dynamicChannels      = true( Specs.nChannels, 1 ) ;
+
+    Specs.channelNames = cell( Specs.nChannels, 1 ) ;
+    Specs.channelUnits = cell( Specs.nChannels, 1 ) ;
+
+    for iCh = 1 : Specs.nChannels
+        Specs.channelNames(iCh) = { [ 'SH_' num2str(iCh) ]} ;
+        Specs.channelNames(iCh) = { [ '[AU]' ]} ;
+    end
+
+    Shim.System.Specs = ShimSpecs_Sim( Specs ) ;
 end
-Specs.nActiveChannels      = Specs.nChannels ;
 
-Specs.maxCurrentPerChannel = Inf*ones( Specs.nChannels, 1 ) ;
-Specs.staticChannels       = true( Specs.nChannels, 1 ) ;
-Specs.dynamicChannels      = true( Specs.nChannels, 1 ) ;
-
-Specs.channelNames = cell( Specs.nChannels, 1 ) ;
-
-for iCh = 1 : Specs.nChannels
-    Specs.channelNames(iCh) = { [ 'SH_' num2str(iCh) ]} ;
-end
-
-Shim.System.Specs = ShimSpecs_Sim( Specs ) ;
-
+%% -----
 if ~isempty( Field ) 
-    Shim.setoriginalfield( Field ) ;
+    Shim.setoriginalfield( Field, Params.ordersToGenerate ) ;
 end
 
 end
 % =========================================================================
-function [] = setoriginalfield( Shim, Field, currents )
+function [] = setoriginalfield( Shim, Field, ordersToGenerate )
 %SETORIGINALFIELD 
 %
-% [] = SETORIGINALFIELD( Shim, Field )
-% [] = SETORIGINALFIELD( Shim, Field, currents )
+% [] = SETORIGINALFIELD( Shim, Field, ordersToGenerate )
 %
 % Sets Shim.Field
 %
 % Field is a FieldEval type object with .img in Hz
 
-if nargin < 2
+if nargin < 3
     error('Not enough input arguments.') ;
-elseif nargin == 2
-    currents = 0;
-    warning('Assuming field map was acquired with all shim channels at 0 A.');
 end
 
-Shim.Model.currents = currents ;
+Shim.Model.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 )  ;
+
 Shim.Field = Field.copy() ;
 
-
 [X,Y,Z]  = Field.getvoxelpositions();
-dR = Field.getisocenter() ;
+dR = Field.isocenter() ;
 % Voxel positons are in the patient coordinate system,
 % shift along Z to account for possible table displacement:
 Z  = Z - dR(3) ; 
-Shim.img = ShimOpt_SphericalHarmonics.generatebasisfields( Shim.Params.ordersToGenerate, X, Y, Z );
+
+switch Shim.System.Specs.Id.systemName
+    case {'IUGM_Prisma_fit', 'HGM_Prisma'} 
+        Shim.img = Shim.generatebasisfields_prisma( X, Y, Z ) ;
+    otherwise
+        Shim.img = ShimOpt_SphericalHarmonics.generatebasisfields( ordersToGenerate, X, Y, Z ) ;
+end
+
+
 Shim.Hdr = Field.Hdr;
 
 Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
-
 
 end
 % =========================================================================
@@ -134,48 +164,74 @@ Corrections = optimizeshimcurrents@ShimOpt( Shim, Params ) ;
 
 end
 % =========================================================================
-% function currents = optimizeshimcurrents( Shim, CgParams )
-% %OPTIMIZESHIMCURRENTS 
-% %
-% % Shim = OPTIMIZESHIMCURRENTS( Shim )
-% % Shim = OPTIMIZESHIMCURRENTS( Shim, CgParams )
-% %
-% % CgParams : Parameters struct for conjugate-gradient optimization
-% %
-% %   .tolerance     [default = 1E-6] 
-% %   .maxIterations [default = 10000]
-%
-% if nargin < 1
-%     error('Function requires at least 1 argument of type ShimOpt')
-% elseif nargin == 1
-%     CgParams.dummy = [];
-% end
-%
-% % Params for conjugate-gradient optimization
-% CgParams.tolerance     = 1E-10 ;
-% CgParams.maxIterations = 100000 ;    
-%
-% A = Shim.getshimoperator ;
-% M = Shim.gettruncationoperator ;
-%
-% b = M*(-Shim.Field.img(:)) ;
-%
-% % ------- 
-% % Least-squares solution via conjugate gradients
-% Shim.Model.currents = cgls( A'*M'*M*A, ... % least squares operator
-%                             A'*M'*b, ... % effective solution vector
-%                             zeros( [Shim.getnactivechannels() 1] ), ... % initial model (currents) guess
-%                             CgParams ) ;
-%     
-% currents = Shim.Model.currents ;
-%
-% end
-% =========================================================================
 end
 
 % =========================================================================
 % =========================================================================
-methods(Access=protected)
+methods(Access=private)
+% =========================================================================
+function [ basisFields ] = generatebasisfields_prisma( Shim, X, Y, Z )
+%GENERATEBASISFIELDS_PRISMA
+% 
+% Wraps to ShimOpt_SphericalHarmonics.generatebasisfields(), reorders, and
+% rescales the basis set to correspond to the Prisma
+
+assert( nargin == 4 )
+basisFields  = [] ;
+basisFields0 = ShimOpt_SphericalHarmonics.generatebasisfields( [1:2], X, Y, Z ) ;
+
+%% ------
+% Returned basisFields are ordered like: 
+%   Y, Z, X, XY, ZY, Z2, ZX, X2-Y2
+% Reorder them in line with Siemens shims: 
+%   X, Y, Z, Z2, ZX, ZY, X2-Y2, XY
+
+Gx = basisFields0(:,:,:,3) ;
+Gy = basisFields0(:,:,:,1) ;
+Gz = basisFields0(:,:,:,2) ;
+
+SZ2   = basisFields0(:,:,:,6) ;
+SZX   = basisFields0(:,:,:,7) ;
+SZY   = basisFields0(:,:,:,5) ;
+SX2Y2 = basisFields0(:,:,:,8) ;
+SXY   = basisFields0(:,:,:,4) ;
+
+%% ------
+% Rescale to the nominal values of the Prisma shims given in the 3d shim adjustments card:
+% i.e. X,Y,Z should correspond to 1 micro-T/m, and 2nd order terms should be in micro-T/m^2
+
+dbstop in ShimOpt_SphericalHarmonics at 204 ;
+[minX, iMinX ] = min(X(:)) ;
+[maxX, iMaxX ] = max(X(:)) ;
+
+[minY, iMinY ] = min(Y(:)) ;
+[maxY, iMaxY ] = max(Y(:)) ;
+
+[minZ, iMinZ ] = min(Z(:)) ;
+[maxZ, iMaxZ ] = max(Z(:)) ;
+
+Gx = Gx*(1E6)*( Gx(iMaxX) - Gx(iMinX) )/(maxX - minX) ;
+Gy = Gy*(1E6)*( Gy(iMaxY) - Gy(iMinY) )/(maxY - minY) ;
+Gz = Gz*(1E6)*( Gz(iMaxZ) - Gz(iMinZ) )/(maxZ - minZ) ;
+
+%% ------
+Interpolant = scatteredInterpolant() ;
+
+Interpolant.Method              = 'linear' ;
+Interpolant.ExtrapolationMethod = 'linear' ;
+
+% The following avoids the error from scatteredInterpolant when one
+% attempts to form a 3d interpolant from a 2d input: 
+isValidDim0 = [ numel(unique(X(:))) numel(unique(Y(:))) numel(unique(Z(:))) ] > 1 ;
+r0          = [X(:) Y(:) Z(:)] ;
+
+Interpolant.Points = r0(:, isValidDim0) ;
+
+Interpolant.Values = SZ2(:) ;
+
+basisFields = basisFields0 ;
+
+end
 % =========================================================================
 
 end
@@ -195,10 +251,11 @@ function [ basisFields ]= generatebasisfields( orders, X, Y, Z )
 % [ basisFields ] = GENERATEBASISFIELDS( orders, X, Y, Z )
 %
 % Returns array of SH basis fields where the 4th dimension is the order/degree index
-%   i.e. 
-%       basisFields(:,:,:,1) corresponds to 0th order, 
+% e.g. if orders = [0:2],
 %
-%       basisFields(:,:,:,2:4) to 1st orders
+%       basisFields(:,:,:,1) corresponds to the 0th order term,
+%
+%       basisFields(:,:,:,2:4) to 1st order terms
 %         2 -> (y)  
 %         3 -> (z)   
 %         4 -> (x)   
@@ -209,6 +266,7 @@ function [ basisFields ]= generatebasisfields( orders, X, Y, Z )
 %         7 -> (z2)   
 %         8 -> (zx) 
 %         9 -> (x2y2)  
+%
 %       etc.
 %
 % Input
@@ -220,7 +278,6 @@ function [ basisFields ]= generatebasisfields( orders, X, Y, Z )
 %
 %   X, Y, Z
 %       3d arrays specifying voxel coordinates at which to calculate the harmonics 
-% 
 %  
 % .......
 %
@@ -272,6 +329,9 @@ for iBasisField = 1 : nBasisFields
     % basisFields(:,:,:, iBasisField) = tmpField/max(tmpField(:)) ;
     basisFields(:,:,:, iBasisField) = tmpField ;
 end
+
+%% change order of basis fields to correspond to Siemens Prisma
+
 
 function out = leg_rec_harmonic_cz(n, m, pos_x, pos_y, pos_z)
 % returns harmonic field for the required solid harmonic addressed by 
@@ -373,9 +433,20 @@ function  [ Params ] = assigndefaultparameters( Params )
 % 
 % DEFAULT_ORDERSTOGENERATE = [1:2] ;
 
-DEFAULT_ORDERSTOGENERATE        = [1:2] ;
+DEFAULT_ORDERSTOGENERATE = [1:2] ;
 
-if ~myisfield( Params, 'ordersToGenerate' ) || isempty(Params.ordersToGenerate)
+if myisfieldfilled( Params, 'systemName' )
+    assert( any(strcmp( Params.systemName, {'IUGM_Prisma_fit', 'HGM_Prisma'} )), ...
+            'Unimplemented system: Params.systemName must either be "IUGM_Prisma_fit" or "HGM_Prisma"') ;
+    
+    if myisfieldfilled( Params, 'ordersToGenerate' )
+        assert( all( Params.ordersToGenerate == [1:2] ), ...
+            ['Incompatible Params.ordersToGenerate: The Prisma possesses 1st and 2nd order shims. ' ...
+             'To simulate a higher order system, set Params.systemName = []'] ) ;
+    end
+end
+
+if ~myisfieldfilled( Params, 'ordersToGenerate' ) 
    Params.ordersToGenerate = DEFAULT_ORDERSTOGENERATE ;
 end
 
