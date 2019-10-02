@@ -114,25 +114,25 @@ elseif isstruct( varargin{1} )
     Specs = varargin{1} ;
 
 elseif ischar( varargin{1} )
-    
-    filename = varargin{1} ;
-    load( filename ) ;
 
-    if exist('Data')
-    % loaded file is Data struct corresponding to an old recording
-        Aux.Data    = Data ;
-        Specs.state = 'inert' ;
-    else
-    % loaded file is itself a ProbeTracking() object to be managed by the daemon session 
-    %
-    % Nonurgent TODO:
-    %   This form of ProbeTracking() initialization/construction is not to
-    %   be called by a user, but rather, from the ProbeTracking() constructor
-    %   itself, making it better suited as a 'private' constructor. Apparently
-    %   Matlab does not permit this. There is a work-around described here:
-    %   https://stackoverflow.com/questions/29671482/private-constructor-in-matlab-oop
+    filename = varargin{1} ;
+    [pathStr,name,ext] = fileparts( filename ) ;
+
+    if strcmp( name, 'Aux' ) && strcmp( ext, 'mat' )
+        load( filename ) ;
+        % loaded file is itself a ProbeTracking() object to be managed by the daemon session 
+        %
+        % Nonurgent TODO:
+        %   This form of ProbeTracking() initialization/construction is not to
+        %   be called by a user, but rather, from the ProbeTracking() constructor
+        %   itself, making it better suited as a 'private' constructor. Apparently
+        %   Matlab does not permit this. There is a work-around described here:
+        %   https://stackoverflow.com/questions/29671482/private-constructor-in-matlab-oop
         Aux.launchrecordingdaemon() ; % runs continuously in background
         return;
+    else
+        Aux.Data    = ProbeTracking.loadlog( filename ) ;
+        Specs.state = 'inert' ;
     end
 end
 
@@ -151,7 +151,6 @@ else
 end
 
 end
-
 %% ========================================================================
 function [AuxCopy] = copy( Aux )
 %COPY  
@@ -1080,7 +1079,132 @@ else
 end
 
 end
+%% ========================================================================
+function [ Data ] = loadlog( filename )
+%LOADLOG
+% 
+% Loads a respiratory recording and returns Data struct
+%
+% Data = loadlog( filename )
+%
+% filename must be the path to a .mat file saved by ProbeTracking, 
+% or to a text file with a .resp file extension, indicating a Siemens PMU
+% recording, in which case loadlog wraps to loadlog_siemens()
 
+[pathStr,name,ext] = fileparts( filename ) ;
+
+switch ext
+    case '.mat'
+        load( filename ) ; 
+        assert( logical(exist('Data')), 'invalid recording/log file' ) ;
+    case '.resp'
+        Data = ProbeTracking.loadlog_siemens( filename ) ;
+    otherwise 
+        error('file type not supported');
+end
+
+end
+%% ========================================================================
+function [ Data ] = loadlog_siemens( filename )
+%LOADLOG_SIEMENS
+%
+% Loads a Siemens PMU respiratory recording
+% 
+% Input: filename = name of text file with respiration information
+%
+% Function based on load_PMU_resp.m by eva.alonso.ortiz@gmail.com
+% which derived from
+% https://github.com/timothyv/Physiological-Log-Extraction-for-Modeling--PhLEM--Toolbox
+
+[filepath, name, ext] = fileparts(filename);
+
+% Sampling period
+dt = 1/400 ;   
+
+%%
+fid = fopen(filename);
+textscan(fid,'%s',8); % Ignore first 8 values
+
+data_blk1 = textscan(fid,'%u16'); % Read to end of u16 data
+data_blk1 = data_blk1{1}' ;
+
+nSkip = length( data_blk1 ) + 19 ;
+
+% reset #bytes read :
+fclose(fid) ; 
+fid = fopen(filename) ;
+textscan( fid,'%s', nSkip ) ; % Ignore first nSkip values
+
+data_blk2 = textscan(fid,'%u16'); % Read to end of u16 data
+data_blk2 = data_blk2{1}' ;
+
+data = horzcat(data_blk1, data_blk2) ;
+
+% Read remaining footer (contains time stamps and statistics).
+footer = textscan(fid,'%s');   
+footer = footer{1} ;
+
+for n = 1 : length( footer ) 
+    switch footer{n}
+        case 'LogStartMDHTime:'  
+            LogStartTime=str2num(footer{n+1});
+        case 'LogStopMDHTime:'   
+            LogStopTime=str2num(footer{n+1});
+        case 'LogStartMPCUTime:' 
+            ScanStartTime=str2num(footer{n+1});
+        case 'LogStopMPCUTime:' 
+            ScanStopTime=str2num(footer{n+1});
+    end
+end
+
+fclose(fid) ; 
+
+%% -----
+% 
+
+% 5003 signals recording end
+data( find(data == 5003) ) = [];
+
+% 5000 signals trigger ON
+t_on  = find(data == 5000);  
+
+data(t_on)  = [];
+
+%% ------
+% reformat
+nSamples  = length(data) ;
+Data.pRaw = double( data ) ;
+Data.p    = Data.pRaw ;
+Data.t    = [1:nSamples] * dt ; % measurement time [units: ms]
+
+Data.trigger   = zeros( 1, nSamples ) ; 
+
+Data.startTime = ScanStartTime ;
+Data.endTime   = ScanStopTime ;
+
+Data.iSample   = nSamples ;
+
+LogStartTime_hr  = LogStartTime/1000/60/60;
+LogStartTime_min = 60*rem(LogStartTime_hr,1);
+LogStartTime_sec = 60*rem(LogStartTime_min,1);
+
+% figure;
+% plot(Data.t,Data.p);
+% xlabel('Time (s)','FontSize',15);
+% ylabel('Relative Pressure','FontSize',15);
+%
+% txt = strcat('LogStartTime is equal to ',num2str(floor(LogStartTime_hr)),' hr ',num2str(floor(LogStartTime_min)),' min ',num2str(floor(LogStartTime_sec)),' sec ');
+% text(max(Data.t),double(max(Data.pRaw))+100,txt,'HorizontalAlignment','right','FontSize',15)
+%
+% % fig_name = strcat(name,'_resp_trace') ;
+% %
+% % print('-djpeg',fig_name);
+%
+% disp( ['LogStartTime is equal to ',num2str(floor(LogStartTime_hr)),' hr ', ...
+%     num2str(floor(LogStartTime_min)),' min ',num2str(floor(LogStartTime_sec)),' sec '] )
+
+
+end
 %% ========================================================================
 function [] = plotmeasurementlog( measurementLog, Params )
 %PLOTMEASUREMENTLOG
