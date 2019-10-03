@@ -198,23 +198,6 @@ SXY   = basisFields0(:,:,:,4) ;
 
 %% ------
 % Rescale to the nominal values of the Prisma shims given in the 3d shim adjustments card:
-% i.e. X,Y,Z should correspond to 1 micro-T/m, and 2nd order terms should be in micro-T/m^2
-
-dbstop in ShimOpt_SphericalHarmonics at 204 ;
-[minX, iMinX ] = min(X(:)) ;
-[maxX, iMaxX ] = max(X(:)) ;
-
-[minY, iMinY ] = min(Y(:)) ;
-[maxY, iMaxY ] = max(Y(:)) ;
-
-[minZ, iMinZ ] = min(Z(:)) ;
-[maxZ, iMaxZ ] = max(Z(:)) ;
-
-Gx = Gx*(1E6)*( Gx(iMaxX) - Gx(iMinX) )/(maxX - minX) ;
-Gy = Gy*(1E6)*( Gy(iMaxY) - Gy(iMinY) )/(maxY - minY) ;
-Gz = Gz*(1E6)*( Gz(iMaxZ) - Gz(iMinZ) )/(maxZ - minZ) ;
-
-%% ------
 Interpolant = scatteredInterpolant() ;
 
 Interpolant.Method              = 'linear' ;
@@ -227,9 +210,45 @@ r0          = [X(:) Y(:) Z(:)] ;
 
 Interpolant.Points = r0(:, isValidDim0) ;
 
-Interpolant.Values = SZ2(:) ;
+% ------
+% Gx, Gy, and Gz should yield 1 micro-T of field shift per metre
+% equivalently, 0.042576 Hz/mm:
+Interpolant.Values = Gx(:) ;
+Gx = Gx *( 0.042576/Interpolant( [1 0 0] ) );
+Interpolant.Values = Gy(:) ;
+% Gy and Gz decrease with increases to the respective counter-part coordinates
+% in the patient reference system (hence, the negative sign):
+Gy = Gy *( -0.042576/Interpolant( [0 1 0] ) );
+Interpolant.Values = Gz(:) ;
+Gz = Gz *( -0.042576/Interpolant( [0 0 1] ) );
 
-basisFields = basisFields0 ;
+% ------
+% 2nd order terms should yield 1 micro-T of field shift per metre-squared
+% equivalently, 0.000042576 Hz/mm^2::
+Interpolant.Values = SZ2(:) ;
+SZ2 =  SZ2 * ( 0.000042576/Interpolant( [0 0 1] ) ) ;
+
+Interpolant.Values = SZX(:) ;
+SZX =  SZX * ( 0.000042576/Interpolant( [1 0 1] ) ) ;
+
+Interpolant.Values = SZY(:) ;
+SZY =  SZY * ( 0.000042576/Interpolant( [0 1 1] ) ) ;
+
+Interpolant.Values = SX2Y2(:) ;
+SX2Y2 =  SX2Y2 * ( 0.000042576/Interpolant( [1 1 0] ) ) ;
+
+Interpolant.Values = SXY(:) ;
+SXY =  SXY * ( 0.000042576/Interpolant( [1 1 0] ) ) ;
+
+%% 
+basisFields(:,:,:,1) = Gx ;
+basisFields(:,:,:,2) = Gy ;
+basisFields(:,:,:,3) = Gz ;
+basisFields(:,:,:,4) = SZ2 ;
+basisFields(:,:,:,5) = SZX ;
+basisFields(:,:,:,6) = SZY ;
+basisFields(:,:,:,7) = SX2Y2 ;
+basisFields(:,:,:,8) = SXY ;
 
 end
 % =========================================================================
