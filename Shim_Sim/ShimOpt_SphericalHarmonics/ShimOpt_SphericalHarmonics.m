@@ -174,81 +174,113 @@ function [ basisFields ] = generatebasisfields_prisma( Shim, X, Y, Z )
 %GENERATEBASISFIELDS_PRISMA
 % 
 % Wraps to ShimOpt_SphericalHarmonics.generatebasisfields(), reorders, and
-% rescales the basis set to correspond to the Prisma
+% rescales the basis set yield ideal "shim reference maps" (in units of
+% Hz/unit-shim) for the 1st and 2nd order spherical harmonic shims of the
+% Prisma
+%
+% Usage
+%
+% [ basisFields ] = generatebasisfields_prisma( Shim, X, Y, Z )
+%
+% X, Y, Z are the voxel positions [units: mm] at which to generate the field 
 
 assert( nargin == 4 )
-basisFields  = [] ;
-basisFields0 = ShimOpt_SphericalHarmonics.generatebasisfields( [1:2], X, Y, Z ) ;
 
-%% ------
-% Returned basisFields are ordered like: 
+sh = ShimOpt_SphericalHarmonics.generatebasisfields( [1:2], X, Y, Z ) ;
+% Reorder terms along 4th array dim. in line with Siemens shims: X, Y, Z, Z2, ZX, ZY, X2-Y2, XY
+sh = reordertosiemens( sh ) ; 
+
+scalingFactors = computenormalizationfactors() 
+basisFields    = zeros( size( sh ) ) ; 
+
+for iCh = 1 : size( sh, 4 ) 
+   basisFields(:,:,:,iCh) = scalingFactors(iCh) * sh(:,:,:,iCh) ; 
+end
+
+return;
+
+function [ sh1 ] = reordertosiemens( sh0 )
+%REORDERTOSIEMENS
+%
+%   basisFields1 = REORDERTOSIEMENS( basisFields0 )
+%
+% basisFields returned from .GENERATEBASISFIELDS() are ordered (along the 4th
+% array dimension) like: 
 %   Y, Z, X, XY, ZY, Z2, ZX, X2-Y2
-% Reorder them in line with Siemens shims: 
+%
+% REORDERTOSIEMENS orders them in line with Siemens shims: 
 %   X, Y, Z, Z2, ZX, ZY, X2-Y2, XY
 
-Gx = basisFields0(:,:,:,3) ;
-Gy = basisFields0(:,:,:,1) ;
-Gz = basisFields0(:,:,:,2) ;
+assert( ( nargin == 1 ) && ( size( sh0, 4 ) == 8 ) )
 
-SZ2   = basisFields0(:,:,:,6) ;
-SZX   = basisFields0(:,:,:,7) ;
-SZY   = basisFields0(:,:,:,5) ;
-SX2Y2 = basisFields0(:,:,:,8) ;
-SXY   = basisFields0(:,:,:,4) ;
+sh1(:,:,:,1) = sh0(:,:,:,3) ;
+sh1(:,:,:,2) = sh0(:,:,:,1) ;
+sh1(:,:,:,3) = sh0(:,:,:,2) ;
+sh1(:,:,:,4) = sh0(:,:,:,6) ;
+sh1(:,:,:,5) = sh0(:,:,:,7) ;
+sh1(:,:,:,6) = sh0(:,:,:,5) ;
+sh1(:,:,:,7) = sh0(:,:,:,8) ;
+sh1(:,:,:,8) = sh0(:,:,:,4) ;
+
+end %reordertosiemens()
+
+function [ scalingFactors ] = computenormalizationfactors()
+%COMPUTENORMALIZATIONFACTORS
+%
+%  scalingFactors = computenormalizationfactors()
+%
+%  returns a vector of scalingFactors to apply to the (properly reordered)
+%  ideal 1st+2nd order spherical harmonic basis returned from GENERATEBASISFIELD
+%  to scale the terms as "shim reference maps" in units of Hz/unit-shim
+% -----
+% Gx, Gy, and Gz should yield 1 micro-T of field shift per metre
+% equivalently, 0.042576 Hz/mm
+%
+% 2nd order terms should yield 1 micro-T of field shift per metre-squared
+% equivalently, 0.000042576 Hz/mm^2
 
 %% ------
-% Rescale to the nominal values of the Prisma shims given in the 3d shim adjustments card:
-Interpolant = scatteredInterpolant() ;
+% create basis on small 3x3x3 mm^3 isotropic grid
+[XIso, YIso, ZIso] = meshgrid( [-1:1], [-1:1], [-1:1] ) ;
 
-Interpolant.Method              = 'linear' ;
-Interpolant.ExtrapolationMethod = 'linear' ;
+sh = ShimOpt_SphericalHarmonics.generatebasisfields( [1:2], XIso, YIso, ZIso ) ;
+% Reorder terms along 4th array dim. in line with Siemens shims: X, Y, Z, Z2, ZX, ZY, X2-Y2, XY
+sh = reordertosiemens( sh ) ; 
 
-% The following avoids the error from scatteredInterpolant when one
-% attempts to form a 3d interpolant from a 2d input: 
-isValidDim0 = [ numel(unique(X(:))) numel(unique(Y(:))) numel(unique(Z(:))) ] > 1 ;
-r0          = [X(:) Y(:) Z(:)] ;
+nChannels      = size( sh, 4) ; % = 8
+scalingFactors = zeros( nChannels, 1 ) ;
 
-Interpolant.Points = r0(:, isValidDim0) ;
+% indices of reference positions for normalization: 
+iX1   = find( ( XIso == 1 ) & ( YIso == 0 ) & ( ZIso == 0 ) ) ;
+iY1   = find( ( XIso == 0 ) & ( YIso == 1 ) & ( ZIso == 0 ) ) ;
+iZ1   = find( ( XIso == 0 ) & ( YIso == 0 ) & ( ZIso == 1 ) ) ;
 
-% ------
-% Gx, Gy, and Gz should yield 1 micro-T of field shift per metre
-% equivalently, 0.042576 Hz/mm:
-Interpolant.Values = Gx(:) ;
-Gx = Gx *( 0.042576/Interpolant( [1 0 0] ) );
-Interpolant.Values = Gy(:) ;
-% Gy and Gz decrease with increases to the respective counter-part coordinates
-% in the patient reference system (hence, the negative sign):
-Gy = Gy *( -0.042576/Interpolant( [0 1 0] ) );
-Interpolant.Values = Gz(:) ;
-Gz = Gz *( -0.042576/Interpolant( [0 0 1] ) );
+iX1Z1 = find( ( XIso == 1 ) & ( YIso == 0 ) & ( ZIso == 1 ) ) ;
+iY1Z1 = find( ( XIso == 0 ) & ( YIso == 1 ) & ( ZIso == 1 ) ) ;
+iX1Y1 = find( ( XIso == 1 ) & ( YIso == 1 ) & ( ZIso == 0 ) ) ;
 
-% ------
-% 2nd order terms should yield 1 micro-T of field shift per metre-squared
-% equivalently, 0.000042576 Hz/mm^2::
-Interpolant.Values = SZ2(:) ;
-SZ2 =  SZ2 * ( 0.000042576/Interpolant( [0 0 1] ) ) ;
+% order the reference indices like the sh field terms 
+iRef = [iX1 iY1 iZ1 iZ1 iX1Z1 iY1Z1 iX1 iX1Y1]' ;
 
-Interpolant.Values = SZX(:) ;
-SZX =  SZX * ( 0.000042576/Interpolant( [1 0 1] ) ) ;
+%% ------
+% scaling:
+% 1st order terms yield 1 micro-T of field shift per m (i.e 0.042576 Hz/mm )
+% 2nd order terms yield 1 micro-T of field shift per m^2 (i.e 0.000042576 Hz/mm^2 )
 
-Interpolant.Values = SZY(:) ;
-SZY =  SZY * ( 0.000042576/Interpolant( [0 1 1] ) ) ;
+% distance from iso/origin to adopted reference point [units: mm]
+r = [1 1 1 1 sqrt(2) sqrt(2) 1 sqrt(2)] ;
 
-Interpolant.Values = SX2Y2(:) ;
-SX2Y2 =  SX2Y2 * ( 0.000042576/Interpolant( [1 1 0] ) ) ;
+% invert polarity of certain terms:
+sh(:,:,:,[2,3,5,8]) = -sh(:,:,:,[2,3,5,8] ) ;
 
-Interpolant.Values = SXY(:) ;
-SXY =  SXY * ( 0.000042576/Interpolant( [1 1 0] ) ) ;
+orders = [1 1 1 2 2 2 2 2] ;
 
-%% 
-basisFields(:,:,:,1) = Gx ;
-basisFields(:,:,:,2) = Gy ;
-basisFields(:,:,:,3) = Gz ;
-basisFields(:,:,:,4) = SZ2 ;
-basisFields(:,:,:,5) = SZX ;
-basisFields(:,:,:,6) = SZY ;
-basisFields(:,:,:,7) = SX2Y2 ;
-basisFields(:,:,:,8) = SXY ;
+for iCh = 1 : nChannels
+    field = sh(:,:,:,iCh) ;
+    scalingFactors(iCh) = 42.576*( ( r(iCh) * 0.001 )^orders(iCh) )/field( iRef( iCh ) ) ;
+end
+
+end %computenormalizationfactors()
 
 end
 % =========================================================================
@@ -341,16 +373,8 @@ nBasisFields = size( harm_all, 2) ;
 basisFields  = zeros( [gridSize nBasisFields] ) ;
 
 for iBasisField = 1 : nBasisFields 
-
-    tmpField = reshape( harm_all(:, iBasisField), gridSize ) ; 
-    
-    % % normalize each term
-    % basisFields(:,:,:, iBasisField) = tmpField/max(tmpField(:)) ;
-    basisFields(:,:,:, iBasisField) = tmpField ;
+    basisFields(:,:,:, iBasisField) = reshape( harm_all(:, iBasisField), gridSize ) ;
 end
-
-%% change order of basis fields to correspond to Siemens Prisma
-
 
 function out = leg_rec_harmonic_cz(n, m, pos_x, pos_y, pos_z)
 % returns harmonic field for the required solid harmonic addressed by 
