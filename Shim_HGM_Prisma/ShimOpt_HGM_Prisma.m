@@ -27,17 +27,16 @@ Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ;
 
 Params = ShimOpt_HGM_Prisma.assigndefaultparameters( Params ) ;
 
-if Params.isCalibratingReferenceMaps
-
-    [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimOpt_HGM_Prisma.calibratereferencemaps( Params ) ;
-
-elseif ~isempty(Params.pathToShimReferenceMaps)
-   
-   [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimOpt.loadshimreferencemaps( Params.pathToShimReferenceMaps ) ; 
-    
-    Shim.Ref.img = Shim.img ;
-    Shim.Ref.Hdr = Shim.Hdr ;
-
+switch Params.shimReferenceMaps
+    case 'calibrate'
+        [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimOpt_HGM_Prisma.calibratereferencemaps( Params ) ;
+    case 'load'
+       [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimOpt.loadshimreferencemaps( Params.pathToShimReferenceMaps ) ; 
+        
+        Shim.Ref.img = Shim.img ;
+        Shim.Ref.Hdr = Shim.Hdr ;
+    case 'model'  
+        ; % do nothing until setoriginalfield()
 end
 
 if ~isempty( Field ) 
@@ -63,10 +62,10 @@ function [] = interpolatetoimggrid( Shim, Field )
 %
 %   The patient coordinate system is defined by the initial (laser) placement
 %   of the subject. After the 1st localizer (for which the Z=0 position will
-%   correspond to isocenter), it is likely that the operator will choose a
-%   particular FOV for the following scans, thereby repositioning the table by
-%   a certain amount ( Field.Hdr.Img.ImaRelTablePosition ).  i.e. Isocenter has
-%   been moved from Z=0 to Z = Field.Hdr.Img.ImaRelTablePosition.
+%   correspond to isocenter), it is possible that the operator will choose a
+%   particular FOV for the following scans which repositions the table by
+%   a certain amount ( Field.Hdr.Img.ImaRelTablePosition ), thereby shifting 
+%   isocenter (in the patient coordinate system) from Z=0 to Z = Field.Hdr.Img.ImaRelTablePosition.
 % 
 %   For our multi-coil shim arrays, the shim moves along with the table (as
 %   does the patient coordinate system), so a shim field shift at initial
@@ -131,7 +130,6 @@ function [C, Ceq] = checknonlinearconstraints( corrections )
     Ceq = [];
     % check on abs current per channel
     C = abs( corrections ) - Params.maxCurrentPerChannel ;
-
 end
 
 end
@@ -147,11 +145,17 @@ function [] = setoriginalfield( Shim, Field )
 
 Shim.Field = Field.copy() ;
 
-Shim.interpolatetoimggrid( Shim.Field ) ;
+if isempty( Shim.img )
+    Shim.modelreferencemaps( Field ) ;
+else
+    Shim.interpolatetoimggrid( Shim.Field ) ;
+end
+
 Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
 
+%% -----
 % get the original shim offsets
-[f0, g0, s0]  = Shim.Field.adjvalidateshim() ;
+[f0, g0, s0]                    = Shim.Field.adjvalidateshim() ;
 Shim.System.currents            =  [ ShimSpecs_HGM_Prisma.converttomultipole( [g0 ; s0] ) ] ; 
 Shim.System.Tx.imagingFrequency = f0 ;
 
@@ -167,7 +171,125 @@ end
 
 % =========================================================================
 % =========================================================================
-methods(Access=protected)
+methods(Hidden)
+% =========================================================================
+function [ ] = modelreferencemaps( Shim, Field )
+%MODELREFERENCEMAPS    Models ideal/nominal Prisma shim reference maps
+% 
+% Wraps to ShimOpt_SphericalHarmonics.generatebasisfields(), reorders, and
+% rescales the basis set to return ideal "shim reference maps" (in units of
+% Hz/unit-shim) for the 1st and 2nd order spherical harmonic shims of the
+% Siemens Prisma
+%
+% Usage
+%
+% [ ] = MODELREFERENCEMAPS( Shim, Field )
+
+assert( nargin == 2 )
+
+[X,Y,Z] = Field.getvoxelpositions() ;
+
+sh = ShimOpt_SphericalHarmonics.generatebasisfields( [1:2], X, Y, Z ) ;
+% Reorder terms along 4th array dim. in line with Siemens shims: X, Y, Z, Z2, ZX, ZY, X2-Y2, XY
+sh = reordertosiemens( sh ) ; 
+
+scalingFactors = computenormalizationfactors() ;
+basisFields    = zeros( size( sh ) ) ; 
+
+for iCh = 1 : size( sh, 4 ) 
+   basisFields(:,:,:,iCh) = scalingFactors(iCh) * sh(:,:,:,iCh) ; 
+end
+
+Shim.img = basisFields ;
+Shim.Hdr = Field.Hdr ;
+Shim.Hdr.MaskingImage = true( size( basisFields ) ) ;
+
+return;
+
+function [ sh1 ] = reordertosiemens( sh0 )
+%REORDERTOSIEMENS
+%
+%   basisFields1 = REORDERTOSIEMENS( basisFields0 )
+%
+% basisFields returned from .GENERATEBASISFIELDS() are ordered (along the 4th
+% array dimension) like: 
+%   Y, Z, X, XY, ZY, Z2, ZX, X2-Y2
+%
+% REORDERTOSIEMENS orders them in line with Siemens shims: 
+%   X, Y, Z, Z2, ZX, ZY, X2-Y2, XY
+
+assert( ( nargin == 1 ) && ( size( sh0, 4 ) == 8 ) )
+
+sh1(:,:,:,1) = sh0(:,:,:,3) ;
+sh1(:,:,:,2) = sh0(:,:,:,1) ;
+sh1(:,:,:,3) = sh0(:,:,:,2) ;
+sh1(:,:,:,4) = sh0(:,:,:,6) ;
+sh1(:,:,:,5) = sh0(:,:,:,7) ;
+sh1(:,:,:,6) = sh0(:,:,:,5) ;
+sh1(:,:,:,7) = sh0(:,:,:,8) ;
+sh1(:,:,:,8) = sh0(:,:,:,4) ;
+
+end %reordertosiemens()
+
+function [ scalingFactors ] = computenormalizationfactors()
+%COMPUTENORMALIZATIONFACTORS
+%
+%  scalingFactors = computenormalizationfactors()
+%
+%  returns a vector of scalingFactors to apply to the (properly reordered)
+%  ideal 1st+2nd order spherical harmonic basis returned from GENERATEBASISFIELD
+%  to scale the terms as "shim reference maps" in units of Hz/unit-shim
+% -----
+% Gx, Gy, and Gz should yield 1 micro-T of field shift per metre
+% equivalently, 0.042576 Hz/mm
+%
+% 2nd order terms should yield 1 micro-T of field shift per metre-squared
+% equivalently, 0.000042576 Hz/mm^2
+
+%% ------
+% create basis on small 3x3x3 mm^3 isotropic grid
+[XIso, YIso, ZIso] = meshgrid( [-1:1], [-1:1], [-1:1] ) ;
+
+sh = ShimOpt_SphericalHarmonics.generatebasisfields( [1:2], XIso, YIso, ZIso ) ;
+% Reorder terms along 4th array dim. in line with Siemens shims: X, Y, Z, Z2, ZX, ZY, X2-Y2, XY
+sh = reordertosiemens( sh ) ; 
+
+nChannels      = size( sh, 4) ; % = 8
+scalingFactors = zeros( nChannels, 1 ) ;
+
+% indices of reference positions for normalization: 
+iX1   = find( ( XIso == 1 ) & ( YIso == 0 ) & ( ZIso == 0 ) ) ;
+iY1   = find( ( XIso == 0 ) & ( YIso == 1 ) & ( ZIso == 0 ) ) ;
+iZ1   = find( ( XIso == 0 ) & ( YIso == 0 ) & ( ZIso == 1 ) ) ;
+
+iX1Z1 = find( ( XIso == 1 ) & ( YIso == 0 ) & ( ZIso == 1 ) ) ;
+iY1Z1 = find( ( XIso == 0 ) & ( YIso == 1 ) & ( ZIso == 1 ) ) ;
+iX1Y1 = find( ( XIso == 1 ) & ( YIso == 1 ) & ( ZIso == 0 ) ) ;
+
+% order the reference indices like the sh field terms 
+iRef = [iX1 iY1 iZ1 iZ1 iX1Z1 iY1Z1 iX1 iX1Y1]' ;
+
+%% ------
+% scaling:
+% 1st order terms yield 1 micro-T of field shift per m (i.e 0.042576 Hz/mm )
+% 2nd order terms yield 1 micro-T of field shift per m^2 (i.e 0.000042576 Hz/mm^2 )
+
+% distance from iso/origin to adopted reference point [units: mm]
+r = [1 1 1 1 sqrt(2) sqrt(2) 1 sqrt(2)] ;
+
+% invert polarity of certain terms:
+sh(:,:,:,[2,3,5,8]) = -sh(:,:,:,[2,3,5,8] ) ;
+
+orders = [1 1 1 2 2 2 2 2] ;
+
+for iCh = 1 : nChannels
+    field = sh(:,:,:,iCh) ;
+    scalingFactors(iCh) = 42.576*( ( r(iCh) * 0.001 )^orders(iCh) )/field( iRef( iCh ) ) ;
+end
+
+end %computenormalizationfactors()
+
+end
 % =========================================================================
 
 end
@@ -186,21 +308,23 @@ function  [ Params ] = assigndefaultparameters( Params )
 %
 % DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
 
-DEFAULTS.isCalibratingReferenceMaps = false ;
 DEFAULTS.pathToShimReferenceMaps    = [ shimbindir() 'ShimReferenceMaps_HGM_Prisma' ] ;
+DEFAULTS.isCalibratingReferenceMaps = false ;
+Params = assignifempty( Params, 'isCalibratingReferenceMaps', DEFAULTS.isCalibratingReferenceMaps ) ;
 
-if ~myisfieldfilled( Params, 'isCalibratingReferenceMaps' ) 
-   Params.isCalibratingReferenceMaps = DEFAULTS.isCalibratingReferenceMaps ;
-end
+if myisfieldfilled( Params, 'pathToShimReferenceMaps' )
 
-if ~myisfieldfilled( Params, 'pathToShimReferenceMaps' ) 
+    DEFAULTS.isModelingReferenceMaps = false ;
+    
     if Params.isCalibratingReferenceMaps
         today = datestr( now, 30 ) ;
         today = today(1:8) ; % ignore the time of the day
-        Params.pathToShimReferenceMaps = [ shimbindir() 'ShimReferenceMaps_HGM_Prisma' ] ;
+        Params.pathToShimReferenceMaps = [ shimbindir() 'ShimReferenceMaps_HGM_Prisma_' today ] ;
     else
         Params.pathToShimReferenceMaps = DEFAULTS.pathToShimReferenceMaps ;
     end
+else 
+    DEFAULTS.isModelingReferenceMaps = true ;
 end
 
 end
@@ -434,8 +558,11 @@ end
 img = dBdI ;
 img(~mask) = 0 ;
 Hdr = Fields{1,1,1}.Hdr ;
+Hdr.MaskingImage = mask ;
 
 end
+% =========================================================================
+
 % =========================================================================
 
 end
