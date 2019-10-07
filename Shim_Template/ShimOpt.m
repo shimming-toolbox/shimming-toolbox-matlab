@@ -152,6 +152,8 @@ ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
     Shim.Ref.Hdr = Shim.Hdr ;
 
 end
+    
+Shim.Ref.source = 'data' ;
 
 if ~isempty( Field ) 
     Shim.setoriginalfield( Field ) ;

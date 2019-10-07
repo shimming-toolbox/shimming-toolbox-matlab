@@ -30,13 +30,15 @@ Params = ShimOpt_Prisma.assigndefaultparameters( Params, Shim.System.Specs ) ;
 switch Params.shimReferenceMaps
     case 'calibrate'
         [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimOpt_Prisma.calibratereferencemaps( Params ) ;
+        Shim.Ref.source = 'data' ;
     case 'model'  
-        ; % do nothing until setoriginalfield()
+        Shim.Ref.source = 'model' ;
     otherwise 
        [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimOpt.loadshimreferencemaps( Params.shimReferenceMaps ) ; 
         
         Shim.Ref.img = Shim.img ;
         Shim.Ref.Hdr = Shim.Hdr ;
+        Shim.Ref.source = 'data' ;
 end
 
 if ~isempty( Field ) 
@@ -145,10 +147,11 @@ function [] = setoriginalfield( Shim, Field )
 
 Shim.Field = Field.copy() ;
 
-if isempty( Shim.img )
-    Shim.modelreferencemaps( Field ) ;
-else
-    Shim.interpolatetoimggrid( Shim.Field ) ;
+switch Shim.Ref.source
+    case 'model'
+        Shim.modelreferencemaps( Field ) ;
+    case 'data'
+        Shim.interpolatetoimggrid( Shim.Field ) ;
 end
 
 Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
@@ -156,7 +159,7 @@ Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
 %% -----
 % get the original shim offsets
 [f0, g0, s0]                    = Shim.Field.adjvalidateshim() ;
-Shim.System.currents            =  [ ShimSpecs_Prisma.converttomultipole( [g0 ; s0] ) ] ; 
+Shim.System.currents            =  [ Shim.System.Specs.converttomultipole( [g0 ; s0] ) ] ; 
 Shim.System.Tx.imagingFrequency = f0 ;
 
 % if ~isempty( Shim.Aux ) && ~isempty( Shim.Aux.Shim ) 
@@ -209,6 +212,8 @@ end
 Shim.img = basisFields ;
 Shim.Hdr = Field.Hdr ;
 Shim.Hdr.MaskingImage = true( size( basisFields ) ) ;
+
+Shim.Ref.source = 'model' ;
 
 return;
 
