@@ -1,8 +1,8 @@
-classdef ShimOpt_IUGM_Prisma_fit < ShimOpt
+classdef ShimOpt_IUGM_Prisma_fit < ShimOpt_Prisma
 %SHIMOPT_IUGM_PRISMA_FIT - Shim Optimization for Prisma-fit @ UNF 
 %     
-% ShimOpt_IUGM_Prisma_fit is a ShimOpt subclass. See ShimOpt documentation for
-% usage.
+% ShimOpt_IUGM_Prisma_fit is a ShimOpt_Prisma subclass. 
+% See ShimOpt documentation for usage.
 %
 % =========================================================================
 % Author::ryan.topfer@polymtl.ca
@@ -15,28 +15,23 @@ methods
 function Shim = ShimOpt_IUGM_Prisma_fit( varargin )
 %SHIMOPT - Shim Optimization
 
-Shim.img   = [] ;
-Shim.Hdr   = [] ;
-Shim.Field = [] ;       
-Shim.Model = [] ;
-Shim.Aux   = [] ;
 Shim.System.Specs    = ShimSpecs_IUGM_Prisma_fit();
 Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
 
 [ Field, Params ] = ShimOpt.parseinput( varargin ) ;
 
-Params = ShimOpt_IUGM_Prisma_fit.assigndefaultparameters( Params ) ;
+Params = ShimOpt_Prisma.assigndefaultparameters( Params, Shim.System.Specs ) ;
 
-if Params.isCalibratingReferenceMaps
-
-    [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimOpt_IUGM_Prisma_fit.calibratereferencemaps( Params ) ;
-
-elseif ~isempty(Params.pathToShimReferenceMaps)
-   
-   [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimOpt.loadshimreferencemaps( Params.pathToShimReferenceMaps ) ; 
-    
-    Shim.Ref.img = Shim.img ;
-    Shim.Ref.Hdr = Shim.Hdr ;
+switch Params.shimReferenceMaps
+    case 'calibrate'
+        [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimSpecs_IUGM_Prisma_fit.calibratereferencemaps( Params ) ;
+    case 'model'  
+        ; % do nothing until setoriginalfield()
+    otherwise 
+       [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimOpt.loadshimreferencemaps( Params.shimReferenceMaps ) ; 
+        
+        Shim.Ref.img = Shim.img ;
+        Shim.Ref.Hdr = Shim.Hdr ;
 end
 
 if ~isempty( Field ) 
@@ -45,164 +40,11 @@ end
 
 end
 % =========================================================================
-function [] = interpolatetoimggrid( Shim, Field )
-%INTERPOLATETOIMGGRID 
-%
-% [] = INTERPOLATETOIMGGRID( Shim, Field )
-%
-% Interpolates Shim.img (reference maps) to the grid (voxel positions) of
-% MaRdI-type Img
-% 
-% i.e.
-%
-%   [X,Y,Z] = Field.getvoxelpositions ;
-%   Shim.resliceimg( X, Y, Z ) ;
-%
-% NOTE
-%
-%   The patient coordinate system is defined by the initial (laser) placement
-%   of the subject. After the 1st localizer (for which the Z=0 position will
-%   correspond to isocenter), it is likely that the operator will choose a
-%   particular FOV for the following scans, thereby repositioning the table by
-%   a certain amount ( Field.Hdr.Img.ImaRelTablePosition ).  i.e. Isocenter has
-%   been moved from Z=0 to Z = Field.Hdr.Img.ImaRelTablePosition.
-% 
-%   For our multi-coil shim arrays, the shim moves along with the table (as
-%   does the patient coordinate system), so a shim field shift at initial
-%   location r' = (x',y',z') will continue to be exactly that.
-%
-%   The scanner shims, on the other hand, are fixed relative to isocenter. So a
-%   shim field shift induced at initial table position r', will now instead be
-%   induced at r' + Field.Hdr.Img.ImaRelTablePosition.
-
-[X, Y, Z]    = Field.getvoxelpositions ;
-[X0, Y0, Z0] = Shim.getvoxelpositions ;
-
-dR = Field.isocenter() ; 
-assert( dR(1) == 0, 'Table shifted in L/R direction?' ) ;
-assert( dR(2) == 0, 'Table shifted in A/P direction?' ) ;
-
-if ( dR(3) ~= 0 ) % field positions originally at Z0 have been shifted
-    % NOTE
-    %   tablePosition is increasingly negative the more it is into the scanner.
-    %   the opposite is true for the z-coordinate of a voxel in the dicom
-    %   reference system.
-    warning('Correcting for table shift with respect to shim reference images')
-    Z0 = Z0 + dR(3) ;
-    Shim.Hdr.ImagePositionPatient(3) = Shim.Hdr.ImagePositionPatient(3) + dR(3) ;   
 end
 
-% -------
-% check if voxel positions already happen to coincide. if they do, don't interpolate (time consuming).
-if ~MaRdI.compareimggrids( X, Y, Z, X0, Y0, Z0 )
-    Shim.resliceimg( X, Y, Z ) ;
-end
-
-end
-% =========================================================================
-function [Corrections] = optimizeshimcurrents( Shim, Params )
-%OPTIMIZESHIMCURRENTS 
-%
-% Corrections = OPTIMIZESHIMCURRENTS( Shim, Params )
-%   
-% Params can have the following fields 
-%   
-%   .maxCurrentPerChannel
-%       [default: determined by class ShimSpecs.Amp.maxCurrentPerChannel]
- 
-if nargin < 2 
-    Params.dummy = [];
-end
-
-Corrections = optimizeshimcurrents@ShimOpt( Shim, Params  ) ;
-
-function [C, Ceq] = checknonlinearconstraints( corrections )
-%CHECKNONLINEARCONSTRAINTS 
-%
-% Check current solution satisfies nonlinear system constraints
-% 
-% i.e. this is the C(x) function in FMINCON (see DOC)
-%
-% C(x) <= 0
-%
-% (e.g. x = currents)
-    
-    Ceq = [];
-    % check on abs current per channel
-    C = abs( corrections ) - Params.maxCurrentPerChannel ;
-
-end
-
-end
-% =========================================================================
-function [] = setoriginalfield( Shim, Field )
-%SETORIGINALFIELD 
-%
-% [] = SETORIGINALFIELD( Shim, Field )
-%
-% Sets Shim.Field
-%
-% Field is a FieldEval type object with .img in Hz
-
-Shim.Field = Field.copy() ;
-
-Shim.interpolatetoimggrid( Shim.Field ) ;
-Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
-
-% get the original shim offsets
-[f0, g0, s0]  = Shim.Field.adjvalidateshim() ;
-Shim.System.currents            =  [ ShimOpt_IUGM_Prisma_fit.converttomultipole( [g0 ; s0] ) ] ; 
-Shim.System.Tx.imagingFrequency = f0 ;
-
-% if ~isempty( Shim.Aux ) && ~isempty( Shim.Aux.Shim ) 
-%     Shim.Aux.Shim.Field = Shim.Field ;
-%     Shim.Aux.Shim.interpolatetoimggrid( Shim.Field ) ;
-%     Shim.Aux.Shim.setshimvolumeofinterest( Field.Hdr.MaskingImage ) ;
-% end
-
-end
-% =========================================================================
-end
-
-% =========================================================================
-% =========================================================================
-methods(Access=protected)
-% =========================================================================
-
-end
 % =========================================================================
 % =========================================================================
 methods(Static=true, Hidden=true)
-% =========================================================================
-function  [ Params ] = assigndefaultparameters( Params )
-%ASSIGNDEFAULTPARAMETERS  
-% 
-% Params = ASSIGNDEFAULTPARAMETERS( Params )
-% 
-% Add default parameters fields to Params without replacing values (unless empty)
-%
-% DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
-%
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = [] ;
-
-DEFAULTS.isCalibratingReferenceMaps = false ;
-DEFAULTS.pathToShimReferenceMaps    = [ shimbindir() 'ShimReferenceMaps_IUGM_Prisma_fit' ] ;
-
-if ~myisfieldfilled( Params, 'isCalibratingReferenceMaps' ) 
-   Params.isCalibratingReferenceMaps = DEFAULTS.isCalibratingReferenceMaps ;
-end
-
-if ~myisfieldfilled( Params, 'pathToShimReferenceMaps' ) 
-    if Params.isCalibratingReferenceMaps
-        today = datestr( now, 30 ) ;
-        today = today(1:8) ; % ignore the time of the day
-        Params.pathToShimReferenceMaps = [ shimbindir() 'ShimReferenceMaps_IUGM_Prisma_fit' ] ;
-    else
-        Params.pathToShimReferenceMaps = DEFAULTS.pathToShimReferenceMaps ;
-    end
-end
-
-end
 % =========================================================================
 function [ img, Hdr, Interpolant ] = calibratereferencemaps( Params )
 %CALIBRATEREFERENCEMAPS
@@ -478,61 +320,6 @@ end
 img = dBdI ;
 img(~mask) = 0 ;
 Hdr = Fields{1,1,1}.Hdr ;
-
-end
-% =========================================================================
-
-end
-% =========================================================================
-% =========================================================================
-methods(Static)
-% =========================================================================
-function [ shimValues ] = converttomultipole( shimValues )
-%CONVERTTOMULTIPOLE
-% 
-% shimValues = CONVERTTOMULTIPOLE( shimValues )
-%
-% Shim values stored in MrProt (private Siemens DICOM.Hdr) are in units of 
-% DAC counts for the gradient offsets and in units of mA for the 2nd order shims.
-% CONVERTTOMULTIPOLE uses the information given by the Siemens commandline tool
-%   AdjValidate -shim -info
-% to convert a vector of shim settings in those units into the "multipole" values
-% which are used in the Siemens GUI display (i.e. Shim3d)
-
-
-nChannels = numel( shimValues ) ;
-
-if nChannels == 3 
-    % input shimValues are gradient offsets [units : DAC counts]
-    % output shimValues units : micro-T/m]
-    
-    shimValues(1) = 2300*shimValues(1)/14436 ;
-    shimValues(2) = 2300*shimValues(2)/14265 ;
-    shimValues(3) = 2300*shimValues(3)/14045 ;
-
-elseif nChannels == 5
-    % input shimValues are for the 2nd order shims [units : mA]
-    % output shimValues units : micro-T/m^2]
-
-    shimValues(1) = 4959.01*shimValues(1)/9998 ;
-    shimValues(2) = 3551.29*shimValues(2)/9998 ;
-    shimValues(3) = 3503.299*shimValues(3)/9998 ;
-    shimValues(4) = 3551.29*shimValues(4)/9998 ;
-    shimValues(5) = 3487.302*shimValues(5)/9998 ;
-
-elseif nChannels == 8
-
-    shimValues(1) = 2300*shimValues(1)/14436 ;
-    shimValues(2) = 2300*shimValues(2)/14265 ;
-    shimValues(3) = 2300*shimValues(3)/14045 ;
-
-    shimValues(4) = 4959.01*shimValues(4)/9998 ;
-    shimValues(5) = 3551.29*shimValues(5)/9998 ;
-    shimValues(6) = 3503.299*shimValues(6)/9998 ;
-    shimValues(7) = 3551.29*shimValues(7)/9998 ;
-    shimValues(8) = 3487.302*shimValues(8)/9998 ;
-
-end
 
 end
 % =========================================================================

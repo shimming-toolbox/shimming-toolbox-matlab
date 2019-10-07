@@ -1,9 +1,9 @@
-classdef ShimSpecs_HGM_Prisma < ShimSpecs_Prisma
-%SHIMSPECS_HGM_Prisma
+classdef ShimSpecs_Prisma < ShimSpecs
+%SHIMSPECS_Prisma
 % 
-% Shim System Specifications for Siemens shims on Prisma at Montreal General Hospital
+% Shim System Specifications for Siemens Prisma shims 
 %    
-%    ShimSpecs_HGM_Prisma is a ShimSpecs_Prisma subclass
+%    ShimSpecs_Prisma is a ShimSpecs subclass
 %
 % =========================================================================
 % Author::ryan.topfer@polymtl.ca
@@ -13,12 +13,15 @@ classdef ShimSpecs_HGM_Prisma < ShimSpecs_Prisma
 % =========================================================================
 methods
 % =========================================================================
-function Shim = ShimSpecs_HGM_Prisma(  )
+function Shim = ShimSpecs_Prisma(  )
 %SHIMSPECS - Shim System Specifications 
 
-Shim.Id.systemName   = 'HGM_Prisma' ;
+Shim.Id.systemName   = 'Prisma' ;
 Shim.Id.channelNames = { 'X (A11)' ; 'Y (B11)' ; 'Z (A10)' ; 'Z2 (A20)' ; 'ZX (A21)' ; 'ZY (B21)' ; 'X2-Y2 (A22)' ; 'XY (B22)' } ;
 Shim.Id.channelUnits = { '[micro-T/m]' ; '[micro-T/m]'; '[micro-T/m]'; '[micro-T/m^2]' ; '[micro-T/m^2]' ; '[micro-T/m^2]' ; '[micro-T/m^2]' ; '[micro-T/m^2]' ; } ;
+
+Shim.Com = [] ;  
+Shim.Dac = [] ;
 
 % channels 1-3 refer to the gradient offsets, 4-8 to the 2nd order shims
 Shim.Amp.nChannels       = 8 ;  

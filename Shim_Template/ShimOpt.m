@@ -122,10 +122,11 @@ Shim.Field  = [] ;
 Shim.Model  = [] ;
 Shim.Aux    = [] ;
 Shim.System = [] ;
+Shim.System.Specs = [] ;
 
 [ Field, Params ] = ShimOpt.parseinput( varargin ) ;
 
-Params = ShimOpt.assigndefaultparameters( Params ) ;
+Params = ShimOpt.assigndefaultparameters( Params, Shim.System.Specs ) ;
 
 %% .......
 % Load shim basis if provided 
@@ -2082,7 +2083,7 @@ end
 % =========================================================================
 methods(Static=true, Hidden=true)
 % =========================================================================
-function [ Params ] = assigndefaultparameters( Params )
+function [ Params ] = assigndefaultparameters( Params, Specs )
 %ASSIGNDEFAULTPARAMETERS  
 % 
 % Params = ASSIGNDEFAULTPARAMETERS( Params )

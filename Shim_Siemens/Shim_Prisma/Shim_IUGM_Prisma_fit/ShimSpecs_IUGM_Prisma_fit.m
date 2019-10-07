@@ -1,9 +1,9 @@
-classdef ShimSpecs_IUGM_Prisma_fit < ShimSpecs
+classdef ShimSpecs_IUGM_Prisma_fit < ShimSpecs_Prisma
 %SHIMSPECS_IUGM_Prisma_fit
 % 
 % Shim System Specifications for Siemens shims on Prisma @UNF 
 %    
-%    ShimSpecs_IUGM_Prisma_fit is a ShimSpecs subclass
+%    ShimSpecs_IUGM_Prisma_fit is a ShimSpecs_Prisma subclass
 %
 % =========================================================================
 % Author::ryan.topfer@polymtl.ca
