@@ -324,7 +324,7 @@ switch Params.shimReferenceMaps
     case 'calibrate'
         today = datestr( now, 30 ) ;
         today = today(1:8) ; % ignore the time of the day
-        Params.pathToShimReferenceMaps = [ shimbindir() Specs.systemName '_' today ] ;
+        Params.pathToShimReferenceMaps = [ shimbindir() Specs.Id.systemName '_' today ] ;
     case 'load'
         Params.shimReferenceMaps = DEFAULTS.pathToShimReferenceMaps ;
     case 'model'

@@ -24,7 +24,7 @@ Params = ShimOpt_Prisma.assigndefaultparameters( Params, Shim.System.Specs ) ;
 
 switch Params.shimReferenceMaps
     case 'calibrate'
-        [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimSpecs_IUGM_Prisma_fit.calibratereferencemaps( Params ) ;
+        [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimOpt_IUGM_Prisma_fit.calibratereferencemaps( Params ) ;
     case 'model'  
         ; % do nothing until setoriginalfield()
     otherwise 
@@ -282,7 +282,7 @@ mask   = avgMag > Params.threshold ;
 %% -----
 % compute dB/dI 
 Fields = cell( nCurrents, 1, 8 ) ;
-
+dbstop in ShimOpt_IUGM_Prisma_fit at 286
 for iChannel = 1 : nChannels 
     disp(['Computing field maps: Channel ' num2str(iChannel) ' of ' num2str(nChannels) ] )        
     for iCurrent = 1  : nCurrents
