@@ -275,6 +275,7 @@ for iChannel = 1 : nChannels
         avgMag = avgMag + ( Mag{ iCurrent, 1, iChannel }.img(:,:,:,1) + Mag{iCurrent, 1, iChannel}.img(:,:,:,2 ) )/2 ;
     end
 end
+
 % normalize
 avgMag = avgMag/max(avgMag(:)) ;
 mask   = avgMag > Params.threshold ;
@@ -282,7 +283,7 @@ mask   = avgMag > Params.threshold ;
 %% -----
 % compute dB/dI 
 Fields = cell( nCurrents, 1, 8 ) ;
-dbstop in ShimOpt_IUGM_Prisma_fit at 286
+
 for iChannel = 1 : nChannels 
     disp(['Computing field maps: Channel ' num2str(iChannel) ' of ' num2str(nChannels) ] )        
     for iCurrent = 1  : nCurrents
@@ -318,7 +319,7 @@ for iChannel = 1 : nChannels
 end
 
 img = dBdI ;
-img(~mask) = 0 ;
+img(repmat(~mask,[1 1 1 8])) = 0 ;
 Hdr = Fields{1,1,1}.Hdr ;
 
 end
