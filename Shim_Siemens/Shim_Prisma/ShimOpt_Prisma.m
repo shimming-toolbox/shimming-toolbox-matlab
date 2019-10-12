@@ -47,6 +47,173 @@ end
 
 end
 % =========================================================================
+function [] = comparemaps( Shim, iSlice )
+%COMPAREMAPS    Compare empirical to modeled reference maps
+
+assert( strcmp( Shim.Ref.source, 'data' ), ...
+    'Input ShimOpt object should be instantiated with empirical reference maps. See HELP ShimOpt_Prisma' )
+
+if ( nargin == 1 ) || isempty( iSlice )
+    iSlice = 63 ;
+end
+
+%% -----
+Params.shimReferenceMaps = 'model' ;
+
+%% how to get field object?? 
+% how to create correct ShimOpt_Prisma object??
+% IdealShims = ShimOpt_Prisma( Params, Fields{1,1,1} ) ;
+% IdealShims = ShimOpt_IUGM_Prisma_fit( Params, Fields{1,1,1} ) ;
+
+[X,Y,Z] = IdealShims.getvoxelpositions() ;
+
+R = sqrt( X.^2 + Y.^2 + Z.^2 ) ;
+
+deviation = repmat( Shim.getshimsupport(), [1 1 1 8] ) .* abs( IdealShims.img - Shim.img ) ;
+
+%% -----
+% 1st order shims:
+
+close all
+figure
+
+for iCh = 1:3
+    switch iCh
+        case 1
+            iRow = 0;
+        case 2
+            iRow = 4;
+        case 3 
+            iRow = 8 ;
+    end
+
+    subplot(3,4,iRow+1) 
+    contour( X(:,:,iSlice),Y(:,:,iSlice), R(:,:,iSlice), 'ShowText', 'on' ) ;
+    title('Distance to isocentre (mm)') ;
+    ylabel(IdealShims.System.Specs.Id.channelNames{iCh})
+
+    subplot(3,4,iRow+2) 
+    imagesc( IdealShims.img(:,:,iSlice,iCh) ) ;
+    title('Nominal/simulated') ;
+    caxis([-1 1] ) ;
+    colorbar 
+    set(gca,'XTick',[])
+    set(gca,'YTick',[])
+
+    subplot(3,4,iRow+3) 
+    imagesc( Shim.img(:,:,iSlice,iCh) ) ;
+    title('Empirical') ;
+    caxis([-1 1] ) ;
+    colorbar 
+    set(gca,'XTick',[])
+    set(gca,'YTick',[])
+
+    subplot(3,4,iRow+4) 
+    imagesc( deviation(:,:,iSlice,iCh) ) ;
+    title('Abs. deviation') ;
+    caxis([0 1] ) ;
+    colorbar ;
+    set(gca,'XTick',[])
+    set(gca,'YTick',[])
+
+end
+
+%% -----
+% 2nd order shims:
+
+figure
+
+for iCh = 4:6
+    switch iCh
+        case 4
+            iRow = 0;
+        case 5
+            iRow = 4;
+        case 6 
+            iRow = 8 ;
+    end
+
+    subplot(3,4,iRow+1) 
+    contour( X(:,:,63),Y(:,:,63), R(:,:,63), 'ShowText', 'on' ) ;
+    title('Distance to isocentre (mm)') ;
+    ylabel(IdealShims.System.Specs.Id.channelNames{iCh})
+
+    subplot(3,4,iRow+2) 
+    imagesc( IdealShims.img(:,:,iSlice,iCh) ) ;
+    title('Nominal/simulated') ;
+    caxis([-0.3 0.3] ) ;
+    colorbar 
+    set(gca,'XTick',[])
+    set(gca,'YTick',[])
+
+    subplot(3,4,iRow+3) 
+    imagesc( Shim.img(:,:,iSlice,iCh) ) ;
+    title('Empirical') ;
+    caxis([-0.3 0.3] ) ;
+    colorbar 
+    set(gca,'XTick',[])
+    set(gca,'YTick',[])
+
+    subplot(3,4,iRow+4) 
+    imagesc( deviation(:,:,iSlice,iCh) ) ;
+    title('Abs. deviation') ;
+    caxis([0 0.1] ) ;
+    colorbar ;
+    set(gca,'XTick',[])
+    set(gca,'YTick',[])
+
+end
+
+%% -----
+% 2nd order shims (cont)
+
+figure
+
+for iCh = 7:8 
+    switch iCh
+        case 7
+            iRow = 0;
+        case 8
+            iRow = 4;
+    end
+
+    subplot(2,4,iRow+1) 
+    contour( X(:,:,63),Y(:,:,63), R(:,:,63), 'ShowText', 'on' ) ;
+    title('Distance to isocentre (mm)') ;
+    ylabel(IdealShims.System.Specs.Id.channelNames{iCh})
+
+    subplot(2,4,iRow+2) 
+    imagesc( IdealShims.img(:,:,iSlice,iCh) ) ;
+    title('Nominal/simulated') ;
+    caxis([-0.3 0.3] ) ;
+    colorbar 
+    set(gca,'XTick',[])
+    set(gca,'YTick',[])
+    grid on;
+
+    subplot(2,4,iRow+3) 
+    imagesc( Shim.img(:,:,iSlice,iCh) ) ;
+    title('Empirical') ;
+    caxis([-0.3 0.3] ) ;
+    colorbar 
+    set(gca,'XTick',[])
+    set(gca,'YTick',[])
+    grid on;
+
+    subplot(2,4,iRow+4) 
+    imagesc( deviation(:,:,iSlice,iCh) ) ;
+    title('Abs. deviation') ;
+    caxis([0 0.1] ) ;
+    colorbar ;
+
+    set(gca,'XTick',[])
+    set(gca,'YTick',[])
+    grid on;
+end
+
+
+end
+% =========================================================================
 function [] = interpolatetoimggrid( Shim, Field )
 %INTERPOLATETOIMGGRID 
 %
