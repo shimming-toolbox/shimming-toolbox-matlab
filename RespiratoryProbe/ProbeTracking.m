@@ -1115,13 +1115,13 @@ function [ Data ] = loadlog_siemens( filename )
 % Function based on load_PMU_resp.m by eva.alonso.ortiz@gmail.com
 % which derived from
 % https://github.com/timothyv/Physiological-Log-Extraction-for-Modeling--PhLEM--Toolbox
+% https://cfn.upenn.edu/aguirre/wiki/public:pulse-oximetry_during_fmri_scanning
 
+
+%% -----
+% Read input
 [filepath, name, ext] = fileparts(filename);
 
-% Sampling period
-dt = 1/400 ;   
-
-%%
 fid = fopen(filename);
 textscan(fid,'%s',8); % Ignore first 8 values
 
@@ -1129,6 +1129,9 @@ data_blk1 = textscan(fid,'%u16'); % Read to end of u16 data
 data_blk1 = data_blk1{1}' ;
 
 nSkip = length( data_blk1 ) + 19 ;
+
+% 5002 signals end of data_blk1: remove it
+data_blk1( data_blk1 == 5002 ) = [];
 
 % reset #bytes read :
 fclose(fid) ; 
@@ -1144,65 +1147,51 @@ data = horzcat(data_blk1, data_blk2) ;
 footer = textscan(fid,'%s');   
 footer = footer{1} ;
 
+%% -----
+% Format output
+
+Data.probeType = 'siemens-pmu' ;
+
+% MDH and MPCU Times are in "msecs since midnight"
+% https://cfn.upenn.edu/aguirre/wiki/public:pulse-oximetry_during_fmri_scanning
 for n = 1 : length( footer ) 
     switch footer{n}
         case 'LogStartMDHTime:'  
-            LogStartTime=str2num(footer{n+1});
+            Data.logStartMdhTime = str2num(footer{n+1});
         case 'LogStopMDHTime:'   
-            LogStopTime=str2num(footer{n+1});
+            Data.logStopMdhTime = str2num(footer{n+1});
         case 'LogStartMPCUTime:' 
-            ScanStartTime=str2num(footer{n+1});
+            Data.logStartMpcuTime = str2num(footer{n+1});
         case 'LogStopMPCUTime:' 
-            ScanStopTime=str2num(footer{n+1});
+            Data.logStopMpcuTime = str2num(footer{n+1});
     end
 end
 
 fclose(fid) ; 
 
-%% -----
-% 
-
 % 5003 signals recording end
 data( find(data == 5003) ) = [];
 
-% 5000 signals trigger ON
-t_on  = find(data == 5000);  
+% 5000 signals the (estimated) restart of a respiratory cycle (used for gated acquisitions)
+data( find(data == 5000) )  = [];
 
-data(t_on)  = [];
+nSamples  = length( data ) ;
 
-%% ------
-% reformat
-nSamples  = length(data) ;
-Data.pRaw = double( data ) ;
-Data.p    = Data.pRaw ;
-Data.t    = [1:nSamples] * dt ; % measurement time [units: ms]
+% Sampling period
+dt = round( ( Data.logStopMdhTime - Data.logStartMdhTime )/nSamples, 1 ) ; % [units: ms]
 
-Data.trigger   = zeros( 1, nSamples ) ; 
+Data.iSample = nSamples ;
+Data.pRaw    = double( data ) ;
+Data.p       = Data.pRaw ;
+Data.t       = Data.logStartMdhTime + [0:nSamples-1] * dt ; % measurement time [units: ms]
 
-Data.startTime = ScanStartTime ;
-Data.endTime   = ScanStopTime ;
+Data.trigger   = false( 1, nSamples ) ; 
 
-Data.iSample   = nSamples ;
+Data.startTime = getfilecreationtime( filename ) ;
 
-LogStartTime_hr  = LogStartTime/1000/60/60;
-LogStartTime_min = 60*rem(LogStartTime_hr,1);
-LogStartTime_sec = 60*rem(LogStartTime_min,1);
+logLength     = nSamples*dt/1000 ; % [units: s]
 
-% figure;
-% plot(Data.t,Data.p);
-% xlabel('Time (s)','FontSize',15);
-% ylabel('Relative Pressure','FontSize',15);
-%
-% txt = strcat('LogStartTime is equal to ',num2str(floor(LogStartTime_hr)),' hr ',num2str(floor(LogStartTime_min)),' min ',num2str(floor(LogStartTime_sec)),' sec ');
-% text(max(Data.t),double(max(Data.pRaw))+100,txt,'HorizontalAlignment','right','FontSize',15)
-%
-% % fig_name = strcat(name,'_resp_trace') ;
-% %
-% % print('-djpeg',fig_name);
-%
-% disp( ['LogStartTime is equal to ',num2str(floor(LogStartTime_hr)),' hr ', ...
-%     num2str(floor(LogStartTime_min)),' min ',num2str(floor(LogStartTime_sec)),' sec '] )
-
+Data.endTime  = Data.startTime + logLength ; % TODO: this is wrong but may be unimportant
 
 end
 %% ========================================================================
