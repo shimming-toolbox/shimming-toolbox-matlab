@@ -13,8 +13,7 @@ function [ creationTime ] = getfilecreationtime( filename )
 if ismac
     [~, msg] = system( ['GetFileInfo ' filename ] ) ; 
     i = strfind( msg, 'created: ') + 9 ; 
-    creationTime = msg(i:i+18)
-    
+    creationTime = msg(i:i+18) ;
     creationTime =  str2num( datestr( creationTime, 'yyyymmddHHMMSS.FFF') ) ;
 else
     error('Unimplemented system. MacOS only! Todo.') ;
