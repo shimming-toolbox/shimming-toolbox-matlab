@@ -114,25 +114,25 @@ elseif isstruct( varargin{1} )
     Specs = varargin{1} ;
 
 elseif ischar( varargin{1} )
-    
-    filename = varargin{1} ;
-    load( filename ) ;
 
-    if exist('Data')
-    % loaded file is Data struct corresponding to an old recording
-        Aux.Data    = Data ;
-        Specs.state = 'inert' ;
-    else
-    % loaded file is itself a ProbeTracking() object to be managed by the daemon session 
-    %
-    % Nonurgent TODO:
-    %   This form of ProbeTracking() initialization/construction is not to
-    %   be called by a user, but rather, from the ProbeTracking() constructor
-    %   itself, making it better suited as a 'private' constructor. Apparently
-    %   Matlab does not permit this. There is a work-around described here:
-    %   https://stackoverflow.com/questions/29671482/private-constructor-in-matlab-oop
+    filename = varargin{1} ;
+    [pathStr,name,ext] = fileparts( filename ) ;
+
+    if strcmp( name, 'Aux' ) && strcmp( ext, 'mat' )
+        load( filename ) ;
+        % loaded file is itself a ProbeTracking() object to be managed by the daemon session 
+        %
+        % Nonurgent TODO:
+        %   This form of ProbeTracking() initialization/construction is not to
+        %   be called by a user, but rather, from the ProbeTracking() constructor
+        %   itself, making it better suited as a 'private' constructor. Apparently
+        %   Matlab does not permit this. There is a work-around described here:
+        %   https://stackoverflow.com/questions/29671482/private-constructor-in-matlab-oop
         Aux.launchrecordingdaemon() ; % runs continuously in background
         return;
+    else
+        Aux.Data    = ProbeTracking.loadlog( filename ) ;
+        Specs.state = 'inert' ;
     end
 end
 
@@ -151,7 +151,6 @@ else
 end
 
 end
-
 %% ========================================================================
 function [AuxCopy] = copy( Aux )
 %COPY  
@@ -1080,7 +1079,132 @@ else
 end
 
 end
+%% ========================================================================
+function [ Data ] = loadlog( filename )
+%LOADLOG
+% 
+% Loads a respiratory recording and returns Data struct
+%
+% Data = loadlog( filename )
+%
+% filename must be the path to a .mat file saved by ProbeTracking, 
+% or to a text file with a .resp file extension, indicating a Siemens PMU
+% recording, in which case loadlog wraps to loadlog_siemens()
 
+[pathStr,name,ext] = fileparts( filename ) ;
+
+switch ext
+    case '.mat'
+        load( filename ) ; 
+        assert( logical(exist('Data')), 'invalid recording/log file' ) ;
+    case '.resp'
+        Data = ProbeTracking.loadlog_siemens( filename ) ;
+    otherwise 
+        error('file type not supported');
+end
+
+end
+%% ========================================================================
+function [ Data ] = loadlog_siemens( filename )
+%LOADLOG_SIEMENS    Load Siemens PMU recording
+%
+% [ Data ] = loadlog_siemens( filename ) 
+%
+% Input
+%
+%   filename
+%       name of PMU log (text) file 
+%
+%
+% Function based on load_PMU_resp.m by eva.alonso.ortiz@gmail.com
+% which derived from
+% https://github.com/timothyv/Physiological-Log-Extraction-for-Modeling--PhLEM--Toolbox
+% https://cfn.upenn.edu/aguirre/wiki/public:pulse-oximetry_during_fmri_scanning
+
+%% -----
+% Read input
+[filepath, name, ext] = fileparts(filename);
+
+fid = fopen(filename);
+textscan(fid,'%s',8); % Ignore first 8 values
+
+data_blk1 = textscan(fid,'%u16'); % Read to end of u16 data
+data_blk1 = data_blk1{1}' ;
+
+nSkip = length( data_blk1 ) + 19 ;
+
+% 5002 signals end of data_blk1: remove it
+data_blk1( data_blk1 == 5002 ) = [];
+
+% reset #bytes read :
+fclose(fid) ; 
+fid = fopen(filename) ;
+textscan( fid,'%s', nSkip ) ; % Ignore first nSkip values
+
+data_blk2 = textscan(fid,'%u16'); % Read to end of u16 data
+data_blk2 = data_blk2{1}' ;
+
+data = horzcat(data_blk1, data_blk2) ;
+
+% Read remaining footer (contains time stamps and statistics).
+footer = textscan(fid,'%s');   
+footer = footer{1} ;
+
+%% -----
+% Format output
+
+Data.probeType = 'siemens-pmu' ;
+
+% MDH and MPCU Times are in "msecs since midnight"
+% https://cfn.upenn.edu/aguirre/wiki/public:pulse-oximetry_during_fmri_scanning
+for n = 1 : length( footer ) 
+    switch footer{n}
+        case 'LogStartMDHTime:'  
+            Data.logStartMdhTime = str2num(footer{n+1});
+        case 'LogStopMDHTime:'   
+            Data.logStopMdhTime = str2num(footer{n+1});
+        case 'LogStartMPCUTime:' 
+            Data.logStartMpcuTime = str2num(footer{n+1});
+        case 'LogStopMPCUTime:' 
+            Data.logStopMpcuTime = str2num(footer{n+1});
+    end
+end
+
+fclose(fid) ; 
+
+% 5003 signals recording end
+% 5000 signals the (estimated) restart of a respiratory cycle (used for gated acquisitions)
+data( find(data == 5003) & find(data == 5000) ) = [];
+Data.pRaw    = double( data ) ;
+Data.p       = Data.pRaw ;
+
+nSamples     = length( data ) ;
+Data.iSample = nSamples ;
+
+% Sampling period
+dt = round( ( Data.logStopMdhTime - Data.logStartMdhTime )/nSamples, 1 ) ; % [units: ms]
+
+Data.t = Data.logStartMdhTime + [0:nSamples-1] * dt ; % measurement time [units: ms]
+
+Data.trigger = false( 1, nSamples ) ; 
+
+creationTime = num2str( getfilecreationtime( filename ) ) ;
+dateStr      = creationTime(1:8) ;
+
+Data.startTime = str2double( [ dateStr convertfrommdhtime( Data.logStartMdhTime )  ] ) ;
+Data.endTime   = str2double( [ dateStr convertfrommdhtime( Data.logStopMdhTime ) ] ) ;
+
+function [ timeStr ] = convertfrommdhtime( mdhTime )
+%CONVERTFROMMDHTIME
+
+hrs     = mdhTime/1000/60/60 ;
+mins    = 60*rem( hrs, 1 ) ;
+secs    = 60*rem( mins, 1 ) ;
+timeStr = [ num2str(floor(hrs)) num2str(floor(mins)) num2str(floor(secs)) ] ;
+
+end
+
+end
 %% ========================================================================
 function [] = plotmeasurementlog( measurementLog, Params )
 %PLOTMEASUREMENTLOG

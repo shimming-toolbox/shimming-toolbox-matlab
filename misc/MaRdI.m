@@ -274,26 +274,20 @@ function [] = associateaux( Img, Aux, Params )
 %       (see INTERP1 for other options)
 %
 %   .auxDelay   [default = 0]
-%       estimation of transmission delay inherent in the Aux recording process [units: s]
- 
-DEFAULT_INTERPOLATIONMETHOD = 'linear' ;
-DEFAULT_AUXDELAY            = 0 ;
+%       estimation of transmission delay inherent in the Aux recording process [units: ms]
 
-if isempty( Aux ) || ~myisfield(Aux, 'Data') || ~myisfield(Aux.Data, 'p') || isempty( Aux.Data.p ) 
+if isempty( Aux ) || ~myisfield(Aux, 'Data') || ~myisfieldfilled(Aux.Data, 'p')  
     error('Aux recording is empty.')
 end
+ 
+DEFAULTS.interpolationMethod = 'linear' ;
+DEFAULTS.auxDelay            = 0 ;
 
 if nargin < 3 || isempty(Params)
     Params.dummy = [] ;
 end
 
-if ~myisfield( Params, 'interpolationMethod' ) || isempty( Params.interpolationMethod )
-    Params.interpolationMethod = DEFAULT_INTERPOLATIONMETHOD ;
-end
-
-if ~myisfield( Params, 'auxDelay' ) || isempty( Params.auxDelay )
-    Params.auxDelay = DEFAULT_AUXDELAY ;
-end
+Params = assignifempty( Params, DEFAULTS ) ;
 
 nSamples = length( Aux.Data.p ) ; % number of aux samples
 tk0      = Img.estimatekorigintime() ;
@@ -336,10 +330,8 @@ tImg = tk0 - tk0(1) ;
 % time between images 
 dtImg = median( diff( tImg ) ) ;
     
-% time between respiratory samples (note: round to ms before scaling to s)
-dtAux = 0.001*round( ( Img.Aux.Data.t(end) - Img.Aux.Data.t(1) )/nSamples ) ; % [units: s]
-
-Img.Aux.Data.t = 0.001*Img.Aux.Data.t ; % convert to [units: s]
+% time between respiratory samples 
+dtAux = round( ( Img.Aux.Data.t(end) - Img.Aux.Data.t(1) )/nSamples ) ; % [units: ms]
     
 assert( max(Img.Aux.Data.t)>=max(tImg), 'Length of Aux recording should be greater or equal to the total image acquisition time.' )
 
@@ -350,7 +342,7 @@ if nAcq == 1
 
     % number of samples corresponding to breath-hold
     % (enables auto-estimation of the time window corresponding to the breath-hold):
-    nSamplesApnea = Img.Hdr.MrProt.lTotalScanTimeSec/dtAux ;
+    nSamplesApnea = (1000*Img.Hdr.MrProt.lTotalScanTimeSec)/dtAux ;
 
     % extract a single scalar
     p = ProbeTracking.selectmedianmeasurement( Img.Aux.Data.p, nSamplesApnea ) ;
@@ -363,13 +355,28 @@ if nAcq == 1
 end
 
 %% -----
-% determine if aux recording features synchronization trigger pulses
+% Determine if aux recording features synchronization (e.g. trigger pulses)
+if myisfield( Img.Aux.Data, 'logStartMdhTime' ) && myisfield( Img.Aux.Data, 'logStopMdhTime' )
+% Recording is from the Siemens PMU : find sample corresponding to scan start + insert trigger there
+    tScan = Img.getacquisitiontime() ;
+    
+    % MDH time format i.e. "msecs since midnight", see https://cfn.upenn.edu/aguirre/wiki/public:pulse-oximetry_during_fmri_scanning
+    if ( min(tScan(:)) < Img.Aux.Data.logStartMdhTime ) || ( max(tScan(:)) > Img.Aux.Data.logStopMdhTime  )
+        error( ['Image acquisition times out of the range of the PMU sample times.'] ) ;
+    end
+    
+    [~, iMin] = min( abs( Img.Aux.Data.t - tScan(1) ) ) ;
+    Img.Aux.Data.trigger( iMin ) = 1 ; 
+
+end
+
 if ~isempty( Img.Aux.Data.trigger )
     nTriggers = nnz( Img.Aux.Data.trigger ) ;
 else
     nTriggers = 0;
 end
 
+%% -----
 if nTriggers > 0 
     % NOTE: 1st trigger assumed to correspond to 1st recorded value of the 1st
     % acquisition. However, the image 'content' (around k=0) will generally
@@ -384,7 +391,7 @@ if nTriggers > 0
     % Img.Aux.Data.t       = Img.Aux.Data.t( iTriggers(1) : end ) ;
 
     % shift in time s.t. t=0 corresponds to 1st image content time:
-    Img.Aux.Data.t       = Img.Aux.Data.t - Img.Aux.Data.t( iTriggers(1) ) - kDelay - Params.auxDelay ; 
+    Img.Aux.Data.t = Img.Aux.Data.t - Img.Aux.Data.t( iTriggers(1) ) - kDelay - Params.auxDelay ; 
     
     if nTriggers == 1
         %% -----
@@ -578,7 +585,7 @@ function [t0] = estimatekorigintime( Img )
 %
 % Returns an estimate of when the k-space origin of an image was sampled
 % relative to the AcquisitionTime (field in Siemens DICOM header) as a double
-% in units of seconds. 
+% in units of milliseconds. 
 % 
 % See also: MaRdI.getacquisitiontime()
 % 
@@ -600,18 +607,18 @@ assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ;
 tAcq = Img.getacquisitiontime() ;
 
 % Estimate time from excitation to k-space origin:
-dt = 0; % [units: s]
+dt = 0; % [units: ms]
 
 if Img.Hdr.MrProt.sKSpace.ucTrajectory == 1
     
     if ~strcmp( Img.Hdr.ScanningSequence, 'EPI' )
     % NOTE: The Siemens DICOM field SliceMeasurementDuration appears to be a misnomer:
     % Rather, it (usually?) refers to the duration of an entire volume. 
-        dt = Img.Hdr.Img.SliceMeasurementDuration/1000 ; % [units: s]
+        dt = Img.Hdr.Img.SliceMeasurementDuration ; % [units: ms]
     else
     % *Exception*: Apparently EPI are handled differently as said DICOM field
     % is oddly large (probably includes dummy volumes?)
-        dt = Img.Hdr.RepetitionTime/1000/nSlices ; % [units: s]
+        dt = Img.Hdr.RepetitionTime/nSlices ; % [units: ms]
     end
     
     pf = Img.getpartialfourierfactors() ;
@@ -724,9 +731,9 @@ function [t] = getacquisitiontime( Img )
 % 
 % t = GETACQUISITIONTIME( Img )
 %
-% Returns an an array of doubles, derived from the AcquisitionTime field in
-% Siemens DICOM header, in units of seconds. 
-% 
+% Derives from the AcquisitionTime field in Siemens DICOM header to return
+% an array of doubles describing the milliseconds elapsed since midnight
+%
 % dimensions of t: [ nSlices x nEchoes x nMeasurements ]
 %
 % t - t(1) yields the elapsed time since acquisition of the 1st k-space point
@@ -734,7 +741,6 @@ function [t] = getacquisitiontime( Img )
 %
 % For EPI MOSAIC (which has a single AcquisitionTime value for each volume),
 % t( iSlice ) = AcquisitionTime (first slice) + iSlice*(volumeTR/nSlices)
-
 
 nSlices = Img.getnumberofslices() ;
 nEchoes = length( Img.getechotime() ) ;
@@ -754,10 +760,13 @@ if isempty(strfind( Img.Hdrs{1}.ImageType, 'MOSAIC' ) )
     for iMeasurement = 1 : nMeasurements
         for iEcho = 1 : nEchoes 
             for iSlice = 1 : nSlices
-                t_iAcq = Img.Hdrs{iSlice,iEcho,iMeasurement}.AcquisitionTime ;
-                t_iAcq = str2double( t_iAcq(1:2) )*60*60 + str2double( t_iAcq(3:4) )*60 + str2double( t_iAcq(5:end) ) ;
-
-                t(iSlice, iEcho, iMeasurement) = t_iAcq ;
+                % RT: commented 20191013, added convertacquisitiontime() -- which is probably more correct/accurate?
+                %
+                % t_iAcq = Img.Hdrs{iSlice,iEcho,iMeasurement}.AcquisitionTime ;
+                % t_iAcq = str2double( t_iAcq(1:2) )*60*60 + str2double( t_iAcq(3:4) )*60 + str2double( t_iAcq(5:end) ) ;
+                % t(iSlice, iEcho, iMeasurement) = t_iAcq ;
+                
+                t(iSlice, iEcho, iMeasurement) = convertacquisitiontime( Img.Hdrs{iSlice,iEcho,iMeasurement}.AcquisitionTime ) ;
             end
         end
     end
@@ -765,18 +774,34 @@ if isempty(strfind( Img.Hdrs{1}.ImageType, 'MOSAIC' ) )
 else % special case for EPI MOSAIC (single DICOM header for multiple slices)
    
     sliceOrder = Img.Hdr.MrProt.sSliceArray.alSliceAcqOrder ;
-    sliceMeasurementDuration = Img.Hdr.RepetitionTime/1000/nSlices ; % [units: s]
+    sliceMeasurementDuration = Img.Hdr.RepetitionTime/nSlices ; % [units: ms]
 
     for iMeasurement = 1 : nMeasurements
         for iEcho = 1 : nEchoes 
             for iSlice = 1 : nSlices
-                t_iAcq = Img.Hdrs{1,iEcho,iMeasurement}.AcquisitionTime  ;
-                t_iAcq = str2double( t_iAcq(1:2) )*60*60 + str2double( t_iAcq(3:4) )*60 + str2double( t_iAcq(5:end) ) ;
+                % See above comment 20191013
+                % t_iAcq = Img.Hdrs{1,iEcho,iMeasurement}.AcquisitionTime  ;
+                % t_iAcq = str2double( t_iAcq(1:2) )*60*60 + str2double( t_iAcq(3:4) )*60 + str2double( t_iAcq(5:end) ) ;
+                t_iAcq = convertacquisitiontime( Img.Hdrs{1,iEcho,iMeasurement}.AcquisitionTime ) ;
                 t_iAcq = t_iAcq + sliceOrder(iSlice)*sliceMeasurementDuration ;
                 t(iSlice, iEcho, iMeasurement) = t_iAcq ;
             end
         end
     end
+
+end
+
+function t_s = convertacquisitiontime( AcquisitionTime )
+%CONVERTACQUISITIONTIME
+% 
+% Converts the time-stamp string in the .AcquisitionTime DICOM header
+%
+% For details, see https://cfn.upenn.edu/aguirre/wiki/public:pulse-oximetry_during_fmri_scanning
+
+% hours + minutes + seconds + fractional seconds :
+t_s = str2double( AcquisitionTime(1:2) )*60*60 + str2double( AcquisitionTime(3:4) )*60 + ...
+      str2double( AcquisitionTime(5:6) ) + (str2double( AcquisitionTime(7:10) )/10)/1000 ;
+t_s = t_s * 1000 ; % [units: ms]
 
 end
 
