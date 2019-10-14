@@ -1106,17 +1106,20 @@ end
 end
 %% ========================================================================
 function [ Data ] = loadlog_siemens( filename )
-%LOADLOG_SIEMENS
+%LOADLOG_SIEMENS    Load Siemens PMU recording
 %
-% Loads a Siemens PMU respiratory recording
-% 
-% Input: filename = name of text file with respiration information
+% [ Data ] = loadlog_siemens( filename ) 
+%
+% Input
+%
+%   filename
+%       name of PMU log (text) file 
+%
 %
 % Function based on load_PMU_resp.m by eva.alonso.ortiz@gmail.com
 % which derived from
 % https://github.com/timothyv/Physiological-Log-Extraction-for-Modeling--PhLEM--Toolbox
 % https://cfn.upenn.edu/aguirre/wiki/public:pulse-oximetry_during_fmri_scanning
-
 
 %% -----
 % Read input
@@ -1170,28 +1173,36 @@ end
 fclose(fid) ; 
 
 % 5003 signals recording end
-data( find(data == 5003) ) = [];
-
 % 5000 signals the (estimated) restart of a respiratory cycle (used for gated acquisitions)
-data( find(data == 5000) )  = [];
+data( find(data == 5003) & find(data == 5000) ) = [];
+Data.pRaw    = double( data ) ;
+Data.p       = Data.pRaw ;
 
-nSamples  = length( data ) ;
+nSamples     = length( data ) ;
+Data.iSample = nSamples ;
 
 % Sampling period
 dt = round( ( Data.logStopMdhTime - Data.logStartMdhTime )/nSamples, 1 ) ; % [units: ms]
 
-Data.iSample = nSamples ;
-Data.pRaw    = double( data ) ;
-Data.p       = Data.pRaw ;
-Data.t       = Data.logStartMdhTime + [0:nSamples-1] * dt ; % measurement time [units: ms]
+Data.t = Data.logStartMdhTime + [0:nSamples-1] * dt ; % measurement time [units: ms]
 
-Data.trigger   = false( 1, nSamples ) ; 
+Data.trigger = false( 1, nSamples ) ; 
 
-Data.startTime = getfilecreationtime( filename ) ;
+creationTime = num2str( getfilecreationtime( filename ) ) ;
+dateStr      = creationTime(1:8) ;
 
-logLength     = nSamples*dt/1000 ; % [units: s]
+Data.startTime = str2double( [ dateStr convertfrommdhtime( Data.logStartMdhTime )  ] ) ;
+Data.endTime   = str2double( [ dateStr convertfrommdhtime( Data.logStopMdhTime ) ] ) ;
 
-Data.endTime  = Data.startTime + logLength ; % TODO: this is wrong but may be unimportant
+function [ timeStr ] = convertfrommdhtime( mdhTime )
+%CONVERTFROMMDHTIME
+
+hrs     = mdhTime/1000/60/60 ;
+mins    = 60*rem( hrs, 1 ) ;
+secs    = 60*rem( mins, 1 ) ;
+timeStr = [ num2str(floor(hrs)) num2str(floor(mins)) num2str(floor(secs)) ] ;
+
+end
 
 end
 %% ========================================================================
