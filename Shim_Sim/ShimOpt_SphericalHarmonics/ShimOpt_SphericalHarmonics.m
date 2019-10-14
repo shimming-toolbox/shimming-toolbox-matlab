@@ -224,11 +224,17 @@ function [ basisFields ]= generatebasisfields( orders, X, Y, Z )
 
 assert( all( orders >=0 ) ) ;
 
-gridSize = size(X) ;
+switch ndims(X) 
+    case 2
+        gridSize = [ size(X) 1 ] ;
+    case 3
+        gridSize = size(X) ;
+    otherwise 
+        error('Input arrays X,Y, and Z must have 2 or 3 dimensions') ;
+end
+
 nVoxels  = numel(X);
-
 nOrders  = numel(orders) ;
-
 
 harm_all = zeros( nVoxels, 1 ) ;
 
@@ -244,9 +250,7 @@ for iOrder = 1 : nOrders
         ii = ii+1;
 
         harm_all(:,ii) = leg_rec_harmonic_cz( n, m(mm), X(:), Y(:), Z(:));
-
     end
-
 end
 
 nBasisFields = size( harm_all, 2) ;
