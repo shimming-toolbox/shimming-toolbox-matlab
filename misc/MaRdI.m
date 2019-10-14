@@ -274,14 +274,14 @@ function [] = associateaux( Img, Aux, Params )
 %       (see INTERP1 for other options)
 %
 %   .auxDelay   [default = 0]
-%       estimation of transmission delay inherent in the Aux recording process [units: s]
- 
-DEFAULTS.interpolationMethod = 'linear' ;
-DEFAULTS.auxDelay            = 0 ;
+%       estimation of transmission delay inherent in the Aux recording process [units: ms]
 
 if isempty( Aux ) || ~myisfield(Aux, 'Data') || ~myisfieldfilled(Aux.Data, 'p')  
     error('Aux recording is empty.')
 end
+ 
+DEFAULTS.interpolationMethod = 'linear' ;
+DEFAULTS.auxDelay            = 0 ;
 
 if nargin < 3 || isempty(Params)
     Params.dummy = [] ;
@@ -330,10 +330,8 @@ tImg = tk0 - tk0(1) ;
 % time between images 
 dtImg = median( diff( tImg ) ) ;
     
-% time between respiratory samples (note: round to ms before scaling to s)
-dtAux = 0.001*round( ( Img.Aux.Data.t(end) - Img.Aux.Data.t(1) )/nSamples ) ; % [units: s]
-
-Img.Aux.Data.t = 0.001*Img.Aux.Data.t ; % convert to [units: s]
+% time between respiratory samples 
+dtAux = round( ( Img.Aux.Data.t(end) - Img.Aux.Data.t(1) )/nSamples ) ; % [units: ms]
     
 assert( max(Img.Aux.Data.t)>=max(tImg), 'Length of Aux recording should be greater or equal to the total image acquisition time.' )
 
@@ -344,7 +342,7 @@ if nAcq == 1
 
     % number of samples corresponding to breath-hold
     % (enables auto-estimation of the time window corresponding to the breath-hold):
-    nSamplesApnea = Img.Hdr.MrProt.lTotalScanTimeSec/dtAux ;
+    nSamplesApnea = (1000*Img.Hdr.MrProt.lTotalScanTimeSec)/dtAux ;
 
     % extract a single scalar
     p = ProbeTracking.selectmedianmeasurement( Img.Aux.Data.p, nSamplesApnea ) ;
@@ -359,22 +357,23 @@ end
 %% -----
 % Determine if aux recording features synchronization (e.g. trigger pulses)
 if myisfield( Img.Aux.Data, 'logStartMdhTime' ) && myisfield( Img.Aux.Data, 'logStopMdhTime' )
-% recording is from the Siemens PMU : find sample index corresponding to scan start + insert trigger there
+% Recording is from the Siemens PMU : find sample corresponding to scan start + insert trigger there
     tScan = Img.getacquisitiontime() ;
     
     % MDH time format i.e. "msecs since midnight", see https://cfn.upenn.edu/aguirre/wiki/public:pulse-oximetry_during_fmri_scanning
-    if ( min(tScan(:)) < Img.Aux.Data.logStartMdhTime/1000 ) || ( max(tScan(:)) > Img.Aux.Data.logStopMdhTime/1000 )
+    if ( min(tScan(:)) < Img.Aux.Data.logStartMdhTime ) || ( max(tScan(:)) > Img.Aux.Data.logStopMdhTime  )
         error( ['Image acquisition times out of the range of the PMU sample times.'] ) ;
     end
-
+    
     [~, iMin] = min( abs( Img.Aux.Data.t - tScan(1) ) ) ;
     Img.Aux.Data.trigger( iMin ) = 1 ; 
+
+end
+
+if ~isempty( Img.Aux.Data.trigger )
+    nTriggers = nnz( Img.Aux.Data.trigger ) ;
 else
-    if ~isempty( Img.Aux.Data.trigger )
-        nTriggers = nnz( Img.Aux.Data.trigger ) ;
-    else
-        nTriggers = 0;
-    end
+    nTriggers = 0;
 end
 
 %% -----
@@ -392,7 +391,7 @@ if nTriggers > 0
     % Img.Aux.Data.t       = Img.Aux.Data.t( iTriggers(1) : end ) ;
 
     % shift in time s.t. t=0 corresponds to 1st image content time:
-    Img.Aux.Data.t       = Img.Aux.Data.t - Img.Aux.Data.t( iTriggers(1) ) - kDelay - Params.auxDelay ; 
+    Img.Aux.Data.t = Img.Aux.Data.t - Img.Aux.Data.t( iTriggers(1) ) - kDelay - Params.auxDelay ; 
     
     if nTriggers == 1
         %% -----
