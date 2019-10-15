@@ -99,6 +99,7 @@ Aux.Log            = []; % memmapfile object pertaining to recording log
 
 Aux.Data.p         = []; % may be filtered & limited
 Aux.Data.pRaw      = []; % raw measurement
+Aux.Data.isClipped = []; % true for samples at limits of Probe dynamic range 
 Aux.Data.t         = []; % measurement time [units: ms]
 Aux.Data.trigger   = []; % measurement time [units: ms]
 
@@ -1121,6 +1122,8 @@ function [ Data ] = loadlog_siemens( filename )
 % https://github.com/timothyv/Physiological-Log-Extraction-for-Modeling--PhLEM--Toolbox
 % https://cfn.upenn.edu/aguirre/wiki/public:pulse-oximetry_during_fmri_scanning
 
+CLIP_LIMITS = [0 4095] ;
+
 %% -----
 % Read input
 [filepath, name, ext] = fileparts(filename);
@@ -1175,11 +1178,16 @@ fclose(fid) ;
 % Remove markers: 5003 (signals recording end) and 5000 (signals the
 % estimated restart of a respiratory cycle (used for gated acquisitions))
 data( [find(data == 5003) find(data == 5000)] ) = [];
-Data.pRaw    = double( data ) ;
-Data.p       = Data.pRaw ;
 
-nSamples     = length( data ) ;
-Data.iSample = nSamples ;
+nSamples       = length( data ) ;
+Data.iSample   = nSamples ;
+
+Data.pRaw      = double( data ) ;
+Data.p         = Data.pRaw ;
+
+Data.isClipped = false( size( data ) ) ;
+Data.isClipped( Data.pRaw <= CLIP_LIMITS(1) ) = true ;
+Data.isClipped( Data.pRaw >= CLIP_LIMITS(2) ) = true ;
 
 % Sampling period
 dt = round( ( Data.logStopMdhTime - Data.logStartMdhTime )/nSamples, 1 ) ; % [units: ms]
