@@ -1172,9 +1172,9 @@ end
 
 fclose(fid) ; 
 
-% 5003 signals recording end
-% 5000 signals the (estimated) restart of a respiratory cycle (used for gated acquisitions)
-data( find(data == 5003) & find(data == 5000) ) = [];
+% Remove markers: 5003 (signals recording end) and 5000 (signals the
+% estimated restart of a respiratory cycle (used for gated acquisitions))
+data( [find(data == 5003) find(data == 5000)] ) = [];
 Data.pRaw    = double( data ) ;
 Data.p       = Data.pRaw ;
 
