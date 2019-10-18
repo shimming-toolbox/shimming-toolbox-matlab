@@ -852,8 +852,8 @@ function [Field] = modelfield( Fields, Params )
 %    pEx = -1 ;
 %    such that Field.img as defined ^ becomes the avg. of the 2 input Fields
 
-DEFAULT_MAXABSFIELD        = 600 ;
-DEFAULT_MAXFIELDDIFFERENCE = 150 ;
+DEFAULTS.maxAbsField        = 600 ;
+DEFAULTS.maxFieldDifference = 150 ;
 
 if nargin < 1
     error('Function requires at least 1 input (e.g. linear cell array of FieldEval-type objects)') ;
@@ -861,35 +861,32 @@ elseif nargin == 1
     Params.dummy = [] ;
 end
 
-if ~myisfield( Params, 'maxAbsField' ) || isempty( Params.maxAbsField ) 
-    Params.maxAbsField = DEFAULT_MAXABSFIELD ;
-end
-
-if ~myisfield( Params, 'maxFieldDifference' ) || isempty( Params.maxFieldDifference ) 
-    Params.maxFieldDifference = DEFAULT_MAXFIELDDIFFERENCE ;
-end
+Params = assignifempty( Params, DEFAULTS ) ;
 
 if isa( Fields, 'FieldEval' )
     % fit Fields.img time series (along 5th dimension) to tracker time series
     
-    if ~myisfield( Fields.Aux, 'Data' ) || ~myisfield( Fields.Aux.Data, 'p' ) || isempty( Fields.Aux.Data.p )
-        error('Nothing to fit: Fields.Aux was empty but should contain a valid Auxiliary recording (ProbeTracking object).') ;
-    end
-
-    nAcq    = size( Fields.img, 5 ) ;
+    nAcq = size( Fields.img, 5 ) ;
     
-    assert( ( nAcq == length( Fields.Aux.Data.p ) ), 'Expected a single Aux value for each image. See HELP MaRdI.associateaux()' )
-        
-    disp( ['Modeling B0 field (fitting field time-series to Aux recording)'] )
+    if ~myisfield( Fields.Aux, 'Data' ) || ~myisfieldfilled( Fields.Aux.Data, 'p' ) 
+        error('Nothing to fit: Fields.Aux was empty but should contain a valid Auxiliary recording (ProbeTracking object).') ;
+    elseif nAcq ~= length( Fields.Aux.Data.p )
+        error( 'Expected a single Aux value for each image. See HELP MaRdI.associateaux()' )
+    else
+        disp( ['Modeling B0 field (fitting field time-series to Aux recording)'] )
+    end
 
     mask = ( sum( Fields.Hdr.MaskingImage, 5 ) == nAcq ) ;
     
     nVoxels    = prod( Fields.getgridsize() ) ;
     nVoxelsVoi = nnz(mask) ;
     I          = speye( nVoxelsVoi, nVoxelsVoi ) ;
+   
+    p = Fields.Aux.Data.p - mean( Fields.Aux.Data.p ) ;
+    pShiftRms = rms( p ) ;
     
     % linear operator: A
-    A       = [ I Fields.Aux.Data.p(1)*I ] ;
+    A       = [ I p(1)*I ] ;
     
     % solution vector: Bt
     Bt  = Fields.img( :, :, :, 1, 1) ;
@@ -900,7 +897,7 @@ if isa( Fields, 'FieldEval' )
     for iT = 2 : nAcq 
         disp( [ num2str(100*iT/nAcq, 3) '%'])
         
-        A    = [ A ; I Fields.Aux.Data.p(iT)*I ] ;
+        A    = [ A ; I p(iT)*I ] ;
         
         tmpB = Fields.img( :, :, :, 1, iT) ;
         tmpB = tmpB( mask ) ;
@@ -960,7 +957,6 @@ if isa( Fields, 'FieldEval' )
     Field.Aux.Data.p         = 0 ; 
     
     % scale RIRO by RMSE of physio signal
-    pShiftRms               = rms( Fields.Aux.Data.p - mean(Fields.Aux.Data.p) ) ;
     Riro.img( mask )        = pShiftRms .* x(nVoxelsVoi+1:end) ;
     Riro.img( ~mask )       = 0 ;
     Riro.Hdr.MaskingImage   = mask ; % not redundant: mask used in following call to .getvaliditymask()
