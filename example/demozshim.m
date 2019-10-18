@@ -1,10 +1,13 @@
 %DEMOZSHIM
 %
-% e.g. script to create field map from GRE dicoms
-%
 % =========================================================================
 % Author: ryan.topfer@polymtl.ca
 % =========================================================================
+
+%% -----
+% Sort unorganized images from DICOM socket transfer 
+% isCopying (boolean) is optional (move or copy the .IMA files)
+sortimages( unsortedDicomDir, sortedDicomDir, isCopying )
 
 % load t2w magnitude for SCT segmentation
 Mag = MaRdI( '/Users/ryan/Projects/Shimming/Acdc/202004_Ismrm/data/acdc_73/05-T2w_1mm' ) ;
@@ -36,6 +39,4 @@ Field = FieldEval.modelfield( Fields ) ;
 % define the shim system + target field
 Shims = ShimOpt_IUGM_Prisma_fit( Field ) ;
 
-
-%% -----
 
