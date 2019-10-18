@@ -19,9 +19,6 @@ Mag = MaRdI( '/Users/ryan/Projects/Shimming/Acdc/202004_Ismrm/data/acdc_73/05-T2
 pathToMag   = '/Users/ryan/Projects/Shimming/Acdc/202004_Ismrm/data/acdc_73/08-realtime_fieldmap_normalBreath' ;
 pathToPhase = '/Users/ryan/Projects/Shimming/Acdc/202004_Ismrm/data/acdc_73/09-realtime_fieldmap_normalBreath' ;
 
-% /Users/ryan/Projects/Shimming/Acdc/202004_Ismrm/data/acdc_73/08-realtime_fieldmap_normalBreath
-% /Users/ryan/Projects/Shimming/Acdc/202004_Ismrm/data/acdc_73/09-realtime_fieldmap_normalBreath
-
 % field map time series
 Fields = FieldEval( pathToMag, pathToPhase ) ; 
 
