@@ -2632,7 +2632,7 @@ listOfImages = dir( [ unsortedDicomDir '/*.dcm'] );
 
 if length(listOfImages) == 0
     % try .IMA
-    listOfImages = dir( [imgDirectory '/*.IMA'] ) ;
+    listOfImages = dir( [unsortedDicomDir '/*.IMA'] ) ;
 end
 
 nImages = length( listOfImages ) ;
