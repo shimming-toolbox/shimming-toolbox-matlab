@@ -1146,15 +1146,18 @@ assert( xyzIso(2) == 0, 'Table shifted in A/P direction?' ) ;
 
 end
 % =========================================================================
-function [F] = resliceimg( Img, X_1, Y_1, Z_1, varargin ) 
+function [F] = resliceimg( Img, X_Ep, Y_Ep, Z_Ep, varargin ) 
 %RESLICEIMG
 % 
-%   Interpolate Img using 'scatteredInterpolant' class; updates Img.Hdr accordingly.
+%   Interpolate Img ; updates Img.Hdr accordingly.
 %
 %   [F] = RESLICEIMG( Img, X, Y, Z )
 %   [F] = RESLICEIMG( Img, X, Y, Z, mask )
+%
 %   [F] = RESLICEIMG( Img, X, Y, Z, interpolationMethod ) 
 %   [F] = RESLICEIMG( Img, X, Y, Z, F ) 
+% 
+% using 'scatteredInterpolant' class
 %   
 %   X, Y, Z must refer to X, Y, Z patient coordinates (i.e. of the DICOM
 %   reference coordinate system)
@@ -1174,14 +1177,16 @@ F = [] ;
 DEFAULT_INTERPOLATIONMETHOD  = 'linear' ;
 DEFAULT_ISFORMINGINTERPOLANT = true ;
 
-[X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
+[X_Ip, Y_Ip, Z_Ip] = Img.getvoxelpositions( ) ;
 
 %% -----
 % Parse and check inputs
-if MaRdI.compareimggrids( X_0, Y_0, Z_0, X_1, Y_1, Z_1 ) 
+if MaRdI.compareimggrids( X_Ip, Y_Ip, Z_Ip, X_Ep, Y_Ep, Z_Ep ) 
     warning('Voxel positions are already identical. Not interpolating.');
     return ;
 end
+        
+isFormingInterpolant = true ; 
 
 if nargin < 5
 
@@ -1197,7 +1202,6 @@ elseif nargin == 5
 
     elseif isa( varargin{1}, 'scatteredInterpolant' ) ;
         F = varargin{1} ;
-        isFormingInterpolant = false ; 
     
     else
         error( 'Unknown input.' ) ;
@@ -1220,86 +1224,125 @@ else
     error('Dimensions of input Img.img must be >= 2, and <= 5') ;
 end
 
-if ndims( X_1 ) == 2 % interpolating down to 2d single-slice
-    gridSizeEp = [ size(X_1) 1 ] ;
-elseif ndims( X_1 ) == 3
-    gridSizeEp = size(X_1) ;
+if ndims( X_Ep ) == 2 % interpolating down to 2d single-slice
+    gridSizeEp = [ size(X_Ep) 1 ] ;
+elseif ndims( X_Ep ) == 3
+    gridSizeEp = size(X_Ep) ;
 else
     error('Expected 2d or 3d target interpolation grid')
 end
 
 %% -----
+% Define variables
+gridSizeIp = size( X_Ip ) ;
 
-nImgVolumesDim4 = size(Img.img, 4 ) ;
-nImgVolumesDim5 = size(Img.img, 5 ) ;
+if myisfieldfilled( Img.Hdr, 'MaskingImage' ) 
+    maskIp = logical( sum( sum( Img.Hdr.MaskingImage, 5 ), 4 ) ) ;
+else
+    maskIp = true( gridSizeIp ) ;
+end
+
+gridSizeEp = size( X_Ep ) ;
+if ndims(gridSizeEp) == 2
+    gridSizeEp = [gridSizeEp 1] ;
+end
+
+if ~exist('maskEp')
+    if ~isUsingScatteredInterpolant 
+        warning('No logical mask provided: For faster results, restrict the target/output voxels to those of interest by providing this mask!') ;
+    end
+    maskEp = true( gridSizeEp ) ;
+end
+
+iEp = find( maskEp(:) ) ; % indices of target voxels
+
+iNearest = zeros( size(iEp) ) ;
+nEp      = length( iEp ) ;
+
+nImgVolumesDim4 = size(Img.img, 4 ) ; % nEchoes
+nImgVolumesDim5 = size(Img.img, 5 ) ; % nMeasurements
 nImgVolumes     = nImgVolumesDim4 * nImgVolumesDim5 ;
 
 imgOut = zeros( [gridSizeEp nImgVolumesDim4 nImgVolumesDim5] ) ;
 
-imgIp = Img.img( :,:,:, 1, 1 ) ;
-
 %% -------
-% Interpolation
-tic
-
 if isFormingInterpolant 
+    tic
     disp( 'Forming interpolant...' )
     disp( '(Computation time depends on input image size. This may take a few minutes.)' ) ;
 
-    % The following avoids the error from scatteredInterpolant when one
-    % attempts to form a 3d interpolant from a 2d input: 
-    isValidDim0 = [ numel(unique(X_0(:))) numel(unique(Y_0(:))) numel(unique(Z_0(:))) ] > 1 ;
-    r0          = [X_0(:) Y_0(:) Z_0(:)] ;
+    if isUsingScatteredInterpolant
 
-    F    = scatteredInterpolant( r0(:, isValidDim0), imgIp(:), interpolationMethod, 'none'  ) ;
-end
-
-isValidDim1 = [ numel(unique(X_1(:))) numel(unique(Y_1(:))) numel(unique(Z_1(:))) ] > 1 ;
-r1          = [X_1(:) Y_1(:) Z_1(:)] ;
-
-if nnz( isValidDim0 ) == 2
-    
-    assert( all( isValidDim1 == isValidDim0 ), ... 
-        'Query points should sit within the same plane as the interpolant points' ) ;
+        % The following avoids the error from scatteredInterpolant when one
+        % attempts to form a 3d interpolant from a 2d input: 
+        isValidDim0 = [ numel(unique(X_Ip(:))) numel(unique(Y_Ip(:))) numel(unique(Z_Ip(:))) ] > 1 ;
+        r0          = [X_Ip(:) Y_Ip(:) Z_Ip(:)] ;
         
-    % coordinate of interpolant plane along normal dim:
-    qn0 = unique( r0(:, ~isValidDim0) ) ;
-    % coordinate of query plane along same dim:
-    qn1 = unique( r1(:, ~isValidDim1) ) ;
+        isValidDim1 = [ numel(unique(X_Ep(:))) numel(unique(Y_Ep(:))) numel(unique(Z_Ep(:))) ] > 1 ;
+        r1          = [X_Ep(:) Y_Ep(:) Z_Ep(:)] ;
 
-    % This could instead be a warning? (e.g. if the 2d planes are indeed very close, should interp still be performed?)
-    assert( qn0 == qn1, 'Query points should sit within the same plane as the interpolant points' ) ;
+        if nnz( isValidDim0 ) == 2
+            
+            assert( all( isValidDim1 == isValidDim0 ), ... 
+                'Query points should sit within the same plane as the interpolant points' ) ;
+                
+            % coordinate of interpolant plane along normal dim:
+            qn0 = unique( r0(:, ~isValidDim0) ) ;
+            % coordinate of query plane along same dim:
+            qn1 = unique( r1(:, ~isValidDim1) ) ;
 
-    % exclude the coordinate along the normal dim from the interpolation
-    r1 = r1(:, isValidDim1) ; 
+            % This could instead be a warning? (e.g. if the 2d planes are indeed very close, should interp still be performed?)
+            assert( qn0 == qn1, 'Query points should sit within the same plane as the interpolant points' ) ;
 
-end
+            % exclude the coordinate along the normal dim from the interpolation
+            r1 = r1(:, isValidDim1) ; 
+
+        end
+        
+        F = scatteredInterpolant() ;
+        F.Method              = interpolationMethod ;
+        F.ExtrapolationMethod = 'none' ;
+        F.Points    = r0(:, isValidDim0) ;
     
-img1 = F( r1 ) ;
+    else % Map nearest neighbours
+        
+        % truncate IP voxels
+        X_Ip = X_Ip(maskIp) ;
+        Y_Ip = Y_Ip(maskIp) ;
+        Z_Ip = Z_Ip(maskIp) ;
 
-imgOut(:,:,:, 1, 1) = reshape( img1, gridSizeEp ) ;
+        for iR = 1 : nEp
+            [~,iNearest(iR)] = min( sqrt( ( X_Ip - X_Ep( iEp(iR) ) ).^2 + ...
+                                   ( Y_Ip - Y_Ep( iEp(iR) ) ).^2 + ...
+                                   ( Z_Ip - Z_Ep( iEp(iR) ) ).^2 ) ) ;
+        end
+    end
+    toc
+end
 
+%% -----
+disp('Reslicing...')
+tic
 for iImgDim4 = 1 : nImgVolumesDim4
     for iImgDim5 = 1 : nImgVolumesDim5
-
-        iImgVolume = iImgDim4*iImgDim5 ;
-
-        if iImgVolume > 1
-            disp( ['Reslicing image volume...' num2str(iImgVolume) ' of ' num2str(nImgVolumes) ]) ;
-    
-            % replace voxel values with those of the next img volume
-            imgIp     = Img.img(:,:,:, iImgDim4, iImgDim5 ) ;
-
-            F.Values = imgIp(:) ;
+        disp( ['Reslicing image volume...' num2str(iImgDim4*iImgDim5) ' of ' num2str(nImgVolumes) ]) ;
        
-            img1     = F( r1 ) ;
+        imgIp = Img.img(:,:,:, iImgDim4, iImgDim5 ) ;
+        imgEp = zeros( gridSizeEp ) ;
+      
+        if isUsingScatteredInterpolant  
+            F.Values = imgIp(:) ;
+            imgEp    = reshape( F( r1 ), gridSizeEp ) ;
         
-            imgOut(:,:,:, iImgDim4, iImgDim5 ) = reshape( img1, gridSizeEp ) ;
+        else % Nearest-neighbor substitution
+            for iR = 1 : nEp 
+                imgEp( iEp(iR) ) = imgIp( iNearest(iR) ) ;
+            end
         end
 
+        imgOut(:,:,:, iImgDim4, iImgDim5 ) = imgEp ;
     end
 end
-
 toc
 
 imgOut( isnan( imgOut ) ) = 0 ; 
@@ -1313,17 +1356,17 @@ Img.img = imgOut ;
 Img.Hdr.ImageType = 'DERIVED\SECONDARY\REFORMATTED' ;
 
 
-Img.Hdr.ImagePositionPatient( 1 ) = X_1(1) ; 
-Img.Hdr.ImagePositionPatient( 2 ) = Y_1(1) ;
-Img.Hdr.ImagePositionPatient( 3 ) = Z_1(1) ;
+Img.Hdr.ImagePositionPatient( 1 ) = X_Ep(1) ; 
+Img.Hdr.ImagePositionPatient( 2 ) = Y_Ep(1) ;
+Img.Hdr.ImagePositionPatient( 3 ) = Z_Ep(1) ;
 
 %-------
 % Rows 
 Img.Hdr.Rows = size(Img.img, 1) ;
 
-dx = X_1(2,1,1) - X_1(1,1,1) ;
-dy = Y_1(2,1,1) - Y_1(1,1,1) ;
-dz = Z_1(2,1,1) - Z_1(1,1,1) ;  
+dx = X_Ep(2,1,1) - X_Ep(1,1,1) ;
+dy = Y_Ep(2,1,1) - Y_Ep(1,1,1) ;
+dz = Z_Ep(2,1,1) - Z_Ep(1,1,1) ;  
 
 % vertical (row) spacing
 Img.Hdr.PixelSpacing(1) = ( dx^2 + dy^2 + dz^2 )^0.5 ; 
@@ -1337,9 +1380,9 @@ Img.Hdr.ImageOrientationPatient(6) = dz/Img.Hdr.PixelSpacing(1) ;
 % Columns 
 Img.Hdr.Columns = size(Img.img, 2) ;       
 
-dx = X_1(1,2,1) - X_1(1,1,1) ;
-dy = Y_1(1,2,1) - Y_1(1,1,1) ;
-dz = Z_1(1,2,1) - Z_1(1,1,1) ;  
+dx = X_Ep(1,2,1) - X_Ep(1,1,1) ;
+dy = Y_Ep(1,2,1) - Y_Ep(1,1,1) ;
+dz = Z_Ep(1,2,1) - Z_Ep(1,1,1) ;  
 
 % horizontal (column) spacing
 Img.Hdr.PixelSpacing(2) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
@@ -1353,9 +1396,9 @@ Img.Hdr.ImageOrientationPatient(3) = dz/Img.Hdr.PixelSpacing(2) ;
 % Slices
 
 if size( Img.img, 3 ) > 1
-    Img.Hdr.SpacingBetweenSlices = ( (X_1(1,1,2) - X_1(1,1,1))^2 + ...
-                                     (Y_1(1,1,2) - Y_1(1,1,1))^2 + ...
-                                     (Z_1(1,1,2) - Z_1(1,1,1))^2 ) ^(0.5) ;
+    Img.Hdr.SpacingBetweenSlices = ( (X_Ep(1,1,2) - X_Ep(1,1,1))^2 + ...
+                                     (Y_Ep(1,1,2) - Y_Ep(1,1,1))^2 + ...
+                                     (Z_Ep(1,1,2) - Z_Ep(1,1,1))^2 ) ^(0.5) ;
 else
     Img.Hdr.SpacingBetweenSlices = 0 ;
 end
