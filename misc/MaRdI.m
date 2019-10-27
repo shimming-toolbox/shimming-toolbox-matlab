@@ -1397,14 +1397,22 @@ assert( nargin == 2, 'Function requires at least 2 input arguments. See HELP MaR
 if ~islogical( mask )
     assert( numel(mask) == ( nnz( mask(:) == 0 ) + nnz( mask(:) == 1 ) ), ...
         'Input mask must consist exclusively of zeros and ones. See HELP MaRdI.setmaskingimage' ) ;
-    mask = logical(mask) ;
+    mask = logical( mask ) ;
 end
 
-if ndims( Img.img ) == ndims( mask ) && all( size(Img.img) == size( mask ) )
+maskSize = size( mask ) ;
+
+if numel( maskSize ) == 2
+    maskSize = [ maskSize 1 ] ;
+end
+
+%% -----
+% assign masking image 
+if ndims( Img.img ) == ndims( mask ) && all( size(Img.img) == maskSize )
     Img.Hdr.MaskingImage = mask ;
 elseif ndims( Img.img ) > ndims( mask ) && ...
-       ( numel( Img.getgridsize() ) == numel( size( mask ) ) ) && ...
-       ( all( Img.getgridsize() == size( mask ) ) ) % single mask provided
+       ( numel( Img.getgridsize() ) == numel( maskSize ) ) && ... 
+       ( all( Img.getgridsize() == maskSize ) ) % single mask provided
     Img.Hdr.MaskingImage = repmat( mask, [1 1 1 size(Img.img, 4) size(Img.img, 5)] ) ;
 else 
     error('Input mask and Img.img should possess the same dimensions' ) ;
