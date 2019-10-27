@@ -1149,23 +1149,47 @@ end
 function [F] = resliceimg( Img, X_Ep, Y_Ep, Z_Ep, varargin ) 
 %RESLICEIMG
 % 
-%   Interpolate Img ; updates Img.Hdr accordingly.
-%
-%   [F] = RESLICEIMG( Img, X, Y, Z )
-%   [F] = RESLICEIMG( Img, X, Y, Z, mask )
-%
-%   [F] = RESLICEIMG( Img, X, Y, Z, interpolationMethod ) 
-%   [F] = RESLICEIMG( Img, X, Y, Z, F ) 
+% Interpolate Img and updates Img.Hdr accordingly.
 % 
-% using 'scatteredInterpolant' class
-%   
-%   X, Y, Z must refer to X, Y, Z patient coordinates (i.e. of the DICOM
-%   reference coordinate system)
-%   
-%   Optional interpolationMethod is a string supported by the scatteredInterpolant constructor.
-%   F is the object of type 'scatteredInterpolant' used for interpolation.
+% In general, RESLICEIMG() uses MATLAB's scatteredInterpolant class. 
+% The exception is when the input image (Img.img) is 2d and the target
+% output (prescribed by inputs X,Y,Z) is a volume. This scenario is
+% incompatible with scatteredInterpolant, and nearest-neighbor substitution is
+% used instead.
 %
-%   See HELP scatteredInterpolant
+% -----   
+% Basic Usage
+%
+% [] = RESLICEIMG( Img, X, Y, Z )
+% [] = RESLICEIMG( Img, X, Y, Z, mask )
+% 
+% Inputs:
+%
+% X, Y, Z:  
+%       2d or 3d arrays (size=output image grid) describing the X, Y, Z patient
+%       coordinates (i.e. of the DICOM reference coordinate system) of the
+%       target (output) voxels. In general, if one is interpolating from one
+%       image grid (Img) to another (MaRdI-type object Img2), these arrays are
+%       returned by [X,Y,Z] = Img2.getvoxelpositions()
+% 
+% mask: [Optional, default = true(size output image grid)]
+%       a logical array (size=output image grid) specifying the subset of the output voxels
+%       that are of interest. (i.e. voxels in the output image with a corresponding mask
+%       entry == FALSE will simply be assigned zero). 
+%       Note: Specifying the region of interest for extrapolation with this
+%       variable can greatly accelerate the interpolation!
+%
+% -----   
+%
+% Advanced Usage TODO
+%
+%   [F] = RESLICEIMG( Img, X, Y, Z, mask, F ) 
+% 
+%   case:
+%       interpolationMethod [default='linear']
+%       is a string supported by the scatteredInterpolant constructor.
+%   F is the object of type 'scatteredInterpolant' used for interpolation.
+
 
 %% -----
 % Preliminaries
@@ -1193,20 +1217,20 @@ if nargin < 5
     interpolationMethod  = DEFAULT_INTERPOLATIONMETHOD ;
     isFormingInterpolant = DEFAULT_ISFORMINGINTERPOLANT ;
 
-elseif nargin == 5
-    if ischar( varargin{1} )
-        interpolationMethod = varargin{1} ;
-    
-    elseif islogical( varargin{1} ) ;
+elseif nargin >= 5 
+    if islogical( varargin{1} ) ;
         maskEp = varargin{1} ;
-
-    elseif isa( varargin{1}, 'scatteredInterpolant' ) ;
-        F = varargin{1} ;
-    
-    else
-        error( 'Unknown input.' ) ;
     end
 
+    if nargin == 6
+        if ischar( varargin{2} )
+            interpolationMethod = varargin{2} ;
+        elseif isa( varargin{2}, 'scatteredInterpolant' ) ;
+            F = varargin{2} ;
+        else
+            error( 'Unknown input. See HELP MaRdI.resliceimg' ) ;
+        end
+    end
 end
 
 isUsingScatteredInterpolant = [] ;
@@ -1299,10 +1323,10 @@ if isFormingInterpolant
 
         end
         
-        F = scatteredInterpolant() ;
+        F                     = scatteredInterpolant() ;
         F.Method              = interpolationMethod ;
         F.ExtrapolationMethod = 'none' ;
-        F.Points    = r0(:, isValidDim0) ;
+        F.Points              = r0(:, isValidDim0) ;
     
     else % Map nearest neighbours
         
