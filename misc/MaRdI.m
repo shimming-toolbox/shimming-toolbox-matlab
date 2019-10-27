@@ -1152,6 +1152,7 @@ function [F] = resliceimg( Img, X_1, Y_1, Z_1, varargin )
 %   Interpolate Img using 'scatteredInterpolant' class; updates Img.Hdr accordingly.
 %
 %   [F] = RESLICEIMG( Img, X, Y, Z )
+%   [F] = RESLICEIMG( Img, X, Y, Z, mask )
 %   [F] = RESLICEIMG( Img, X, Y, Z, interpolationMethod ) 
 %   [F] = RESLICEIMG( Img, X, Y, Z, F ) 
 %   
@@ -1163,6 +1164,11 @@ function [F] = resliceimg( Img, X_1, Y_1, Z_1, varargin )
 %
 %   See HELP scatteredInterpolant
 
+%% -----
+% Preliminaries
+% 'Ip' = interpolant/initial point
+% 'Ep' = extrapolant/end point
+
 F = [] ;
 
 DEFAULT_INTERPOLATIONMETHOD  = 'linear' ;
@@ -1170,6 +1176,8 @@ DEFAULT_ISFORMINGINTERPOLANT = true ;
 
 [X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
 
+%% -----
+% Parse and check inputs
 if MaRdI.compareimggrids( X_0, Y_0, Z_0, X_1, Y_1, Z_1 ) 
     warning('Voxel positions are already identical. Not interpolating.');
     return ;
@@ -1181,15 +1189,14 @@ if nargin < 5
     isFormingInterpolant = DEFAULT_ISFORMINGINTERPOLANT ;
 
 elseif nargin == 5
-
     if ischar( varargin{1} )
-
         interpolationMethod = varargin{1} ;
+    
+    elseif islogical( varargin{1} ) ;
+        maskEp = varargin{1} ;
 
     elseif isa( varargin{1}, 'scatteredInterpolant' ) ;
-
         F = varargin{1} ;
-
         isFormingInterpolant = false ; 
     
     else
@@ -1198,25 +1205,38 @@ elseif nargin == 5
 
 end
 
-assert( (ndims(Img.img) > 1) && (ndims(Img.img) <= 5), ...
-    'Dimensions of input Img.img must be >= 2, and <= 5') ;
+isUsingScatteredInterpolant = [] ;
+
+if (ndims(Img.img) > 1) && (ndims(Img.img) <= 5)
+
+    gridSizeIp = Img.getgridsize() ;
+    
+    if gridSizeIp(3) > 1
+        isUsingScatteredInterpolant = true ;
+    else
+        isUsingScatteredInterpolant = false ;
+    end
+else
+    error('Dimensions of input Img.img must be >= 2, and <= 5') ;
+end
+
+if ndims( X_1 ) == 2 % interpolating down to 2d single-slice
+    gridSizeEp = [ size(X_1) 1 ] ;
+elseif ndims( X_1 ) == 3
+    gridSizeEp = size(X_1) ;
+else
+    error('Expected 2d or 3d target interpolation grid')
+end
+
+%% -----
 
 nImgVolumesDim4 = size(Img.img, 4 ) ;
 nImgVolumesDim5 = size(Img.img, 5 ) ;
 nImgVolumes     = nImgVolumesDim4 * nImgVolumesDim5 ;
 
+imgOut = zeros( [gridSizeEp nImgVolumesDim4 nImgVolumesDim5] ) ;
 
-if ndims( X_1 ) == 2 % interpolating down to 2d single-slice
-    gridSizeInterpolated = [ size(X_1) 1 ] ;
-elseif ndims( X_1 ) == 3
-    gridSizeInterpolated = size(X_1) ;
-else
-    error('Expected 2d or 3d target interpolation grid')
-end
-
-imgInterpolated  = zeros( [gridSizeInterpolated nImgVolumesDim4 nImgVolumesDim5] ) ;
-
-img0 = Img.img( :,:,:, 1, 1 ) ;
+imgIp = Img.img( :,:,:, 1, 1 ) ;
 
 %% -------
 % Interpolation
@@ -1231,7 +1251,7 @@ if isFormingInterpolant
     isValidDim0 = [ numel(unique(X_0(:))) numel(unique(Y_0(:))) numel(unique(Z_0(:))) ] > 1 ;
     r0          = [X_0(:) Y_0(:) Z_0(:)] ;
 
-    F    = scatteredInterpolant( r0(:, isValidDim0), img0(:), interpolationMethod, 'none'  ) ;
+    F    = scatteredInterpolant( r0(:, isValidDim0), imgIp(:), interpolationMethod, 'none'  ) ;
 end
 
 isValidDim1 = [ numel(unique(X_1(:))) numel(unique(Y_1(:))) numel(unique(Z_1(:))) ] > 1 ;
@@ -1257,7 +1277,7 @@ end
     
 img1 = F( r1 ) ;
 
-imgInterpolated(:,:,:, 1, 1) = reshape( img1, gridSizeInterpolated ) ;
+imgOut(:,:,:, 1, 1) = reshape( img1, gridSizeEp ) ;
 
 for iImgDim4 = 1 : nImgVolumesDim4
     for iImgDim5 = 1 : nImgVolumesDim5
@@ -1268,13 +1288,13 @@ for iImgDim4 = 1 : nImgVolumesDim4
             disp( ['Reslicing image volume...' num2str(iImgVolume) ' of ' num2str(nImgVolumes) ]) ;
     
             % replace voxel values with those of the next img volume
-            img0     = Img.img(:,:,:, iImgDim4, iImgDim5 ) ;
+            imgIp     = Img.img(:,:,:, iImgDim4, iImgDim5 ) ;
 
-            F.Values = img0(:) ;
+            F.Values = imgIp(:) ;
        
             img1     = F( r1 ) ;
         
-            imgInterpolated(:,:,:, iImgDim4, iImgDim5 ) = reshape( img1, gridSizeInterpolated ) ;
+            imgOut(:,:,:, iImgDim4, iImgDim5 ) = reshape( img1, gridSizeEp ) ;
         end
 
     end
@@ -1282,10 +1302,9 @@ end
 
 toc
 
-Img.img = imgInterpolated ; 
-% if new positions are outside the range of the original, 
-% interp3/griddata replaces array entries with NaN
-Img.img( isnan( Img.img ) ) = 0 ; 
+imgOut( isnan( imgOut ) ) = 0 ; 
+
+Img.img = imgOut ; 
 
 %% -----------------------------------------------------------------------
 
