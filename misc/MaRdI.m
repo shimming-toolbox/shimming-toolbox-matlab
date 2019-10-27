@@ -62,6 +62,10 @@ properties(SetAccess=protected)
     Hdrs ; % cell array of (truncated) DICOM headers courtesy of dicominfo()
 end
 
+properties(SetAccess=protected, Hidden = true)
+    Ref ; % Reference properties - prior to manipulation
+end
+
 % =========================================================================
 % =========================================================================    
 methods
