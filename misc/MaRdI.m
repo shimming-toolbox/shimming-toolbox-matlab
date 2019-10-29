@@ -1149,10 +1149,10 @@ end
 function [F] = resliceimg( Img, X_Ep, Y_Ep, Z_Ep, varargin ) 
 %RESLICEIMG
 % 
-% Interpolate Img and updates Img.Hdr accordingly.
+% Interpolate a MaRdI image (Img.img) and update Img.Hdr accordingly.
 % 
 % In general, RESLICEIMG() uses MATLAB's scatteredInterpolant class. 
-% The exception is when the input image (Img.img) is 2d and the target
+% The exception is when the image input (Img.img) is 2d and the target
 % output (prescribed by inputs X,Y,Z) is a volume. This scenario is
 % incompatible with scatteredInterpolant, and nearest-neighbor substitution is
 % used instead.
@@ -1170,12 +1170,12 @@ function [F] = resliceimg( Img, X_Ep, Y_Ep, Z_Ep, varargin )
 %       coordinates (i.e. of the DICOM reference coordinate system) of the
 %       target (output) voxels. In general, if one is interpolating from one
 %       image grid (Img) to another (MaRdI-type object Img2), these arrays are
-%       returned by [X,Y,Z] = Img2.getvoxelpositions()
+%       obtained by the call: [X,Y,Z] = Img2.getvoxelpositions()
 % 
 % mask: [Optional, default = true(size output image grid)]
-%       a logical array (size=output image grid) specifying the subset of the output voxels
-%       that are of interest. (i.e. voxels in the output image with a corresponding mask
-%       entry == FALSE will simply be assigned zero). 
+%       A logical array (size=output image grid) specifying the subset of the
+%       output voxels that are of interest. (i.e. voxels in the output image
+%       with a corresponding mask entry == FALSE will simply be assigned zero).
 %       Note: Specifying the region of interest for extrapolation with this
 %       variable can greatly accelerate the interpolation!
 %
@@ -1192,7 +1192,7 @@ function [F] = resliceimg( Img, X_Ep, Y_Ep, Z_Ep, varargin )
 
 
 %% -----
-% Preliminaries
+%NOTE: Terminology: 
 % 'Ip' = interpolant/initial point
 % 'Ep' = extrapolant/end point
 
@@ -1700,7 +1700,7 @@ for iVolume = 1 : nVolumes
 
         end
 
-        if ( iEcho == 1 ) 
+        if Options.isLinearizing && ( iEcho == 1 ) 
             % if phase(TE1) is not centered around 0, shift it:
             mask  = Phase.Hdr.MaskingImage(:,:,:,1,iVolume) ;
             phase = Phase.img(:,:,:,iEcho,iVolume) ; 
