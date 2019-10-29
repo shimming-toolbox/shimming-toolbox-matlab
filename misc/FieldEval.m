@@ -882,9 +882,12 @@ if isa( Fields, 'FieldEval' )
     nVoxelsVoi = nnz(mask) ;
     I          = speye( nVoxelsVoi, nVoxelsVoi ) ;
    
-    p = Fields.Aux.Data.p - mean( Fields.Aux.Data.p ) ;
+    % static field solution to correspond to mean resp signal :
+    pMean     = mean( Fields.Aux.Data.p ) ;
+    p         = Fields.Aux.Data.p - pMean ;
+    % RIRO solution to be scaled by Rms resp signal :
     pShiftRms = rms( p ) ;
-    
+
     % linear operator: A
     A       = [ I p(1)*I ] ;
     
@@ -954,7 +957,7 @@ if isa( Fields, 'FieldEval' )
     Field.img( ~mask )       = 0 ;
     Field.Hdr.MaskingImage   = mask ; 
     Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
-    Field.Aux.Data.p         = 0 ; 
+    Field.Aux.Data.p         = pMean ; 
     
     % scale RIRO by RMSE of physio signal
     Riro.img( mask )        = pShiftRms .* x(nVoxelsVoi+1:end) ;
