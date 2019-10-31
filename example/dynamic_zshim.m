@@ -63,6 +63,9 @@ end
 % Todo -> Julien
 %% ------------------------------------------------------------------------
 Mag = MaRdI(MGRE_mag_path);
+Params.dataLoadDir = MGRE_mag_path;
+Params.centerlineMethod = 'midfov';  % set to 'spinalcord' to create a mask around the spinal cord
+Mag.segmentspinalcanal_s(Params);
 
 %% ------------------------------------------------------------------------
 % load images and respiratory trace recording as FieldEval + ProbeTracking 
