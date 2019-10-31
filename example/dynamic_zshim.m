@@ -65,7 +65,7 @@ end
 Mag = MaRdI(MGRE_mag_path);
 Params.dataLoadDir = MGRE_mag_path;
 Params.centerlineMethod = 'midfov';  % set to 'spinalcord' to create a mask around the spinal cord
-Mag.segmentspinalcanal_s(Params);
+shimVoi = Mag.segmentspinalcanal_s(Params);
 
 %% ------------------------------------------------------------------------
 % load images and respiratory trace recording as FieldEval + ProbeTracking 
@@ -85,6 +85,20 @@ Fields.associateaux( Pmu );
 
 % modeled static + respiratory fields (in Field.img and Field.Model.Riro.img respectively)
 Field = FieldEval.modelfield( Fields );
+
+%% ------------------------------------------------------------------------
+% interpolate static B0 field + Riro images to target slices for shimming:
+%% ------------------------------------------------------------------------
+[X,Y,Z]  = Mag.getvoxelpositions() ;
+
+% accelerate interpolation by restricting it to the region where signal exists: 
+% (NOTE: mask here could instead be the shimVoi output from SCT)
+mask = Mag.getreliabilitymask( 0.05 ) ; % returns mask for each echo (4th dim)
+mask = logical( sum( mask, 4 ) ) ; % combine echo-specific masks
+
+% 'interp/extrap' (nearest-neighbour substitution for 2d field maps) :
+Field.resliceimg( X,Y,Z, mask ) ; % reslice static b0 image 
+Field.Model.Riro.resliceimg( X,Y,Z, mask ) ; % reslice RIRO image
 
 %% ------------------------------------------------------------------------
 % define the shim system + target field
