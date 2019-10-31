@@ -1493,18 +1493,23 @@ end
 
 maskSize = size( mask ) ;
 
-if numel( maskSize ) == 2
-    maskSize = [ maskSize 1 ] ;
-end
-
 %% -----
 % assign masking image 
-if ndims( Img.img ) == ndims( mask ) && all( Img.getgridsize() == maskSize )
+if ndims( Img.img ) == ndims( mask ) && all( size(Img.img) == maskSize )
     Img.Hdr.MaskingImage = mask ;
-elseif ndims( Img.img ) > ndims( mask ) && ...
-       ( numel( Img.getgridsize() ) == numel( maskSize ) ) && ... 
+
+elseif ndims( Img.img ) > ndims( mask ) 
+    
+    if numel( maskSize ) == 2
+        maskSize = [ maskSize 1 ] ;
+    end
+
+    if ( numel( Img.getgridsize() ) == numel( maskSize ) ) && ... 
        ( all( Img.getgridsize() == maskSize ) ) % single mask provided
-    Img.Hdr.MaskingImage = repmat( mask, [1 1 1 size(Img.img, 4) size(Img.img, 5)] ) ;
+        Img.Hdr.MaskingImage = repmat( mask, [1 1 1 size(Img.img, 4) size(Img.img, 5)] ) ;
+    else
+        error('Input mask and Img.img should possess the same dimensions' ) ;
+    end
 else 
     error('Input mask and Img.img should possess the same dimensions' ) ;
 end
