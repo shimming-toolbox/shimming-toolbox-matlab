@@ -2552,6 +2552,12 @@ function [mask, weights] = segmentspinalcanal_s( Params )
 %   .isUsingPropsegCsf
 %       [default = false]
 %
+%   .centerlineMethod
+%       Method used to obtain the centerline: 
+%           'midfov': mask is centered in the middle of the axial FOV
+%           'spinalcord': mask follows the spinal cord centerline
+%       [default = 'midfov']
+%
 % NOTE
 %   The protocol is basically that of Topfer R, et al. Magn Reson Med, 2018. 
 %   It hasn't been tested extensively for different acquisition protocols or systems 
@@ -2576,7 +2582,7 @@ DEFAULT_DATALOADDIR        = [] ; % path to dicom folder
 DEFAULT_DATASAVEDIR        = './gre_seg/'
 DEFAULT_ISFORCINGOVERWRITE = false ;
 DEFAULT_ISUSINGPROPSEGCSF  = true ; %use the propseg -CSF option
-
+DEFAULT_CENTERLINEMETHOD   = 'midfov' ;
 DEFAULT_CYLINDERSIZE       = 40 ;
 DEFAULT_GAUSSIANSIZE       = 20 ;
 
@@ -2602,6 +2608,10 @@ if  ~myisfield( Params, 'gaussianSize' ) || isempty(Params.gaussianSize)
     Params.gaussianSize = DEFAULT_GAUSSIANSIZE ;
 end
 
+if  ~myisfield( Params, 'centerlineMethod' ) || isempty(Params.centerlineMethod)
+    Params.centerlineMethod = DEFAULT_CENTERLINEMETHOD ;
+end
+
 Params.tmpSaveDir = [ Params.dataSaveDir 'tmp_sct_' datestr(now, 30) '/'] ;
 mkdir( Params.tmpSaveDir )
 
@@ -2625,14 +2635,23 @@ system( ['mv ' Params.tmpSaveDir '*.nii.gz ' Params.tmpSaveDir 't2s_allEchoes.ni
 % average across echoes
 system( ['sct_maths -i ' Params.tmpSaveDir 't2s_allEchoes.nii.gz -mean t -o ' Params.tmpSaveDir 't2s.nii.gz'] ) ;
 
-% get centerline 
-system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2s.nii.gz -c t2 -o ' Params.tmpSaveDir 't2s_centerline'] ) ;
+% switch between methods for obtaining a pixel location per slice
+if Params.centerlineMethod == 'midfov'
+    % create a vertical line centered in the axial FOV
+    system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p center -size 1 -f box -o ' Params.tmpSaveDir 't2s_centerline.nii.gz' ] ) ;
+elseif Params.centerlineMethod == 'spinalcord'
+    % get cord centerline
+    % TODO: make the param -c an input Params.
+    system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2s.nii.gz -c t2 -o ' Params.tmpSaveDir 't2s_centerline'] ) ;
+end
 
+% create a binary cylindrical mask around the centerline
 system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p centerline,' ...
     Params.tmpSaveDir 't2s_centerline.nii.gz -size ' ...
     num2str(Params.cylinderSize) 'mm -f cylinder -o ' ...
     Params.tmpSaveDir 't2s_seg.nii.gz' ] ) ;
 
+% create a soft gaussian mask around the centerline
 system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p centerline,' ...
     Params.tmpSaveDir 't2s_centerline.nii.gz -size ' ...
     num2str(Params.gaussianSize) 'mm -f gaussian -o ' ...
