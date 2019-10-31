@@ -1,4 +1,4 @@
-function dynaminc_zshim(FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path, varargin)
+function dynamic_zshim(FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path, varargin)
 
 %% ************************************************************************
 % function dynaminc_zshim(FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path, varargin)
@@ -101,8 +101,8 @@ Shims_resp = ShimOpt_IUGM_Prisma_fit(Field.Model.Riro);
 %
 % Gz(t) = c'*p(t)+Gz(0)
 % where;
-% Gz(0) = Gz_static (static Gz component)
-% c' = Gz_resp (dynaminc Gz component)
+% Gz(0) = Gz_static (static Gz component) (units?)
+% c' = Gz_resp (dynaminc Gz component) (should be unitless ...)
 %
 %
 % Note: MGRE sequence (a_gre_DYNshim) will read in p(t) in realtime, and
