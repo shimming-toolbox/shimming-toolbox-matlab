@@ -101,17 +101,65 @@ Field.resliceimg( X,Y,Z, mask ) ; % reslice static b0 image
 Field.Model.Riro.resliceimg( X,Y,Z, mask ) ; % reslice RIRO image
 
 %% ------------------------------------------------------------------------
-% define the shim system + target field
-% shim reference maps for the Siemens Prisma at the IUGM can be downloaded
-% from : https://drive.google.com/open?id=1X3kDizzZeZK2dxs6D_zH8bBbjDaF1veu
-% it's location should be referenced in: function shimDir = shimbindir( )
+% define the shim system using 'nominal' (ideal) reference maps
 %
+% alternatively, empitical shim reference maps for the Siemens Prisma at the
+% IUGM can be downloaded from :
+% https://drive.google.com/open?id=1X3kDizzZeZK2dxs6D_zH8bBbjDaF1veu 
+%
+% the saved binary location should be referenced in: function shimDir = shimbindir( )
+%% ------------------------------------------------------------------------
+Shims = ShimOpt_IUGM_Prisma_fit( Field );
+
+% 3rd term along 4th dim of Shims.img is the Z-gradient ref. map [units: Hz/micro-T/m]
+Gz = Shims.img(:,:,:,3);
+
+%% ------------------------------------------------------------------------
+% Simple (voxelwise) Z-shim optimization:
+
+% 1. static:
+% 
+% Flip field direction and divide by Gz 
+staticTarget   = -Field.img ;
+staticGzVoxels = staticTarget ./Gz ;
+
+% 2. riro:
+%
+% Output image from FieldEval.modelfield() is in units of Hz, scaled to the RMS
+% PMU value (this normalizes the output to be independent of the PMU range 
+% and it enables a direct comparision between the magnitudes of the static and
+% RIRO field components)
+% 
+% flip RIRO polarity + rescale to units of [Hz/unit-PMU]
+riroTarget   = - Field.Model.Riro.img/Field.Model.Riro.Aux.Data.p ;
+riroGzVoxels = riroTarget ./Gz ;
+
+%% compute slicewise corrections within shimVoi (spinal cord volume)
+nSlices = size( Mag.img, 3 ) ;
+
+% static slicewise Gz correction [units: micro-T]
+Corrections.static = zeros( nSlices, 1 ) ; 
+% RIRO slicewise Gz correction [units: micro-T/unit-PMU]
+Corrections.riro   = zeros( nSlices, 1 ) ; 
+
+for iSlice = 1 : nSlices
+    
+    sliceVoi               = false( size( shimVoi ) ) ;
+    sliceVoi( :,:,iSlice ) = shimVoi(:,:,iSlice ) ;
+
+    Corrections.static( iSlice ) = mean( staticGzVoxels( sliceVoi ) ) ;
+    Corrections.riro( iSlice )   = mean( riroGzVoxels( sliceVoi ) ) ;
+
+end
+
+%% ------------------------------------------------------------------------
+% write to .txt file readable by sequence
+%% ------------------------------------------------------------------------
+
+
 % Generate Shims_static and Shims_static, the static (B(0)) and respiratory
 % (c) components of field: B(t) = c*p(t) + B(0)
 % see: Topfer et al. MRM 80:935?946 (2018)
-%% ------------------------------------------------------------------------
-Shims_static = ShimOpt_IUGM_Prisma_fit( Field );
-Shims_resp = ShimOpt_IUGM_Prisma_fit(Field.Model.Riro);
 
 %% ------------------------------------------------------------------------
 % Generate z-shim values
@@ -126,16 +174,3 @@ Shims_resp = ShimOpt_IUGM_Prisma_fit(Field.Model.Riro);
 % for each slice calculate the expected Gz for that pressure value based on
 % the above relationship
 %% ------------------------------------------------------------------------
-
-Gz_static = Shims_static.img(:,:,:,3);
-Gz_resp = Shims_resp.img(:,:,:,3);
-
-zValues = -Field.img ./Gz_static ;
-
-%% ------------------------------------------------------------------------
-% Resample Gz_static and Gz_resp to match images found in MGRE_mag_path and
-% compute mean-ROI Gz values for each slice
-% Todo -> Ryan/EAO
-%% ------------------------------------------------------------------------
-
-
