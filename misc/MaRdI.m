@@ -1359,6 +1359,7 @@ for iImgDim4 = 1 : nImgVolumesDim4
             imgEp    = reshape( F( r1 ), gridSizeEp ) ;
         
         else % Nearest-neighbor substitution
+            imgIp = imgIp(maskIp) ;
             for iR = 1 : nEp 
                 imgEp( iEp(iR) ) = imgIp( iNearest(iR) ) ;
             end
@@ -1498,7 +1499,7 @@ end
 
 %% -----
 % assign masking image 
-if ndims( Img.img ) == ndims( mask ) && all( size(Img.img) == maskSize )
+if ndims( Img.img ) == ndims( mask ) && all( Img.getgridsize() == maskSize )
     Img.Hdr.MaskingImage = mask ;
 elseif ndims( Img.img ) > ndims( mask ) && ...
        ( numel( Img.getgridsize() ) == numel( maskSize ) ) && ... 
