@@ -1,0 +1,18 @@
+Correction_Term,Original,Optimal,Update,Realtime,Relative_Power
+Tx Freq. (Hz)             ,123259218,123259271,53.3536,-0.7705,0.02086
+Greg Ch1 (mA)             ,0,NaN,NaN,0,0
+Greg Ch2 (mA)             ,0,NaN,NaN,0,0
+Greg Ch3 (mA)             ,0,NaN,NaN,0,0
+Greg Ch4 (mA)             ,0,NaN,NaN,0,0
+Greg Ch5 (mA)             ,0,NaN,NaN,0,0
+Greg Ch6 (mA)             ,0,NaN,NaN,0,0
+Greg Ch7 (mA)             ,0,NaN,NaN,0,0
+Greg Ch8 (mA)             ,0,NaN,NaN,0,0
+IUGM_Prisma_fit X (D.U.)  ,98.3,2300,2202,3.965e-06,2.972e-16
+IUGM_Prisma_fit Y (D.U.)  ,-1144,-1173,-29.18,-0.04941,1.775e-07
+IUGM_Prisma_fit Z (D.U.)  ,-1471,-1470,1.018,-0.1659,1.274e-06
+IUGM_Prisma_fit A20 (D.U.),-439.5,-436.4,3.047,0,0
+IUGM_Prisma_fit A21 (D.U.),24.86,1646,1622,0,0
+IUGM_Prisma_fit B21 (D.U.),70.78,320.1,249.3,0,0
+IUGM_Prisma_fit A22 (D.U.),-73.17,-216.5,-143.3,0,0
+IUGM_Prisma_fit B22 (D.U.),25.46,3487,3462,0,0
