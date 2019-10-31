@@ -1374,6 +1374,7 @@ imgOut( isnan( imgOut ) ) = 0 ;
 
 Img.img = imgOut ; 
 
+Img.Hdr.MaskingImage = Img.img ~= 0 ;
 %% -----------------------------------------------------------------------
 
 % ------------------------------------------------------------------------
@@ -1428,8 +1429,9 @@ else
     Img.Hdr.SpacingBetweenSlices = 0 ;
 end
 
-[rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
+Img.setslicenormalvector() ; % redefines sHat
 
+[rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
 
 end
