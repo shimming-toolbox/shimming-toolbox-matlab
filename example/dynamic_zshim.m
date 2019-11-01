@@ -74,6 +74,20 @@ shimVoi = Mag.segmentspinalcanal_s(Params);
 
 % field map time series
 Fields = FieldEval( FM_mag_path, FM_phase_path ); 
+% Note: Field.img (static b0) refers to the *mean probe signal (saved in the output as Field.Aux.Data.p) 
+% and the respiratory component is a relative deviation from the mean (scaled to RMS PMU)
+% 
+% That means in the example case, where PMU_mean_value = Field.Aux.Data.p = 1707.13, whenever the PMU 
+% reading = 1707.13, there respiratory correction at that moment should be ZERO.
+% i.e. correction for iSlice would be: 
+% Corrections.static( iSlice ) + ( PMU_current_value - PMU_mean_value ) * Corrections.riro( iSlice )
+% 
+% in this way, the value of Field.Aux.Data.p needs to be written into the sequence as well
+% 
+% Alternatively, Corrections.static( iSlice ) could be scaled to refer to the PMU=0 point (then there 
+% is no need to keep track of PMU_mean_value) but that would mean tying the static correction at any 
+% point in time to the current PMU reading, and that seems less stable to me (e.g. if the belt loosens, 
+% or the subject touches it, then both respiratory and static corrections fail, rather than just the former)
 
 % Siemens PMU recording
 Pmu   = ProbeTracking(respTrace_path);
