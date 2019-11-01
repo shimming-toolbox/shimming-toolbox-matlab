@@ -1196,7 +1196,7 @@ Data.t = Data.logStartMdhTime + [0:nSamples-1] * dt ; % measurement time [units:
 
 Data.trigger = false( 1, nSamples ) ; 
 
-creationTime = num2str( getfilecreationtime( filename ) ) ;
+creationTime = getfilecreationtime( filename ) ;
 dateStr      = creationTime(1:8) ;
 
 Data.startTime = str2double( [ dateStr convertfrommdhtime( Data.logStartMdhTime )  ] ) ;
