@@ -1479,6 +1479,11 @@ function [] = setmaskingimage( Img, mask )
 %
 % Copies valid mask (a logical array of 1's and 0's) to Img.Hdr.MaskingImage
 %
+% The purpose of this function is to specify the signal spatial support (e.g. 
+% of mag, phase, field data) within the image grid. e.g. it is called during 
+% phase unwrapping/field mapping, but it might also be called prior to regridding
+% if the interpolation should exclude certain voxels.
+% 
 % To be valid, mask must either be the same size as Img.img OR the same size as
 % Img.getgridsize() (i.e. the size of a single image volume of a
 % multi-echo/multi-measurement stack), in which case, the single mask is simply
