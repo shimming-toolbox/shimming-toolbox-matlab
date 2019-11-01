@@ -156,8 +156,14 @@ Corrections.static = zeros( nSlices, 1 ) ;
 % RIRO slicewise Gz correction [units: micro-T/unit-PMU]
 Corrections.riro   = zeros( nSlices, 1 ) ; 
 
-for iSlice = 1 : nSlices
-    
+% order Corrections vectors according to Mag acquisition times (i.e. ascending, descending, interleaved...) 
+t = Mag.getacquisitiontime() ;
+t = t(:,1) ; % columns refer to acq. times of individual echoes (only need 1st echo)
+[~,sliceOrder] = sort(t) ;
+
+for i = 1 : nSlices
+
+    iSlice = sliceOrder(i) ;    
     sliceVoi               = false( size( shimVoi ) ) ;
     sliceVoi( :,:,iSlice ) = shimVoi(:,:,iSlice ) ;
 
