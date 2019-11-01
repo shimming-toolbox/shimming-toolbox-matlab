@@ -156,14 +156,8 @@ Corrections.static = zeros( nSlices, 1 ) ;
 % RIRO slicewise Gz correction [units: micro-T/unit-PMU]
 Corrections.riro   = zeros( nSlices, 1 ) ; 
 
-% order Corrections vectors according to Mag acquisition times (i.e. ascending, descending, interleaved...) 
-t = Mag.getacquisitiontime() ;
-t = t(:,1) ; % columns refer to acq. times of individual echoes (only need 1st echo)
-[~,sliceOrder] = sort(t) ;
-
-for i = 1 : nSlices
-
-    iSlice = sliceOrder(i) ;    
+for iSlice = 1 : nSlices
+    
     sliceVoi               = false( size( shimVoi ) ) ;
     sliceVoi( :,:,iSlice ) = shimVoi(:,:,iSlice ) ;
 
@@ -174,8 +168,19 @@ end
 
 %% ------------------------------------------------------------------------
 % write to .txt file readable by sequence
+% convert static slicewise Gz correction to units milli-T
+% convert RIRO slicewise Gz correction to units milli-T/unit-PMU
 %% ------------------------------------------------------------------------
 
+fileID = fopen('Dynamic_Gradients.txt','w');
+
+for iSlice = 1:(nSlices)
+    fprintf(fileID,'Vector_Gz[0][%i]= %.6f\n', iSlice-1, 1e-3*Corrections.static(iSlice)); 
+    fprintf(fileID,'Vector_Gz[1][%i]= %.6f\n', iSlice-1, 1e-3*Corrections.riro(iSlice)); 
+    fprintf(fileID,'Vector_Gz[2][%i]= %.3f\n', iSlice-1, Field.Aux.Data.p); 
+end
+
+fclose(fileID);
 
 % Generate Shims_static and Shims_static, the static (B(0)) and respiratory
 % (c) components of field: B(t) = c*p(t) + B(0)
