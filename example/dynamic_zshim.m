@@ -1,7 +1,7 @@
-function dynamic_zshim(FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path, varargin)
+function dynamic_zshim(varargin)
 
 %% ************************************************************************
-% function dynaminc_zshim(FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path, varargin)
+% function dynamic_zshim(varargin)
 %
 % DESCRIPTION: This function will generate static and dynaminc (due to
 % respiration) Gz components based on a fieldmap time series (magnitude and
@@ -12,7 +12,12 @@ function dynamic_zshim(FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path
 % the static and dynaminc Gz component maps to match the MGRE image. 
 % Lastly the average Gz values within the ROI are computed for each slice.
 %
-% INPUTS: 
+% INPUTS: If working with a DICOM socket transfer, call dynamic_zshim(0)
+% or dynamic_zshim(1). The user will then be prompted to input the unsorted
+% DICOM directory and the desired sorted DICOM directory. The boolean 0/1
+% indicates whether or not the files should be moved or copied. If working
+% with previously sorted DICOMS, call dynamic_zshim with no arguments.
+% There will then be a prompt to input the following paths:
 %
 % FM_mag_path : path to DICOM folder containing magnitude magniude images for
 %            field mapping timeseries
@@ -24,10 +29,6 @@ function dynamic_zshim(FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path
 % (MGRE) magnitude images to be used for segmentation
 %
 % respTrace_path : path to Siemens respiratory trace recording
-% 
-% varargin : sort images obtained from a DICOM socket transfer and choose
-% whether to move or copy them using 'SocketTransfer_move' or 
-% 'SocketTransfer_copy'
 %
 %
 % OUTPUT: text file containing the static and dynamic Gz comnponent values 
@@ -47,15 +48,26 @@ function dynamic_zshim(FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path
 % Sort DICOM socket transfer images
 % EAO todo: enable unsortedDicomDir/sortedDicomDir read-in
 %% ------------------------------------------------------------------------
-if nargin > 4 
-    if strcmp(varargin{1}, 'SocketTransfer_move')
-        % isCopying (boolean) is optional (move or copy the .IMA files)
-        MaRdI.sortimages( unsortedDicomDir, sortedDicomDir );
-    elseif strcmp(varargin{1}, 'SocketTransfer_copy')
+if nargin > 0
+    unsortedDicomDir = input('unsortedDicomDir = ');
+    sortedDicomDir = input('sortedDicomDir = ');
+    if (varargin{1} == 1)
+        % copy the files if optional boolean is 1
         MaRdI.sortimages( unsortedDicomDir, sortedDicomDir, 1 );
+    elseif (varargin{1} == 0)
+        % move the files is optional boolean is 0
+        MaRdI.sortimages( unsortedDicomDir, sortedDicomDir );
     end
 end
+        
+
 %% ------------------------------------------------------------------------
+% Read in paths: FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path
+%% ------------------------------------------------------------------------
+FM_mag_path = input('FM_mag_path = ');
+FM_phase_path = input('FM_phase_path = ');
+MGRE_mag_path = input('MGRE_mag_path = ');
+respTrace_path = input('respTrace_path = ');
 
 
 %% ------------------------------------------------------------------------
@@ -182,7 +194,7 @@ fileID = fopen('Dynamic_Gradients.txt','w');
 
 for iSlice = 1:(nSlices)
     fprintf(fileID,'Vector_Gz[0][%i]= %.6f\n', iSlice-1, 1e-3*Corrections.static(iSlice)); 
-    fprintf(fileID,'Vector_Gz[1][%i]= %.6f\n', iSlice-1, 1e-3*Corrections.riro(iSlice)); 
+    fprintf(fileID,'Vector_Gz[1][%i]= %.12f\n', iSlice-1, 1e-3*Corrections.riro(iSlice)); 
     fprintf(fileID,'Vector_Gz[2][%i]= %.3f\n', iSlice-1, Field.Aux.Data.p); 
 end
 
