@@ -113,7 +113,19 @@ Fields.associateaux( Pmu );
 Field = FieldEval.modelfield( Fields );
 
 %% ------------------------------------------------------------------------
-% interpolate static B0 field + Riro images to target slices for shimming:
+% rescale and compute z-gradients  
+%% ------------------------------------------------------------------------
+
+% scaling factor 
+g = 1000/(42.576E6) ; % [units: mT/Hz] 
+
+[~,Y0,Z0] = Field.getvoxelpositions() ; % [units: mm]
+
+[~, Field.img]            = gradient( g*Field.img, Y0/1000, Z0/1000 ) ; % [units: mT/m]
+[~, Field.Model.Riro.img] = gradient( g*Field.Model.Riro.img/Field.Model.Riro.Aux.Data.p, Y0/1000, Z0/1000 ) ; % [units: mT/m]
+
+%% ------------------------------------------------------------------------
+% interpolate field gradient images to target slices for shimming:
 %% ------------------------------------------------------------------------
 [X,Y,Z]  = Mag.getvoxelpositions() ;
 
@@ -122,50 +134,26 @@ Field = FieldEval.modelfield( Fields );
 mask = Mag.getreliabilitymask( 0.05 ) ; % returns mask for each echo (4th dim)
 mask = logical( sum( mask, 4 ) ) ; % combine echo-specific masks
 
-% 'interp/extrap' (nearest-neighbour substitution for 2d field maps) :
+% 'interp/extrap' (nearest-neighbour substitution) :
 Field.resliceimg( X,Y,Z, mask ) ; % reslice static b0 image 
 Field.Model.Riro.resliceimg( X,Y,Z, mask ) ; % reslice RIRO image
 
 %% ------------------------------------------------------------------------
-% define the shim system using 'nominal' (ideal) reference maps
-%
-% alternatively, empitical shim reference maps for the Siemens Prisma at the
-% IUGM can be downloaded from :
-% https://drive.google.com/open?id=1X3kDizzZeZK2dxs6D_zH8bBbjDaF1veu 
-%
-% the saved binary location should be referenced in: function shimDir = shimbindir( )
+% Simple (voxelwise) Z-shim calculation:
 %% ------------------------------------------------------------------------
-Shims = ShimOpt_IUGM_Prisma_fit( Field );
 
-% 3rd term along 4th dim of Shims.img is the Z-gradient ref. map [units: Hz/micro-T/m]
-Gz = Shims.img(:,:,:,3);
+% Flip static gradient field polarity (aim is to cancel it)
+staticTarget = -Field.img ;
 
-%% ------------------------------------------------------------------------
-% Simple (voxelwise) Z-shim optimization:
+% Flip RIRO gradient polarity + rescale to units of [mT/m/unit-PMU]
+riroTarget   = -Field.Model.Riro.img/Field.Model.Riro.Aux.Data.p ;
 
-% 1. static:
-% 
-% Flip field direction and divide by Gz 
-staticTarget   = -Field.img ;
-staticGzVoxels = staticTarget ./Gz ;
-
-% 2. riro:
-%
-% Output image from FieldEval.modelfield() is in units of Hz, scaled to the RMS
-% PMU value (this normalizes the output to be independent of the PMU range 
-% and it enables a direct comparision between the magnitudes of the static and
-% RIRO field components)
-% 
-% flip RIRO polarity + rescale to units of [Hz/unit-PMU]
-riroTarget   = - Field.Model.Riro.img/Field.Model.Riro.Aux.Data.p ;
-riroGzVoxels = riroTarget ./Gz ;
-
-%% compute slicewise corrections within shimVoi (spinal cord volume)
+% slicewise corrections within shimVoi (spinal cord volume)
 nSlices = size( Mag.img, 3 ) ;
 
-% static slicewise Gz correction [units: micro-T]
+% static slicewise Gz correction [units: mT/m]
 Corrections.static = zeros( nSlices, 1 ) ; 
-% RIRO slicewise Gz correction [units: micro-T/unit-PMU]
+% RIRO slicewise Gz correction [units: mT/m/unit-PMU]
 Corrections.riro   = zeros( nSlices, 1 ) ; 
 
 % order Corrections vectors according to Mag acquisition times (i.e. ascending, descending, interleaved...) 
@@ -175,26 +163,23 @@ t = t(:,1) ; % columns refer to acq. times of individual echoes (only need 1st e
 
 for iSlice = 1 : nSlices
 
-    sliceVoi               = false( size( shimVoi ) ) ;
+    sliceVoi = false( size( shimVoi ) ) ;
     sliceVoi( :,:,sliceOrder(iSlice) ) = shimVoi(:,:, sliceOrder(iSlice) ) ;
 
-    Corrections.static( iSlice ) = mean( staticGzVoxels( sliceVoi ) ) ;
-    Corrections.riro( iSlice )   = mean( riroGzVoxels( sliceVoi ) ) ;
-
+    Corrections.static( iSlice ) = median( staticTarget( sliceVoi ) ) ;
+    Corrections.riro( iSlice )   = median( riroTarget( sliceVoi ) ) ;
+    
 end
-
 
 %% ------------------------------------------------------------------------
 % write to .txt file readable by sequence
-% convert static slicewise Gz correction to units milli-T
-% convert RIRO slicewise Gz correction to units milli-T/unit-PMU
 %% ------------------------------------------------------------------------
 
 fileID = fopen('Dynamic_Gradients.txt','w');
 
 for iSlice = 1:(nSlices)
-    fprintf(fileID,'Vector_Gz[0][%i]= %.6f\n', iSlice-1, 1e-3*Corrections.static(iSlice)); 
-    fprintf(fileID,'Vector_Gz[1][%i]= %.12f\n', iSlice-1, 1e-3*Corrections.riro(iSlice)); 
+    fprintf(fileID,'Vector_Gz[0][%i]= %.6f\n', iSlice-1, Corrections.static(iSlice)); 
+    fprintf(fileID,'Vector_Gz[1][%i]= %.12f\n', iSlice-1, Corrections.riro(iSlice)); 
     fprintf(fileID,'Vector_Gz[2][%i]= %.3f\n', iSlice-1, Field.Aux.Data.p); 
 end
 
