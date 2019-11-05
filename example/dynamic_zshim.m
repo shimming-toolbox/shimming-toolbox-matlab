@@ -46,7 +46,9 @@ function dynamic_zshim(varargin)
 
 %% ------------------------------------------------------------------------
 % Sort DICOM socket transfer images
-% EAO todo: enable unsortedDicomDir/sortedDicomDir read-in
+% enter the directory path for the unsorted dicom images 
+% (ex: '/SYNGO_TRANSFER/SYNGO_TRANSFER/20191101.acdc_95p.201911011532/')
+% enter the desired path for the sorted images
 %% ------------------------------------------------------------------------
 if nargin > 0
     unsortedDicomDir = input('unsortedDicomDir = ');
@@ -63,6 +65,7 @@ end
 
 %% ------------------------------------------------------------------------
 % Read in paths: FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path
+% These folders will be generated when using 'MaRdI.sortimages'
 %% ------------------------------------------------------------------------
 FM_mag_path = input('FM_mag_path = ');
 FM_phase_path = input('FM_phase_path = ');
@@ -108,8 +111,6 @@ Pmu   = ProbeTracking(respTrace_path);
 %% ------------------------------------------------------------------------
 Fields.associateaux( Pmu );
 
-% modeled static + respiratory fields (in Field.img and Field.Model.Riro.img respectively)
-Field = FieldEval.modelfield( Fields );
 
 %% ------------------------------------------------------------------------
 % rescale and compute z-gradients  
@@ -118,10 +119,34 @@ Field = FieldEval.modelfield( Fields );
 % scaling factor 
 g = 1000/(42.576E6) ; % [units: mT/Hz] 
 
-[~,Y0,Z0] = Field.getvoxelpositions() ; % [units: mm]
+ImageRes = Fields.getvoxelspacing() ; % [units: mm]
 
-[~, Field.img]            = gradient( g*Field.img, Y0/1000, Z0/1000 ) ; % [units: mT/m]
-[~, Field.Model.Riro.img] = gradient( g*Field.Model.Riro.img/Field.Model.Riro.Aux.Data.p, Y0/1000, Z0/1000 ) ; % [units: mT/m]
+for measNo = 1:Fields.getnumberofmeasurements
+    [~,Fields.img(:,:,1,1,measNo)] = gradient( ...
+    squeeze(g*Fields.img(:,:,1,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
+end
+
+%% ------------------------------------------------------------------------
+% modeled static + respiratory fields (in Field.img and Field.Model.Riro.img respectively)
+%% ------------------------------------------------------------------------
+Field = FieldEval.modelfield( Fields );
+
+
+%% ------------------------------------------------------------------------
+% rescale and compute z-gradients  
+% Eva todo: Modeling the static+resp. fields then taking the
+% gradient is not the same thing as taking the gradient and then modeling the
+% static and resp. components. Commented this out and added "rescale and 
+% compute z-gradients" above.
+%% ------------------------------------------------------------------------
+
+% % scaling factor 
+% g = 1000/(42.576E6) ; % [units: mT/Hz] 
+% 
+% [~,Y0,Z0] = Field.getvoxelpositions() ; % [units: mm]
+% 
+% [~, Field.img]            = gradient( g*Field.img, Y0/1000, Z0/1000 ) ; % [units: mT/m]
+% [~, Field.Model.Riro.img] = gradient( g*Field.Model.Riro.img/Field.Model.Riro.Aux.Data.p, Y0/1000, Z0/1000 ) ; % [units: mT/m]
 
 
 %% ------------------------------------------------------------------------
@@ -135,12 +160,12 @@ imagesc( 1e3*Field.img ) ;
 axis equal
 caxis([-200 200])
 colorbar
-title('Static Gz') ;
+title('Static Gz (mT/m)') ;
 
 subplot(2,1,2);
 imagesc( 1e3*Field.Model.Riro.img ) ;
 axis equal
-caxis([-0.0001 0.0001])
+caxis([-0.05 0.05])
 colorbar
 title('RMS RIRO') ;
 
