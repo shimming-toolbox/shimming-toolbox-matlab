@@ -72,7 +72,6 @@ respTrace_path = input('respTrace_path = ');
 
 %% ------------------------------------------------------------------------
 % load MGRE magnitude images for SCT segmentation
-% Todo -> Julien
 %% ------------------------------------------------------------------------
 Mag = MaRdI(MGRE_mag_path);
 Params.dataLoadDir = MGRE_mag_path;
@@ -124,6 +123,29 @@ g = 1000/(42.576E6) ; % [units: mT/Hz]
 [~, Field.img]            = gradient( g*Field.img, Y0/1000, Z0/1000 ) ; % [units: mT/m]
 [~, Field.Model.Riro.img] = gradient( g*Field.Model.Riro.img/Field.Model.Riro.Aux.Data.p, Y0/1000, Z0/1000 ) ; % [units: mT/m]
 
+
+%% ------------------------------------------------------------------------
+% plot some results
+%% ------------------------------------------------------------------------
+
+figure
+
+subplot(2,1,1);
+imagesc( 1e3*Field.img ) ;
+axis equal
+caxis([-200 200])
+colorbar
+title('Static Gz') ;
+
+subplot(2,1,2);
+imagesc( 1e3*Field.Model.Riro.img ) ;
+axis equal
+caxis([-0.0001 0.0001])
+colorbar
+title('RMS RIRO') ;
+
+print('-djpeg','Gz_map.jpeg');
+
 %% ------------------------------------------------------------------------
 % interpolate field gradient images to target slices for shimming:
 %% ------------------------------------------------------------------------
@@ -156,15 +178,11 @@ Corrections.static = zeros( nSlices, 1 ) ;
 % RIRO slicewise Gz correction [units: mT/m/unit-PMU]
 Corrections.riro   = zeros( nSlices, 1 ) ; 
 
-% order Corrections vectors according to Mag acquisition times (i.e. ascending, descending, interleaved...) 
-t = Mag.getacquisitiontime() ;
-t = t(:,1) ; % columns refer to acq. times of individual echoes (only need 1st echo)
-[~,sliceOrder] = sort(t) ;
 
 for iSlice = 1 : nSlices
 
     sliceVoi = false( size( shimVoi ) ) ;
-    sliceVoi( :,:,sliceOrder(iSlice) ) = shimVoi(:,:, sliceOrder(iSlice) ) ;
+    sliceVoi( :,:,iSlice ) = shimVoi(:,:, iSlice ) ;
 
     Corrections.static( iSlice ) = median( staticTarget( sliceVoi ) ) ;
     Corrections.riro( iSlice )   = median( riroTarget( sliceVoi ) ) ;
@@ -185,20 +203,3 @@ end
 
 fclose(fileID);
 
-% Generate Shims_static and Shims_static, the static (B(0)) and respiratory
-% (c) components of field: B(t) = c*p(t) + B(0)
-% see: Topfer et al. MRM 80:935?946 (2018)
-
-%% ------------------------------------------------------------------------
-% Generate z-shim values
-%
-% Gz(t) = c'*p(t)+Gz(0)
-% where;
-% Gz(0) = Gz_static (static Gz component) (units?)
-% c' = Gz_resp (dynaminc Gz component) (should be unitless ...)
-%
-%
-% Note: MGRE sequence (a_gre_DYNshim) will read in p(t) in realtime, and
-% for each slice calculate the expected Gz for that pressure value based on
-% the above relationship
-%% ------------------------------------------------------------------------
