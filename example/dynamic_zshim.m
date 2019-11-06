@@ -119,11 +119,13 @@ Fields.associateaux( Pmu );
 % scaling factor 
 g = 1000/(42.576E6) ; % [units: mT/Hz] 
 
-ImageRes = Fields.getvoxelspacing() ; % [units: mm]
+%ImageRes = Fields.getvoxelspacing() ; % [units: mm]
+[~,Y0,Z0] = Fields.getvoxelpositions() ; % [units: mm]
 
 for measNo = 1:Fields.getnumberofmeasurements
     [~,Fields.img(:,:,1,1,measNo)] = gradient( ...
-    squeeze(g*Fields.img(:,:,1,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
+     squeeze(g*Fields.img(:,:,1,1,measNo)), Y0/1000, Z0/1000 ) ; % [units: mT/m]
+    %squeeze(g*Fields.img(:,:,1,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
 end
 
 %% ------------------------------------------------------------------------
@@ -160,12 +162,12 @@ imagesc( 1e3*Field.img ) ;
 axis equal
 caxis([-200 200])
 colorbar
-title('Static Gz (mT/m)') ;
+title('Static Gz (\muT/m)') ;
 
 subplot(2,1,2);
-imagesc( 1e3*Field.Model.Riro.img ) ;
+imagesc( Field.Model.Riro.img ) ;
 axis equal
-caxis([-0.05 0.05])
+caxis([0 0.02])
 colorbar
 title('RMS RIRO') ;
 
