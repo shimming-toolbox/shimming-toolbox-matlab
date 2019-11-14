@@ -1,22 +1,22 @@
-function dynamic_zshim(varargin)
+function realtime_zshim(varargin)
 
 %% ************************************************************************
-% function dynamic_zshim(varargin)
+% function realtime_zshim(varargin)
 %
 % DESCRIPTION: This function will generate static and dynaminc (due to
 % respiration) Gz components based on a fieldmap time series (magnitude and
 % phase images to be found in 'FM_mag_path' and 'FM_phase_path') and
-% respiratory trace information obtained from Siemens bellows (found in
-% respTrace_path). An additional multi-gradient echo (MGRE) magnitiude
+% respiratory trace information obtained from Siemens bellows 
+% (PMUresp_signal.resp). An additional multi-gradient echo (MGRE) magnitiude
 % image is used (found in MGRE_mag_path) to generate an ROI and resample
 % the static and dynaminc Gz component maps to match the MGRE image. 
 % Lastly the average Gz values within the ROI are computed for each slice.
 %
-% INPUTS: If working with a DICOM socket transfer, call dynamic_zshim(0)
-% or dynamic_zshim(1). The user will then be prompted to input the unsorted
+% INPUTS: If working with a DICOM socket transfer, call realtime_zshim(0)
+% or realtime_zshim(1). The user will then be prompted to input the unsorted
 % DICOM directory and the desired sorted DICOM directory. The boolean 0/1
 % indicates whether or not the files should be moved or copied. If working
-% with previously sorted DICOMS, call dynamic_zshim with no arguments.
+% with previously sorted DICOMS, call realtime_zshim with no arguments.
 % There will then be a prompt to input the following paths:
 %
 % FM_mag_path : path to DICOM folder containing magnitude magniude images for
@@ -27,8 +27,6 @@ function dynamic_zshim(varargin)
 % 
 % MGRE_mag_path : path to DICOM folder containing multi-gradient echo
 % (MGRE) magnitude images to be used for segmentation
-%
-% respTrace_path : path to Siemens respiratory trace recording
 %
 %
 % OUTPUT: text file containing the static and dynamic Gz comnponent values 
@@ -43,6 +41,14 @@ function dynamic_zshim(varargin)
 %
 %*************************************************************************
 
+% set debug_mode = 1 if in debug mode
+debug_mode = 0;
+
+%% ------------------------------------------------------------------------
+%  Copy respiratory trace file to the PWD
+%% ------------------------------------------------------------------------
+
+unix('cp /SYNGO_TRANSFER/SYNGO_TRANSFER/PMUresp_signal.resp .')
 
 %% ------------------------------------------------------------------------
 % Sort DICOM socket transfer images
@@ -70,7 +76,11 @@ end
 FM_mag_path = input('FM_mag_path = ');
 FM_phase_path = input('FM_phase_path = ');
 MGRE_mag_path = input('MGRE_mag_path = ');
-respTrace_path = input('respTrace_path = ');
+
+% FM_mag_path = '03_realtime_fieldmap1/';
+% FM_phase_path = '04_realtime_fieldmap1/';
+% MGRE_mag_path = '05_a_gre_DYNshim1/';
+
 
 
 %% ------------------------------------------------------------------------
@@ -78,7 +88,7 @@ respTrace_path = input('respTrace_path = ');
 %% ------------------------------------------------------------------------
 Mag = MaRdI(MGRE_mag_path);
 Params.dataLoadDir = MGRE_mag_path;
-Params.centerlineMethod = 'midfov';  % set to 'spinalcord' to create a mask around the spinal cord
+Params.centerlineMethod = 'spinalcord';  % 'midfov': middle of FOV; 'spinalcord': to create a mask around the spinal cord
 shimVoi = Mag.segmentspinalcanal_s(Params);
 
 %% ------------------------------------------------------------------------
@@ -165,7 +175,7 @@ colorbar
 title('Static Gz (\muT/m)') ;
 
 subplot(2,1,2);
-imagesc( Field.Model.Riro.img ) ;
+imagesc( 1e3*Field.Model.Riro.img ) ;
 axis equal
 caxis([0 0.02])
 colorbar
@@ -220,7 +230,7 @@ end
 % write to .txt file readable by sequence
 %% ------------------------------------------------------------------------
 
-fileID = fopen('Dynamic_Gradients.txt','w');
+fileID = fopen('zshim_gradients.txt','w');
 
 for iSlice = 1:(nSlices)
     fprintf(fileID,'Vector_Gz[0][%i]= %.6f\n', iSlice-1, Corrections.static(iSlice)); 
@@ -229,4 +239,9 @@ for iSlice = 1:(nSlices)
 end
 
 fclose(fileID);
+
+% unless in debug mode, copy Dynamic_Gradients.txt to mounted drive
+if debug_mode == 0
+   unix('cp zshim_gradients.txt /SYNGO_TRANSFER/SYNGO_TRANSFER/')
+end
 
