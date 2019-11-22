@@ -62,6 +62,10 @@ properties(SetAccess=protected)
     Hdrs ; % cell array of (truncated) DICOM headers courtesy of dicominfo()
 end
 
+properties(SetAccess=protected, Hidden = true)
+    Ref ; % Reference properties - prior to manipulation
+end
+
 % =========================================================================
 % =========================================================================    
 methods
@@ -1142,147 +1146,235 @@ assert( xyzIso(2) == 0, 'Table shifted in A/P direction?' ) ;
 
 end
 % =========================================================================
-function [F] = resliceimg( Img, X_1, Y_1, Z_1, varargin ) 
+function [F] = resliceimg( Img, X_Ep, Y_Ep, Z_Ep, varargin ) 
 %RESLICEIMG
 % 
-%   Interpolate Img using 'scatteredInterpolant' class; updates Img.Hdr accordingly.
+% Interpolate a MaRdI image (Img.img) and update Img.Hdr accordingly.
+% 
+% In general, RESLICEIMG() uses MATLAB's scatteredInterpolant class. 
+% The exception is when the image input (Img.img) is 2d and the target
+% output (prescribed by inputs X,Y,Z) is a volume. This scenario is
+% incompatible with scatteredInterpolant, and nearest-neighbor substitution is
+% used instead.
 %
-%   [F] = RESLICEIMG( Img, X, Y, Z )
-%   [F] = RESLICEIMG( Img, X, Y, Z, interpolationMethod ) 
-%   [F] = RESLICEIMG( Img, X, Y, Z, F ) 
-%   
-%   X, Y, Z must refer to X, Y, Z patient coordinates (i.e. of the DICOM
-%   reference coordinate system)
-%   
-%   Optional interpolationMethod is a string supported by the scatteredInterpolant constructor.
+% -----   
+% Basic Usage
+%
+% [] = RESLICEIMG( Img, X, Y, Z )
+% [] = RESLICEIMG( Img, X, Y, Z, mask )
+% 
+% Inputs:
+%
+% X, Y, Z:  
+%       2d or 3d arrays (size=output image grid) describing the X, Y, Z patient
+%       coordinates (i.e. of the DICOM reference coordinate system) of the
+%       target (output) voxels. In general, if one is interpolating from one
+%       image grid (Img) to another (MaRdI-type object Img2), these arrays are
+%       obtained by the call: [X,Y,Z] = Img2.getvoxelpositions()
+% 
+% mask: [Optional, default = true(size output image grid)]
+%       A logical array (size=output image grid) specifying the subset of the
+%       output voxels that are of interest. (i.e. voxels in the output image
+%       with a corresponding mask entry == FALSE will simply be assigned zero).
+%       Note: Specifying the region of interest for extrapolation with this
+%       variable can greatly accelerate the interpolation!
+%
+% -----   
+%
+% Advanced Usage TODO
+%
+%   [F] = RESLICEIMG( Img, X, Y, Z, mask, F ) 
+% 
+%   case:
+%       interpolationMethod [default='linear']
+%       is a string supported by the scatteredInterpolant constructor.
 %   F is the object of type 'scatteredInterpolant' used for interpolation.
-%
-%   See HELP scatteredInterpolant
+
+
+%% -----
+%NOTE: Terminology: 
+% 'Ip' = interpolant/initial point
+% 'Ep' = extrapolant/end point
 
 F = [] ;
 
 DEFAULT_INTERPOLATIONMETHOD  = 'linear' ;
 DEFAULT_ISFORMINGINTERPOLANT = true ;
 
-[X_0, Y_0, Z_0] = Img.getvoxelpositions( ) ;
+[X_Ip, Y_Ip, Z_Ip] = Img.getvoxelpositions( ) ;
 
-if MaRdI.compareimggrids( X_0, Y_0, Z_0, X_1, Y_1, Z_1 ) 
+%% -----
+% Parse and check inputs
+if MaRdI.compareimggrids( X_Ip, Y_Ip, Z_Ip, X_Ep, Y_Ep, Z_Ep ) 
     warning('Voxel positions are already identical. Not interpolating.');
     return ;
 end
+        
+isFormingInterpolant = true ; 
 
 if nargin < 5
 
     interpolationMethod  = DEFAULT_INTERPOLATIONMETHOD ;
     isFormingInterpolant = DEFAULT_ISFORMINGINTERPOLANT ;
 
-elseif nargin == 5
-
-    if ischar( varargin{1} )
-
-        interpolationMethod = varargin{1} ;
-
-    elseif isa( varargin{1}, 'scatteredInterpolant' ) ;
-
-        F = varargin{1} ;
-
-        isFormingInterpolant = false ; 
-    
-    else
-        error( 'Unknown input.' ) ;
+elseif nargin >= 5 
+    if islogical( varargin{1} ) ;
+        maskEp = varargin{1} ;
     end
 
+    if nargin == 6
+        if ischar( varargin{2} )
+            interpolationMethod = varargin{2} ;
+        elseif isa( varargin{2}, 'scatteredInterpolant' ) ;
+            F = varargin{2} ;
+        else
+            error( 'Unknown input. See HELP MaRdI.resliceimg' ) ;
+        end
+    end
 end
 
-assert( (ndims(Img.img) > 1) && (ndims(Img.img) <= 5), ...
-    'Dimensions of input Img.img must be >= 2, and <= 5') ;
+isUsingScatteredInterpolant = [] ;
 
-nImgVolumesDim4 = size(Img.img, 4 ) ;
-nImgVolumesDim5 = size(Img.img, 5 ) ;
-nImgVolumes     = nImgVolumesDim4 * nImgVolumesDim5 ;
+if (ndims(Img.img) > 1) && (ndims(Img.img) <= 5)
 
+    gridSizeIp = Img.getgridsize() ;
+    
+    if gridSizeIp(3) > 1
+        isUsingScatteredInterpolant = true ;
+    else
+        isUsingScatteredInterpolant = false ;
+    end
+else
+    error('Dimensions of input Img.img must be >= 2, and <= 5') ;
+end
 
-if ndims( X_1 ) == 2 % interpolating down to 2d single-slice
-    gridSizeInterpolated = [ size(X_1) 1 ] ;
-elseif ndims( X_1 ) == 3
-    gridSizeInterpolated = size(X_1) ;
+if ndims( X_Ep ) == 2 % interpolating down to 2d single-slice
+    gridSizeEp = [ size(X_Ep) 1 ] ;
+elseif ndims( X_Ep ) == 3
+    gridSizeEp = size(X_Ep) ;
 else
     error('Expected 2d or 3d target interpolation grid')
 end
 
-imgInterpolated  = zeros( [gridSizeInterpolated nImgVolumesDim4 nImgVolumesDim5] ) ;
+%% -----
+% Define variables
+gridSizeIp = size( X_Ip ) ;
 
-img0 = Img.img( :,:,:, 1, 1 ) ;
+if myisfieldfilled( Img.Hdr, 'MaskingImage' ) 
+    maskIp = logical( sum( sum( Img.Hdr.MaskingImage, 5 ), 4 ) ) ;
+else
+    maskIp = true( gridSizeIp ) ;
+end
+
+gridSizeEp = size( X_Ep ) ;
+if ndims(gridSizeEp) == 2
+    gridSizeEp = [gridSizeEp 1] ;
+end
+
+if ~exist('maskEp')
+    if ~isUsingScatteredInterpolant 
+        warning('No logical mask provided: For faster results, restrict the target/output voxels to those of interest by providing this mask!') ;
+    end
+    maskEp = true( gridSizeEp ) ;
+end
+
+iEp = find( maskEp(:) ) ; % indices of target voxels
+
+iNearest = zeros( size(iEp) ) ;
+nEp      = length( iEp ) ;
+
+nImgVolumesDim4 = size(Img.img, 4 ) ; % nEchoes
+nImgVolumesDim5 = size(Img.img, 5 ) ; % nMeasurements
+nImgVolumes     = nImgVolumesDim4 * nImgVolumesDim5 ;
+
+imgOut = zeros( [gridSizeEp nImgVolumesDim4 nImgVolumesDim5] ) ;
 
 %% -------
-% Interpolation
-tic
-
 if isFormingInterpolant 
+    tic
     disp( 'Forming interpolant...' )
     disp( '(Computation time depends on input image size. This may take a few minutes.)' ) ;
 
-    % The following avoids the error from scatteredInterpolant when one
-    % attempts to form a 3d interpolant from a 2d input: 
-    isValidDim0 = [ numel(unique(X_0(:))) numel(unique(Y_0(:))) numel(unique(Z_0(:))) ] > 1 ;
-    r0          = [X_0(:) Y_0(:) Z_0(:)] ;
+    if isUsingScatteredInterpolant
 
-    F    = scatteredInterpolant( r0(:, isValidDim0), img0(:), interpolationMethod, 'none'  ) ;
-end
-
-isValidDim1 = [ numel(unique(X_1(:))) numel(unique(Y_1(:))) numel(unique(Z_1(:))) ] > 1 ;
-r1          = [X_1(:) Y_1(:) Z_1(:)] ;
-
-if nnz( isValidDim0 ) == 2
-    
-    assert( all( isValidDim1 == isValidDim0 ), ... 
-        'Query points should sit within the same plane as the interpolant points' ) ;
+        % The following avoids the error from scatteredInterpolant when one
+        % attempts to form a 3d interpolant from a 2d input: 
+        isValidDim0 = [ numel(unique(X_Ip(:))) numel(unique(Y_Ip(:))) numel(unique(Z_Ip(:))) ] > 1 ;
+        r0          = [X_Ip(:) Y_Ip(:) Z_Ip(:)] ;
         
-    % coordinate of interpolant plane along normal dim:
-    qn0 = unique( r0(:, ~isValidDim0) ) ;
-    % coordinate of query plane along same dim:
-    qn1 = unique( r1(:, ~isValidDim1) ) ;
+        isValidDim1 = [ numel(unique(X_Ep(:))) numel(unique(Y_Ep(:))) numel(unique(Z_Ep(:))) ] > 1 ;
+        r1          = [X_Ep(:) Y_Ep(:) Z_Ep(:)] ;
 
-    % This could instead be a warning? (e.g. if the 2d planes are indeed very close, should interp still be performed?)
-    assert( qn0 == qn1, 'Query points should sit within the same plane as the interpolant points' ) ;
+        if nnz( isValidDim0 ) == 2
+            
+            assert( all( isValidDim1 == isValidDim0 ), ... 
+                'Query points should sit within the same plane as the interpolant points' ) ;
+                
+            % coordinate of interpolant plane along normal dim:
+            qn0 = unique( r0(:, ~isValidDim0) ) ;
+            % coordinate of query plane along same dim:
+            qn1 = unique( r1(:, ~isValidDim1) ) ;
 
-    % exclude the coordinate along the normal dim from the interpolation
-    r1 = r1(:, isValidDim1) ; 
+            % This could instead be a warning? (e.g. if the 2d planes are indeed very close, should interp still be performed?)
+            assert( qn0 == qn1, 'Query points should sit within the same plane as the interpolant points' ) ;
 
-end
+            % exclude the coordinate along the normal dim from the interpolation
+            r1 = r1(:, isValidDim1) ; 
+
+        end
+        
+        F                     = scatteredInterpolant() ;
+        F.Method              = interpolationMethod ;
+        F.ExtrapolationMethod = 'none' ;
+        F.Points              = r0(:, isValidDim0) ;
     
-img1 = F( r1 ) ;
+    else % Map nearest neighbours
+        
+        % truncate IP voxels
+        X_Ip = X_Ip(maskIp) ;
+        Y_Ip = Y_Ip(maskIp) ;
+        Z_Ip = Z_Ip(maskIp) ;
 
-imgInterpolated(:,:,:, 1, 1) = reshape( img1, gridSizeInterpolated ) ;
+        for iR = 1 : nEp
+            [~,iNearest(iR)] = min( sqrt( ( X_Ip - X_Ep( iEp(iR) ) ).^2 + ...
+                                   ( Y_Ip - Y_Ep( iEp(iR) ) ).^2 + ...
+                                   ( Z_Ip - Z_Ep( iEp(iR) ) ).^2 ) ) ;
+        end
+    end
+    toc
+end
 
+%% -----
+disp('Reslicing...')
+tic
 for iImgDim4 = 1 : nImgVolumesDim4
     for iImgDim5 = 1 : nImgVolumesDim5
-
-        iImgVolume = iImgDim4*iImgDim5 ;
-
-        if iImgVolume > 1
-            disp( ['Reslicing image volume...' num2str(iImgVolume) ' of ' num2str(nImgVolumes) ]) ;
-    
-            % replace voxel values with those of the next img volume
-            img0     = Img.img(:,:,:, iImgDim4, iImgDim5 ) ;
-
-            F.Values = img0(:) ;
+        disp( ['Reslicing image volume...' num2str(iImgDim4*iImgDim5) ' of ' num2str(nImgVolumes) ]) ;
        
-            img1     = F( r1 ) ;
+        imgIp = Img.img(:,:,:, iImgDim4, iImgDim5 ) ;
+        imgEp = zeros( gridSizeEp ) ;
+      
+        if isUsingScatteredInterpolant  
+            F.Values = imgIp(:) ;
+            imgEp    = reshape( F( r1 ), gridSizeEp ) ;
         
-            imgInterpolated(:,:,:, iImgDim4, iImgDim5 ) = reshape( img1, gridSizeInterpolated ) ;
+        else % Nearest-neighbor substitution
+            imgIp = imgIp(maskIp) ;
+            for iR = 1 : nEp 
+                imgEp( iEp(iR) ) = imgIp( iNearest(iR) ) ;
+            end
         end
 
+        imgOut(:,:,:, iImgDim4, iImgDim5 ) = imgEp ;
     end
 end
-
 toc
 
-Img.img = imgInterpolated ; 
-% if new positions are outside the range of the original, 
-% interp3/griddata replaces array entries with NaN
-Img.img( isnan( Img.img ) ) = 0 ; 
+imgOut( isnan( imgOut ) ) = 0 ; 
 
+Img.img = imgOut ; 
+
+Img.Hdr.MaskingImage = Img.img ~= 0 ;
 %% -----------------------------------------------------------------------
 
 % ------------------------------------------------------------------------
@@ -1290,17 +1382,17 @@ Img.img( isnan( Img.img ) ) = 0 ;
 Img.Hdr.ImageType = 'DERIVED\SECONDARY\REFORMATTED' ;
 
 
-Img.Hdr.ImagePositionPatient( 1 ) = X_1(1) ; 
-Img.Hdr.ImagePositionPatient( 2 ) = Y_1(1) ;
-Img.Hdr.ImagePositionPatient( 3 ) = Z_1(1) ;
+Img.Hdr.ImagePositionPatient( 1 ) = X_Ep(1) ; 
+Img.Hdr.ImagePositionPatient( 2 ) = Y_Ep(1) ;
+Img.Hdr.ImagePositionPatient( 3 ) = Z_Ep(1) ;
 
 %-------
 % Rows 
 Img.Hdr.Rows = size(Img.img, 1) ;
 
-dx = X_1(2,1,1) - X_1(1,1,1) ;
-dy = Y_1(2,1,1) - Y_1(1,1,1) ;
-dz = Z_1(2,1,1) - Z_1(1,1,1) ;  
+dx = X_Ep(2,1,1) - X_Ep(1,1,1) ;
+dy = Y_Ep(2,1,1) - Y_Ep(1,1,1) ;
+dz = Z_Ep(2,1,1) - Z_Ep(1,1,1) ;  
 
 % vertical (row) spacing
 Img.Hdr.PixelSpacing(1) = ( dx^2 + dy^2 + dz^2 )^0.5 ; 
@@ -1314,9 +1406,9 @@ Img.Hdr.ImageOrientationPatient(6) = dz/Img.Hdr.PixelSpacing(1) ;
 % Columns 
 Img.Hdr.Columns = size(Img.img, 2) ;       
 
-dx = X_1(1,2,1) - X_1(1,1,1) ;
-dy = Y_1(1,2,1) - Y_1(1,1,1) ;
-dz = Z_1(1,2,1) - Z_1(1,1,1) ;  
+dx = X_Ep(1,2,1) - X_Ep(1,1,1) ;
+dy = Y_Ep(1,2,1) - Y_Ep(1,1,1) ;
+dz = Z_Ep(1,2,1) - Z_Ep(1,1,1) ;  
 
 % horizontal (column) spacing
 Img.Hdr.PixelSpacing(2) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
@@ -1330,15 +1422,16 @@ Img.Hdr.ImageOrientationPatient(3) = dz/Img.Hdr.PixelSpacing(2) ;
 % Slices
 
 if size( Img.img, 3 ) > 1
-    Img.Hdr.SpacingBetweenSlices = ( (X_1(1,1,2) - X_1(1,1,1))^2 + ...
-                                     (Y_1(1,1,2) - Y_1(1,1,1))^2 + ...
-                                     (Z_1(1,1,2) - Z_1(1,1,1))^2 ) ^(0.5) ;
+    Img.Hdr.SpacingBetweenSlices = ( (X_Ep(1,1,2) - X_Ep(1,1,1))^2 + ...
+                                     (Y_Ep(1,1,2) - Y_Ep(1,1,1))^2 + ...
+                                     (Z_Ep(1,1,2) - Z_Ep(1,1,1))^2 ) ^(0.5) ;
 else
     Img.Hdr.SpacingBetweenSlices = 0 ;
 end
 
-[rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
+Img.setslicenormalvector() ; % redefines sHat
 
+[rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
 Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
 
 end
@@ -1386,6 +1479,11 @@ function [] = setmaskingimage( Img, mask )
 %
 % Copies valid mask (a logical array of 1's and 0's) to Img.Hdr.MaskingImage
 %
+% The purpose of this function is to specify the signal spatial support (e.g. 
+% of mag, phase, field data) within the image grid. e.g. it is called during 
+% phase unwrapping/field mapping, but it might also be called prior to regridding
+% if the interpolation should exclude certain voxels.
+% 
 % To be valid, mask must either be the same size as Img.img OR the same size as
 % Img.getgridsize() (i.e. the size of a single image volume of a
 % multi-echo/multi-measurement stack), in which case, the single mask is simply
@@ -1397,15 +1495,28 @@ assert( nargin == 2, 'Function requires at least 2 input arguments. See HELP MaR
 if ~islogical( mask )
     assert( numel(mask) == ( nnz( mask(:) == 0 ) + nnz( mask(:) == 1 ) ), ...
         'Input mask must consist exclusively of zeros and ones. See HELP MaRdI.setmaskingimage' ) ;
-    mask = logical(mask) ;
+    mask = logical( mask ) ;
 end
 
-if ndims( Img.img ) == ndims( mask ) && all( size(Img.img) == size( mask ) )
+maskSize = size( mask ) ;
+
+%% -----
+% assign masking image 
+if ndims( Img.img ) == ndims( mask ) && all( size(Img.img) == maskSize )
     Img.Hdr.MaskingImage = mask ;
-elseif ndims( Img.img ) > ndims( mask ) && ...
-       ( numel( Img.getgridsize() ) == numel( size( mask ) ) ) && ...
-       ( all( Img.getgridsize() == size( mask ) ) ) % single mask provided
-    Img.Hdr.MaskingImage = repmat( mask, [1 1 1 size(Img.img, 4) size(Img.img, 5)] ) ;
+
+elseif ndims( Img.img ) > ndims( mask ) 
+    
+    if numel( maskSize ) == 2
+        maskSize = [ maskSize 1 ] ;
+    end
+
+    if ( numel( Img.getgridsize() ) == numel( maskSize ) ) && ... 
+       ( all( Img.getgridsize() == maskSize ) ) % single mask provided
+        Img.Hdr.MaskingImage = repmat( mask, [1 1 1 size(Img.img, 4) size(Img.img, 5)] ) ;
+    else
+        error('Input mask and Img.img should possess the same dimensions' ) ;
+    end
 else 
     error('Input mask and Img.img should possess the same dimensions' ) ;
 end
@@ -1602,7 +1713,7 @@ for iVolume = 1 : nVolumes
 
         end
 
-        if ( iEcho == 1 ) 
+        if Options.isLinearizing && ( iEcho == 1 ) 
             % if phase(TE1) is not centered around 0, shift it:
             mask  = Phase.Hdr.MaskingImage(:,:,:,1,iVolume) ;
             phase = Phase.img(:,:,:,iEcho,iVolume) ; 
@@ -2454,6 +2565,12 @@ function [mask, weights] = segmentspinalcanal_s( Params )
 %   .isUsingPropsegCsf
 %       [default = false]
 %
+%   .centerlineMethod
+%       Method used to obtain the centerline: 
+%           'midfov': mask is centered in the middle of the axial FOV
+%           'spinalcord': mask follows the spinal cord centerline
+%       [default = 'midfov']
+%
 % NOTE
 %   The protocol is basically that of Topfer R, et al. Magn Reson Med, 2018. 
 %   It hasn't been tested extensively for different acquisition protocols or systems 
@@ -2478,7 +2595,7 @@ DEFAULT_DATALOADDIR        = [] ; % path to dicom folder
 DEFAULT_DATASAVEDIR        = './gre_seg/'
 DEFAULT_ISFORCINGOVERWRITE = false ;
 DEFAULT_ISUSINGPROPSEGCSF  = true ; %use the propseg -CSF option
-
+DEFAULT_CENTERLINEMETHOD   = 'midfov' ;
 DEFAULT_CYLINDERSIZE       = 40 ;
 DEFAULT_GAUSSIANSIZE       = 20 ;
 
@@ -2504,6 +2621,10 @@ if  ~myisfield( Params, 'gaussianSize' ) || isempty(Params.gaussianSize)
     Params.gaussianSize = DEFAULT_GAUSSIANSIZE ;
 end
 
+if  ~myisfield( Params, 'centerlineMethod' ) || isempty(Params.centerlineMethod)
+    Params.centerlineMethod = DEFAULT_CENTERLINEMETHOD ;
+end
+
 Params.tmpSaveDir = [ Params.dataSaveDir 'tmp_sct_' datestr(now, 30) '/'] ;
 mkdir( Params.tmpSaveDir )
 
@@ -2527,14 +2648,23 @@ system( ['mv ' Params.tmpSaveDir '*.nii.gz ' Params.tmpSaveDir 't2s_allEchoes.ni
 % average across echoes
 system( ['sct_maths -i ' Params.tmpSaveDir 't2s_allEchoes.nii.gz -mean t -o ' Params.tmpSaveDir 't2s.nii.gz'] ) ;
 
-% get centerline 
-system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2s.nii.gz -c t2 -o ' Params.tmpSaveDir 't2s_centerline'] ) ;
+% switch between methods for obtaining a pixel location per slice
+if Params.centerlineMethod == 'midfov'
+    % create a vertical line centered in the axial FOV
+    system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p center -size 1 -f box -o ' Params.tmpSaveDir 't2s_centerline.nii.gz' ] ) ;
+elseif Params.centerlineMethod == 'spinalcord'
+    % get cord centerline
+    % TODO: make the param -c an input Params.
+    system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2s.nii.gz -c t2 -o ' Params.tmpSaveDir 't2s_centerline'] ) ;
+end
 
+% create a binary cylindrical mask around the centerline
 system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p centerline,' ...
     Params.tmpSaveDir 't2s_centerline.nii.gz -size ' ...
     num2str(Params.cylinderSize) 'mm -f cylinder -o ' ...
     Params.tmpSaveDir 't2s_seg.nii.gz' ] ) ;
 
+% create a soft gaussian mask around the centerline
 system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p centerline,' ...
     Params.tmpSaveDir 't2s_centerline.nii.gz -size ' ...
     num2str(Params.gaussianSize) 'mm -f gaussian -o ' ...
@@ -2632,7 +2762,7 @@ listOfImages = dir( [ unsortedDicomDir '/*.dcm'] );
 
 if length(listOfImages) == 0
     % try .IMA
-    listOfImages = dir( [imgDirectory '/*.IMA'] ) ;
+    listOfImages = dir( [unsortedDicomDir '/*.IMA'] ) ;
 end
 
 nImages = length( listOfImages ) ;

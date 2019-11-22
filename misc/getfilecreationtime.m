@@ -3,20 +3,16 @@ function [ creationTime ] = getfilecreationtime( filename )
 %
 % creationTime = GETFILECREATIONTIME( filename ) 
 % 
-% Returned creationTime is a double formated as : yyyymmddHHMMSS.FFF
+% Returned creationTime is a string formated as : yyyymmddHHMMSS
 %
-% NOTE//TODO: Implementation only supports MacOS// Add support for other operating systems!
+% NOTE: Implementation only supports UNIX/LINUX
 %
-% Based on forum comment from Tim Leuth:
-% https://www.mathworks.com/matlabcentral/answers/288339-how-to-get-creation-date-of-files
+% TODO: Add support for other operating systems!
 
-if ismac
-    [~, msg] = system( ['GetFileInfo ' filename ] ) ; 
-    i = strfind( msg, 'created: ') + 9 ; 
-    creationTime = msg(i:i+18) ;
-    creationTime =  str2num( datestr( creationTime, 'yyyymmddHHMMSS.FFF') ) ;
+if isunix
+    [~,creationTime] = system( ['date -r ' filename ' +"%Y%m%d%H%M%S"'] ) ; 
 else
-    error('Unimplemented system. MacOS only! Todo.') ;
+    error('Unimplemented system. Unix only! Todo.') ;
 end
 
 end

@@ -107,7 +107,7 @@ properties
 end
 properties( Hidden = true )
     Interpolant ;
-    Ref ; % original shim reference maps before interpolation
+    % Ref ; % original shim reference maps before interpolation
 end
 % =========================================================================
 % =========================================================================    
