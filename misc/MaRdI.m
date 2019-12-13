@@ -401,8 +401,8 @@ if nTriggers > 0
         %% -----
         % Interpolate aux recordings across time  
         tInterp              = [ 0: tImg(end)/(nAcq-1) : tImg(end) ]' ; % interp1 requires regular grid spacing
-        Img.Aux.Data.p       = interp1( Img.Aux.Data.t, Img.Aux.Data.p, tInterp, Params.interpolationMethod )' ; 
-        Img.Aux.Data.pRaw    = interp1( Img.Aux.Data.t, Img.Aux.Data.pRaw, tInterp, Params.interpolationMethod )' ; 
+        Img.Aux.Data.p       = interp1( Img.Aux.Data.t, Img.Aux.Data.p, tInterp, Params.interpolationMethod, 'extrap' )' ; 
+        Img.Aux.Data.pRaw    = interp1( Img.Aux.Data.t, Img.Aux.Data.pRaw, tInterp, Params.interpolationMethod, 'extrap' )' ; 
         Img.Aux.Data.t       = tk0 ;
         Img.Aux.Data.trigger = zeros(1, nAcq) ;
         return ;
