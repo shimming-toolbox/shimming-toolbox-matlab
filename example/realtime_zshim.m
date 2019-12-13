@@ -76,6 +76,7 @@ end
 FM_mag_path = input('(ADD SLASH AT THE END!) FM_mag_path = ');
 FM_phase_path = input('FM_phase_path = ');
 MGRE_mag_path = input('MGRE_mag_path = ');
+respTrace_path = 'PMUresp_signal.resp';
 
 % FM_mag_path = '03_realtime_fieldmap1/';
 % FM_phase_path = '04_realtime_fieldmap1/';
