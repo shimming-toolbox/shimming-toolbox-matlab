@@ -1,0 +1,10 @@
+measure,value
+Volume (cm^3),  33.26
+Mean (Hz), 0.3248
+Median (Hz), 0.1761
+St. dev. (Hz), 0.4737
+RMSE/Volume (Hz/cm^3), 0.3709
+Mean[abs.] (Hz), 0.3338
+Std[abs.] (Hz), 0.4675
+Min (Hz),-0.3157
+Max (Hz),  3.816

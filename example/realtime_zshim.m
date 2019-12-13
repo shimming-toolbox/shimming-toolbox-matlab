@@ -48,7 +48,7 @@ debug_mode = 0;
 %  Copy respiratory trace file to the PWD
 %% ------------------------------------------------------------------------
 
-unix('cp /SYNGO_TRANSFER/SYNGO_TRANSFER/PMUresp_signal.resp .')
+unix('cp /SYNGO_TRANSFER/TEMP/PMUresp_signal.resp .')
 
 %% ------------------------------------------------------------------------
 % Sort DICOM socket transfer images
@@ -76,6 +76,7 @@ end
 FM_mag_path = input('FM_mag_path = ');
 FM_phase_path = input('FM_phase_path = ');
 MGRE_mag_path = input('MGRE_mag_path = ');
+respTrace_path = 'PMUresp_signal.resp';
 
 % FM_mag_path = '03_realtime_fieldmap1/';
 % FM_phase_path = '04_realtime_fieldmap1/';

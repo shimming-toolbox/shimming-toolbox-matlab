@@ -2596,7 +2596,7 @@ DEFAULT_DATASAVEDIR        = './gre_seg/'
 DEFAULT_ISFORCINGOVERWRITE = false ;
 DEFAULT_ISUSINGPROPSEGCSF  = true ; %use the propseg -CSF option
 DEFAULT_CENTERLINEMETHOD   = 'midfov' ;
-DEFAULT_CYLINDERSIZE       = 40 ;
+DEFAULT_CYLINDERSIZE       = 20 ;
 DEFAULT_GAUSSIANSIZE       = 20 ;
 
 if nargin < 1 || isempty(Params) || ~myisfield( Params, 'dataLoadDir' ) || isempty(Params.dataLoadDir)
@@ -2649,13 +2649,14 @@ system( ['mv ' Params.tmpSaveDir '*.nii.gz ' Params.tmpSaveDir 't2s_allEchoes.ni
 system( ['sct_maths -i ' Params.tmpSaveDir 't2s_allEchoes.nii.gz -mean t -o ' Params.tmpSaveDir 't2s.nii.gz'] ) ;
 
 % switch between methods for obtaining a pixel location per slice
-if Params.centerlineMethod == 'midfov'
-    % create a vertical line centered in the axial FOV
-    system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p center -size 1 -f box -o ' Params.tmpSaveDir 't2s_centerline.nii.gz' ] ) ;
-elseif Params.centerlineMethod == 'spinalcord'
-    % get cord centerline
-    % TODO: make the param -c an input Params.
-    system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2s.nii.gz -c t2 -o ' Params.tmpSaveDir 't2s_centerline'] ) ;
+switch Params.centerlineMethod
+    case 'midfov'
+        % create a vertical line centered in the axial FOV
+        system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p center -size 1 -f box -o ' Params.tmpSaveDir 't2s_centerline.nii.gz' ] ) ;
+    case 'spinalcord'
+        % get cord centerline
+        % TODO: make the param -c an input Params.
+        system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2s.nii.gz -c t2 -o ' Params.tmpSaveDir 't2s_centerline'] ) ;
 end
 
 % create a binary cylindrical mask around the centerline
