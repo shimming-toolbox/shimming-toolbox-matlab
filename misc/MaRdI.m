@@ -2649,10 +2649,10 @@ system( ['mv ' Params.tmpSaveDir '*.nii.gz ' Params.tmpSaveDir 't2s_allEchoes.ni
 system( ['sct_maths -i ' Params.tmpSaveDir 't2s_allEchoes.nii.gz -mean t -o ' Params.tmpSaveDir 't2s.nii.gz'] ) ;
 
 % switch between methods for obtaining a pixel location per slice
-if Params.centerlineMethod == 'midfov'
+if strcmp(Params.centerlineMethod, 'midfov')
     % create a vertical line centered in the axial FOV
     system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p center -size 1 -f box -o ' Params.tmpSaveDir 't2s_centerline.nii.gz' ] ) ;
-elseif Params.centerlineMethod == 'spinalcord'
+elseif strcmp(Params.centerlineMethod, 'spinalcord')
     % get cord centerline
     % TODO: make the param -c an input Params.
     system( ['sct_get_centerline -i ' Params.tmpSaveDir 't2s.nii.gz -c t2 -o ' Params.tmpSaveDir 't2s_centerline'] ) ;
