@@ -325,6 +325,22 @@ end
 
 end
 % =========================================================================
+function GYRO = getgyromagneticratio( Img )
+%GETGYROMAGNETICRATIO  Return gyromagnetic ratio of imaged nucleus in units of rad/s/T.
+%
+% Gyro = getgyromagneticratio( Img )
+%
+% NOTE: Only supports 1H protons!
+
+switch Img.Hdr.ImagedNucleus 
+    case '1H' 
+        GYRO = 267.513E6 ; 
+    otherwise
+        error('Not implemented.') ;
+end
+
+end
+% =========================================================================
 
 end
 % =========================================================================

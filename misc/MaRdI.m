@@ -566,23 +566,6 @@ end
 
 end
 % =========================================================================
-function GYRO = getgyromagneticratio( Img )
-%GETGYROMAGNETICRATIO
-%
-% Gyro = getgyromagneticratio( Img )
-%
-% Examines .Hdr of MaRdI-type Img for .ImagedNucleus and returns gyromagnetic
-% ratio in units of rad/s/T.
-
-switch Img.Hdr.ImagedNucleus 
-    case '1H' 
-        GYRO = 267.513E6 ; 
-    otherwise
-        error('Not implemented.') ;
-end
-
-end
-% =========================================================================
 function mask = getreliabilitymask( Mag, threshold )
 %GETRELIABILITYMASK
 % 
