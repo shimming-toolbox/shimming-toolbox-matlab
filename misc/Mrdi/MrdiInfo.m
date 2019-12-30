@@ -32,11 +32,9 @@ end
 methods(Sealed=true)
 % =========================================================================
 function fieldOfView = getfieldofview( Img )
-%GETFIELDOFVIEW
+%GETFIELDOFVIEW     Return field of view dimensions [units: mm]: [Row, Column, Slice]  
 % 
 % fov = GETFIELDOFVIEW( Img ) ;
-%
-% Returns field of view in units of mm : [Row Column Slice] dimensions
 
 fieldOfView = [ Img.Hdr.PixelSpacing(1) * double( Img.Hdr.Rows ), ...
                 Img.Hdr.PixelSpacing(2) * double( Img.Hdr.Columns ), ...
@@ -45,7 +43,7 @@ fieldOfView = [ Img.Hdr.PixelSpacing(1) * double( Img.Hdr.Rows ), ...
 end
 % =========================================================================
 function gridSize = getgridsize( Img )
-%GETGRIDSIZE    Image dimensions as 3-element vector (rows, columns, slices)
+%GETGRIDSIZE    Return image dimensions as 3-element vector (rows, columns, slices)
 % 
 % gridSize = GETGRIDSIZE( Img ) 
 
@@ -73,7 +71,7 @@ nVoxels = prod( Img.getgridsize( ) ) ;
 end
 % =========================================================================
 function [X,Y,Z] = getvoxelpositions( Img )
-% GETVOXELPOSITIONS
+% GETVOXELPOSITIONS     Return voxel positions as 3x 3D arrays of doubles
 % 
 % [X,Y,Z] = GETVOXELPOSITIONS( Img ) 
 %
