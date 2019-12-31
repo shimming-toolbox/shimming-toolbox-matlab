@@ -341,6 +341,21 @@ end
 
 end
 % =========================================================================
+function xyzIso = isocenter( Img )
+%ISOCENTER
+% 
+% xyzIso = ISOCENTER( Img ) 
+%
+% Returns the 3-element vector of the x, y and z coordinates of the magnet
+% isocenter in the patient coordinate system
+
+xyzIso = Img.Hdr.Img.ImaRelTablePosition()' ;
+
+assert( xyzIso(1) == 0, 'Table shifted in L/R direction?' ) ;
+assert( xyzIso(2) == 0, 'Table shifted in A/P direction?' ) ;
+
+end
+% =========================================================================
 
 end
 % =========================================================================
