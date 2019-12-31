@@ -442,6 +442,34 @@ end
 
 end
 % =========================================================================
+function timeAverage = timeaverage( Img )
+%TIMEAVERAGE
+% 
+% Img = TIMEAVERAGE( Img) 
+% 
+% Assumes 5th dimension of Img.img corresponds to time:
+%   
+%   timeAverage = mean( Img.img, 5 ) ;
+
+timeAverage = mean( Img.img, 5 ) ;
+
+end
+% =========================================================================
+function timeStd = timestd( Img )
+%TIMESTD
+% 
+% standardDeviation = TIMESTD( Img ) 
+% 
+% Assumes 5th dimension of Img.img corresponds to time:
+%   
+%   standardDeviation = std( Img.img, 0, 5 ) ;
+
+timeStd = std( Img.img, 0, 5 ) ;
+
+end
+
+end
+% =========================================================================
 
 end
 % =========================================================================
