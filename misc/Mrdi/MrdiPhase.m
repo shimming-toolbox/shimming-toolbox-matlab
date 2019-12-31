@@ -311,4 +311,56 @@ end
 
 % =========================================================================
 % =========================================================================
+methods(Static, Hidden=true)
+% =========================================================================
+function [] = rescaleimg( Img, isUndoing )
+%RESCALEIMG  Rescale image to/from uint16 for saving/loading from DICOM files
+%
+% []=RESCALEIMG( Img ) 
+% []=RESCALEIMG( Img, isUndoing ) 
+
+DEFAULT_ISUNDOING        = false ;
+DEFAULT_RESCALEINTERCEPT = -(2^12) ;
+DEFAULT_RESCALESLOPE     = 2 ;
+
+if (nargin < 2) || isempty( isUndoing ) 
+   isUndoing = DEFAULT_ISUNDOING ; 
+end 
+
+if ~isUndoing
+    
+    if  ~myisfield( Img.Hdr, 'RescaleIntercept' ) || isempty( Img.Hdr.RescaleIntercept )
+        Img.Hdr.RescaleIntercept = DEFAULT_RESCALEINTERCEPT ;
+    end
+
+    if ~myisfield( Img.Hdr, 'RescaleSlope' ) || isempty( Img.Hdr.RescaleSlope )
+        Img.Hdr.RescaleSlope = DEFAULT_RESCALESLOPE ;
+    end
+
+    % rescale to rad:
+    Img.img = pi*(Img.Hdr.RescaleSlope .* double( Img.img ) ...
+                + Img.Hdr.RescaleIntercept)/double(2^Img.Hdr.BitsStored) ;
+
+    % update Hdr:
+    Img.Hdr.ImageType  = 'ORIGINAL\SECONDARY\P\' ; 
+    Img.Hdr.PixelRepresentation = uint8(1) ; % i.e. signed 
+    Img.Hdr.PixelComponentPhysicalUnits = '0000H' ; % i.e. none
+
+else
+    
+    Img.Hdr.RescaleIntercept = min( Img.img(:) ) ;
+    Img.img                  = Img.img - Img.Hdr.RescaleIntercept ;
+    Img.Hdr.RescaleSlope     = max( Img.img(:) )/double( 2^Img.Hdr.BitsStored ) ;
+    Img.img                  = uint16( Img.img / Img.Hdr.RescaleSlope ) ;
+
+end
+
+end
+% =========================================================================
+
+end
+% =========================================================================
+% =========================================================================
+
+
 end
