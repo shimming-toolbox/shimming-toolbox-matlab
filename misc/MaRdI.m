@@ -1,4 +1,4 @@
-classdef MaRdI < MrdiProt & MrdiProc & MrdiMgmt & MrdiInfo & matlab.mixin.SetGet 
+classdef MaRdI < MrdiUtil & MrdiProt & MrdiProc & MrdiMgmt & MrdiInfo & matlab.mixin.SetGet 
 %MaRdI Ma(t)-R-dI(com)
 %
 %   Dicom into Matlab for Siemens MRI data
@@ -52,14 +52,15 @@ properties
     Aux ;
 end
 
-properties(SetAccess=protected)
+properties(SetAccess={?MaRdI, ?MrdiUtil, ?MrdiProc})
     Hdr ; % full Siemens DICOM header of 1st img (i.e. Img.img(:,:,1) )
     Hdrs ; % cell array of (truncated) DICOM headers courtesy of dicominfo()
-end
-
-properties(SetAccess=protected, Hidden = true)
     Ref ; % Reference properties - prior to manipulation
 end
+
+% properties(SetAccess=protected, Hidden = true)
+%     Ref ; % Reference properties - prior to manipulation
+% end
 
 % =========================================================================
 % =========================================================================    
@@ -519,34 +520,6 @@ else
 
 end
 
-end
-% =========================================================================
-function ImgCopy = copy(Img)
-%COPY 
-% 
-% Make a copy of a MaRdI (i.e. handle) object.
-% 
-% ImgCopy = Copy( Img ) ;
-
-ImgCopy     = MaRdI() ;
-
-ImgCopy.img  = Img.img;
-ImgCopy.Hdr  = Img.Hdr ;
-ImgCopy.Hdrs = Img.Hdrs ;
-
-if ~isempty( Img.Aux ) 
-    if isa( Img.Aux, 'ProbeTracking' ) 
-        ImgCopy.Aux = Img.Aux.copy() ;
-    else
-        error('Expected Img.Aux to be of type ProbeTracking') ;
-    end
-end
-
-end
-% =========================================================================
-function [is] = exist( Img )
-%EXIST
-is = true ;
 end
 % =========================================================================
 function [imgType] = getimagetype( Img ) 
@@ -1100,31 +1073,6 @@ end
 % =========================================================================
 methods(Access=protected)
 % =========================================================================
-function isSame = iscoincident( Img1, Img2 )
-%ISCOINCIDENT   Check coincidence of 2 images 
-% 
-% isSame = ISCOINCIDENT( Img1, Img2 )
-%
-% Returns TRUE if Img1 and Img2 possess coincident voxel positions
-% and number of measurements/volumes
-%
-% TODO: Check additional properties + add outputs for each?
-
-assert( ( nargin == 2 ) && isa( Img2, 'MaRdI' ), 'Missed required input: 2 MaRdI-objects' )
-
-isSame = false ;
-
-if MaRdI.compareimggrids( Img1, Img2 )  
-     
-    isSame = true ;
-
-    if ~strcmp( Img1.Hdr.SeriesDescription, Img2.Hdr.SeriesDescription )
-        warning('A computation is being performed based on images acquired in seperate series.')
-    end
-end
-
-end    
-% =========================================================================
 function [] = scalephasetofrequency( Img, undoFlag )
 %SCALEPHASETOFREQUENCY
 %
@@ -1355,44 +1303,6 @@ end
 % =========================================================================
 % =========================================================================
 methods(Static)
-% =========================================================================
-function isSame = compareimggrids( varargin )
-%COMPAREIMGGRIDS 
-%
-% isSame = COMPAREIMGGRIDS( Img1, Img2 )
-% isSame = COMPAREIMGGRIDS( X1, Y1, Z1, X2, Y2, Z2 )
-%
-% Returns TRUE if voxel positions of Img1 and Img2 are identical
-
-%% -------
-% check & parse inputs
-assert( nargin >= 2, 'Function requires at least 2 input arguments. See HELP MaRdI.compareimggrids' ) 
-
-if isa( varargin{1}, 'MaRdI' ) && isa( varargin{2}, 'MaRdI' )
-    [X1, Y1, Z1] = varargin{1}.getvoxelpositions ;
-    [X2, Y2, Z2] = varargin{2}.getvoxelpositions ;
-elseif ( nargin ==6 ) && all( cellfun( @isnumeric, varargin ) )
-    X1 = varargin{1} ;
-    Y1 = varargin{2} ;
-    Z1 = varargin{3} ;
-    X2 = varargin{4} ;
-    Y2 = varargin{5} ;
-    Z2 = varargin{6} ;
-else
-    error('See HELP MaRdI.compareimggrids ')
-end
-
-%% -------
-% compare grid positions
-if ( numel(size(X1)) ~= numel(size(X2)) ) || any( size(X1) ~= size(X2) ) || any( X1(:) ~= X2(:) ) || any( Y1(:) ~= Y2(:) ) || any( Z1(:) ~= Z2(:) )
-    isSame = false ;
-elseif ( all(X1(:) == X2(:) ) && all( Y1(:) == Y2(:) ) && all( Z1(:) == Z2(:) ) ) 
-    isSame = true ;
-else
-    error('Unexpected result: Check conditions apparently insufficient. Modify code')
-end
-
-end
 % =========================================================================
 function [mask, weights] = segmentspinalcanal_s( Params )
 %SEGMENTSPINALCANAL_S
