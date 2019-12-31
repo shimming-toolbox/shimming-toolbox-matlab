@@ -71,7 +71,7 @@ f0 = Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency ;
 end
 % =========================================================================
 function [nVolumes] = getnumberofmeasurements( Img )
-%GETNUMBEROFMEASUREMENTS    Return the number of measurements
+%GETNUMBEROFMEASUREMENTS    Return the number of image measurements
 %
 % n = GETNUMBEROFMEASUREMENTS( Img )
 %
@@ -178,7 +178,7 @@ end
 end
 % =========================================================================
 function [t0] = estimatekorigintime( Img ) 
-%ESTIMATEKORIGINTIME    Return estimate of time when k-space origin was sampled
+%ESTIMATEKORIGINTIME  Return estimate of time when k-space origin was sampled
 % 
 % t0 = ESTIMATEKORIGINTIME( Img )
 %
@@ -326,7 +326,7 @@ end
 end
 % =========================================================================
 function GYRO = getgyromagneticratio( Img )
-%GETGYROMAGNETICRATIO  Return gyromagnetic ratio of imaged nucleus in units of rad/s/T.
+%GETGYROMAGNETICRATIO  Return gyromagnetic ratio of imaged nucleus [units: rad/s/T]
 %
 % Gyro = getgyromagneticratio( Img )
 %
@@ -342,12 +342,9 @@ end
 end
 % =========================================================================
 function xyzIso = isocenter( Img )
-%ISOCENTER
+%ISOCENTER  Return magnet isocenter [x,y,z] coordinates w.r.t. patient coordinate system
 % 
 % xyzIso = ISOCENTER( Img ) 
-%
-% Returns the 3-element vector of the x, y and z coordinates of the magnet
-% isocenter in the patient coordinate system
 
 xyzIso = Img.Hdr.Img.ImaRelTablePosition()' ;
 
