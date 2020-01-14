@@ -8,9 +8,8 @@ classdef (Abstract) MrdiProc < handle
 %   resliceimg()
 %   setmaskingimage()
 %   ...etc.
-% 
-% For documentation, type doc MrdiProc
-%
+ 
+
 % =========================================================================
 % Author::ryan.topfer@polymtl.ca
 % =========================================================================
@@ -31,16 +30,15 @@ end
 methods
 % =========================================================================    
 function [] = filter( Img, weights, Params )
-%FILTER     3D low-pass filtering
-% 
-% Description
+%FILTER  3D low-pass filtering (weighted, unweighted, or median)
 %
-%   Filtering can be weighted, unweighted, or median. Wraps to smooth3() or
-%   medfilt3() accordingly.
+% Wraps to smooth3() or medfilt3().
 %
 % [] = FILTER( Img )
 % [] = FILTER( Img, weights )
 % [] = FILTER( Img, weights, Params )
+% 
+% Inputs:
 %
 % Img 
 %   the Mrdi-type image volume.
@@ -73,11 +71,11 @@ end
 
 Params = assignifempty( Params, DEFAULTS ) ;
 
-nVolumes = Img.getnumberofmeasurements() ;
-nEchoes  = Img.getechotime() ;
+nEchoes  = size( Img.img, 4 ) ;
+nVolumes = size( Img.img, 5 ) ;
 
 if nargin < 2 || isempty( weights )
-    weights = [ ones( Img.getgridsize() ) nEchoes nVolumes ] ;
+    weights = [ ones( size(Img.img) ) ] ;
 else
     assert( all( size(weights) == size(Img.img) ), ...
         'Filter weights and image volume must possess the same dimensions' ) ;
@@ -105,10 +103,10 @@ end
 
 end
 % =========================================================================
-function [F] = resliceimg( Img, X_Ep, Y_Ep, Z_Ep, varargin ) 
-%RESLICEIMG     Interpolate a Mrdi image object and update Img.Hdr accordingly.
+function [F] = regrid( Img, X_Ep, Y_Ep, Z_Ep, varargin ) 
+%REGRID  Interpolate a Mrdi image object and update Img.Hdr accordingly.
 % 
-% In general, RESLICEIMG() uses MATLAB's scatteredInterpolant class. 
+% In general, REGRID() uses MATLAB's scatteredInterpolant class. 
 % The exception is when the image input (Img.img) is 2d and the target
 % output (prescribed by inputs X,Y,Z) is a volume. This scenario is
 % incompatible with scatteredInterpolant, and nearest-neighbor substitution is
@@ -117,8 +115,8 @@ function [F] = resliceimg( Img, X_Ep, Y_Ep, Z_Ep, varargin )
 % -----   
 % Basic Usage
 %
-% [] = RESLICEIMG( Img, X, Y, Z )
-% [] = RESLICEIMG( Img, X, Y, Z, mask )
+% [] = REGRID( Img, X, Y, Z )
+% [] = REGRID( Img, X, Y, Z, mask )
 % 
 % Inputs:
 %
@@ -140,7 +138,7 @@ function [F] = resliceimg( Img, X_Ep, Y_Ep, Z_Ep, varargin )
 %
 % Advanced Usage TODO
 %
-%   [F] = RESLICEIMG( Img, X, Y, Z, mask, F ) 
+%   [F] = REGRID( Img, X, Y, Z, mask, F ) 
 % 
 %   case:
 %       interpolationMethod [default='linear']
@@ -158,11 +156,11 @@ F = [] ;
 DEFAULT_INTERPOLATIONMETHOD  = 'linear' ;
 DEFAULT_ISFORMINGINTERPOLANT = true ;
 
-[X_Ip, Y_Ip, Z_Ip] = Img.getvoxelpositions( ) ;
+[X_Ip, Y_Ip, Z_Ip] = Img.Grid.gridpositions( ) ;
 
 %% -----
 % Parse and check inputs
-if MrdiInfo.compareimggrids( X_Ip, Y_Ip, Z_Ip, X_Ep, Y_Ep, Z_Ep ) 
+if Img.Grid.comparegrids( X_Ip, Y_Ip, Z_Ip, X_Ep, Y_Ep, Z_Ep ) 
     warning('Voxel positions are already identical. Not interpolating.');
     return ;
 end
@@ -194,7 +192,7 @@ isUsingScatteredInterpolant = [] ;
 
 if (ndims(Img.img) > 1) && (ndims(Img.img) <= 5)
 
-    gridSizeIp = Img.getgridsize() ;
+    gridSizeIp = Img.gridSize ;
     
     if gridSizeIp(3) > 1
         isUsingScatteredInterpolant = true ;
@@ -335,61 +333,63 @@ Img.Hdr.MaskingImage = Img.img ~= 0 ;
 %% -----------------------------------------------------------------------
 
 % ------------------------------------------------------------------------
-% Update header
-Img.Hdr.ImageType = 'DERIVED\SECONDARY\REFORMATTED' ;
+% Update image + header
 
+% Img.Hdr.ImageType = 'DERIVED\SECONDARY\REFORMATTED' ;
 
-Img.Hdr.ImagePositionPatient( 1 ) = X_Ep(1) ; 
-Img.Hdr.ImagePositionPatient( 2 ) = Y_Ep(1) ;
-Img.Hdr.ImagePositionPatient( 3 ) = Z_Ep(1) ;
+Img.Info.updateimage( img, X_Ep, Y_Ep, Z_Ep ) ;
 
-%-------
-% Rows 
-Img.Hdr.Rows = size(Img.img, 1) ;
-
-dx = X_Ep(2,1,1) - X_Ep(1,1,1) ;
-dy = Y_Ep(2,1,1) - Y_Ep(1,1,1) ;
-dz = Z_Ep(2,1,1) - Z_Ep(1,1,1) ;  
-
-% vertical (row) spacing
-Img.Hdr.PixelSpacing(1) = ( dx^2 + dy^2 + dz^2 )^0.5 ; 
-
-% column direction cosine (expressing angle btw column direction and X,Y,Z axes)
-Img.Hdr.ImageOrientationPatient(4) = dx/Img.Hdr.PixelSpacing(1) ;
-Img.Hdr.ImageOrientationPatient(5) = dy/Img.Hdr.PixelSpacing(1) ;
-Img.Hdr.ImageOrientationPatient(6) = dz/Img.Hdr.PixelSpacing(1) ;
-
-%-------
-% Columns 
-Img.Hdr.Columns = size(Img.img, 2) ;       
-
-dx = X_Ep(1,2,1) - X_Ep(1,1,1) ;
-dy = Y_Ep(1,2,1) - Y_Ep(1,1,1) ;
-dz = Z_Ep(1,2,1) - Z_Ep(1,1,1) ;  
-
-% horizontal (column) spacing
-Img.Hdr.PixelSpacing(2) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
-
-% row direction cosine (expressing angle btw column direction and X,Y,Z axes)
-Img.Hdr.ImageOrientationPatient(1) = dx/Img.Hdr.PixelSpacing(2) ;
-Img.Hdr.ImageOrientationPatient(2) = dy/Img.Hdr.PixelSpacing(2) ;
-Img.Hdr.ImageOrientationPatient(3) = dz/Img.Hdr.PixelSpacing(2) ;
-
-%-------
-% Slices
-
-if size( Img.img, 3 ) > 1
-    Img.Hdr.SpacingBetweenSlices = ( (X_Ep(1,1,2) - X_Ep(1,1,1))^2 + ...
-                                     (Y_Ep(1,1,2) - Y_Ep(1,1,1))^2 + ...
-                                     (Z_Ep(1,1,2) - Z_Ep(1,1,1))^2 ) ^(0.5) ;
-else
-    Img.Hdr.SpacingBetweenSlices = 0 ;
-end
-
-Img.setslicenormalvector() ; % redefines sHat
-
-[rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
-Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
+% Img.Hdr.ImagePositionPatient( 1 ) = X_Ep(1) ; 
+% Img.Hdr.ImagePositionPatient( 2 ) = Y_Ep(1) ;
+% Img.Hdr.ImagePositionPatient( 3 ) = Z_Ep(1) ;
+%
+% %-------
+% % Rows 
+% Img.Hdr.Rows = size(Img.img, 1) ;
+%
+% dx = X_Ep(2,1,1) - X_Ep(1,1,1) ;
+% dy = Y_Ep(2,1,1) - Y_Ep(1,1,1) ;
+% dz = Z_Ep(2,1,1) - Z_Ep(1,1,1) ;  
+%
+% % vertical (row) spacing
+% Img.Hdr.PixelSpacing(1) = ( dx^2 + dy^2 + dz^2 )^0.5 ; 
+%
+% % column direction cosine (expressing angle btw column direction and X,Y,Z axes)
+% Img.Hdr.ImageOrientationPatient(4) = dx/Img.Hdr.PixelSpacing(1) ;
+% Img.Hdr.ImageOrientationPatient(5) = dy/Img.Hdr.PixelSpacing(1) ;
+% Img.Hdr.ImageOrientationPatient(6) = dz/Img.Hdr.PixelSpacing(1) ;
+%
+% %-------
+% % Columns 
+% Img.Hdr.Columns = size(Img.img, 2) ;       
+%
+% dx = X_Ep(1,2,1) - X_Ep(1,1,1) ;
+% dy = Y_Ep(1,2,1) - Y_Ep(1,1,1) ;
+% dz = Z_Ep(1,2,1) - Z_Ep(1,1,1) ;  
+%
+% % horizontal (column) spacing
+% Img.Hdr.PixelSpacing(2) = ( dx^2 + dy^2 + dz^2 )^0.5 ;
+%
+% % row direction cosine (expressing angle btw column direction and X,Y,Z axes)
+% Img.Hdr.ImageOrientationPatient(1) = dx/Img.Hdr.PixelSpacing(2) ;
+% Img.Hdr.ImageOrientationPatient(2) = dy/Img.Hdr.PixelSpacing(2) ;
+% Img.Hdr.ImageOrientationPatient(3) = dz/Img.Hdr.PixelSpacing(2) ;
+%
+% %-------
+% % Slices
+%
+% if size( Img.img, 3 ) > 1
+%     Img.Hdr.SpacingBetweenSlices = ( (X_Ep(1,1,2) - X_Ep(1,1,1))^2 + ...
+%                                      (Y_Ep(1,1,2) - Y_Ep(1,1,1))^2 + ...
+%                                      (Z_Ep(1,1,2) - Z_Ep(1,1,1))^2 ) ^(0.5) ;
+% else
+%     Img.Hdr.SpacingBetweenSlices = 0 ;
+% end
+%
+% Img.setslicenormalvector() ; % redefines sHat
+%
+% R = Img.rotationMatrix( ) ;  
+% Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, R(:,3) ) ;
 
 end
 % =========================================================================
@@ -467,8 +467,6 @@ function timeStd = timestd( Img )
 timeStd = std( Img.img, 0, 5 ) ;
 
 end
-
-end
 % =========================================================================
 
 end
@@ -496,17 +494,19 @@ function Interpolant = getinterpolant( Img, method, extrapolationMethod )
 %
 % Note that all 3 properties can be reassigned at any point upon return.
 %
-% For info on the 2 optional arguments, see help scatteredInterpolant
+% For info on the 2 optional arguments, 
+% See also scatteredInterpolant
 
 DEFAULT_METHOD              = 'linear' ;
 DEFAULT_EXTRAPOLATIONMETHOD = 'none' ;
 
-if ( nargin < 2 ) || isempty(method)
-    method = DEFAULT_METHOD ;
-end
-
 if ( nargin < 3 ) || isempty( extrapolationMethod )
+    
     extrapolationMethod = DEFAULT_EXTRAPOLATIONMETHOD ;
+    
+    if ( nargin < 2 ) || isempty( method )
+        method = DEFAULT_METHOD ;
+    end
 end
 
 disp( 'Forming interpolant...(Computation time is proportional to image size. This may take a few minutes.)' )
