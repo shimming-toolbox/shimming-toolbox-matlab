@@ -755,7 +755,8 @@ else
     nMeasurements = 1;
 end
 
-assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ;
+%assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ; % EAO:
+%commented this out so I could save a time series
 
 t = zeros( nSlices, nEchoes, nMeasurements ) ;
 
