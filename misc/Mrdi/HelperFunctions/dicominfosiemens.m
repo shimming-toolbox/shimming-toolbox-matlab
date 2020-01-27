@@ -24,7 +24,6 @@ function [ Hdr ] = dicominfosiemens( varargin )
 
     if strcmp( Hdr.Manufacturer, 'SIEMENS' )
         [ Hdr.Img, Hdr.Ser, Hdr.MrProt ] = parse_siemens_shadow( Hdr ) ;
-        fprintf('\n') ;
 
         % parse_mrprot produces many warnings (at least for DICOMs from the Prisma).
         % This should suppress all but the 1st instance:
