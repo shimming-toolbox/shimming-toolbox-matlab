@@ -47,7 +47,7 @@ if strcmp( Hdrs{1}(1).Manufacturer, 'SIEMENS' )
         % however, it is rather slow. Compromise: parse the private metadata
         % for the first image in the series only, as much of it will be
         % constant across the series (i.e. across DICOM files).
-        ExtendedHdr             = dicominfosiemens( Hdrs{iSeries}(1) ) ;
+        ExtendedHdr             = MrdiIo.dicominfosiemens( Hdrs{iSeries}(1) ) ;
         Hdrs{iSeries}(1).Img    = ExtendedHdr.Img ; 
         Hdrs{iSeries}(1).Ser    = ExtendedHdr.Ser ; 
         Hdrs{iSeries}(1).MrProt = ExtendedHdr.MrProt ; 

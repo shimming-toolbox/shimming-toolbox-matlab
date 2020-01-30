@@ -45,13 +45,15 @@ end
 % =========================================================================    
 methods(Static) 
     %.....
-    [List] = findimagefiles( imgPath, fileExt )
+    [Hdr]        = dicominfosiemens( varargin )
+    %.....
+    [List]       = findimagefiles( imgPath, fileExt )
     %.....
     [Imgs, Hdrs] = loadandsortimages( imgPath, fileExt, nBytesMax )
     %.....
-    [Imgs] = make( varargin )
+    [Imgs]       = make( varargin )
     %.....
-    [] = write( Img, saveDirectory, imgFormat, isSavingSingleNiis )
+    []           = write( Img, saveDirectory, imgFormat, isSavingSingleNiis )
 end
 % =========================================================================
 % =========================================================================
