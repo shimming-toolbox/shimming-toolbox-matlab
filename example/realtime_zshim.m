@@ -115,8 +115,21 @@ shimVoi = Mag.segmentspinalcanal_s(Params);
 %% ------------------------------------------------------------------------
 
 % field map time series
-Params.unwrapper = 'FslPrelude' ;
+
+%Params.unwrapper = 'FslPrelude' ; % Note (EAO) : FslPrelude call does not
+%work for me (Matlab 2019a) but does for Alex (Matlab 2019b), todo: check
+%if this is due to verioning 
+B0_tseries = load_untouch_nii('fieldmap_rads.nii.gz'); % this calls my prelude unwrapped field maps generated exernally
+
+% temporary hack to load B0_tseries into MaRdI-type 
 Fields = FieldEval( FM_mag_path, FM_phase_path, Params ); 
+
+tmp = zeros(size(Fields.img));
+for ind = 1:size(B0_tseries.img,4)
+    tmp(:,:,1,1,ind) = rot90(squeeze(B0_tseries.img(:,:,ind)));
+end
+Fields.img = tmp;
+
 % Note: Field.img (static b0) refers to the *mean probe signal (saved in the output as Field.Aux.Data.p) 
 % and the respiratory component is a relative deviation from the mean (scaled to RMS PMU)
 % 
@@ -133,10 +146,10 @@ Fields = FieldEval( FM_mag_path, FM_phase_path, Params );
 % or the subject touches it, then both respiratory and static corrections fail, rather than just the former)
 
 % image filtering
-for ind = 1:size(Fields.img,5)
-    %Fields.img(:,:,1,1,ind) = imgaussfilt(squeeze(Fields.img(:,:,1,1,ind)),1);
-    Fields.img(:,:,1,1,ind) = imnlmfilt(squeeze(Fields.img(:,:,1,1,ind)),'DegreeOfSmoothing',20);
-end
+% for ind = 1:size(Fields.img,5)
+%     %Fields.img(:,:,1,1,ind) = imgaussfilt(squeeze(Fields.img(:,:,1,1,ind)),1);
+%     Fields.img(:,:,1,1,ind) = imnlmfilt(squeeze(Fields.img(:,:,1,1,ind)),'DegreeOfSmoothing',20);
+% end
 
 % Siemens PMU recording
 Pmu   = ProbeTracking(respTrace_path);
@@ -171,7 +184,7 @@ g = 1000/(42.576E6) ; % [units: mT/Hz]
 
 for measNo = 1:Fields.getnumberofmeasurements
     [~,Fields.img(:,:,1,1,measNo)] = gradient( ...
-     squeeze(g*Fields.img(:,:,1,1,measNo)), Y0/1000, Z0/1000 ) ; % [units: mT/m]
+     squeeze(g*Fields.img(:,:,1,1,measNo)), Y0(1,:)/1000, Z0(:,1)/1000 ) ; % [units: mT/m]
     %squeeze(g*Fields.img(:,:,1,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
 end
 
