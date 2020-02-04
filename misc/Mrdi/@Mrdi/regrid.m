@@ -1,5 +1,5 @@
 function [F] = regrid( Img, X_Ep, Y_Ep, Z_Ep, varargin ) 
-%REGRID  Interpolate a Mrdi image object and update Img.Hdr accordingly.
+%REGRID  Interpolate an image (Mrdi-type object)
 % 
 % In general, REGRID() uses MATLAB's scatteredInterpolant class. 
 % The exception is when the image input (Img.img) is 2d and the target
@@ -20,7 +20,7 @@ function [F] = regrid( Img, X_Ep, Y_Ep, Z_Ep, varargin )
 %       coordinates (i.e. of the DICOM reference coordinate system) of the
 %       target (output) voxels. In general, if one is interpolating from one
 %       image grid (Img) to another (Mrdi-type object Img2), these arrays are
-%       obtained by the call: [X,Y,Z] = Img2.getvoxelpositions()
+%       obtained by the call: [X,Y,Z] = Img2.Grid.gridpositions()
 % 
 % mask: [Optional, default = true(size output image grid)]
 %       A logical array (size=output image grid) specifying the subset of the

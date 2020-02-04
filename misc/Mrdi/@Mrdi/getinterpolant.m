@@ -40,7 +40,7 @@ Interpolant = scatteredInterpolant() ;
 Interpolant.Method              = method ;
 Interpolant.ExtrapolationMethod = extrapolationMethod ;
 
-[X,Y,Z] = Img.getvoxelpositions() ;
+[X,Y,Z] = Img.Grid.gridpositions() ;
 
 % The following avoids the error from scatteredInterpolant when one
 % attempts to form a 3d interpolant from a 2d input: 

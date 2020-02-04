@@ -20,6 +20,7 @@ function [Imgs, Hdrs] = loadandsortdicoms( List )
     arguments
         List(:,1) struct ;
     end
+    
 
 Imgs = [] ;
 Hdrs = [] ;
@@ -27,7 +28,7 @@ Hdrs = [] ;
 %% -----
 % Load and sort headers
 Hdrs    = loaddicomheaders( List ) ;
-nSeries = numel(Hdrs) ; 
+nSeries = numel( Hdrs ) ; 
 
 Progress = CmdLineProgressBar( [ num2str(nSeries) ' acquisition series found. Sorting headers:' ]);
 
@@ -89,8 +90,8 @@ function [ Hdrs ] = loaddicomheaders( List )
         Progress.print( iImg, nImg ) ;
         
         Hdr     = dicominfo( [List(iImg).folder filesep List(iImg).name] ) ;
-        % Check if new Hdr corresponds to previously loaded series, and create new
-        % entry in Hdrs if not.
+        % Check if new Hdr corresponds to previously loaded series; 
+        % if not, append new entry.
         iSeries = find( Hdr.SeriesInstanceUID == seriesInstanceUIDs ) ;
         
         if isempty( iSeries )
@@ -119,27 +120,22 @@ function [ HdrsSorted ] = sortdicomheaders( Hdrs )
 % arrayed such that its dimensions refer, respectively, to 
 % ( Slice, Echo, Acquisition, Channel )
 
-    if length( unique( string( { Hdrs(:).SeriesInstanceUID } ) ) ) ~= 1
-        error('All elements of the DICOM Headers struct array must belong to the same acquisition series' ) ;
-    end
+    MrdiIo.assertheadervalidity( Hdrs ) ;
 
-    nImgInSeries  = length( Hdrs ) ;
+    nImgInSeries      = length( Hdrs ) ;
 
-    nRows = unique( [ Hdrs(:).Rows ] ) ; 
-    assert( length(nRows) == 1, 'Expected single Hdr entry for .Rows' ) ;
-    
-    nColumns = unique( [ Hdrs(:).Columns ] ) ; 
-    assert( length(nColumns) == 1, 'Expected single Hdr entry for .Columns' ) ;
-    
-    sliceLocations    = unique( [ Hdrs(:).SliceLocation ] ) ; 
+    nRows             = unique( [ Hdrs(:).Rows ] ) ;
+    nColumns          = unique( [ Hdrs(:).Columns ] ) ;
+
+    sliceLocations    = unique( [ Hdrs(:).SliceLocation ] ) ;
     nSlices           = length( sliceLocations ) ;
 
-    echoTimes         = unique( [ Hdrs(:).EchoTime ] ) ; 
-    nEchoes           = length( echoTimes ) ; 
+    echoTimes         = unique( [ Hdrs(:).EchoTime ] ) ;
+    nEchoes           = length( echoTimes ) ;
 
-    acquisitionNumber = unique( [ Hdrs(:).AcquisitionNumber ] ) ; 
-    nAcquisitions     = length( acquisitionNumber ) ; 
-    
+    acquisitionNumber = unique( [ Hdrs(:).AcquisitionNumber ] ) ;
+    nAcquisitions     = length( acquisitionNumber ) ;
+
     channels          = unique( string( { Hdrs(:).Private_0051_100f } ) ) ;
     nChannels         = length( channels ) ;
 

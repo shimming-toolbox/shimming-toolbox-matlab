@@ -1,7 +1,7 @@
 function [x,y,z] = gridpositions( Grid )
 %GRIDPOSITIONS  Return [x,y,z]: Three 2- or 3-D arrays of voxel positions 
 % 
-% [x,y,z] = GRIDPOSITIONS( Grid ) 
+% [x,y,z] = Grid.gridpositions( ) 
 %
 % Returns three 3D arrays of doubles, each element containing the
 % location [units: mm] of the corresponding voxel with respect to 

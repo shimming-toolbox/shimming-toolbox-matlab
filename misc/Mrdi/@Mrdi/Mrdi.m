@@ -1,75 +1,312 @@
-classdef (Sealed=true) MrdiProt 
-%MrdiProt  MR DICOM Image Protocol: Image acquisition protocol properties
+classdef Mrdi < MrdiUtil & dynamicprops
+%Mrdi  MR DICOM Image: Generic data type for image representation and data handling.
+%
+% Incl. member methods for image processing 
+% 
+% e.g.
+%   filter()
+%   ...etc.
 
 % =========================================================================
 % Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
-% =========================================================================
-% =========================================================================
-properties (Transient=true)
-    Hdrs ;
+properties( SetAccess=protected )
+    
+    % Numeric array of image data (i.e. pixel or voxel values) 
+    img {mustBeNumeric} ;
+
 end
 
-properties (Dependent, SetAccess=private)
+properties( Dependent=true )
+    
+    % Vector of image dimensions (i.e. =size( Obj.img ) ), ..... (See also differ from Obj.Grid.size)
+    size(1,:) { mustBePositive, mustBeInteger } = [1 1 1] ;
 
-    % Image acquisition times [ms elapsed since midnight]. Array dims [ nSlices x nEchoes x nMeasurements ]
+    % Total number of 3d image volumes in stack (scalar integer) 
+    %
+    % nVolumes is equivalent to prod( Img.size(4:end) )
+    nVolumes(1,1) { mustBePositive, mustBeInteger } = 1 ;
+
+end
+
+properties( AbortSet=true, SetObservable=true )
+
+    % Logical array specifying signal support over the grid [default=true( Img.size )]
+    %
+    % .mask is a Boolean array (1's and 0's) with size = size(Img) which
+    % demarcates the signal spatial support over the image grid (e.g. it may be
+    % used in phase unwrapping, field mapping, or prior to regridding an image,
+    % in order to exclude voxels suspected of being unreliable).
     % 
-    % Derives from the AcquisitionTime field in Siemens DICOM header.
-    %
-    % acquisitionTime - acquisitionTime(1) yields the elapsed time since
-    % acquisition of the 1st k-space point in the series.
-    %
-    % For EPI MOSAIC (which has a single AcquisitionTime value in the DICOM
-    % header for each volume), 
-    % acquisitionTime( iSlice ) = AcquisitionTime (first slice) + iSlice*(volumeTR/nSlices)
-    acquisitionTime {mustBeNonnegative} = 0 ; 
-
-    % Gyromagnetic ratio of imaged nucleus [units: rad/s/T] (Note: Only implemented for 1H protons!)
-    gyro(1,1) {mustBeReal} = 0 ; 
-    
-    % Larmor Tx. frequency [units: Hz]
-    imagingFrequency(1,1) {mustBeNonnegative} = 0 ; 
-    
-    % [x,y,z] coordinates of magnet isocenter in the patient coordinate system
-    isocenter(1,3) {mustBeReal} = [0 0 0 ] ; 
-    
-    % Number of image measurements
-    nMeasurements(1,1) {mustBeInteger} = 1 ; 
-    
-    % Number of acquired slices (=1 for 3d slab encoding)
-    nSlices(1,1) {mustBeInteger} = 1 ;  
-
-    % Fraction of k-space coverage in each dim [read phase partition]
-    partialFourierFactors {mustBePositive} = [ 1 1 1 ] ; 
-    
-    % Slice [units: mm] : DICOM Hdr tag ( )
-    sliceThickness(1,1) {mustBePositive} = 1 ; 
-    
-    % spacingBetweenSlices [units: mm] : DICOM Hdr tag ( )
-    spacingBetweenSlices(1,1) {mustBePositive} = 1 ; 
-    
-    % Vector of echo times [units: ms]
-    te {mustBeNonnegative} = 0 ; 
-    
-    % Repetition time [units: ms]
-    tr(1,1) {mustBeNonnegative} = 0 ;
+    % To set the property,
+    %   Img.mask = mask ;
+    %  
+    % size of the input mask must be equal to Img.size OR Img.Grid.size 
+    % (i.e. the size of a single image volume of, for instance, a
+    % multi-echo/multi-measurement stack). In the latter case, the single mask
+    % is simply copied across the extra dimensions such that the assigned
+    % Img.mask always possesses the same dimensions as Img.img.
+    mask {mustBeNumericOrLogical} ;
 
 end
-% =========================================================================
-% =========================================================================
+
+properties( SetAccess=immutable, Hidden=true  ) 
+    
+    % NOTE: 
+    % Best attributes for the .Hdrs property are open to debate:  
+    % Set access should probably be kept protected so nothing dubious happens
+    % to the metadata. However, re: GetAccess, though it is currently 'Hidden'
+    % (readable from anywhere --> simplifies debugging), ultimately, it should
+    % probably either be made visible to the user (if useful), or
+    % concealed entirely (simpler interface) with GetAccess=private.
+
+    % Struct array of metadata (e.g. DICOM headers)
+    Hdrs struct = struct( [] ) ;
+    
+end
+
+
+properties( SetAccess=protected ) 
+
+    % % MrdiIo object (methods for writing/reading to/from file).
+    % % See also MrdiIo
+    % Io MrdiIo ;
+
+    % MrdiGrid object describing image grid properties.
+    % See also MrdiGrid
+    Grid MrdiGrid ;
+
+end
+    
+properties( AbortSet=true )
+    % scatteredInterpolant object 
+    Interpolant = scatteredInterpolant() ; 
+end
 
 % =========================================================================
 % =========================================================================    
 methods
 % =========================================================================    
-function Prot = MrdiProt( Hdrs )
+function Img = Mrdi( varargin )
+
+    if nargin == 0
+        return ;
     
-    if nargin == 1
-        Prot.Hdrs = Hdrs ;
+    elseif ischar( varargin{1} ) || isstring( varargin{1} )
+        [imgs, Hdrs] = MrdiIo.loadandsortimages( varargin{:} ) ;
+    
+    elseif isnumeric( varargin{1} ) && isstruct( varargin{2} )
+        img          = varargin{1} ;
+        Hdrs         = varargin{2} ;
+        nSlicesTotal = prod( size( img, [3:ndims(img)] ) ) ;
+        nHdrsTotal   = numel( Hdrs ) ;
+
+        if isequal( nHdrsTotal , nSlicesTotal ) 
+        % if isequal( size( varargin{2} ) , size( varargin{1}, [3:ndims(varargin{1})] ) ) 
+            Img.img  = double( varargin{1} ) ;
+
+            Img.Hdrs = varargin{2} ;
+            Img.Grid = MrdiGrid( Img.Hdrs ) ;
+            
+            Img.mask = true( Img.size ) ; % set mask only after Grid initialization
+        else
+            error( ['Input Hdrs must possess an entry for each 2d image slice.\n ' ...
+            '(i.e. size(Hdrs) == size( img, [3:ndims(img)] ) '] , '%s' ) ;
+        end 
+    end
+
+
+end
+% =========================================================================
+function nVolumes = get.nVolumes( Img )
+%NVOLUMES Return total number of 3d image volumes in stack (= prod( Img.size(4:end) ) )
+    
+    nVolumes = prod( Img.size(4:end) ) ; 
+
+end
+% =========================================================================
+function imgSize = get.size( Img )
+%SIZE Return total image size over each dimension (i.e. =size( Img.img ) )
+    
+    imgSize = size( Img.img ) ;
+    
+    if numel( imgSize ) == 2
+        imgSize = [ imgSize 1 ] ;
     end
 
 end
+% =========================================================================
+function [] = set.mask( Img, mask )
+%SETMASK Assign valid mask (a logical array of 1's and 0's) to Img.mask
+
+    if ~islogical( mask )
+        if numel(mask) == ( nnz( mask(:) == 0 ) + nnz( mask(:) == 1 ) )
+            mask = logical( mask ) ;
+        else
+            error( 'Input mask must consist only of zeros and ones.' ) ;
+        end
+    end
+
+    maskSize = size( mask ) ;
+    
+    if numel( maskSize ) == 2
+        % Img.size and Img.Grid.size will always return at least 3 elements
+        % so, append 1 to compare sizes 
+        maskSize = [maskSize 1] ; 
+    end
+
+    if isequal( maskSize, Img.size )
+        Img.mask = mask ;
+    elseif isequal( maskSize, Img.Grid.size )
+        Img.mask = repmat( mask, [1 1 1 Img.size(4:end)] ) ;
+    else 
+        error('Input mask must possess the same size as the image object' ) ;
+    end
+
+end
+% =========================================================================
+function [] = set.Interpolant( Img, NewInterpolant )
+%SET.INTERPOLANT
+
+DEFAULTS.class               = class( scatteredInterpolant ) ; 
+DEFAULTS.constructor         = str2func( DEFAULTS.class ) ;
+
+DEFAULTS.Method              = 'linear' ;
+DEFAULTS.ExtrapolationMethod = 'none' ;
+
+% disp( 'Forming interpolant...(Computation time is proportional to image size. This may take a few minutes.)' )
+%
+% Interpolant = scatteredInterpolant() ;
+%
+% Interpolant.Method              = method ;
+% Interpolant.ExtrapolationMethod = extrapolationMethod ;
+%
+% [X,Y,Z] = Img.Grid.gridpositions() ;
+%
+%
+%
+% v = Img.img(:,:,:,1,1) ;
+% Interpolant.Values = v(:) ;
+
+    % if nargin == 1 
+    %     Params = DEFAULTS ;
+    % elseif ( nargin == 2 ) && isstruct( NewInterpolant )
+    %     Params = assignifempty( NewInterpolant, DEFAULTS ) ;
+    % else
+    %     error( 'Invalid inputs' ) ;
+    % end
+    %
+    % if isempty( Img.Interpolant ) 
+    %     Img.Interpolant = Params.constructor() ;
+    % end 
+    %
+    % switch Params.class
+    %     case DEFAULTS.class
+    %         Img.Interpolant.Method              = Params.Method ;
+    %         Img.Interpolant.ExtrapolationMethod = Params.ExtrapolationMethod ;
+    %     
+    %     otherwise
+    %        warning( ['The only class currently supported for Img.Interpolant is ' DEFAULTS.class ] );
+    % end
+    %
+    % % The following avoids the error from scatteredInterpolant when one
+    % % attempts to form a 3d interpolant from a 2d input: 
+    % [X,Y,Z]     = Img.Grid.gridpositions() ;
+    % isValidDim0 = [ numel(unique(X(:))) numel(unique(Y(:))) numel(unique(Z(:))) ] > 1 ;
+    % r0          = [X(:) Y(:) Z(:)] ;
+    % r0          = r0(:, isValidDim0) ;
+    %
+    % if isempty( Img.Interpolant )
+    %     img     = Img.img(:,:,:,1) ; % initialize with 1st image volume (arbitrary)
+    %     Img.Interpolant = scatteredInterpolant( r0, DEFAULTS.Method, DEFAULTS.ExtrapolationMethod ) ;
+    % end
+
+    %
+    %     Img 
+    % %     Interpolant.Points = [X(:) Y(:) Z(:)]
+    %     Params = DEFAULTS ;
+    %
+    %     || 
+    %    error('Invalid input') ;
+    % end
+    %
+    % % if isa( Interpolant, 'scatteredInterpolant' )
+    % %     Img.Interpolant = Interpolant ;
+    %
+    % if isstruct( Params )
+    %     
+    %     if isfield( Interpolant, 'Method' )
+    %         Img.Interpolant.Method = Interpolant.Method ;
+    %     end
+    %     
+    %     if isfield( Interpolant, 'ExtrapolationMethod' )
+    %         Img.Interpolant.ExtrapolationMethod = Interpolant.ExtrapolationMethod ;
+    %     end
+    %
+    % else
+
+end
+% =========================================================================    
+end
+
+% =========================================================================
+% =========================================================================    
+methods
+    %.....
+    [] = filter( Img, weights, Params )
+    %.....
+    [F] = regrid( Img, X_Ep, Y_Ep, Z_Ep, varargin )
+end
+% =========================================================================
+% =========================================================================
+methods(Access=protected)
+    %.....
+    Interpolant = getinterpolant( Img, method, extrapolationMethod )
+end
+% =========================================================================
+% =========================================================================
+methods(Hidden=true)
+% NOTE
+%   Temporarily placing cropimg() and zeropad() here since these methods
+%   1) might be deprecated
+%   2) may or may not be useful
+    %.....
+    Img = cropimg( Img, gridSizeImgCropped, centralPoint )
+    %.....
+    Img = zeropad( Img, padSize, padDirection )
+end
+% =========================================================================
+% =========================================================================
+methods
+% =========================================================================
+function timeAverage = timeaverage( Img )
+%TIMEAVERAGE  Return mean( Img.img, 5 ) 
+%
+% Img = TIMEAVERAGE( Img ) 
+
+    timeAverage = mean( Img.img, 5 ) ;
+
+end
+% =========================================================================
+function timeStd = timestd( Img )
+%TIMESTD Return std( Img.img, 0, 5 ) 
+%
+% standardDeviation = TIMESTD( Img ) 
+
+    timeStd = std( Img.img, 0, 5 ) ;
+
+end
+% =========================================================================
+
+% =========================================================================
+% =========================================================================
+end
+
+
+% =========================================================================
+% =========================================================================
+methods
 % =========================================================================
 function [] = associateaux( Img, Aux, Params )
 %ASSOCIATEAUX - link image to corresponding auxiliary recording object
@@ -409,342 +646,8 @@ end
 
 end
 % =========================================================================
-function [t] = get.acquisitionTime( Prot ) 
-% GETACQUISITIONTIME  Return array of image acquisition times [ms elapsed since midnight]
-%
-% Derives from the AcquisitionTime field in Siemens DICOM header.
-%
-% t = GETACQUISITIONTIME( Prot )
-%
-% dimensions of t: [ nSlices x nEchoes x nMeasurements ]
-%
-% t - t(1) yields the elapsed time since acquisition of the 1st k-space point
-% in the series.
-%
-% For EPI MOSAIC (which has a single AcquisitionTime value for each volume),
-% t( iSlice ) = AcquisitionTime (first slice) + iSlice*(volumeTR/nSlices)
-
-nSlices       = Prot.nSlices ;
-nEchoes       = length( Prot.te ) ;
-nMeasurements = Prot.nMeasurements ;
-
-t = zeros( nSlices, nEchoes, nMeasurements ) ;
-
-if isempty(strfind( Prot.Hdrs{1}.ImageType, 'MOSAIC' ) )
-    
-    for iMeasurement = 1 : nMeasurements
-        for iEcho = 1 : nEchoes 
-            for iSlice = 1 : nSlices
-                t(iSlice, iEcho, iMeasurement) = convertacquisitiontime( Prot.Hdrs{iSlice,iEcho,iMeasurement}.AcquisitionTime ) ;
-            end
-        end
-    end
-
-else % special case for EPI MOSAIC (single DICOM header for multiple slices)
-   
-    sliceOrder = Prot.Hdr.MrProt.sSliceArray.alSliceAcqOrder ;
-    sliceMeasurementDuration = Prot.tr/nSlices ; % [units: ms]
-
-    for iMeasurement = 1 : nMeasurements
-        for iEcho = 1 : nEchoes 
-            for iSlice = 1 : nSlices
-                t_iAcq = convertacquisitiontime( Prot.Hdrs{1,iEcho,iMeasurement}.AcquisitionTime ) ;
-                t_iAcq = t_iAcq + sliceOrder(iSlice)*sliceMeasurementDuration ;
-                t(iSlice, iEcho, iMeasurement) = t_iAcq ;
-            end
-        end
-    end
-
-end
-
-function t_s = convertacquisitiontime( AcquisitionTime )
-%CONVERTACQUISITIONTIME  Converts the time-stamp string in the .AcquisitionTime DICOM header
-% For details, see https://cfn.upenn.edu/aguirre/wiki/public:pulse-oximetry_during_fmri_scanning
-
-    % hours + minutes + seconds + fractional seconds :
-    t_s = str2double( AcquisitionTime(1:2) )*60*60 + str2double( AcquisitionTime(3:4) )*60 + ...
-          str2double( AcquisitionTime(5:6) ) + (str2double( AcquisitionTime(7:10) )/10)/1000 ;
-    t_s = t_s * 1000 ; % [units: ms]
-
-end
-
-end
-% =========================================================================
-function GYRO = get.gyro( Prot )
-%GETGYRO  Return gyromagnetic ratio of imaged nucleus [units: rad/s/T]
-%
-% NOTE: Only supports 1H protons!
-
-    switch Prot.Hdr.ImagedNucleus 
-        case '1H' 
-            GYRO = 267.513E6 ; 
-        otherwise
-            error('Not implemented.') ;
-    end
-
-end
-% =========================================================================
-function xyzIso = get.isocenter( Prot )
-%ISOCENTER  Return magnet isocenter [x,y,z] coordinates w.r.t. patient coordinate system
-% 
-% xyzIso = ISOCENTER( Prot ) 
-
-    xyzIso = Prot.Hdr.Prot.ImaRelTablePosition()' ;
-
-    assert( xyzIso(1) == 0, 'Table shifted in L/R direction?' ) ;
-    assert( xyzIso(2) == 0, 'Table shifted in A/P direction?' ) ;
-
-end
-% =========================================================================
-function [f0] = get.imagingFrequency( Prot ) 
-%GETIMAGINGFREQUENCY  Return Larmor frequency [units: Hz]
-
-    f0 = Prot.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency ;
-
-end
-% =========================================================================
-function [nVolumes] = get.nMeasurements( Prot )
-%GETNMEASUREMENTS    Return the number of image measurements
-%
-% n = GETNMEASUREMENTS( Prot )
-%
-% NOTE: GETNMEASUREMENTS( Prot ) is equivalent to n = size( Prot.img, 5 ),
-% however GETNUMBEROFMEASUREMENTS also checks the DICOM header in Prot.Hdr and
-% issues a warning if n differs from the expected value
-% (Prot.Hdr.MrProt.lRepetitions +1).
-
-    nVolumes = size( Prot.img, 5 ) ;
-
-    if myisfield( Prot.Hdr.MrProt, 'lRepetitions' ) 
-        % number of measurements according to Hdr:
-        nVolumesHdr = Prot.Hdr.MrProt.lRepetitions + 1 ;
-        if nVolumes ~= nVolumesHdr
-            warning([ num2str(nVolumes) ...
-                ' image volumes have been loaded, however the DICOM Hdr indicates ' num2str(nVolumesHdr) ' were acquired.'] ) ;
-        end 
-    end
-
-end
-% =========================================================================
-function [nSlices] = get.nSlices( Prot ) 
-%GETNSLICES  Return number of acquired slices
-%
-% NOTE: nSlices is not necessarily equal to size( Prot.img, 3).
-% e.g. For a 3d (slab) encoding, GETNUMBEROFSLICES returns 1. 
-
-    nSlices = Prot.Hdr.MrProt.sSliceArray.lSize ;
-
-end
-% =========================================================================
-function [pff] = get.partialFourierFactors( Prot ) 
-%GETPARTIALFOURIERFACTORS  Return fraction of k-space coverage in each dim
-% 
-% pff = GETPARTIALFOURIERFACTORS( Prot ) 
-% 
-% Returns 3-element vector of partial Fourier factors in read, phase (in-plane),
-% and partition (slice) encoding directions.
-%
-% NOTE:
-% Siemens uses an enumeration scheme to store Partial Fourier info in the DICOM header:
-%
-% pff --> Siemens DICOM Hdr entry 
-% 4/8 --> 0x1  = 1
-% 5/8 --> 0x2  = 2
-% 6/8 --> 0x4  = 4
-% 7/8 --> 0x8  = 8
-% 8/8 --> 0x10 = 16 (i.e. no partial Fourier)
-% 
-% See: https://github.com/malaterre/GDCM/blob/master/Source/DataDictionary/CSAHeader.xml
-
-    dcmFields = { 'Prot.Hdr.MrProt.sKSpace.ucReadoutPartialFourier' ;
-                  'Prot.Hdr.MrProt.sKSpace.ucPhasePartialFourier' ;
-                  'Prot.Hdr.MrProt.sKSpace.ucSlicePartialFourier' ; } ;
-
-    pfAsInt = [ Prot.Hdr.MrProt.sKSpace.ucReadoutPartialFourier
-                Prot.Hdr.MrProt.sKSpace.ucPhasePartialFourier
-                Prot.Hdr.MrProt.sKSpace.ucSlicePartialFourier ]' ;
-
-    pff     = [ 1 1 1 ] ;
-
-    for iDim = 1 : 3
-        switch pfAsInt(iDim)
-            case 1
-                pff(iDim) = 4/8 ;
-            case 2
-                pff(iDim) = 5/8 ;
-            case 4
-                pff(iDim) = 6/8 ;
-            case 8
-                pff(iDim) = 7/8 ;
-            case 16
-                pff(iDim) = 1 ;
-            otherwise
-                error( [ 'Unexpected value of ' num2str( pfAsInt(iDim) ) ' in ' dcmFields{iDim} ] ) ;
-        end
-    end
-
-end
-% =========================================================================
-function [te] = get.te( Prot ) 
-%GETTE    Return vector of echo times [units: ms]
-% 
-% TE = GETECHOTIME( Prot )
-
-    if strcmp( Prot.Hdr.SequenceName, '*fm2d2' ) && Prot.isphase() 
-        te = ( Prot.Hdr.MrProt.alTE(2) - Prot.Hdr.MrProt.alTE(1) )/1000  ;
-    else
-        nEchoes  = size( Prot.img, 4 ) ;
-        te = Prot.Hdr.MrProt.alTE(1:nEchoes)/1000 ;
-    end
-
-end
-% =========================================================================
-function tr = get.tr( Prot ) 
-%GETTR repetition time [units: ms]
-
-    tr = Prot.Hdr.RepetitionTime ;
-
-end
-% =========================================================================
-
-end
-% =========================================================================
-% =========================================================================    
-methods(Sealed=true)
-% =========================================================================
-function [f0, g0, s0] = adjvalidateshim( Prot )
-%ADJVALIDATESHIM    Return protocol shim settings from Siemens private header
-% 
-% [f0, g0, s0] = ADJVALIDATESHIM( Prot )
-% 
-% ADJVALIDATESHIM is not a particularly revealing name for a function; however,
-% it is based on the Siemens AdjValidate commandline tool, with a "-shim" input
-% argument.
-%
-% f0 = scalar Larmor (Tx) freq. [ units : Hz ]
-% g0 = 3-element vector of the linear gradient offsets (gX, gY, gZ) [units : DAC bits]
-% s0 = 5-element vector of 2nd order shim currents [units : mA] 
-%
-% To convert to the units of the 3D Shim card on the Siemens (Prisma) console,
-% see 
-% ShimSpecs_IUGM_Prisma_fit.converttomultipole( )
-% ShimSpecs_HGM_Prisma_fit.converttomultipole( )
-
-% Larmor (Tx) freq.
-f0 = Prot.imagingFrequency ; 
-
-% linear gradients
-g0 = [ Prot.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetX ; ...
-       Prot.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetY ; ...
-       Prot.Hdr.MrProt.sGRADSPEC.asGPAData.lOffsetZ ] ;
-
-% -------
-% 2nd order shims (5-element vector)
-s0 = Prot.Hdr.MrProt.sGRADSPEC.alShimCurrent ;
-
-end
-% =========================================================================
-function [t0] = estimatekorigintime( Prot ) 
-%ESTIMATEKORIGINTIME  Return estimate of time when k-space origin was sampled
-% 
-% t0 = ESTIMATEKORIGINTIME( Prot )
-%
-% Returns an estimate of when the k-space origin of an image was sampled
-% relative to the AcquisitionTime (field in Siemens DICOM header) as a double
-% in units of milliseconds. 
-% 
-% See also: MrdiProt.getacquisitiontime()
-% 
-% NOTE: This is a crude estimate and only the case of Cartesian k-space
-% sampling, beginning at the k_min periphery, has been considered in the
-% current implementation!
- 
-nSlices       = Prot.nSlices ;
-nEchoes       = length( Prot.te ) ;
-nMeasurements = Prot.nMeasurements ;
-
-tAcq = Prot.getacquisitiontime() ;
-
-% Estimate time from excitation to k-space origin:
-dt = 0; % [units: ms]
-
-if Prot.Hdr.MrProt.sKSpace.ucTrajectory == 1
-    
-    if ~strcmp( Prot.Hdr.ScanningSequence, 'EPI' )
-    % NOTE: The Siemens DICOM field SliceMeasurementDuration appears to be a misnomer:
-    % Rather, it (usually?) refers to the duration of an entire volume. 
-        dt = Prot.Hdr.Prot.SliceMeasurementDuration ; % [units: ms]
-    else
-    % *Exception*: Apparently EPI are handled differently as said DICOM field
-    % is oddly large (probably includes dummy volumes?)
-        dt = Prot.tr/nSlices ; % [units: ms]
-    end
-    
-    pf = Prot.partialFourierFactors ;
-    
-    if all( pf == 1 )
-        dt = dt/2 ;
-    else
-        switch Prot.Hdr.MRAcquisitionType 
-            case '2D'
-                dt = dt*( 3/2 - pf(2) ) ; 
-            case '3D' % not sure what the function is here...
-                error('Not implemented!') ;
-        end
-    end
-
-else    
-    display('Estimating time at which the k-space origin was sampled')
-    warning(' Current strategy is simplistic and likely wrong for certain encoding trajectories.')
-    dt = 0 ;
-end
-
-assert( dt >= 0, 'Unexpected value for time-to-origin since excitation (AcquisitionTime). See code + check DICOM entries are valid.' )
-
-t0 = tAcq + dt ;
-
-end
-% =========================================================================
-function [Hdrs] = set.Hdrs( Hdrs )
-%SETHDRS Update protocol with new cell array of DICOM Hdrs. 
-    % Prot.Hdrs = Hdrs ; 
-end
-% =========================================================================
-
 end
 % =========================================================================
 % =========================================================================
-methods(Sealed=true)
-% =========================================================================
-% function isSame = iscoincident( Img1, Img2 )
-% %ISCOINCIDENT   Check coincidence of 2 images 
-% % 
-% % isSame = ISCOINCIDENT( Img1, Img2 )
-% %
-% % Returns TRUE if Img1 and Img2 possess coincident voxel positions
-% % and number of measurements/volumes
-% %
-% % TODO: Check additional properties + add outputs for each?
-%
-% assert( ( nargin == 2 ) && isa( Img2, 'MrdiUtil' ), 'Missed required input: 2 MrdiUtil-objects' )
-%
-% isSame = false ;
-%
-% if Mrdi.compareimggrids( Img1, Img2 )  
-%      
-%     isSame = true ;
-%
-%     if ~strcmp( Img1.Hdr.SeriesDescription, Img2.Hdr.SeriesDescription )
-%         warning('A computation is being performed based on images acquired in seperate series.')
-%     end
-% end
-%
-% end    
-% =========================================================================
-
-end
-% =========================================================================
-% =========================================================================
-
 
 end

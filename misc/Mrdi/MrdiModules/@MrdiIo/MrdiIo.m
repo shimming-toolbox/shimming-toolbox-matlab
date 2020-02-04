@@ -60,6 +60,8 @@ end
 methods(Static, Hidden=true) 
     %.....
     [Imgs, Hdrs] = loadandsortdicoms( List ) 
+    %.....
+    [isValid]    = assertheadervalidity( Hdr ) 
 end
 % =========================================================================
 % =========================================================================

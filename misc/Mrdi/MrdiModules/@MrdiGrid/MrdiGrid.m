@@ -25,13 +25,20 @@ properties( Constant = true ) % constant until there is reason to change
 
 end
 
-properties ( Dependent, SetAccess=private )
+properties 
+
+    % Grid coordinate system as string. Default = 'PCS' (patient coordinate system)
+    coordinateSystem char = ['PCS'] ;
+
+end
+
+properties( Dependent, SetAccess=private )
 
     % Field of view dimensions: [Row, Column, Slice]
     fov(1,3) double {mustBeNonnegative} ; 
     
     % Number of grid points (i.e. number of image pixels or voxels)
-    nPoints(1,1) uint64 {mustBeInteger} ; 
+    nPoints(1,1) {mustBeInteger} ; 
 
     % [Column, Row, Slice] orientations as 3x3 mtx of direction cosine column vectors 
     % 
@@ -49,24 +56,17 @@ properties ( Dependent, SetAccess=private )
     
 end
 
-properties 
-
-    % Grid coordinate system as string. Default = 'PCS' (patient coordinate system)
-    coordinateSystem char = ['PCS'] ;
-
-end
-
-properties ( SetAccess=private )
+properties( SetAccess=private )
 
     % Image array dimensions: [#Rows, #Columns, #Slices]
-    size(1,3) uint64 {mustBeInteger, mustBePositive} = [1 1 1] ; 
+    size(1,3) {mustBeInteger, mustBePositive} = [1 1 1] ; 
     
     % Grid-spacing vector: [Between-Rows, "-Columns, "-Slices]
     spacing(1,3) double {mustBeNonnegative} = [1 1 1] ;
     
 end
 
-properties ( Dependent, SetAccess=private, Hidden=true )
+properties( Dependent, SetAccess=private, Hidden=true )
 
     % Slice [X;Y,Z] positions. DICOM Hdr Tag: (0020,1041)
     sliceLocation(3,:) double {mustBeReal} ; 
@@ -77,7 +77,7 @@ properties ( Dependent, SetAccess=private, Hidden=true )
 
 end
 
-properties ( SetAccess=private, Hidden=true )
+properties( SetAccess=private, Hidden=true )
 
     % Column and Row direction cosines. DICOM Hdr Tag: (0020,0037)
     imageOrientationPatient(6,1) double {mustBeReal} ; %
@@ -99,8 +99,10 @@ function Grid = MrdiGrid( Hdrs )
     
     if nargin == 0
         return ;  
-    elseif nargin == 1
+    elseif ( nargin == 1 ) && isstruct( Hdrs )
         Grid = Grid.initializefromdicom( Hdrs ) ;
+    else
+        error('Invalid input') ;
     end
 
 end
@@ -113,14 +115,14 @@ function fov = get.fov( Grid )
 end
 % =========================================================================
 function nPoints = get.nPoints( Grid )
-%GETNVOXELS  Return # image voxels of a single image volume as scalar double 
+%GET.NVOXELS  Return # image voxels of a single image volume as scalar double 
     
     nPoints = prod( Grid.size ) ;
 
 end
 % =========================================================================
 function [R] = get.rotationMatrix( Grid ) 
-%GETROTATIONMATRIX
+%GET.ROTATIONMATRIX
 % 
 % R = GETROTATIONMATRIX( Img ) 
 %   
@@ -149,7 +151,7 @@ function [R] = get.rotationMatrix( Grid )
 end 
 % =========================================================================
 function [sliceLocation] = get.sliceLocation( Grid )
-%SLICELOCATION Slice [X;Y;Z] positions as defined by the SliceLocation field 
+%GET.SLICELOCATION Slice [X;Y;Z] positions as defined by the SliceLocation field 
 % of the DICOM header
 
     for iSlice = 1 : Grid.size(3)
@@ -184,7 +186,7 @@ function [s] = get.sliceNormalVector( Grid )
 end
 % =========================================================================
 function [xyz] = get.xyz( Grid )
-%GETXYZ Return grid coordinates as 3-column matrix [ x(:) y(:) z(:) ] 
+%GET.XYZ Return grid coordinates as 3-column matrix [ x(:) y(:) z(:) ] 
 
     [x,y,z] = Grid.gridpositions() ;
     
@@ -196,7 +198,7 @@ function [xyz] = get.xyz( Grid )
 end
 % =========================================================================
 function [xyz] = set.xyz( Grid, xyz4d )
-%SETXYZ
+%SET.XYZ
 
     if nargin == 1 
         return ;
@@ -242,7 +244,7 @@ end
 
 % =========================================================================
 % =========================================================================    
-methods ( Hidden = true )
+methods( Hidden = true )
 % Hidden for simplicity (overloaded operators should be self-explanatory)
 % =========================================================================
 function isEqual = eq( Grid1, Grid2 )
@@ -277,12 +279,12 @@ methods
     [x,y,z] = gridpositions( Grid )
 end
 
-methods(Static)
+methods( Static )
     %.....
     isSame = comparegrids( varargin )
 end
 
-methods ( Access=private )
+methods( Access=private )
     %.....
     [Grid] = initializefromdicom( Grid, Hdrs )
     %.....

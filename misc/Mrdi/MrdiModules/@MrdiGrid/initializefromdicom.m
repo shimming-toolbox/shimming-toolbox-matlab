@@ -1,4 +1,5 @@
 function [Grid] = initializefromdicom( Grid, Hdrs ) 
+%INITIALIZEFROMDICOM
 
 % "If Anatomical Orientation Type (0010,2210) is absent or has a value of
 % BIPED, the x-axis is increasing to the left hand side of the patient. The
@@ -10,18 +11,18 @@ function [Grid] = initializefromdicom( Grid, Hdrs )
 %             strcmp( Grid.Img.Hdr.AnatomicalOrientationType, 'BIPED' ), ...
 %             'Error: AnatomicalOrientationType not supported.' ) ;
 
-Grid.size = uint64( [Hdrs(1).Rows Hdrs(2).Columns size(Hdrs,3) ] ) ;
+Grid.size = double( [Hdrs(1).Rows Hdrs(2).Columns size(Hdrs, 1) ] ) ;
 
 Grid.imageOrientationPatient = Hdrs(1).ImageOrientationPatient ;
 
-if isfield( Hdrs{1}, 'SpacingBetweenSlices' )
-    Grid.spacing = [ Hdrs{1}.PixelSpacing(1) Hdrs{1}.PixelSpacing(2) Hdrs{1}.SpacingBetweenSlices ] ;
+if isfield( Hdrs, 'SpacingBetweenSlices' )
+    Grid.spacing = [ Hdrs(1).PixelSpacing(1) Hdrs(1).PixelSpacing(2) Hdrs(1).SpacingBetweenSlices ] ;
 else
-    Grid.spacing = [ Hdrs{1}.PixelSpacing(1) Hdrs{1}.PixelSpacing(2) Hdrs{1}.SliceThickness ] ;
+    Grid.spacing = [ Hdrs(1).PixelSpacing(1) Hdrs(1).PixelSpacing(2) Hdrs(1).SliceThickness ] ;
 end
 
 for iSlice = 1 : Grid.size(3)
-    Grid.imagePositionPatient(:,iSlice) = Hdrs{iSlice,1}.ImagePositionPatient ;
+    Grid.imagePositionPatient(:, iSlice) = Hdrs(iSlice, 1).ImagePositionPatient ;
 end
 
 
