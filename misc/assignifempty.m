@@ -1,21 +1,24 @@
 function [StructObjOut] = assignifempty( StructObjIn, varargin )
 %ASSIGNIFEMPTY  Assigns values to object or struct fields when empty
 % 
-% [StructObjOut] = ASSIGNIFEMPTY( StructObjIn, fieldName, x )
-% [StructObjOut] = ASSIGNIFEMPTY( StructObjIn, Assignments )
+% Usage: Case 1
 %
-% ASSIGNIFEMPTY( StructObjIn, fieldName, x )
+% [StructObjOut] = ASSIGNIFEMPTY( StructObjIn, fieldName, x )
 %
 %   Calls MYISFIELDFILLED to check if the data struct or object StructObjIn has
 %   a non-empty field called fieldName and returns StructObjOut: a copy of the
 %   input StructObjIn, wherein fieldName is assigned the value of x if and only
 %   if the entry was non-existent or empty.
 %
+% Usage: Case 2
+%
 % [StructObjOut] = ASSIGNIFEMPTY( StructObjIn, Assignments )
 %
 %   Assignments is a struct or object possessing all the fields/properties that
 %   are to be assigned (copied) to StructObjOut. This is equivalent to making
 %   repeated calls to ASSIGNIFEMPTY() with multiple fieldNames and x-values.
+%  
+%   If StructObjIn is empty, a struct will be created and filled accordingly.
 %
 %   e.g. 
 %       StructObjIn.w1 = 'Hello' ;
@@ -32,11 +35,21 @@ function [StructObjOut] = assignifempty( StructObjIn, varargin )
 %           w2: 'World'
 %           w3: '!'
 
-if ( nargin < 2 ) || ( nargin > 3 ) || ~( isstruct( StructObjIn ) || isobject( StructObjIn ) ) 
+if ( nargin < 2 ) || ( nargin > 3 ) 
     help(mfilename); return;
 
-elseif nargin == 2
+elseif ~( isstruct( StructObjIn ) || isobject( StructObjIn ) ) 
+    if isempty( StructObjIn )
+        StructObjIn = struct([]) ;
+    else
+        help(mfilename); return;
+    end
+end
+
+if nargin == 2
+    
     Assignments = varargin{1} ;
+    
     if ~( isstruct( Assignments ) || isobject( Assignments ) ) 
         help(mfilename); return;
     else
@@ -49,10 +62,11 @@ elseif nargin == 2
     end
 
 elseif nargin == 3
+    
     fieldName = varargin{1} ;
     x         = varargin{2} ;
 
-    if ~ischar( fieldName )
+    if ~( ischar( fieldName ) || isstring( fieldname )
         help(mfilename); return;
     else    
         StructObjOut = StructObjIn ;
