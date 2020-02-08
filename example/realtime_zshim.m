@@ -116,19 +116,12 @@ shimVoi = Mag.segmentspinalcanal_s(Params);
 
 % field map time series
 
-%Params.unwrapper = 'FslPrelude' ; % Note (EAO) : FslPrelude call does not
-%work for me (Matlab 2019a) but does for Alex (Matlab 2019b), todo: check
-%if this is due to verioning 
-B0_tseries = load_untouch_nii('fieldmap_rads.nii.gz'); % this calls my prelude unwrapped field maps generated exernally
-
-% temporary hack to load B0_tseries into MaRdI-type 
+Params.unwrapper = 'FslPrelude'; 
 Fields = FieldEval( FM_mag_path, FM_phase_path, Params ); 
 
-tmp = zeros(size(Fields.img));
-for ind = 1:size(B0_tseries.img,4)
-    tmp(:,:,1,1,ind) = rot90(squeeze(B0_tseries.img(:,:,ind)));
-end
-Fields.img = tmp;
+% pathToNii = './' ; % where to save the images
+% isSavingSingleNiis = true ;
+% Fields.write( pathToNii, 'nii', isSavingSingleNiis ) ;
 
 % Note: Field.img (static b0) refers to the *mean probe signal (saved in the output as Field.Aux.Data.p) 
 % and the respiratory component is a relative deviation from the mean (scaled to RMS PMU)
