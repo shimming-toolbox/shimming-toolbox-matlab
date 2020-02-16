@@ -1,27 +1,31 @@
+%% SORTIMAGES 
+%%
 function [] = sortimages( unsortedDicomDir, sortedDicomDir, isCopying )
 %SORTIMAGES Arrange+rename unsorted DICOMs into organized subdirectories
 %
-% Description 
+%% Description 
 %
-%   Siemens 'real-time' image transfer (i.e. via LAN socket) from 
-%   console to local PC simply dumps all image files into the shared folder
-%   without organizing acquisitions into subfolders or giving intelligible file
-%   names. SORTIMAGES() creates acquisition and echo subdirectories and renames
-%   image files according to the DICOM header.
+% Siemens 'real-time' image transfer (i.e. via LAN socket) from 
+% console to local PC simply dumps all image files into the shared folder
+% without organizing acquisitions into subfolders or giving intelligible file
+% names. sortimages() creates acquisition and echo subdirectories and renames
+% image files according to the DICOM header.
 % 
-% Usage
+%% Usage
 %
-% [] = SORTDATA( unsortedDicomDir ) 
-% [] = SORTDATA( unsortedDicomDir, sortedDicomDir ) 
-% [] = SORTDATA( unsortedDicomDir, sortedDicomDir, isCopying ) 
+%    [] = sortimages( unsortedDicomDir ) 
+%    [] = sortimages( unsortedDicomDir, sortedDicomDir ) 
+%    [] = sortimages( unsortedDicomDir, sortedDicomDir, isCopying ) 
 % 
 % If sortedDicomDir is unspecified, a subdirectory ('sorted') is created
 % within unsortedDicomDir to contain the sorted images.
 %
 % isCopying (Boolean) is TRUE by default. Set to 0 to move the files instead
 % of copying. Note that the files will still be renamed.
-
-%TODO : Sort without call to parse_siemens_shadow() (slow!)
+%
+%% TODO
+%
+% * Sort without call to parse_siemens_shadow() (slow!)
 
 DEFAULT_SORTEDDICOMDIR = [ unsortedDicomDir '/sorted/' ] ;
 DEFAULT_ISCOPYING      = true ;

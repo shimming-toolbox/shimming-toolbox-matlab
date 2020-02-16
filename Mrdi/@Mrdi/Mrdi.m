@@ -11,6 +11,19 @@ classdef Mrdi < MrdiUtil & dynamicprops
 % Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
+properties( Constant )
+    
+    % NOTE: Unsure re: best attributes (or type! as it could just be a
+    % string...) for 'precision' property. Perhaps it could be configurable and
+    % not Constant...  Matlab default of 'double' generally simplifies things,
+    % however, since the images off the scanner are typically 12bit, avoiding
+    % doubles seems reasonable to avoid memory issues 
+    
+    % Numeric type of the image data as a function handle (used to typecast img during construction)
+    precision function_handle = @single ;
+    
+end
+
 properties( SetAccess=protected )
     
     % Numeric array of image data (i.e. pixel or voxel values) 
@@ -18,7 +31,8 @@ properties( SetAccess=protected )
 
 end
 
-properties( Dependent=true )
+
+properties( Dependent )
     
     % Vector of image dimensions (i.e. =size( Obj.img ) ), ..... (See also differ from Obj.Grid.size)
     size(1,:) { mustBePositive, mustBeInteger } = [1 1 1] ;
@@ -30,7 +44,7 @@ properties( Dependent=true )
 
 end
 
-properties( AbortSet=true, SetObservable=true )
+properties( AbortSet, SetObservable )
 
     % Logical array specifying signal support over the grid [default=true( Img.size )]
     %
@@ -48,10 +62,11 @@ properties( AbortSet=true, SetObservable=true )
     % is simply copied across the extra dimensions such that the assigned
     % Img.mask always possesses the same dimensions as Img.img.
     mask {mustBeNumericOrLogical} ;
+    
 
 end
 
-properties( SetAccess=immutable, Hidden=true  ) 
+properties( SetAccess=immutable, Hidden ) 
     
     % NOTE: 
     % Best attributes for the .Hdrs property are open to debate:  
@@ -79,9 +94,11 @@ properties( SetAccess=protected )
 
 end
     
-properties( AbortSet=true )
-    % scatteredInterpolant object 
-    Interpolant = scatteredInterpolant() ; 
+properties( AbortSet )
+
+    % MrdiInterp object 
+    Interpolator MrdiInterp ; 
+
 end
 
 % =========================================================================
@@ -92,10 +109,13 @@ function Img = Mrdi( varargin )
 
     if nargin == 0
         return ;
-    
-    elseif ischar( varargin{1} ) || isstring( varargin{1} )
+    end
+
+    if ischar( varargin{1} ) || isstring( varargin{1} )
+        warning('Direct calls to the Mrdi constructor are discouraged. Instead, use MrdiIo.make( )')
         [imgs, Hdrs] = MrdiIo.loadandsortimages( varargin{:} ) ;
-    
+        Img          = Mrdi( imgs{1}, Hdrs{1} ) ;
+
     elseif isnumeric( varargin{1} ) && isstruct( varargin{2} )
         img          = varargin{1} ;
         Hdrs         = varargin{2} ;
@@ -104,16 +124,23 @@ function Img = Mrdi( varargin )
 
         if isequal( nHdrsTotal , nSlicesTotal ) 
         % if isequal( size( varargin{2} ) , size( varargin{1}, [3:ndims(varargin{1})] ) ) 
-            Img.img  = double( varargin{1} ) ;
 
+            Img.img  = varargin{1} ;
             Img.Hdrs = varargin{2} ;
+
+            % typecast img using default precision
+            % NOTE: if useful, precision could otherwise be specified in a parameters struct, or perhaps determined from the input Hdrs?
+            Img.img  = Mrdi.precision( Img.img ) ;
+
             Img.Grid = MrdiGrid( Img.Hdrs ) ;
-            
+
             Img.mask = true( Img.size ) ; % set mask only after Grid initialization
+
         else
             error( ['Input Hdrs must possess an entry for each 2d image slice.\n ' ...
             '(i.e. size(Hdrs) == size( img, [3:ndims(img)] ) '] , '%s' ) ;
         end 
+
     end
 
 
@@ -166,8 +193,8 @@ function [] = set.mask( Img, mask )
 
 end
 % =========================================================================
-function [] = set.Interpolant( Img, NewInterpolant )
-%SET.INTERPOLANT
+function [] = set.Interpolator( Img, NewInterpolant )
+%SET.INTERPOLATOR
 
 DEFAULTS.class               = class( scatteredInterpolant ) ; 
 DEFAULTS.constructor         = str2func( DEFAULTS.class ) ;

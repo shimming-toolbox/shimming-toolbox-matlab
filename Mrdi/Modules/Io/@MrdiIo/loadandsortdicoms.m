@@ -1,15 +1,17 @@
 function [Imgs, Hdrs] = loadandsortdicoms( List ) 
-%LOADANDSORTDICOMS  Load and sort dicoms
+%LOADANDSORTDICOMS  Load and sort dicoms from file list
 % 
-% LOADANDSORTDICOMS searches a directory for dicom images and sorts the
-% images+headers into 2 cell arrays which respective contain numeric arrays of
-% images, and struct arrays of headers. Each acquisition series is assigned to 
-% a separate element of the returned cells.
+% LOADANDSORTDICOMS accepts a list of dicom file names to load, and sorts the
+% images+headers into 2 cell arrays which respectively contain numeric arrays
+% of images, and struct arrays of headers. Each acquisition series is assigned
+% to a separate element of the returned cells.
 %
 % Sorting of the returned arrays occurs according to slice, echo time,
 % measurement number, and channel. 
 % For the image arrays, these dimensions are respectively 3, 4, 5, and 6;
 % For the headers, they are respectively 1,2,3, and 4.
+%
+% Usage
 %
 % [Imgs, Hdrs] = loadandsortdicoms( List )
 %
@@ -20,7 +22,6 @@ function [Imgs, Hdrs] = loadandsortdicoms( List )
     arguments
         List(:,1) struct ;
     end
-    
 
 Imgs = [] ;
 Hdrs = [] ;

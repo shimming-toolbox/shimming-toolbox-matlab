@@ -1,9 +1,10 @@
 classdef (Sealed = true) MrdiGrid 
 %MrdiGrid  MR DICOM Image Grid: Image grid properties.
-
-% =========================================================================
-% Author::ryan.topfer@polymtl.ca
-% =========================================================================
+%
+%% Details
+%  
+%  blah blah blah 
+%% 
 
 %% ========================================================================
 % Properties
