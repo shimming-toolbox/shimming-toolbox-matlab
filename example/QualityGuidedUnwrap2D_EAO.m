@@ -1,4 +1,4 @@
-function im_unwrapped = QualityGuidedUnwrap2D_EAO(im_phase, im_mask)
+function [im_unwrapped, xpoint, ypoint] = QualityGuidedUnwrap2D_EAO(im_phase, im_mask, varargin)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % QualityGuidedUnwrap2D implements 2D quality guided path following phase
@@ -36,11 +36,23 @@ unwrapped_binary=zeros(size(im_phase));           %Binary image to mark unwrappe
 im_phase_quality=PhaseDerivativeVariance(im_phase);   
 
 %% Identify starting seed point on a phase quality map
-minp=im_phase_quality(2:end-1, 2:end-1); minp=min(minp(:));
-maxp=im_phase_quality(2:end-1, 2:end-1); maxp=max(maxp(:));
-figure; imagesc(im_phase_quality,[minp maxp]), colormap(gray), axis square, axis off; title('Phase quality map'); 
-uiwait(msgbox('Select known true phase reference phase point. Black = high quality phase; white = low quality phase.','Phase reference point','modal'));
-[xpoint,ypoint] = ginput(1);                %Select starting point for the guided floodfill algorithm
+if nargin == 2
+    minp=im_phase_quality(2:end-1, 2:end-1); minp=min(minp(:));
+    maxp=im_phase_quality(2:end-1, 2:end-1); maxp=max(maxp(:));
+    figure; imagesc(im_phase_quality,[minp maxp]), colormap(gray), axis square, axis off; title('Phase quality map'); 
+    uiwait(msgbox('Select known true phase reference phase point. Black = high quality phase; white = low quality phase.','Phase reference point','modal'));
+    [xpoint,ypoint] = ginput(1);                %Select starting point for the guided floodfill algorithm
+elseif nargin == 4
+    xpoint = varargin{1};
+    ypoint = varargin{2};
+    if ((xpoint < 0) || (xpoint > size(im_phase,2)))
+        error('xpoint out of range')
+    elseif ((ypoint < 0) || (ypoint > size(im_phase,1)))
+        error('ypoint out of range')
+    end
+else
+    error('Wrong number of input arguments') ;
+end
 
 %% Unwrap
 colref=round(xpoint); rowref=round(ypoint);
@@ -53,5 +65,5 @@ if im_mask(rowref, colref+1, 1)==1 adjoin(rowref, colref+1, 1)=1; end
 im_unwrapped=GuidedFloodFill(im_phase, im_unwrapped, unwrapped_binary, im_phase_quality, adjoin, im_mask);    %Unwrap
 
 % figure; imagesc(im_mag), colormap(gray), axis square, axis off; title('Magnitude image'); 
-figure; imagesc(im_phase), colormap(gray), axis square, axis off; title('Wrapped phase'); 
-figure; imagesc(im_unwrapped), colormap(gray), axis square, axis off; title('Unwrapped phase'); 
+%figure; imagesc(im_phase), colormap(gray), axis square, axis off; title('Wrapped phase'); 
+%figure; imagesc(im_unwrapped), colormap(gray), axis square, axis off; title('Unwrapped phase'); 
