@@ -66,7 +66,7 @@ elseif nargin == 3
     fieldName = varargin{1} ;
     x         = varargin{2} ;
 
-    if ~( ischar( fieldName ) || isstring( fieldname )
+    if ~( ischar( fieldName ) || isstring( fieldname ) )
         help(mfilename); return;
     else    
         StructObjOut = StructObjIn ;
