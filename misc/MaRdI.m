@@ -1,7 +1,7 @@
 classdef MaRdI < matlab.mixin.SetGet 
 %MaRdI Ma(t)-R-dI(com)
 %
-%   Dicom into Matlab for Siemens MRI data
+%   Dicom iunto Matlab for Siemens MRI data
 %
 % .......
 %   
@@ -755,7 +755,8 @@ else
     nMeasurements = 1;
 end
 
-assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ;
+%assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ; % EAO:
+%commented this out so I could save a time series
 
 t = zeros( nSlices, nEchoes, nMeasurements ) ;
 
@@ -1621,7 +1622,7 @@ end
 Options.dummy = [];
 Options       = assignifempty( Options, DEFAULTS ) ;
 
-if ~any( strcmp( Options.unwrapper, {'Sunwrap','sunwrap','FslPrelude','AbdulRahman_2007'} ) )
+if ~any( strcmp( Options.unwrapper, {'Sunwrap','sunwrap','FslPrelude','AbdulRahman_2007','QGU'} ) )
     error('Unrecognized "Options.unwrapper" input. See HELP MaRdI.unwrapphase') ;
 elseif strcmp( Options.unwrapper, 'AbdulRahman_2007' ) && ( size( Phase.img, 3 ) == 1 )
     warning('Options.unwrapper = AbdulRahman_2007 is incompatible with 2d images. Using Sunwrap method.') ;
@@ -1679,6 +1680,7 @@ end
 
 
 %% ------
+
 for iVolume = 1 : nVolumes
 
     display(['Unwrapping volume ' num2str(iVolume) ' of ' num2str(nVolumes) ] ) ;    
@@ -1710,7 +1712,16 @@ for iVolume = 1 : nVolumes
                 iMag      = Mag.img(:,:,:,iEcho,iVolume) ;
                 iMag      = iMag./max(iMag(:)) ;
                 Phase.img(:,:,:,iEcho, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,iEcho,iVolume) ), Options.threshold ) ;
-
+            
+            case { 'QGU' }
+                
+                Options.mask = squeeze(single( Phase.Hdr.MaskingImage(:,:,:,iEcho,iVolume) ) ) ;
+                if ((iVolume == 1) && (iEcho == 1))
+                    [Phase.img(:,:,:,iEcho, iVolume),xpoint, ypoint] = QualityGuidedUnwrap2D_EAO(Phase.img(:,:,:,iEcho, iVolume), Options.mask);
+                else
+                    [Phase.img(:,:,:,iEcho, iVolume),xpoint, ypoint] = QualityGuidedUnwrap2D_EAO(Phase.img(:,:,:,iEcho, iVolume), Options.mask, xpoint, ypoint);
+                end
+                
         end
 
         if Options.isLinearizing && ( iEcho == 1 ) 
