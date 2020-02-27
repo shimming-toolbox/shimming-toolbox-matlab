@@ -2696,7 +2696,9 @@ system( ['mv ' Params.tmpSaveDir 't2s_allEchoes.nii ' Params.dataSaveDir 'mgre.n
 system( ['rm -r ' Params.tmpSaveDir] ) ;
 
 % load FSLeyes to see segmentation overlaid on gre images
-system(['fsleyes ' Params.dataSaveDir 'mgre.nii ' Params.dataSaveDir 'gre_seg.nii &' ]);
+% this will help the user assess what field gradients are going to be
+% averaged and compensated for 
+system(['fsleyes ' Params.dataSaveDir 'mgre.nii ' Params.dataSaveDir 'gre_seg.nii -cm red -a 70.0 &' ]);
 
 Mask = load_untouch_nii( [ Params.dataSaveDir 'gre_seg.nii' ] );
 mask = Mask.img ;
