@@ -2607,7 +2607,7 @@ DEFAULT_DATASAVEDIR        = './gre_seg/'
 DEFAULT_ISFORCINGOVERWRITE = false ;
 DEFAULT_ISUSINGPROPSEGCSF  = true ; %use the propseg -CSF option
 DEFAULT_CENTERLINEMETHOD   = 'midfov' ;
-DEFAULT_CYLINDERSIZE       = 40 ;
+DEFAULT_CYLINDERSIZE       = 80 ;
 DEFAULT_GAUSSIANSIZE       = 20 ;
 
 if nargin < 1 || isempty(Params) || ~myisfield( Params, 'dataLoadDir' ) || isempty(Params.dataLoadDir)
@@ -2684,14 +2684,19 @@ system( ['sct_create_mask -i ' Params.tmpSaveDir 't2s.nii.gz -p centerline,' ...
 % unzip the image volumes we wish to keep
 system( ['gunzip ' Params.tmpSaveDir 't2s_seg.nii.gz -df'] ) ;
 system( ['gunzip ' Params.tmpSaveDir 't2s_weights.nii.gz -df'] ) ;
+system( ['gunzip ' Params.tmpSaveDir 't2s.nii.gz -df'] ) ;
 
 % delete the other images
 system( ['rm ' Params.tmpSaveDir '*.nii.gz'] ) ;
 
-% move segmentation + weights
+% move segmentation, weights + t2* images
 system( ['mv ' Params.tmpSaveDir 't2s_seg.nii ' Params.dataSaveDir 'gre_seg.nii'] ) ;  
-system( ['mv ' Params.tmpSaveDir 't2s_weights.nii ' Params.dataSaveDir 'gre_weights.nii'] ) ;  
+system( ['mv ' Params.tmpSaveDir 't2s_weights.nii ' Params.dataSaveDir 'gre_weights.nii'] ) ; 
+system( ['mv ' Params.tmpSaveDir 't2s.nii ' Params.dataSaveDir 'gre.nii'] ) ; 
 system( ['rm -r ' Params.tmpSaveDir] ) ;
+
+% load FSLeyes to see segmentation overlaid on gre images
+system(['fsleyes ' Params.dataSaveDir 'gre.nii ' Params.dataSaveDir 'gre_seg.nii &' ]);
 
 Mask = load_untouch_nii( [ Params.dataSaveDir 'gre_seg.nii' ] );
 mask = Mask.img ;
