@@ -103,6 +103,7 @@ if (strcmp('human',scan_obj) == 1)
     Params.centerlineMethod = 'spinalcord';  % 'midfov': middle of FOV; 'spinalcord': to create a mask around the spinal cord
 elseif (strcmp('phantom',scan_obj) == 1)
         Params.centerlineMethod = 'midfov';  % 'midfov': middle of FOV; 'spinalcord': to create a mask around the spinal cord
+        Params.cylinderSize = input('Enter diameter (in mm) of desired ROI: ');
 else
     error('\nError: Enter "phantom" or "human" as function argument');
 end
