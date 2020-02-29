@@ -17,7 +17,7 @@ classdef Documentor < handle
 %
 % Dr = Documentor( mFiles ) ;
 %
-% 2. To create the .md documentation user calls: 
+% 2. To create the .md documentation, the user calls: 
 % 
 % Dr.write ; 
 %
@@ -63,28 +63,28 @@ properties( AbortSet )
     % TODO use mapdirectorytree.m or something to figure out the subdirectory structure to use and change the default to TRUE.
     % (for now, just dumping all documentation into single folder - dirOutTop
     isSaveRecursive(1,1) {mustBeNumericOrLogical} = false ;
+    
+    % Output parent directory for the doc files
+    % 
+    % See also HelpDocMd.isSaveRecursive
+    dirOutTop {mustBeStringOrChar} = "" ;     
+    
+    % Reformated documentation
+    mdDoc string {mustBeStringOrChar} = "" ;
+  
+
+    % String specifier for output syntax: "mkd" (for Mkdocs markdown), "mat" (for MATLAB markup)
+    syntax(1,1) string { mustBeMember( syntax, ["mat" "mkd"] ) } = "mkd" ;
+
 
     % Input/Matlab file extension 
     extIn {mustBeStringOrChar} = Documentor.Ext.matlab ;
 
     % Input names (without directory path or file extension)
     nameIn {mustBeStringOrChar} = string( mfilename ) ;
-
-    % Reformated documentation
-    mdDoc string {mustBeStringOrChar} = "" ;
-   
-    % String specifier for output syntax: "mkd" (for Mkdocs markdown), "mat" (for MATLAB markup)
-    syntax(1,1) string { mustBeMember( syntax, ["mat" "mkd"] ) } = "mkd" ;
-
-    % Output parent directory for the doc files
-    % 
-    % See also HelpDocMd.isSaveRecursive
-    dirOutTop {mustBeStringOrChar} = "" ;     
     
     % Output file extension (default = ".md")
     extOut(1,1) {mustBeStringOrChar} = Documentor.Ext.markdown ;
-    
-
     
 end
 
@@ -93,14 +93,12 @@ properties( Dependent )
 end
 
 properties( Access=private, Dependent )
+
     % parent folder of mFiles(iM)  
     mDir {mustBeFolder} = string( fileparts( mfilename('fullpath') ) ) ;
     
     % top directory of src mFiles
     dirInTop {mustBeStringOrChar} = "" ;
-
-    % Help returned from m file
-    mHelp ;
 
 end
 
@@ -169,6 +167,14 @@ function [] = set.dirOutTop( Dr, dirOutTop )
  
 end
 % =========================================================================    
+function [] = set.iM( Dr, iM )  
+
+    % update Informer with new file:
+    Dr.Info.mPath = Dr.mFiles( iM ) ; 
+    Dr.iM = iM ;
+
+end
+% =========================================================================    
 function [] = set.mFiles( Dr, mFiles )  
 
     mType = Dr.Info.mfiletype( mFiles ) ; 
@@ -195,7 +201,23 @@ function [] = set.mFiles( Dr, mFiles )
 end
 % =========================================================================    
 function [mdDoc] = get.mdDoc( Dr )  
-   mdDoc = "" ; 
+    
+    % TODO: Choose desired formating!
+   
+    Info  = Dr.Info.Attributes ;
+
+    switch Info.mType{:}
+        case 'script'
+            mdDoc = documentbasic( Info ) ; 
+        case 'function'
+            mdDoc = documentfunction( Info ) ;
+        case 'classdef'
+            mdDoc = documentclassdef( Info ) ;
+    end
+
+    if Dr.syntax == "mkd"
+        mdDoc = reformatasmarkdown( mdDoc ) ;
+    end
     
     % names = strcat( "_", join(names, ", "), "_" ) ; % italicize
     % info  = [ info ; strcat( "- Parent classes: ", names ) ] ;
@@ -293,11 +315,7 @@ function [mdDoc] = get.mdDoc( Dr )
     %
 
     
-    if ~strcmp( Dr.syntax, "mkd" ) 
-        cd( dir0 ) ;
-        return ;
-    end
-
+    function [mdDoc] = reformatasmarkdown( mdDoc ) 
     %% Mkdocs Markdown
     %
     % Reformat links and link-text to Markdown syntax:
@@ -307,31 +325,36 @@ function [mdDoc] = get.mdDoc( Dr )
     % NOTE the following works for weblinks, but will need to be elaborated
     % for local links to custom functions & classes: either tags or relative
     % paths could be used for Mkdocs build.
+    try 
+        links = extractBetween( mdDoc, "<",">" ) ;
     
-    links = extractBetween( mdDoc, "<",">" ) ;
-
-    for iLink = 1 : numel(links)
-    
-        substrings = split( links(iLink) ) ;
-
-        linkUrl = substrings{1} ;
+        for iLink = 1 : numel(links)
         
-        if numel(substrings) == 1 %URL-only
-            linkText=substrings{1} ;
-        else
-            linkText = strcat( substrings{2:end} ) ;
+            substrings = split( links(iLink) ) ;
+
+            linkUrl = substrings{1} ;
+            
+            if numel(substrings) == 1 %URL-only
+                linkText=substrings{1} ;
+            else
+                linkText = strcat( substrings{2:end} ) ;
+            end
+        
+            mdDoc = replace( mdDoc, strcat("<", links{iLink}, ">"), ...
+                        strcat( "[", linkText, "](", linkUrl,  ")" ) ) ;
         end
-    
-        mdDoc = replace( mdDoc, strcat("<", links{iLink}, ">"), ...
-                    strcat( "[", linkText, "](", linkUrl,  ")" ) ) ;
-    end
-    
+    catch Me
+        warning( 'Link replacement fail: TODO fix' ) ;
+    end    
+
     mdDoc = strip( splitlines( mdDoc ) ) ;
     
     % trim any empty terminating lines 
      while( strcmp( mdDoc(end), "" ) )
          mdDoc(end) = [] ;
      end
+
+    end
 
     % % TODO
     % % Replace links (and link-text) properly.
@@ -355,19 +378,171 @@ function [mdDoc] = get.mdDoc( Dr )
     % % (\s|\w)* : consisting of any number (*) of words (\w) or (|) spaces (\s)
     % % (?=>) : preceding (but not including) ">" 
     % linkText = regexp( mdDoc, textPattern, 'match' ) ; 
+    
+    %% Local functions (could make these Documentor methods instead)
+    % 
+    function [mdDoc] = documentbasic( Info )
+    %% Basic documentation: will apply to all .m file types
+        mdDoc    = strings( 6,1 ) ;
+        mdDoc(1) = strcat( "# Info.Name #", " (a Matlab ", Info.mType, ")" ) ;
+        mdDoc(2) = "" ;
+        mdDoc(3) = strcat( "_", Info.Description, "_" ) ;
+        mdDoc(4) = "" ;
+        mdDoc(5) = "### Description ###"
+        mdDoc    = [mdDoc ; Info.DetailedDescription ] ;
+    end 
+    
+    function [mdDoc] = documentfunction( Info )
+    %DOCUMENTFUNCTION adds function-specific info to documentation  
+    % (NOTE: for now, this is just nArgin/nArgout but this should be elaborated
+    % in Informer.m -- e.g. by parsing the function arguments block when it exists)
+        mdDoc = documentbasic( Info ) ;
         
-end
-% =========================================================================    
-function [mHelp] = get.mHelp( Dr )  
+        fields = string( fieldnames( Info ) ) ;
+    
+        % remove fields included in documentbasic 
+        fields( fields=="mType" )               = [] ;
+        fields( fields=="Name" )                = [] ;
+        fields( fields=="Description" )         = [] ;
+        fields( fields=="DetailedDescription" ) = [] ;
+
+        mdDoc = [mdDoc ; "" ; "### Attributes ###"] ;
    
-    % change dir in case list of files to document includes naming conflicts
-    dir0 = pwd ; 
-    cd( Dr.dirIn ) ;
+        for iField = 1 : numel(fields)
+            field = char( fields( iField ) ) ;
+            mdDoc(end+1) = "" ;
+            mdDoc(end+1) = strcat( "- ", fields(iField), " : ", string( Info.( field ) ) ) ;
+        end
+    end
     
-    mHelp = help( Dr.nameIn ) ;   
-    mHelp = string( mHelp ) ;
+    function [mdDoc] = documentclassdef( Info )
+    %DOCUMENTCLASSDEF adds class-specific info to documentation  
+        mdDoc = documentbasic( Info ) ;
+        
+        fields = string( fieldnames( Info ) ) ;
     
-    cd( dir0 ) ;    
+        % remove fields included in documentbasic 
+        fields( fields=="mType" )               = [] ;
+        fields( fields=="Name" )                = [] ;
+        fields( fields=="Description" )         = [] ;
+        fields( fields=="DetailedDescription" ) = [] ;
+
+        mdDoc = [mdDoc ; "" ; "### Attributes ###"] ;
+        
+        for iField = 1 : numel(fields)
+            
+            field = char( fields( iField ) ) ;
+            
+            if isempty( Info.(field) )
+                mdDoc(end+1) = strcat( "- ", field, " : [N/A] " ) ;
+            elseif strcmp( field, 'SuperclassList' )
+                mdDoc(end+1) = strcat( "- Superclasses: ", strjoin( Info.SuperclassList, ", " ) ) ;
+            elseif ~isstruct( Info.(field) ) % Property + MethodList etc. will be structs (handle them separately)
+                mdDoc(end+1) = strcat( "- ", fields(iField), " : ", string( Info.( field ) ) ) ;
+            end
+        end
+        
+        mdDoc = [ mdDoc ; documentclassproperties( Info ) ] ;    
+        mdDoc = [ mdDoc ; documentclassmethods( Info ) ] ;    
+    end
+    
+    function methDoc = documentclassmethods( Info )
+    %DOCUMENTCLASSMETHODS
+        methDoc = [ "" ; "### Methods ###" ; "" ] ;
+
+        if isempty( Info.MethodList )
+            methDoc(end+1) = "[No Methods]" ;
+        else
+            methFields = fieldnames( Info.MethodList ) ;
+             
+            for iMeth = 1 : numel( Info.MethodList ) 
+                methDoc = [ methDoc ; "" ] ;
+
+                Meth = Info.MethodList( iMeth ) ; 
+                
+                if ~isempty( Meth.Description )
+                    nameAndDescription = strcat( "####", Meth.Name, "####", " : ", "_", Meth.Description, "_" )
+                    methDoc(end+1) = nameAndDescription;
+                else % name only
+                    methDoc(end+1) = strcat( "####", Meth.Name, "####" );
+                end
+
+                if ~isempty( Meth.DetailedDescription )
+                    % NOTE: could change Informer so it doesn't fill DetailedDescription with the copy of Description
+                    if ~strcmp( Meth.DetailedDescription, Meth.Description )                         
+                        methDoc = [ methDoc ; "Description: " ; Meth.DetailedDescription ] ;
+                    end
+                end
+
+                for iField = 4 : length( methFields ) % start at 4 to skip name, description, detailed description:
+                
+                    field = string( methFields( iField ) ) ;
+
+                    if isempty( Meth.(field) )
+                        methDoc(end+1) = strcat( "- ", field, " : [N/A] " ) ;
+                    else 
+                        methDoc(end+1) = strcat( "- ", field, " : ", strjoin( string( Meth.( field ) ), ", " ) ) ;
+                    end
+                end
+            end
+        end
+    end
+
+    function propsDoc = documentclassproperties( Info )
+    %DOCUMENTCLASSPROPERTIES
+        propsDoc = [ "" ; "### Properties ###" ; "" ] ;
+
+        if isempty( Info.PropertyList )
+            propsDoc(end+1) = "[No Properties]" ;
+        else
+            propFields = fieldnames( Info.PropertyList ) ;
+             
+            for iProp = 1 : numel( Info.PropertyList ) 
+                propsDoc = [ propsDoc ; "" ] ;
+
+                Prop = Info.PropertyList( iProp ) ; 
+                
+                if ~isempty( Prop.Description )
+                    nameAndDescription = strcat( "*", Prop.Name, "*", " : ", "_", Prop.Description, "_" )
+                    propsDoc(end+1) = nameAndDescription;
+                else % name only
+                    propsDoc(end+1) = strcat( "*", Prop.Name, "*" );
+                end
+
+                if ~isempty( Prop.DetailedDescription )
+                    % NOTE: could change Informer so it doesn't fill DetailedDescription with the copy of Description
+                    if ~strcmp( Prop.DetailedDescription, Prop.Description )                         
+                        propsDoc = [ propsDoc ; "Description: " ; Prop.DetailedDescription ] ;
+                    end
+                end
+                
+                for iField = 4 : length( propFields ) % start at 4 to skip name, description, detailed description:
+                    
+                    field = string( propFields( iField ) ) ;
+
+                    if isempty( Prop.(field) )
+                        propsDoc(end+1) = strcat( "- ", field, " : [N/A] " ) ;
+                    
+                    elseif strcmp( field, "Validation" )
+
+                        propsDoc(end+1) = "- Validation: " ;
+
+                        if Prop.Validation.Class ~= "" 
+                            propsDoc(end+1) = strcat( "Class: ", Prop.Validation.Class ) ;
+                        end
+
+                        propsDoc(end+1) = strcat( "Validator functions: ", strjoin( Prop.Validation.ValidatorFunctions, "," ) ) ;
+                        
+                        %TODO add size constraints
+                    else 
+                        propsDoc(end+1) = strcat( "- ", field, " : ", string( Prop.( field ) ) ) ;
+                    end
+                end 
+            end
+        end
+    end
+
+
 
 end
 % =========================================================================    
