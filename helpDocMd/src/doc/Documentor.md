@@ -1,4 +1,4 @@
-# Info.Name # (a Matlab classdef)
+#Documentor# (a Matlab classdef)
 
 _Custom MATLAB documentation into markup/down text files_
 

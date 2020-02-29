@@ -88,10 +88,6 @@ properties( AbortSet )
     
 end
 
-properties( Dependent )
-
-end
-
 properties( Access=private, Dependent )
 
     % parent folder of mFiles(iM)  
@@ -384,7 +380,7 @@ function [mdDoc] = get.mdDoc( Dr )
     function [mdDoc] = documentbasic( Info )
     %% Basic documentation: will apply to all .m file types
         mdDoc    = strings( 6,1 ) ;
-        mdDoc(1) = strcat( "# Info.Name #", " (a Matlab ", Info.mType, ")" ) ;
+        mdDoc(1) = strcat( "#", Info.Name, "#", " (a Matlab ", Info.mType, ")" ) ;
         mdDoc(2) = "" ;
         mdDoc(3) = strcat( "_", Info.Description, "_" ) ;
         mdDoc(4) = "" ;
