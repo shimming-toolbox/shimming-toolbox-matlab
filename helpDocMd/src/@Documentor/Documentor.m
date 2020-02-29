@@ -10,9 +10,16 @@ classdef Documentor < handle
 % 2. does not require additional dependencies or different syntax/tagging 
 % from Matlab's own markup style (e.g. sphinx)
 %
-% ### Syntax ###
+% ### Basic Usage ###
+%
+% 1. User creates a Documentor instance with the list of .m file paths to
+% document:
+%
+% Dr = Documentor( mFiles ) ;
+%
+% 2. To create the .md documentation user calls: 
 % 
-% TODO
+% Dr.write ; 
 %
 % ### Example Output ###
 % 
@@ -36,14 +43,30 @@ properties( AbortSet )
 
     % Informer object instance: Provides the information content to document a
     % given .m file
-    Info Informer = Informer( which( "Documentor.m" ) ) ;
+    Info Informer ; % = Informer( which( "Documentor.m" ) ) ;
 
-    % Input directory  
-    dirIn {mustBeFolder} = string( fileparts( mfilename('fullpath') ) ) ;
+    % List of .m files to document (string scalar or vector of full file paths)
+    mFiles {mustBeFile} = string( [ mfilename('fullpath') '.m' ] ) ;
+
+    % Index of next .m file in mFiles list to document
+    iM(1,1) uint64 {mustBePositive, mustBeInteger} = uint64(1) ;
+
+    % Toggle whether to overwrite existing documentation files
+    isOverwriting(1,1) {mustBeNumericOrLogical} = false ;
     
+    % Toggle whether subdirectories are included in file search (multiple input case only)
+    isSearchRecursive(1,1) {mustBeNumericOrLogical} = true ;
+   
+    % Recreates original directory tree in dirOut (multiple doc output case only) 
+    %
+    % See also HelpDocMd.isSeachRecursive
+    % TODO use mapdirectorytree.m or something to figure out the subdirectory structure to use and change the default to TRUE.
+    % (for now, just dumping all documentation into single folder - dirOutTop
+    isSaveRecursive(1,1) {mustBeNumericOrLogical} = false ;
+
     % Input/Matlab file extension 
     extIn {mustBeStringOrChar} = Documentor.Ext.matlab ;
-    
+
     % Input names (without directory path or file extension)
     nameIn {mustBeStringOrChar} = string( mfilename ) ;
 
@@ -61,29 +84,19 @@ properties( AbortSet )
     % Output file extension (default = ".md")
     extOut(1,1) {mustBeStringOrChar} = Documentor.Ext.markdown ;
     
-    % Toggle whether to overwrite existing documentation files
-    isOverwriting(1,1) {mustBeNumericOrLogical} = false ;
 
-    % Recreates original directory tree in dirOut (multiple doc output case only) 
-    %
-    % See also HelpDocMd.isSeachRecursive
-    isSaveRecursive(1,1) {mustBeNumericOrLogical} = true ;
-
-    % Toggle whether subdirectories are included in file search (multiple input case only)
-    isSearchRecursive(1,1) {mustBeNumericOrLogical} = true ;
     
 end
 
 properties( Dependent )
 
-    % Full input file path(s)
-    pathIn ;    
-
 end
 
 properties( Access=private, Dependent )
+    % parent folder of mFiles(iM)  
+    mDir {mustBeFolder} = string( fileparts( mfilename('fullpath') ) ) ;
     
-    % top directory
+    % top directory of src mFiles
     dirInTop {mustBeStringOrChar} = "" ;
 
     % Help returned from m file
@@ -95,58 +108,36 @@ end
 % =========================================================================    
 methods
 % =========================================================================    
-function DrSlf = Documentor( pathIn, Params )
+function Dr = Documentor( pathIn, Params )
 
 if nargin == 0
     return ;
 end
 
-%% check input path
-if all( ischar( pathIn ) ) || iscellstr( pathIn )
-    pathIn = string( pathIn ) ;
-
-elseif ~isstring( pathIn ) || ndims( pathIn > 2 )
-   error( ['First input argument must be a file or directory path string ' ...
-            ' or a 1-D array of file path strings']  ) ;
-end
-
-% convert to fullpath in case the relative path was provided
-pathIn = abspath( strtrim( string( pathIn ) ) ) ;  
-
-if size( pathIn, 2 ) > size( pathIn, 1 )
-    pathIn = pathIn' ;
-end
-
-pathType = unique( Documentor.quiddity( pathIn ) ) ;
-
-assert( numel( pathType ) == 1, [ 'Multiple paths should all be of the same general type,' ...
-      ' such that each returns a value of 2 or 7 when input to exist()'] ) ;
-
-switch pathType 
-    case 2 % path to matlab files
-        DrSlf.pathIn = pathIn ;
-    case 7 % directory path
-        DrSlf.dirIn = pathIn ;
-    otherwise
-        error( ['Invalid input path: \n '...
-                'Path string must return value of 2 or 7 when input to exist().' ...
-                'Check file or directory exists and update the current search path']  ) ;
-end
-    
-end
-% =========================================================================    
-function [dirInTop] = get.dirInTop( DrSlf )
-    
-    [~,iTopDir] = min( count( DrSlf.dirIn, filesep ) ) ;
-    dirInTop    = fileparts( DrSlf.dirIn( iTopDir ) ) ;
+Dr.mFiles = Dr.findfilestodocument( pathIn ) ;
+Dr.Info   = Informer( Dr.mFiles(1) ) ;
 
 end
 % =========================================================================    
-function [dirOutTop] = get.dirOutTop( DrSlf )
+function [dirInTop] = get.dirInTop( Dr )
+ 
+    if numel( Dr.mFiles ) == 1
+       dirInTop = fileparts( Dr.mFiles ) ;
 
-    if strcmp( DrSlf.dirOutTop, "" )
-        try 
-            DrSlf.dirOutTop = strcat( DrSlf.dirInTop, filesep, "doc" ) ;
+    else % find folder with fewest parent directories (i.e. slashes in path): 
+        mDirs = arrayfun( @fileparts, Dr.mFiles )
+
+        [~,iTopDir] = min( count( mDirs, filesep ) ) ;
+        dirInTop    = fileparts( mDirs( iTopDir ) ) ;
+    end
+
+end
+% =========================================================================    
+function [dirOutTop] = get.dirOutTop( Dr )
+
+    if strcmp( Dr.dirOutTop, "" )
+        try  % output doc folder in parent directory of ./mFiles
+            Dr.dirOutTop = strcat( fileparts( Dr.dirInTop ), filesep, "doc" ) ;
         catch ME
             warning( [ 'Failed to create default dirOutTop directory.\n' ... 
                       'Assign the doc output directory manually.' ], '%s' ) ;
@@ -154,11 +145,11 @@ function [dirOutTop] = get.dirOutTop( DrSlf )
         end 
     end
     
-    dirOutTop = DrSlf.dirOutTop ;
+    dirOutTop = Dr.dirOutTop ;
            
 end
 % =========================================================================    
-function [] = set.dirOutTop( DrSlf, dirOutTop )
+function [] = set.dirOutTop( Dr, dirOutTop )
 
     [isValidPath, Values, msgId] = fileattrib( dirOutTop ) ;
     
@@ -174,40 +165,37 @@ function [] = set.dirOutTop( DrSlf, dirOutTop )
         assert( isMade, msgId, ['Directory creation failed: ' msg ] )
     end
     
-    DrSlf.dirOutTop = string( dirOutTop ) ;
+    Dr.dirOutTop = string( dirOutTop ) ;
  
 end
 % =========================================================================    
-function [] = set.pathIn( DrSlf, pathIn )  
+function [] = set.mFiles( Dr, mFiles )  
 
-    pathType = unique( Documentor.quiddity( pathIn ) ) ;
+    mType = Dr.Info.mfiletype( mFiles ) ; 
 
-    assert( all( pathType == 2 ), ['Invalid input path: \n '...
-                'Each path string must return value of 2 or 7 when input to exist().\n' ...
-                'Check file or directory exists and update the MATLAB search path'], '%s' ) ;
+    if any( mType == "NA" )
+        badPaths = mFiles( mType == "NA" ) ;
+        warning('Excluding the following invalid (possibly unimplemented) .m files from documentation: ')
+        display( badPaths ) ;
+        mFiles( mType == "NA" ) = [] ;
+    end
     
-    [ DrSlf.dirIn, DrSlf.nameIn, DrSlf.extIn ] = arrayfun( @fileparts, pathIn ) ;
+    if isempty( mFiles )
+        error( "List of .m files suitable for documentation is empty") ;
+    end
+
+    Dr.mFiles = mFiles ;
     
+    % [ Dr.dirIn, Dr.nameIn, Dr.extIn ] = arrayfun( @fileparts, mFiles ) ;
     % if unassigned, set .dirOutTop
-    if strcmp( DrSlf.dirOutTop, "" )
-       DrSlf.dirOutTop = DrSlf.dirInTop ;
-    end 
+    % if strcmp( Dr.dirOutTop, "" )
+    %    Dr.dirOutTop = Dr.dirInTop ;
+    % end 
 
 end
 % =========================================================================    
-function [pathIn] = get.pathIn( DrSlf )  
-  
-    pathIn = strcat( DrSlf.dirIn, filesep, DrSlf.nameIn, DrSlf.extIn ) ;
-
-end
-% =========================================================================    
-function [mdDoc] = get.mdDoc( DrSlf )  
-    
-    % change dir in case list of files to document includes naming conflicts
-    dir0 = pwd ; 
-    cd( DrSlf.dirIn ) ;
-        
-    mdDoc = DrSlf.mHelp ;
+function [mdDoc] = get.mdDoc( Dr )  
+   mdDoc = "" ; 
     
     % names = strcat( "_", join(names, ", "), "_" ) ; % italicize
     % info  = [ info ; strcat( "- Parent classes: ", names ) ] ;
@@ -234,9 +222,9 @@ function [mdDoc] = get.mdDoc( DrSlf )
     %
     % info = [ info ; strcat( "- Containing Package: ", "_", pkg, "_" ) ] ;
 
-    % if strcmp( mfiletype( DrSlf.pathIn ), 'classdef' )
+    % if strcmp( mfiletype( Dr.pathIn ), 'classdef' )
     %
-    % mdDoc = DrSlf.mHelp ;
+    % mdDoc = Dr.mHelp ;
     %     %% Class members: Properties    
     %     mdDoc = [ mdDoc; "" ; "### Members ###" ; ""]; 
     %
@@ -305,7 +293,7 @@ function [mdDoc] = get.mdDoc( DrSlf )
     %
 
     
-    if ~strcmp( DrSlf.syntax, "mkd" ) 
+    if ~strcmp( Dr.syntax, "mkd" ) 
         cd( dir0 ) ;
         return ;
     end
@@ -370,40 +358,32 @@ function [mdDoc] = get.mdDoc( DrSlf )
         
 end
 % =========================================================================    
-function [mHelp] = get.mHelp( DrSlf )  
+function [mHelp] = get.mHelp( Dr )  
    
     % change dir in case list of files to document includes naming conflicts
     dir0 = pwd ; 
-    cd( DrSlf.dirIn ) ;
+    cd( Dr.dirIn ) ;
     
-    mHelp = help( DrSlf.nameIn ) ;   
+    mHelp = help( Dr.nameIn ) ;   
     mHelp = string( mHelp ) ;
     
     cd( dir0 ) ;    
 
 end
 % =========================================================================    
-function [membersDoc] = docclassmembers( DrSlf )
-%DOCCLASSMEMBERS
+function [membersDoc] = docclassmethods( Dr )
+%DOCCLASSMETHODS
 
-membersDoc = [] ;
-    % Mc = metaclass( MrdiIo ) ;
-    %
-    % for iProp = 1 : length( Mc.PropertyList ) 
-    %     if ~Mc.PropertyList(iProp).Constant && Mc.PropertyList(iProp).HasDefault 
-    %         DEFAULTS.( Mc.PropertyList(iProp).Name ) = Mc.PropertyList(iProp).DefaultValue ;
-    %     end
-    % end
 end
 % =========================================================================    
-function [pathOut] = write( DrSlf )  
+function [pathOut] = write( Dr )  
 %WRITE Write doc contents to file
 % 
 % [pathOut] = write( Self ) 
 
-    pathOut = [DrSlf.dirOutTop+filesep+DrSlf.nameIn+DrSlf.extOut] ;
+    pathOut = [Dr.dirOutTop+filesep+Dr.nameIn+Dr.extOut] ;
     
-    assert( DrSlf.isOverwriting || ~exist( pathOut ), ...
+    assert( Dr.isOverwriting || ~exist( pathOut ), ...
         ['Doc file already exists. Assign a different file path for the output,' ...
          'or set ' inputname(1) '.isOverwriting =true to force overwrite'], '%s' );
     
@@ -411,27 +391,9 @@ function [pathOut] = write( DrSlf )
     assert( fid~=-1, ['Write failed:' errMsg] ) ;
 
     fprintf( strcat("Writing doc: ", pathOut, "\n") ) ;
-    fprintf( fid, '%s\n', DrSlf.mdDoc);
+    fprintf( fid, '%s\n', Dr.mdDoc);
 
     fclose(fid);
-
-end
-% =========================================================================    
-function [List] = findmfiles( DrSlf )
-%FINDMFILES Returns list of Matlab files from dir search
-% 
-% Wraps to findfiles and to return a 1-D struct array of Matlab files
-% 
-% Usage 
-%
-% List = FINDMFILES( Self )
-%
-% See also dir, findfiles
-
-%% Check inputs
-narginchk(0,1) ;
-
-List = findfiles( DrSlf.dirIn, "*.m", DrSlf.isSearchRecursive ) ;
 
 end
 % =========================================================================    
@@ -501,24 +463,13 @@ function [info] = documentclassattributes( Mc )
 
 end
 % =========================================================================    
-function [thingTypes] = quiddity( paths )  
-%QUIDDITY Check existence of multiple input paths (wraps to exist for each element)
-%
-% Given an input array *paths* (consisting solely of strings or chars),
-% QUIDDITY returns a double array *thingTypes* wherein each element is the
-% corresponding return value from exist()
-% 
-% ### Usage ### 
-%
-% thingTypes = Documentor.QUIDDITY( paths ) 
-    
-% XXX stupid method. delete it.
-narginchk(1,1) ;
-    thingTypes = arrayfun( @exist, string( paths ) ) ;
 
 end
 % =========================================================================    
-
+% =========================================================================    
+methods
+    %.....
+    [mFiles] = findfilestodocument( Dr, pathIn ) ;
 end
 % =========================================================================    
 % =========================================================================    
