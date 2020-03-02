@@ -11,8 +11,6 @@ if isempty( Info.MethodList )
     docStr = [ docStr ; "" ; "[No Methods]"; "" ] ;
     return ;
 else
-    mthdFields = fieldnames( Info.MethodList ) ;
-     
     for iMthd = 1 : numel( Info.MethodList ) 
         docStr = [ docStr ; "" ; "---" ; "" ;] ;
 
@@ -37,9 +35,26 @@ else
                     docStr = [ docStr ; "Description: " ; Mthd.DetailedDescription ] ;
                 end
             end
-        
-            % start at 4 to skip name, description, detailed description:
-            for iField = 4 : length( mthdFields ) 
+    
+            Mthd = rmfield( Mthd, {'Name'; 'Description' ; 'DetailedDescription'} ) ;
+            mthdFields = fieldnames( Mthd ) ;
+
+            %% Place basic (logical) attributes into an HTML table
+            basicFields = mthdFields( structfun( @islogical, Mthd ) ) ;
+            
+            for iF = 1 : numel( basicFields )
+               BasicAttributes.( basicFields{iF} ) = Mthd.( basicFields{iF} ) ;
+            end
+            
+            docStr = [ docStr ; "" ; "" ; "#### Attributes: ####" ; "" ; Dr.tableattributes( BasicAttributes ) ; "" ] ;
+            
+            clear BasicAttributes ;
+            Mthd = rmfield( Mthd, basicFields ) ;
+            
+            %% 
+            mthdFields = fieldnames( Mthd ) ;
+     
+            for iField = 1 : length( mthdFields ) 
             
                 field = string( mthdFields( iField ) ) ;
 
