@@ -1,62 +1,75 @@
 function docStr = documentclassproperties( Dr )
 %DOCUMENTCLASSPROPERTIES Return string vector of class property documentation
     
-% { 'GetAccess', 'SetAccess', 'Dependent', 'Constant', 'Abstract', 'Transient', 'Hidden',
-%   'GetObservable', 'SetObservable', 'AbortSet', 'NonCopyable', 'GetMethod', 'SetMethod', 'HasDefault' } 
 
 Info = Dr.Info.Attributes ;
 
 assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
 
-docStr = [ "---" ; "### Properties ###" ; "" ] ;
+docStr = [ "- - -" ; "### Properties ###" ; "" ] ;
 
 if isempty( Info.PropertyList )
     docStr = [ docStr ; "" ; "[No Properties]"; "" ] ;
     return ;
 else
-    propFields = fieldnames( Info.PropertyList ) ;
-     
     for iProp = 1 : numel( Info.PropertyList ) 
         docStr = [ docStr ; "" ] ;
 
         Prop = Info.PropertyList( iProp ) ; 
         
         if ~isempty( Prop.Description )
-            nameAndDescription = strcat( "*", Prop.Name, "*", " : ", "_", Prop.Description, "_" )
-            docStr(end+1) = nameAndDescription;
+            docStr = [ strcat( "*", Prop.Name, "*" ) ; "" ; strcat( "_", Prop.Description, "_" ) ] ;
         else % name only
-            docStr(end+1) = strcat( "*", Prop.Name, "*" );
-        end
-
-        if ~isempty( Prop.DetailedDescription )
-            % NOTE: could change Informer so it doesn't fill DetailedDescription with the copy of Description
-            if ~strcmp( Prop.DetailedDescription, Prop.Description )                         
-                docStr = [ docStr ; "Description: " ; Prop.DetailedDescription ] ;
-            end
+            docStr = [ strcat( "*", Prop.Name, "*" ) ; "" ] ;
         end
         
-        for iField = 4 : length( propFields ) % start at 4 to skip name, description, detailed description:
+        if ~strcmp( Prop.DetailedDescription, Prop.Description )                         
+        % NOTE: could change Informer so it doesn't fill DetailedDescription with the copy of Description
+            docStr = [ docStr ; "" ; Prop.DetailedDescription ] ;
+        end
+        
+        if Dr.isDetailed
             
-            field = string( propFields( iField ) ) ;
+            Prop = rmfield( Prop, {'Name'; 'Description' ; 'DetailedDescription'} ) ;
 
-            if isempty( Prop.(field) )
-                docStr(end+1) = strcat( "- ", field, " : [N/A] " ) ;
+            %% Place basic attributes into an HTML table
+            tableFields = { 'Dependent', 'Constant', 'Abstract', 'Transient', 'Hidden', ...
+                       'GetObservable', 'SetObservable', 'AbortSet', 'NonCopyable', 'HasDefault' } ;
             
-            elseif strcmp( field, "Validation" )
-
-                docStr(end+1) = "- Validation: " ;
-
-                if Prop.Validation.Class ~= "" 
-                    docStr(end+1) = strcat( "Class: ", Prop.Validation.Class ) ;
-                end
-
-                docStr(end+1) = strcat( "Validator functions: ", strjoin( Prop.Validation.ValidatorFunctions, "," ) ) ;
-                
-                %TODO add size constraints
-            else 
-                docStr(end+1) = strcat( "- ", field, " : ", string( Prop.( field ) ) ) ;
+            for iF = 1 : numel( tableFields )
+               BasicAttributes.( tableFields{iF} ) = Prop.( tableFields{iF} ) ;
             end
-        end 
+            
+            docStr = [ docStr ; "" ; Dr.tableattributes( BasicAttributes ) ; "" ] ;
+
+            Prop = rmfield( Prop, tableFields ) ;
+
+            %% 
+            propFields = fieldnames( Prop ) ;
+         
+            for iField = 1 : length( propFields ) 
+                
+                field = string( propFields( iField ) ) ;
+
+                if isempty( Prop.(field) )
+                    docStr(end+1) = strcat( "- ", field, " : [N/A] " ) ;
+                
+                elseif strcmp( field, "Validation" )
+
+                    docStr(end+1) = "- Validation: " ;
+
+                    if Prop.Validation.Class ~= "" 
+                        docStr(end+1) = strcat( "Class: ", Prop.Validation.Class ) ;
+                    end
+
+                    docStr(end+1) = strcat( "Validator functions: ", strjoin( Prop.Validation.ValidatorFunctions, "," ) ) ;
+                    
+                    %TODO add size constraints
+                else 
+                    docStr(end+1) = strcat( "- ", field, " : ", string( Prop.( field ) ) ) ;
+                end
+            end
+        end
     end
 end
 

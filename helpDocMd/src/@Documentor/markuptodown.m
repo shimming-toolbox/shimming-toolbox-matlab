@@ -11,39 +11,45 @@ function [ mdDocStr ] = markuptodown( muDocStr )
 % 
 % ### NOTE/TODO ###
 %
-% The implementation works for weblinks, but will need to be elaborated
-% for local links to custom functions & classes: either tags or relative
-% paths could be used for Mkdocs build.
+% The implementation is simplistic: basically works for weblinks, but needs
+% to be elaborated for local links to custom functions & classes: either tags
+% or relative paths could be used for Mkdocs build.
+%
+% Moreover, it doesn't distinguish between links and embedded HTML, so it
+% messes up the latter (see: Documentor.tableattributes)
 
 assert( isstring( muDocStr ), 'Input argument must be a string' ) ;
 
 mdDocStr = muDocStr ;
 
-try 
-    links = extractBetween( mdDocStr, "<", ">" ) ;
+for iLine = 1 : length( mdDocStr )
+   docLine = mdDocStr(iLine) ; 
+    try 
+        links = extractBetween( docLine, "<", ">" ) 
 
-    for iLink = 1 : numel(links)
-    
-        substrings = split( links(iLink) ) ;
-
-        linkUrl = substrings{1} ;
+        for iLink = 1 : numel(links)
         
-        if numel(substrings) == 1 %URL-only
-            linkText=substrings{1} ;
-        else
-            linkText = strcat( substrings{2:end} ) ;
+            substrings = split( links(iLink) ) ;
+
+            linkUrl = substrings{1} ;
+            
+            if numel(substrings) == 1 %URL-only
+                linkText=substrings{1} ;
+            else
+                linkText = strcat( substrings{2:end} ) ;
+            end
+        
+            mdDocStr(iLine) = replace( docLine, strcat("<", links{iLink}, ">"), ...
+                        strcat( "[", linkText, "](", linkUrl,  ")" ) ) ;
+            
         end
-    
-        mdDocStr = replace( mdDocStr, strcat("<", links{iLink}, ">"), ...
-                    strcat( "[", linkText, "](", linkUrl,  ")" ) ) ;
-    end
 
-catch Me
-    warning( 'Link replacement fail: TODO fix' ) ;
+    catch Me
+        warning( 'Link replacement fail: TODO fix' ) ;
 
-end    
-
-mdDocStr = strip( splitlines( mdDocStr ) ) ;
+    end    
+end
+% mdDocStr = strip( splitlines( mdDocStr ) ) ;
 
 % trim any empty terminating lines 
 while( strcmp( mdDocStr(end), "" ) )

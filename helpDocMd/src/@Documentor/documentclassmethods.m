@@ -20,12 +20,11 @@ else
         
         if contains( which( Mthd.DefiningClass ), 'built-in' ) 
         % MATLAB built-in method: include name and defining class only:
-            docStr(end+1) = strcat( "#### ", Mthd.Name, " ####" );
-            docStr(end+1) = strcat( "DefiningClass: ", Mthd.DefiningClass, " [built-in method: See MATLAB documentation]" )
+            docStr(end+1) = strcat( "#### ", Mthd.Name, " ####", "[ _built-in method derived from *", Mthd.DefiningClass, "* class_ ]");
+            docStr(end+1) = strcat( "For more info, see MATLAB documentation]" ) ;
         else
             if ~isempty( Mthd.Description )
-                nameAndDescription = strcat( "#### ", Mthd.Name, " ####", " : ", "_", Mthd.Description, "_" )
-                docStr(end+1) = nameAndDescription;
+                docStr(end+1) = strcat( "#### ", Mthd.Name, " ####", " : ", "_", Mthd.Description, "_" ) ;
             else 
                 docStr(end+1) = strcat( "#### ", Mthd.Name, " ####" );
             end

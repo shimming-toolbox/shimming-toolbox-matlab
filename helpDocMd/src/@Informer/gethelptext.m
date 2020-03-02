@@ -10,9 +10,8 @@ function [mHelp] = gethelptext( name )
 
     if isempty( mHelp )
         error( 'Nothing found. Verify item of interest is on the MATLAB path.' ) ;
-    else
-        mHelp = strip( splitlines( string( mHelp ) ) ) ;
-    end
+    
+    mHelp = splitlines( string( mHelp ) ) ;
      
     while( strcmp( mHelp(end), "" ) ) % trim blank concluding lines
          mHelp(end) = [] ;

@@ -11,15 +11,25 @@ assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
 
 docStr = documentbasic( Dr ) ;
 
-fields = string( fieldnames( Info ) ) ;
-
 % remove fields included in documentbasic 
-fields( fields=="mType" )               = [] ;
-fields( fields=="Name" )                = [] ;
-fields( fields=="Description" )         = [] ;
-fields( fields=="DetailedDescription" ) = [] ;
+Info = rmfield( Info, {'mType' ; 'Name' ; 'Description' ; 'DetailedDescription'} ) ;
 
-docStr = [docStr ; "" ; "### Attributes ###"] ;
+docStr = [docStr ; "" ; "### Class Attributes ###"; "" ] ;
+
+%% Place basic (logical) attributes into an HTML table
+tableFields = { 'Hidden' ; 'Sealed' ; 'Abstract' ; 'Enumeration'; ... 
+                'ConstructOnLoad' ; 'HandleCompatible'; 'RestrictsSubclassing' } ;
+
+for iF = 1 : numel( tableFields )
+    BasicAttributes.( tableFields{iF} ) = string( Info.( tableFields{iF} ) ) ;
+end
+
+docStr = [ docStr ; "" ; Dr.tableattributes( BasicAttributes ) ; "" ] ; 
+
+Info = rmfield( Info, tableFields ) ;
+
+%%
+fields = string( fieldnames( Info ) ) ;
 
 for iField = 1 : numel(fields)
     

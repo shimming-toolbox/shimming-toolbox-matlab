@@ -23,14 +23,28 @@ function [mHelpBody] = extracthelpbody( mHelp )
     if iscellstr( mHelp ) || ischar( mHelp )
        mHelp = string( mHelp ) ;
     end 
-
-    % Avoid any leading textless lines 
-    mHelp     = strip( splitlines( mHelp ) ) ;
-    mHelpBody = mHelp(mHelp ~= "") ;
+    
+    mHelp = splitlines( mHelp ) ;
+    
+    %% Remove any leading textless lines:
+    while( mHelp(1) == "" )
+        mHelp(1) = [] ;
+    end
+    
     % Remove first line of text (unless that's all there is) 
-    if length(mHelp)>1
+    if length(mHelp)<2
+        mHelpBody = mHelp ;
+        return ;
+    else
+        % if a line begins 4 or more empty spaces, assume it is a code block.
+        % Otherwise, strip the empty spaces.
+        for iLine = 1 : length( mHelp )
+            if ~startsWith( mHelp(iLine), "    " )
+                mHelp(iLine) = strip( mHelp(iLine) ) ;
+            end
+        end
+
         mHelpBody = mHelp(2:end) ;
     end
 
 end
-

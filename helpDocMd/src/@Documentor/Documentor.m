@@ -1,25 +1,25 @@
 classdef Documentor < handle
 %DOCUMENTOR Custom MATLAB documentation into markup/down text files
 %
-% Writes *thorough* Matlab documentation as simple, readable Markdown text
-% <https://daringfireball.net/projects/markdown/> which is
+% Writes *thorough* Matlab documentation as simple, readable 
+% <https://daringfireball.net/projects/markdown/ Markdown> text which is
 % 
-% 1. readily hosted online (e.g. <https://www.mkdocs.org>,
+% 1. Readily hosted online (e.g. <https://www.mkdocs.org/ MkDocs>,
 % <https://pages.github.com/>, <https://docs.readthedocs.io/en/stable/>)
 % 
-% 2. does not require additional dependencies or different syntax/tagging 
+% 2. Does not require additional dependencies or different syntax/tagging 
 % from Matlab's own markup style (e.g. sphinx)
 %
 % ### Basic Usage ###
 %
 % 1. User creates a Documentor instance with the list of .m file paths to
 % document:
-%
-% Dr = Documentor( mFiles ) ;
+%      
+%     Dr = Documentor( mFiles ) ;
 %
 % 2. To create the .md documentation, the user calls: 
-% 
-% Dr.write ; 
+%      
+%     Dr.write ; 
 %
 % ### Example Output ###
 % 
@@ -51,7 +51,7 @@ properties( AbortSet )
     iM(1,1) uint64 {mustBePositive, mustBeInteger} = uint64(1) ;
 
     % Toggle whether to overwrite existing documentation files
-    isOverwriting(1,1) {mustBeNumericOrLogical} = false ;
+    isOverwriting(1,1) {mustBeNumericOrLogical} = true ;
     
     % Toggle whether subdirectories are included in file search (multiple input case only)
     isSearchRecursive(1,1) {mustBeNumericOrLogical} = true ;
@@ -77,6 +77,11 @@ properties( AbortSet )
     % reformat the style of any embedded links in the comments. 
     syntax(1,1) string { mustBeMember( syntax, ["mat" "mkd"] ) } = "mkd" ;
 
+    % Toggles between basic/user (=false) and detailed/developer documentation (=true) [default: true]
+    % 
+    % When false, classes and class members with private, protected, or hidden
+    % attributes are excluded from the output documentation. [default = true]
+    isDetailed(1,1) {mustBeBoolean} = true ;
 
     % Input/Matlab file extension 
     extIn {mustBeStringOrChar} = Documentor.Ext.matlab ;
@@ -105,12 +110,12 @@ methods
 % =========================================================================    
 function Dr = Documentor( pathIn, Params )
 
-if nargin == 0
-    return ;
-end
+    if nargin == 0
+        return ;
+    end
 
-Dr.mFiles = Dr.findfilestodocument( pathIn ) ;
-Dr.Info   = Informer( Dr.mFiles(1) ) ;
+    Dr.mFiles = Dr.findfilestodocument( pathIn ) ;
+    Dr.Info   = Informer( Dr.mFiles(1) ) ;
 
 end
 % =========================================================================    
@@ -141,7 +146,6 @@ function [dirOutTop] = get.dirOutTop( Dr )
     end
     
     dirOutTop = Dr.dirOutTop ;
-           
 end
 % =========================================================================    
 function [] = set.dirOutTop( Dr, dirOutTop )
@@ -149,19 +153,16 @@ function [] = set.dirOutTop( Dr, dirOutTop )
     [isValidPath, Values, msgId] = fileattrib( dirOutTop ) ;
     
     if isValidPath
-        
         assert( Values.directory, 'Invalid assignment: Input is not a directory') ;
         assert( Values.UserWrite, [ 'Invalid permissions: Cannot write to assigned directory.\n', ...
            'Change permissions to the given directory with \n fileattrib( ' dirOutTop ',  +w ) \n' ...
             'or choose a different directory' ], '%s' ) ;
-        
     else
         [isMade, msg, msgId] = mkdir( dirOutTop ) ;
         assert( isMade, msgId, ['Directory creation failed: ' msg ] )
     end
     
     Dr.dirOutTop = string( dirOutTop ) ;
- 
 end
 % =========================================================================    
 function [] = set.iM( Dr, iM )  
@@ -189,11 +190,11 @@ function [] = set.mFiles( Dr, mFiles )
 
     Dr.mFiles = mFiles ;
     
-    % [ Dr.dirIn, Dr.nameIn, Dr.extIn ] = arrayfun( @fileparts, mFiles ) ;
-    % if unassigned, set .dirOutTop
-    % if strcmp( Dr.dirOutTop, "" )
-    %    Dr.dirOutTop = Dr.dirInTop ;
-    % end 
+    [ Dr.dirIn, Dr.nameIn, Dr.extIn ] = arrayfun( @fileparts, mFiles ) ;
+
+    if strcmp( Dr.dirOutTop, "" )
+       Dr.dirOutTop = Dr.dirInTop ;
+    end
 
 end
 % =========================================================================    
@@ -236,6 +237,8 @@ methods( Access=private )
     [docStr] = documentclassmethods( Dr )
     %.....
     [docStr] = documentclassproperties( Dr )
+    %.....
+    [ tableStr ] = tableattributes( Dr, Attributes )
 end
 % =========================================================================
 % =========================================================================    
@@ -246,65 +249,4 @@ end
 % =========================================================================    
 % =========================================================================    
 
-
 end
-    %     %% Class members: Properties    
-    %     mdDoc = [ mdDoc; "" ; "### Members ###" ; ""]; 
-    %
-    %     Props = Mc.PropertyList
-    %
-    %     mdDoc = [ mdDoc; "#### Properties ####" ] ;
-    %
-    %     if isempty( Props )
-    %
-    %         mdDoc = [ mdDoc; "" ; "_(None)_" ; "" ] ;
-    %     else
-    %
-    %         for iProp = 1 : length( Props )
-    %
-    %             Prop   = Props( iProp )
-    %             mdDoc  = [ mdDoc ; strcat( "#####", Prop.Name, "#####" ) ; "" ] ;
-    %             fields = fieldnames( Prop ) ;
-    %
-    %             for iField = 1 : length( fields )   
-    %                 field = fields{ iField } ;
-    %
-    %                 switch field
-    %                     case { 'GetAccess', 'SetAccess', 'Dependent', 'Constant', 'Abstract', 'Transient', 'Hidden',
-    %                            'GetObservable', 'SetObservable', 'AbortSet', 'NonCopyable', 'GetMethod', 'SetMethod', 'HasDefault' } 
-    %                         if isempty( Prop.(field) )
-    %                             entry = "_(None)_" ;
-    %                         else
-    %                             entry = join( string( Prop.( field ) ) ) ;
-    %                         end
-    %
-    %                         mdDoc = [ mdDoc ; strcat( "- ", fields{iField}, ": ", entry ) ] ;
-    %
-    %                     otherwise
-    %                         % do nothing
-    %                 end
-    %             end
-    %     
-    %             % TODO : Printing defaults: what is suitable to print (e.g. if
-    %             % default is rand(100,100,100) clearly it would be preferable
-    %             % to print the function call itself rather than the value).
-    %             % might need to parse the code text itself. 
-    %            % if Prop.HasDefault
-    %            %        mdDoc = [ mdDoc ; "- Default: " ] ;
-    %            %        isPrintingDefault=false ;
-    %            %     try
-    %            %        defaultString = splitlines( string( Prop.Default ) ) ;
-    %            %        mdDoc = [mdDoc ; defaultString ] ; 
-    %            %      catch Me
-    %            %          defaultString = "_(Not printable)_" ;
-    %            %    end
-    %            %
-    %            %  else
-    %            %      mdDoc = [ mdDoc ; "- Default: _(None)_" ] ;
-    %            % end
-    %
-    %
-    %             end
-    %
-    %         end 
-    %     end

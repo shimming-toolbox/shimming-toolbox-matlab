@@ -16,8 +16,8 @@ docStr(1) = strcat( "# ", Info.Name, " #", " (a MATLAB(R) ", Info.mType, ")" ) ;
 docStr(2) = "" ;
 docStr(3) = strcat( "_", Info.Description, "_" ) ;
 docStr(4) = "" ;
-docStr(5) = "### Description ###"
-docStr    = [docStr ; Info.DetailedDescription ] ;
+docStr(5) = "### Description ###" ;
+docStr    = [docStr ; ""; Info.DetailedDescription ; "" ] ;
 
 end 
 
