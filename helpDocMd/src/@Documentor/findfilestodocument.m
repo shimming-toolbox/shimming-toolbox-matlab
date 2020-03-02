@@ -92,4 +92,3 @@ function [mFiles] = findfilestodocument( Dr, pathIn )
     end
 
 end
-
