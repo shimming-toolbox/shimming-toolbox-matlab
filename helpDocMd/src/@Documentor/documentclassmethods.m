@@ -14,19 +14,21 @@ else
     mthdFields = fieldnames( Info.MethodList ) ;
      
     for iMthd = 1 : numel( Info.MethodList ) 
-        docStr = [ docStr ; "" ] ;
+        docStr = [ docStr ; "" ; "---" ; "" ;] ;
 
         Mthd = Info.MethodList( iMthd ) ; 
-        
+         
         if contains( which( Mthd.DefiningClass ), 'built-in' ) 
         % MATLAB built-in method: include name and defining class only:
-            docStr(end+1) = strcat( "#### ", Mthd.Name, " ####", "[ _built-in method derived from *", Mthd.DefiningClass, "* class_ ]");
+            docStr(end+1) = strcat( "### ", Mthd.Name ) ;
+            docStr(end+1) = [ "[ _built-in method derived from *" + Mthd.DefiningClass + "* class_ ]" ];
             docStr(end+1) = strcat( "For more info, see MATLAB documentation]" ) ;
         else
             if ~isempty( Mthd.Description )
-                docStr(end+1) = strcat( "#### ", Mthd.Name, " ####", " : ", "_", Mthd.Description, "_" ) ;
+                docStr = [ docStr ; "" ; strcat( "### ", Mthd.Name ) ; "" ] ; 
+                docStr = [ docStr ; "" ; strcat( " _", Mthd.Description, "_ " ) ; "" ] ;
             else 
-                docStr(end+1) = strcat( "#### ", Mthd.Name, " ####" );
+                docStr = [ docStr ; "" ; strcat( "### ", Mthd.Name ) ; "" ] ;
             end
 
             if ~isempty( Mthd.DetailedDescription )

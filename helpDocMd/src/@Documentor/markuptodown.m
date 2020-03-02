@@ -25,7 +25,7 @@ mdDocStr = muDocStr ;
 for iLine = 1 : length( mdDocStr )
    docLine = mdDocStr(iLine) ; 
     try 
-        links = extractBetween( docLine, "<", ">" ) 
+        links = extractBetween( docLine, "<", ">" ) ;
 
         for iLink = 1 : numel(links)
         

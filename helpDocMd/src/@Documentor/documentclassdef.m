@@ -44,8 +44,8 @@ for iField = 1 : numel(fields)
     end
 end
 
-docStr = [ docStr ; Dr.documentclassproperties ] ;    
-docStr = [ docStr ; Dr.documentclassmethods ] ;    
+docStr = [ docStr ; "" ; Dr.documentclassproperties ] ;    
+docStr = [ docStr ; "" ; Dr.documentclassmethods ] ;    
 
 end
     % names = strcat( "_", join(names, ", "), "_" ) ; % italicize
