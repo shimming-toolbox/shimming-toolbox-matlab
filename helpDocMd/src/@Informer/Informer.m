@@ -10,22 +10,22 @@ classdef Informer
 %
 % ### Syntax ###
 %
-% Info = Informer( mPath ) ;
+% Info = Informer( mFile ) ;
 % 
 % ### Inputs ###
 % 
-% - mPath: full file path to the .m file of interest.
+% - mFile: full file path to the .m file of interest.
 %
 % ### Usage ###
 % 
-% Informer only has two properties public properties: mPath and Attributes,
+% Informer only has two properties public properties: mFile and Attributes,
 % a struct storing all available information on the .m file. Info.Attributes
-% cannot be set directly, but is updated each time Info.mPath is set.
+% cannot be set directly, but is updated each time Info.mFile is set.
 
 properties( AbortSet = true )
 
-    % .m file path : Attributes property will update whenever mPath is set
-    mPath {mustBeFile} = string( [ mfilename('fullpath') '.m'] ) ;
+    % .m file path : Attributes property will update whenever mFile is set
+    mFile {mustBeFile} = string( [ mfilename('fullpath') '.m'] ) ;
 end
 
 properties( SetAccess=private )
@@ -33,10 +33,10 @@ properties( SetAccess=private )
     % Functional description of the .m file
     %
     % Attributes is a struct of .m file attributes, returned from a call to
-    % Informer.getmattributes( mPath ). It contains the following basic
+    % Informer.getmattributes( mFile ). It contains the following basic
     % fields:
     % 
-    % - mType: Type of .m file: string scalar returned from Informer.mfiletype( mPath ).
+    % - mType: Type of .m file: string scalar returned from Informer.mfiletype( mFile ).
     % Possibilities are: ["script","function","classdef","method","NA"]
     %   
     % - .Name: Name of the script, function, class or class method 
@@ -64,31 +64,30 @@ end
 % =========================================================================    
 methods
 % =========================================================================    
-function [ Info ] = Informer( mPath )
+function [ Info ] = Informer( mFile )
     
     if nargin == 0
         return ;
     else
-        mustBeStringOrChar( mPath ) ;
+        mustBeStringOrChar( mFile ) ;
     end
 
-    if ~isfile( mPath )
-        mPath = which( mPath ) ;
-        if isempty( mPath )
+    if ~isfile( mFile )
+        mFile = which( mFile ) ;
+        if isempty( mFile )
             error('File not found') ;
         end
     end
 
-   Info.mPath      = string( mPath ) ;    
-   Info.Attributes = Informer.getmattributes( mPath ) ;
+   Info.mFile      = string( mFile ) ;    
+   Info.Attributes = Informer.getmattributes( mFile ) ;
 
 end
 % =========================================================================    
-function [Info] = set.mPath( Info, mPath )
+function [Info] = set.mFile( Info, mFile )
    
-   Info.mPath = mPath ; 
-        
-   Info.Attributes = Informer.getmattributes( mPath ) ;
+   Info.mFile      = mFile ; 
+   Info.Attributes = Informer.getmattributes( mFile ) ;
 
 end
 % =========================================================================    
@@ -102,8 +101,6 @@ end
 methods( Static )
     %.....
     [mHelp] = gethelptext( name )
-    %.....
-    [mCode] = getcode( name )
     %.....
     [Att] = getmattributes( mFile )
     %.....
