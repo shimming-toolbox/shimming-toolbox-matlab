@@ -7,7 +7,7 @@ function [Att] = getmattributes( mFile )
 % 
 % ### Inputs
 %
-% - mFile: a path string to a single .m file 
+% - mFile: a path string to a single .m file (a script, function, classdef, or class method)
 %
 % ### Outputs
 %
@@ -37,27 +37,50 @@ function [Att] = getmattributes( mFile )
 %
 % ### Classdef files
 %
-% If the .m file is a class definition, Attributes copies the following
-% additional fields from an instance of the associated meta.class object
-% (itself returned as the second output argument 'Mc'):
-%
-%   [Att, Mc] = getmattributes( mFile )
+% If the .m file is a class definition, Attributes derives the following 
+% additional fields from an instance of the associated meta.class object:
+% (For more info, refer to the MATLAB documentation: <https://www.mathworks.com/help/matlab/ref/meta.class.html>)
 % 
-% Logicals describing class attributes:
-% .Hidden 
-% .Sealed
-% .Abstract
-% .Enumeration
-% .ConstructOnLoad
-% .HandleCompatible
-% .RestrictsSubclassing
+% 1. Fields containing logical scalars:
 %
-% .SuperclassList: String array of superclass names
-% .InferiorClasses: String array of inferior class names
-% .ContainingPackage: Name of the containing package as a string-scalar.    
+% - .Hidden 
+% - .Sealed
+% - .Abstract
+% - .Enumeration
+% - .ConstructOnLoad
+% - .HandleCompatible
+% - .RestrictsSubclassing
 %
-% For more information on meta.class objects, refer to the MATLAB documentation 
-% <https://www.mathworks.com/help/matlab/ref/meta.class.html>
+% 2. Fields containing string arrays:
+%
+% - .SuperclassList (the names of superclasses)
+% - .InferiorClasses (the names of deriving inferior classes)
+% - .ContainingPackage (the name of the containing package, if applicable, as a string-scalar)
+%
+% 3. Fields containing struct arrays:
+%
+% - .MethodList (Class methods derived from meta.method objects) 
+%   Elements of MethodList possess the following fields, with all but the final 4
+%   (which contain string arrays) containing scalar logicals:
+%   - .Static 
+%   - .Abstract 
+%   - .Static 
+%   - .ExplicitConversion
+%   - .Sealed
+%   - .Hidden
+%   - .Abstract
+%   - .Access 
+%   - .InputNames
+%   - .OutputNames
+%   - .DefiningClass 
+%
+% - .PropertyList (Class properties derived from meta.property objects) 
+% TODO: elaborate...
+%
+%
+% TODO: add events and enumerations substructs from meta.class:
+% - .EventList
+% - .EnumerationMemberList
 %
 % #### Notes 
 %
@@ -88,21 +111,8 @@ function [Att] = getmattributes( mFile )
 % - Informer.gethelpbody
 % - Informer.gethelpheader
 % - <https://www.mathworks.com/help/matlab/ref/meta.class.html meta.class>
-%
-%    
-% % Methods struct derived from meta.method object (applies to mType="classdef" only, otherwise empty)
-    % Methods = [] ;
-    %
-    % % mType="classdef" only: Properties struct derived from meta.property object. (applies to mType="classdef" only, otherwise empty)
-    % Properties = [] ;
-    % % unimplemented/TODO 
-    % Enumerations struct ;
-    % % unimplemented/TODO 
-    % Events struct ;
-    % %    
-    % See also:
-    % <https://www.mathworks.com/help/matlab/ref/meta.property.html>
-    % <https://www.mathworks.com/help/matlab/ref/meta.validation-class.html meta.Validation>
+% - <https://www.mathworks.com/help/matlab/ref/meta.property.html>
+% - <https://www.mathworks.com/help/matlab/ref/meta.validation-class.html meta.Validation>
     arguments
         mFile {mustBeStringOrChar, mustBeFile} = which("getmattributes.m") ;  
     end
@@ -129,18 +139,13 @@ try % Return to userDir if an error occurs
             Att = addfunctionattributes( Att ) ;
         
         case { "method" } 
-            Att = addmethodattributes( Att, mFolder ) ;
+            Att = addmethodattributes( Att ) ;
         
-        % TODO: refactor the classdef/method cases, along with
-        % Informer.metainfo() (which they both call and which is itself
-        % pretty ugly...)
         case { "classdef" }
-            Mc  = meta.class.fromName( Att.Name ) ;
-            Att = Informer.metainfo( Mc ) ;
-            Att.mType = "classdef" ;
-
+            Att = addclassattributes( Att ) ;
 
          otherwise
+             error('Unexpected result. See code') ;
     
     end
 
@@ -167,8 +172,8 @@ function [Att] = addbasicdescription( Att )
 end
 
 function [Att] = addfunctionattributes( Att )
-% TODO: elaborate function Attributes (e.g. info derived from
-% parsing arguments block) 
+% TODO: elaborate function Attributes (e.g. with info derived from
+% parsing arguments block -- TODO applies to class methods as well)
 
     Att          = addbasicdescription( Att ) ; 
     Att.nInputs  = nargin( Att.Name ) ;
@@ -176,15 +181,28 @@ function [Att] = addfunctionattributes( Att )
 
 end
 
-function [Att] = addmethodattributes( Att, mFolder )
+function [Att] = addclassattributes( Att )
+    
+    Mc        = meta.class.fromName( Att.Name ) ;
+    Att       = Informer.metainfo( Mc ) ;
+    Att.mType = "classdef" ; % add .mType again since Att is overwritten in the above call
+
+end
+
+function [Att] = addmethodattributes( Att )
 %ADDMETHODATTRIBUTES Return struct of method information
 %
 % Retrieves class method info from an associated meta.method object. (This
 % requires first instantiating the meta.class object of the defining class, and
 % then picking out the specific meta.method object of interest)
+%
+% TODO: elaborate attributes (e.g. with info derived from parsing arguments
+% block)
 
     %% Create meta.class object pertaining to the defining class:
-    [~, classFolderName] = fileparts( mFolder ) ;
+
+    % NOTE: the switch to the defining class folder should have occured above in main function 
+    [~, classFolderName] = fileparts( string( pwd ) ) ;
     assert( startsWith( classFolderName, "@" ), 'Unexpected result. See code.' )
     
     className = erase( classFolderName, "@" ) ;
@@ -199,129 +217,3 @@ function [Att] = addmethodattributes( Att, mFolder )
     Att.mType = "method" ; % add .mType again since Att is overwritten in the above call
 
 end
-
-%NOT used: (replaced with Informer.metainfo() )
-function [Att] = getmethodattributes( BasicAtt )
-%GETMETHODATTRIBUTES Return struct of method attributes from meta.class object
-%
-% ### Syntax ###
-%
-%  [Att] = GETMETHODATTRIBUTES( BasicAtt )
-% 
-% Copies elements of the following meta.class object properties to the fields
-% of attributes struct 'Att':
-%
-% Access
-% Static
-% Abstract
-% Sealed
-% ExplicitConversion
-% Hidden
-% InputNames
-% OutputNames
-% DefiningClass (class names as strings) 
-% 
-% ### Notes ### 
-%
-% 1. Currently, all the hidden properties (and some of the non-hidden
-% ones) of meta.method objects appear to be quite useless--despite their
-% promising sounding names! Therefore, these are not copied to Att. 
-%
-% 2. For now, to (hopefully) avoid any strange bugs/behaviour from the
-% meta.class package, the list of properties to copy from the meta.method
-% instance is explictly/hard-coded rather than copying all the properties
-% wholesale.  
-
-Att = BasicAtt ;
-
-Mc  = meta.class.fromName( Att.Name ) ;
-McM = Mc.MethodList( [string({Mc.MethodList.Name}) == string( Att.Name )] ) ;
-
-% for McM.DefiningClass, just keep the name:
-Att.DefiningClass = string( McM.DefiningClass.Name ) ;
-
-fields = [ "Access" ;
-           "Static" ;
-           "Abstract" ;
-           "Sealed" ;
-           "ExplicitConversion" ;
-           "Hidden" ;
-           "InputNames" ;
-           "OutputNames" ; ] ;
-
-for iField = 1 : numel( fields )
-    Att.( fields(iField) ) = McM( iField ) ;
-end
-
-Att.nInputs  = numel( Att.InputNames ) ;    
-Att.nOutputs = numel( Att.OutputNames ) ;    
-
-end
-
-function [Att] = getclassattributes( BasicAtt )
-%GETCLASSATTRIBUTES Return struct of class attributes from meta.class object
-% 
-% ### Syntax ###
-%
-%  [Att] = GETCLASSATTRIBUTES( BasicAtt )
-% 
-% Copies elements of the following meta.class object properties to the fields
-% of attributes struct 'Att':
-%
-% Hidden
-% Sealed
-% Abstract
-% Enumeration
-% ConstructOnLoad
-% HandleCompatible
-% InferiorClasses
-% ContainingPackage
-% RestrictsSubclassing
-% PropertyList
-% MethodList
-% EventList
-% EnumerationMemberList
-% SuperclassList
-Att = BasicAtt ;
-Mc  = meta.class.fromName( Att.Name ) ;
-
-fields = string( fieldnames( Mc ) ) ;
-
-%% Basic attributes:
-for iField = 1 : length( fields )
-    if islogical( Mc.( fields(iField) ) ) 
-        % Applies to: "Hidden", "Sealed", "Abstract", "Enumeration",
-        % "ConstructOnLoad", "HandleCompatible", "RestrictsSubclassing"
-        Att.(fields{iField}) = Mc.( fields(iField) ) ;
-    end
-end
-
-%% Inheritance and package info:
-
-if isempty( Mc.SuperclassList ) 
-    Att.SuperclassList = "N/A" ;
-else
-    Att.SuperclassList = string( {Mc.SuperclassList.Name} ) ;
-end
-
-if isempty( Mc.InferiorClasses ) 
-    Att.InferiorClasses = "N/A" ;
-else 
-    % NOTE: 'Mc.InferiorClasses' is a cell array whereas Mc.SuperclassList
-    % is an object array, hence the for-loop: 
-    names = string( Mc.InferiorClasses{1}.Name ) ;
-
-    for iClass = 2 : numel(Mc.InferiorClasses)
-        names = [ names string( Mc.InferiorClasses{ iClass }.Name ) ] ;
-    end
-
-    Att.InferiorClasses = names ;
-end
-
-if isempty( Mc.ContainingPackage ) 
-    Att.ContainingPackage = "N/A" ;
-else
-    Att.ContainingPackage = string( Mc.ContainingPackage.Name ) ;
-end
-    
-end %getclassattributes()

@@ -7,6 +7,10 @@ classdef Informer
 % The INFORMER class _informs_ the *Documentor* class about the content of .m
 % files: providing the funtional details needed to document them.
 %
+% In the general/anticipated use case, a user merely interacts with an Informer
+% instance indirectly, as a member property of a Documentor object; however,
+% an Informer object can be constructed independently as indicated below.
+%
 % ### Syntax
 %    
 %    Info = Informer( mFile ) ;
@@ -17,10 +21,6 @@ classdef Informer
 %
 % ### Usage
 % 
-% In the general/anticipated use case, a user merely interacts with an Informer
-% instance indirectly, as a member property of a Documentor object; however,
-% an Informer object can be constructed independently as indicated above.
-%
 % Informer only has two properties public properties: mFile and Attributes,
 % a struct storing all available information on the .m file. Info.Attributes
 % cannot be set directly, but is updated each time Info.mFile is set. The
@@ -32,6 +32,7 @@ properties( AbortSet = true )
 
     % .m file path: Attributes property will update whenever mFile is set
     mFile {mustBeFile} = string( [ mfilename('fullpath') '.m'] ) ;
+
 end
 
 properties( SetAccess=private )
@@ -106,13 +107,13 @@ end
 % =========================================================================    
 methods( Static )
     %.....
-    [mHelp] = gethelptext( name )
-    %.....
-    [Att] = getmattributes( mFile )
-    %.....
     [mHelpBody] = extracthelpbody( mHelp )
     %.....
     [mHelpHeader] = extracthelpheader( mHelp, name )
+    %.....
+    [mHelp] = gethelptext( name )
+    %.....
+    [Att] = getmattributes( mFile )
     %.....
     [mType, mPath, mExist] = mfiletype( mFile )
 end
