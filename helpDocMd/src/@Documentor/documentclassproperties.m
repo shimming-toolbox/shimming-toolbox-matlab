@@ -5,7 +5,7 @@ Info = Dr.Info.Attributes ;
 
 assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
 
-docStr = [ "- - -" ; "### Properties ###" ; "" ] ;
+docStr = [ "- - -" ; "## Properties ##" ; "" ] ;
 
 if isempty( Info.PropertyList )
     docStr = [ docStr ; "" ; "[No Properties]"; "" ] ;
@@ -17,9 +17,9 @@ else
         Prop = Info.PropertyList( iProp ) ;
         
         if ~isempty( Prop.Description )
-            docStr = [ docStr ; strcat( "##### ", Prop.Name, " #####" ) ; "" ; strcat( "_", Prop.Description, "_" ) ] ;
+            docStr = [ docStr ; strcat( "#### ", Prop.Name, " ####" ) ; "" ; strcat( "_", Prop.Description, "_" ) ] ;
         else % name only
-            docStr = [ docStr ; strcat( "##### ", Prop.Name, " #####" ) ; "" ] ;
+            docStr = [ docStr ; strcat( "#### ", Prop.Name, " ####" ) ; "" ] ;
         end
         
         if ~strcmp( Prop.DetailedDescription, Prop.Description )                         
