@@ -1,16 +1,17 @@
-# Documentor # (a MATLAB(R) classdef)
+# Documentor
 
 _Custom MATLAB documentation into markup/down text files_
 
-### Description ###
+(a MATLAB&reg; classdef) 
 
+### Description 
 
 
 Writes *thorough* Matlab documentation as simple, readable
-<https://daringfireball.net/projects/markdown/ Markdown> text which is
+[Markdown](https://daringfireball.net/projects/markdown/) text which is
 
-1. Readily hosted online (e.g. <https://www.mkdocs.org/ MkDocs>,
-<https://pages.github.com/>, <https://docs.readthedocs.io/en/stable/>)
+1. Readily hosted online (e.g. [MkDocs](https://www.mkdocs.org/),
+<https://pages.github.com/>, [https://docs.readthedocs.io/en/stable/](https://docs.readthedocs.io/en/stable/))
 
 2. Does not require additional dependencies or different syntax/tagging
 from Matlab's own markup style (e.g. sphinx)
@@ -30,12 +31,12 @@ document:
 
 (TODO: add output to github page or readthedocs)
 
-To see the final output online, see <https://ADD_URL.com this> %
+To see the final output online, see [this](https://ADD_URL.com) %
 
 ### References ###
 
 To test how the .md output will appear once reformatted to HTML:
-<https://daringfireball.net/projects/markdown/dingus>
+[https://daringfireball.net/projects/markdown/dingus](https://daringfireball.net/projects/markdown/dingus)
 
     Documentation for Documentor
        doc Documentor
@@ -46,10 +47,10 @@ To test how the .md output will appear once reformatted to HTML:
 ### Class Attributes ###
 
 
-<table>
-<table border=1><tr><th>Hidden</th><th>Sealed</th><th>Abstract</th><th>Enumeration</th><th>ConstructOnLoad</th><th>HandleCompatible</th><th>RestrictsSubclassing</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Hidden</th><th>Sealed</th><th>Abstract</th><th>Enumeration</th><th>ConstructOnLoad</th><th>HandleCompatible</th><th>RestrictsSubclassing</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td>[/tr](/tr)
+[/table](/table)
 
 - InferiorClasses : [N/A] 
 - ContainingPackage : [N/A] 
@@ -67,10 +68,10 @@ _Default file extensions_
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>false</td><td>true</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>false</td><td>true</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : none
@@ -86,10 +87,10 @@ _Informer instance: Provides the info-content to document a given .m file_
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>false</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>false</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -107,10 +108,10 @@ _List of .m files to document (string scalar or vector of full file paths)_
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -127,10 +128,10 @@ _Index of next .m file in mFiles list to document_
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -148,10 +149,10 @@ _Toggle whether to overwrite existing documentation files_
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -167,10 +168,10 @@ _Toggle whether subdirectories are included in file search (multiple input case 
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -190,10 +191,10 @@ TODO use mapdirectorytree.m or something to figure out the subdirectory structur
 (for now, just dumping all documentation into single folder - dirOutTop
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td><td>false</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td><td>false</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -211,10 +212,10 @@ _Output parent directory for the doc files_
 See also HelpDocMd.isSaveRecursive
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -231,10 +232,10 @@ _Reformated documentation_
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -255,10 +256,10 @@ The sole difference between "mkd" and "mat" (for now) is that "mkd" will
 reformat the style of any embedded links in the comments.
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -279,10 +280,10 @@ When false, classes and class members with private, protected, or hidden
 attributes are excluded from the output documentation. [default = true]
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -298,10 +299,10 @@ _Input/Matlab file extension_
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -318,10 +319,10 @@ _Input names (without directory path or file extension)_
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -338,10 +339,10 @@ _Output file extension (default = ".md")_
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : public
 - SetAccess : public
@@ -358,10 +359,10 @@ _parent folder of mFiles(iM)_
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>true</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>true</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : private
 - SetAccess : private
@@ -378,10 +379,10 @@ _top directory of src mFiles_
 
 
 
-<table>
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th></tr>
-<tr><td>true</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>true</td></tr>
-</table>
+[table](table)
+<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
+<tr><td>true</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>true</td>[/tr](/tr)
+[/table](/table)
 
 - GetAccess : private
 - SetAccess : private
@@ -407,10 +408,10 @@ Validator functions: mustBeStringOrChar
 Description: 
 
 Writes *thorough* Matlab documentation as simple, readable
-<https://daringfireball.net/projects/markdown/ Markdown> text which is
+[Markdown](https://daringfireball.net/projects/markdown/) text which is
 
-1. Readily hosted online (e.g. <https://www.mkdocs.org/ MkDocs>,
-<https://pages.github.com/>, <https://docs.readthedocs.io/en/stable/>)
+1. Readily hosted online (e.g. [MkDocs](https://www.mkdocs.org/),
+<https://pages.github.com/>, [https://docs.readthedocs.io/en/stable/](https://docs.readthedocs.io/en/stable/))
 
 2. Does not require additional dependencies or different syntax/tagging
 from Matlab's own markup style (e.g. sphinx)
@@ -430,19 +431,23 @@ document:
 
 (TODO: add output to github page or readthedocs)
 
-To see the final output online, see <https://ADD_URL.com this> %
+To see the final output online, see [this](https://ADD_URL.com) %
 
 ### References ###
 
 To test how the .md output will appear once reformatted to HTML:
-<https://daringfireball.net/projects/markdown/dingus>
+[https://daringfireball.net/projects/markdown/dingus](https://daringfireball.net/projects/markdown/dingus)
+
+
+
+#### Attributes: ####
+
+[table](table)
+<table border=1><tr><th>Static</th><th>Abstract</th><th>Sealed</th><th>ExplicitConversion</th><th>Hidden</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td>[/tr](/tr)
+[/table](/table)
 
 - Access : public
-- Static : false
-- Abstract : false
-- Sealed : false
-- ExplicitConversion : false
-- Hidden : false
 - InputNames : pathIn, Params
 - OutputNames : Dr
 - DefiningClass : Documentor
@@ -466,12 +471,16 @@ contents of Self.mdDoc.
 
 To enable overwriting of existing files, set Self.isOverwriting = true
 
+
+
+#### Attributes: ####
+
+[table](table)
+<table border=1><tr><th>Static</th><th>Abstract</th><th>Sealed</th><th>ExplicitConversion</th><th>Hidden</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td>[/tr](/tr)
+[/table](/table)
+
 - Access : public
-- Static : false
-- Abstract : false
-- Sealed : false
-- ExplicitConversion : false
-- Hidden : false
 - InputNames : Dr
 - OutputNames : pathOut
 - DefiningClass : Documentor
@@ -506,12 +515,16 @@ present in the list, methods .m files are removed.
 TODO give user option of documenting retaining these methods files if for
 some reason there is a need to document them independently of the class?
 
+
+
+#### Attributes: ####
+
+[table](table)
+<table border=1><tr><th>Static</th><th>Abstract</th><th>Sealed</th><th>ExplicitConversion</th><th>Hidden</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td>[/tr](/tr)
+[/table](/table)
+
 - Access : public
-- Static : false
-- Abstract : false
-- Sealed : false
-- ExplicitConversion : false
-- Hidden : false
 - InputNames : Dr, pathIn
 - OutputNames : mFiles
 - DefiningClass : Documentor
@@ -528,12 +541,16 @@ Description:
 
 tableStr = GETHELPTEXT( Attributes )
 
+
+
+#### Attributes: ####
+
+[table](table)
+<table border=1><tr><th>Static</th><th>Abstract</th><th>Sealed</th><th>ExplicitConversion</th><th>Hidden</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td>[/tr](/tr)
+[/table](/table)
+
 - Access : private
-- Static : false
-- Abstract : false
-- Sealed : false
-- ExplicitConversion : false
-- Hidden : false
 - InputNames : Dr, Attributes
 - OutputNames : tableStr
 - DefiningClass : Documentor
@@ -548,12 +565,16 @@ tableStr = GETHELPTEXT( Attributes )
 
 Description: 
 
+
+
+#### Attributes: ####
+
+[table](table)
+<table border=1><tr><th>Static</th><th>Abstract</th><th>Sealed</th><th>ExplicitConversion</th><th>Hidden</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td>[/tr](/tr)
+[/table](/table)
+
 - Access : private
-- Static : false
-- Abstract : false
-- Sealed : false
-- ExplicitConversion : false
-- Hidden : false
 - InputNames : Dr
 - OutputNames : docStr
 - DefiningClass : Documentor
@@ -568,12 +589,16 @@ Description:
 
 Description: 
 
+
+
+#### Attributes: ####
+
+[table](table)
+<table border=1><tr><th>Static</th><th>Abstract</th><th>Sealed</th><th>ExplicitConversion</th><th>Hidden</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td>[/tr](/tr)
+[/table](/table)
+
 - Access : private
-- Static : false
-- Abstract : false
-- Sealed : false
-- ExplicitConversion : false
-- Hidden : false
 - InputNames : Dr
 - OutputNames : docStr
 - DefiningClass : Documentor
@@ -592,12 +617,16 @@ DOCUMENTCLASSDEF documents basic class attributes followed by class member
 documentation (courtesy of calls to Documentor.documentclassproperties and
 Documentator.documementclassmethods)
 
+
+
+#### Attributes: ####
+
+[table](table)
+<table border=1><tr><th>Static</th><th>Abstract</th><th>Sealed</th><th>ExplicitConversion</th><th>Hidden</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td>[/tr](/tr)
+[/table](/table)
+
 - Access : private
-- Static : false
-- Abstract : false
-- Sealed : false
-- ExplicitConversion : false
-- Hidden : false
 - InputNames : Dr
 - OutputNames : docStr
 - DefiningClass : Documentor
@@ -618,12 +647,16 @@ DOCUMENTBASIC Documents the following .m file details:
 - Description: header line from the help/documentation
 - DetailedDescription: body of the help/documentation
 
+
+
+#### Attributes: ####
+
+[table](table)
+<table border=1><tr><th>Static</th><th>Abstract</th><th>Sealed</th><th>ExplicitConversion</th><th>Hidden</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td>[/tr](/tr)
+[/table](/table)
+
 - Access : private
-- Static : false
-- Abstract : false
-- Sealed : false
-- ExplicitConversion : false
-- Hidden : false
 - InputNames : Dr
 - OutputNames : docStr
 - DefiningClass : Documentor
@@ -639,7 +672,7 @@ DOCUMENTBASIC Documents the following .m file details:
 Description: 
 
 Reformat links and link-text to Markdown syntax:
-i.e. MATLAB markup uses: <https://www.thisSite.com text to display>
+i.e. MATLAB markup uses: [texttodisplay](https://www.thisSite.com)
 whereas Markdown uses: [text to display](https://www.thisSite.com)
 
 ### Syntax ###
@@ -655,12 +688,16 @@ or relative paths could be used for Mkdocs build.
 Moreover, it doesn't distinguish between links and embedded HTML, so it
 messes up the latter (see: Documentor.tableattributes)
 
+
+
+#### Attributes: ####
+
+[table](table)
+<table border=1><tr><th>Static</th><th>Abstract</th><th>Sealed</th><th>ExplicitConversion</th><th>Hidden</th>[/tr](/tr)
+<tr><td>true</td><td>false</td><td>false</td><td>false</td><td>false</td>[/tr](/tr)
+[/table](/table)
+
 - Access : public
-- Static : true
-- Abstract : false
-- Sealed : false
-- ExplicitConversion : false
-- Hidden : false
 - InputNames : muDocStr
 - OutputNames : mdDocStr
 - DefiningClass : Documentor
@@ -677,12 +714,16 @@ Description:
 (NOTE: for now, this is just nArgin/nArgout but this should be elaborated
 in Informer.m -- e.g. by parsing the function arguments block when it exists)
 
+
+
+#### Attributes: ####
+
+[table](table)
+<table border=1><tr><th>Static</th><th>Abstract</th><th>Sealed</th><th>ExplicitConversion</th><th>Hidden</th>[/tr](/tr)
+<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td>[/tr](/tr)
+[/table](/table)
+
 - Access : public
-- Static : false
-- Abstract : false
-- Sealed : false
-- ExplicitConversion : false
-- Hidden : false
 - InputNames : varargin
 - OutputNames : varargout
 - DefiningClass : Documentor
@@ -695,12 +736,16 @@ in Informer.m -- e.g. by parsing the function arguments block when it exists)
 
  _Returns an empty object array of the given size_ 
 
+
+
+#### Attributes: ####
+
+[table](table)
+<table border=1><tr><th>Static</th><th>Abstract</th><th>Sealed</th><th>ExplicitConversion</th><th>Hidden</th>[/tr](/tr)
+<tr><td>true</td><td>false</td><td>false</td><td>false</td><td>true</td>[/tr](/tr)
+[/table](/table)
+
 - Access : public
-- Static : true
-- Abstract : false
-- Sealed : false
-- ExplicitConversion : false
-- Hidden : true
 - InputNames : varargin
 - OutputNames : E
 - DefiningClass : Documentor

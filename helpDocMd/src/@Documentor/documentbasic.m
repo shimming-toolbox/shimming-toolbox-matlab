@@ -13,8 +13,8 @@ assert( ~strcmp(Info.mType, "NA"), 'Invalid mFile' ) ;
 
 docStr = [ strcat( "# ", Info.Name ) ; "" ];
 docStr = [ docStr ; strcat(  "_", Info.Description, "_" ) ; "" ] ;
-docStr = [ docStr ;  strcat( "(a MATLAB(R) ", Info.mType, ") " ) ; "" ] ;
-docStr = [ docStr ; "### Description ###"; "" ; Info.DetailedDescription ; "" ] ;
+docStr = [ docStr ;  strcat( "(a MATLAB&reg; ", Info.mType, ") " ) ; "" ] ;
+docStr = [ docStr ; "### Description "; "" ; Info.DetailedDescription ; "" ] ;
 
 end 
 
