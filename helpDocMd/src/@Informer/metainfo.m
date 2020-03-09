@@ -1,9 +1,9 @@
 function [Att] = metainfo( MetaObj )
 %EXTRACTMETAINFO Return info (struct) derived from a meta.object
 % 
-% ### Syntax ###
-%
-% Att = metainfo( MetaObj )
+% ### Syntax
+%    
+%    Att = metainfo( MetaObj )
 %
 % Useful properties of meta[.class/.property/.method] object 'MetaObj' are
 % copied to the fields of struct Att

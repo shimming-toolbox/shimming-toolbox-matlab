@@ -3,15 +3,15 @@ function [mType, mPath, mExist] = mfiletype( mFile )
 % 
 % MFILETYPE returns the type of .m file(s) as a string (or string vector). 
 %
-% ### Syntax ###
-%
-% [mType] = MFILETYPE( mFile )
-% [mType, mPath] = MFILETYPE( mFile )
-% [mType, mPath, mExist] = MFILETYPE( mFile )
+% ### Syntax
+%    
+%    [mType] = MFILETYPE( mFile )
+%    [mType, mPath] = MFILETYPE( mFile )
+%    [mType, mPath, mExist] = MFILETYPE( mFile )
 % 
-% ### Usage ###
+% ### Usage
 %
-% [mType] = MFILETYPE( mFile )
+%    [mType] = MFILETYPE( mFile )
 %
 % mFile must be a valid file path (or set of file paths) as a string array,
 % char array, or cell of character vectors (aka "cell-string").
@@ -27,7 +27,7 @@ function [mType, mPath, mExist] = mfiletype( mFile )
 % 
 % Returns string vector 'mPath' of the full file paths.
 %
-% [mType, mPath, mExist] = MFILETYPE( mFile )
+%    [mType, mPath, mExist] = MFILETYPE( mFile )
 %
 % Returns vector of doubles 'mExist': the return values from MATLAB exist() for
 % each of the files. Note that the call is made with the single path argument,
@@ -35,7 +35,7 @@ function [mType, mPath, mExist] = mfiletype( mFile )
 % will return "2" for all of the above cases (even when the file merely ends in
 % '.m' but is not a MATLAB file.) 
 %
-% ### References ###
+% ### References
 %
 % See also:
 %
