@@ -5,7 +5,7 @@ Info = Dr.Info.Attributes ;
 
 assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
 
-docStr = [ "---" ; "### Methods ###" ; "" ] ;
+docStr = [ "---" ; "## Methods ##" ; "" ] ;
 
 if isempty( Info.MethodList )
     docStr = [ docStr ; "" ; "[No Methods]"; "" ] ;
@@ -18,15 +18,15 @@ else
          
         if contains( which( Mthd.DefiningClass ), 'built-in' ) 
         % MATLAB built-in method: include name and defining class only:
-            docStr(end+1) = strcat( "### ", Mthd.Name ) ;
+            docStr(end+1) = strcat( "### ", Mthd.Name, " ###" ) ;
             docStr(end+1) = [ "[ _built-in method derived from *" + Mthd.DefiningClass + "* class_ ]" ];
             docStr(end+1) = strcat( "For more info, see MATLAB documentation]" ) ;
         else
             if ~isempty( Mthd.Description )
-                docStr = [ docStr ; "" ; strcat( "### ", Mthd.Name ) ; "" ] ; 
+                docStr = [ docStr ; "" ; strcat( "### ", Mthd.Name, " ###" ) ; "" ] ; 
                 docStr = [ docStr ; "" ; strcat( " _", Mthd.Description, "_ " ) ; "" ] ;
             else 
-                docStr = [ docStr ; "" ; strcat( "### ", Mthd.Name ) ; "" ] ;
+                docStr = [ docStr ; "" ; strcat( "### ", Mthd.Name, " ###") ; "" ] ;
             end
 
             if ~isempty( Mthd.DetailedDescription )
