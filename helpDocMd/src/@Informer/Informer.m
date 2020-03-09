@@ -1,30 +1,36 @@
 classdef Informer
 %INFORMER Details the functionality of a .m file
 % 
-% An INFORMER object instance describes a given .m file (i.e. a script,
-% function, class method, or classdef file).
+% An INFORMER object describes a given .m file (i.e. a script, function, class
+% method, or classdef file).
 %
-% The INFORMER class serves to _inform_ the *Documentor* class regarding the
-% content of .m files: providing the funtional details needed to
-% document them.
+% The INFORMER class _informs_ the *Documentor* class about the content of .m
+% files: providing the funtional details needed to document them.
 %
-% ### Syntax ###
-%
-% Info = Informer( mFile ) ;
+% ### Syntax
+%    
+%    Info = Informer( mFile ) ;
 % 
-% ### Inputs ###
+% ### Inputs
 % 
 % - mFile: full file path to the .m file of interest.
 %
-% ### Usage ###
+% ### Usage
 % 
+% In the general/anticipated use case, a user merely interacts with an Informer
+% instance indirectly, as a member property of a Documentor object; however,
+% an Informer object can be constructed independently as indicated above.
+%
 % Informer only has two properties public properties: mFile and Attributes,
 % a struct storing all available information on the .m file. Info.Attributes
-% cannot be set directly, but is updated each time Info.mFile is set.
+% cannot be set directly, but is updated each time Info.mFile is set. The
+% read-only fields of Informer.Attributes depend on the given .m-file type and
+% should be fairly self-explanatory given the field names; nevertheless, more
+% detail is available in the method documentation for Informer.getmattributes.
 
 properties( AbortSet = true )
 
-    % .m file path : Attributes property will update whenever mFile is set
+    % .m file path: Attributes property will update whenever mFile is set
     mFile {mustBeFile} = string( [ mfilename('fullpath') '.m'] ) ;
 end
 
