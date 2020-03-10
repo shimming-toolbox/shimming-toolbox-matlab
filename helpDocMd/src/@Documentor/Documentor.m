@@ -1,35 +1,37 @@
 classdef Documentor < handle
-%DOCUMENTOR Custom MATLAB documentation into markup/down text files
+%DOCUMENTOR Custom Matlab documentation into markup/down text files
 % 
-% The DOCUMENTOR class serves to write custom Matlab documentation as simple,
-% readable text files (i.e. <https://daringfireball.net/projects/markdown/ Markdown>).
-% Specifically, it serves to produce documentation that is readily hosted
-% online (e.g. <https://www.mkdocs.org/ MkDocs>, <https://pages.github.com/>,
-% <https://docs.readthedocs.io/en/stable/>) without the need for external
-% dependencies or tagging syntaxes that differ from Matlab's own markup style
-% (e.g. <https://github.com/sphinx-contrib/matlabdomain sphinx>).
+% The DOCUMENTOR class serves to print custom Matlab documentation to file 
+% (e.g. as <https://daringfireball.net/projects/markdown/ Markdown>)
+% while avoiding external dependencies (e.g. <https://github.com/sphinx-contrib/matlabdomain sphinx>)
+% and tagging syntaxes at odds with Matlab's own style of
+% <https://www.mathworks.com/help/matlab/matlab_prog/marking-up-matlab-comments-for-publishing.html markup>
 %
+% Viz., given a list of 
+% <https://www.mathworks.com/help/matlab/matlab_prog/add-help-for-your-program.html properly> 
+% commented .m files, a DOCUMENTOR instance outputs simple, readable text files
+% which are readily hosted online.
+%
+% ### <https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md Example>
+% 
 % ### Usage
 %
 % Create a Documentor instance with the list of .m file paths of interest, then
-% call `write` to write to file: 
+% call `printdoc` to write to file: 
+%    
+%    Dr = Documentor( mFiles ) ;  
 % 
-% ` 
-% Dr = Documentor( mFiles ) ;
-% Dr.write ; 
-% `
-%
-% ### Example
-% 
-% <https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md helpDocMd>
-% 
-% (TODO: replace with link to github page or readthedocs page with the complete
-% documentation for the entire helpDocMd code library)
+%    Dr.printdoc ; 
 % 
 % ### References
-% 
-% To test how the .md output will appear once reformatted to HTML:
-% <https://daringfireball.net/projects/markdown/dingus>
+%
+% To test how a markdown sample will display when reformatted to HTML:
+% - <https://daringfireball.net/projects/markdown/dingus>
+%
+% Re: hosting documentation online:
+% - <https://www.mkdocs.org/ MkDocs>, 
+% - <https://pages.github.com/ Github>,
+% - <https://docs.readthedocs.io/en/stable/ ReadTheDocs>
 
 properties( Constant )
 
@@ -215,9 +217,9 @@ end
 % =========================================================================    
 methods
     %.....
-    [mFiles]    = findfilestodocument( Dr, pathIn ) ;
+    [mFiles]    = findfilestodocument( Dr, pathIn )
     %.....
-    [ pathOut ] = write( Dr )
+    [ pathOut ] = printdoc( Dr )
 end
 % =========================================================================    
 % =========================================================================    
