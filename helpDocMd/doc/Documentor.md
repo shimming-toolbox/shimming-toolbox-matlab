@@ -1,11 +1,8 @@
 # Documentor
 
-_Custom MATLAB documentation into markup/down text files_
+**Filetype:** _MATLAB&reg; classdef_
 
-(a MATLAB&reg; classdef) 
-
-### Description 
-
+**Synopsis:** _Custom MATLAB documentation into markup/down text files_
 
 Writes *thorough* Matlab documentation as simple, readable
 [Markdown](https://daringfireball.net/projects/markdown/) text which is
@@ -29,9 +26,10 @@ document:
 
 ### Example Output ###
 
-(TODO: add output to github page or readthedocs)
+[DocumentorClass](https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md)
 
-To see the final output online, see [this](https://ADD_URL.com) %
+(TODO: replace with link to github page or readthedocs page with the complete
+documentation for the entire helpMeDoc code library)
 
 ### References ###
 
@@ -40,8 +38,6 @@ To test how the .md output will appear once reformatted to HTML:
 
     Documentation for Documentor
        doc Documentor
-
-
 
 
 ### Class Attributes ###
@@ -59,14 +55,14 @@ To test how the .md output will appear once reformatted to HTML:
 - Superclasses: handle
 
 - - -
-### Properties ###
+## Properties ##
 
 
-##### Ext #####
+#### Ext ####
 
 _Default file extensions_
 
-
+  Default file extensions
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
@@ -81,11 +77,11 @@ _Default file extensions_
 - Validation : [N/A] 
 - DefiningClass : Documentor
 
-##### Info #####
+#### Info ####
 
 _Informer instance: Provides the info-content to document a given .m file_
 
-
+  Informer instance: Provides the info-content to document a given .m file
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
@@ -102,11 +98,11 @@ Class: Informer
 Validator functions: 
 - DefiningClass : Documentor
 
-##### mFiles #####
+#### mFiles ####
 
 _List of .m files to document (string scalar or vector of full file paths)_
 
-
+  List of .m files to document (string scalar or vector of full file paths)
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
@@ -122,11 +118,11 @@ _List of .m files to document (string scalar or vector of full file paths)_
 Validator functions: mustBeFile
 - DefiningClass : Documentor
 
-##### iM #####
+#### iM ####
 
 _Index of next .m file in mFiles list to document_
 
-
+  Index of next .m file in mFiles list to document
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
@@ -143,11 +139,11 @@ Class: uint64
 Validator functions: mustBePositive,mustBeInteger
 - DefiningClass : Documentor
 
-##### isOverwriting #####
+#### isOverwriting ####
 
 _Toggle whether to overwrite existing documentation files_
 
-
+  Toggle whether to overwrite existing documentation files
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th>[/tr](/tr)
@@ -162,11 +158,11 @@ _Toggle whether to overwrite existing documentation files_
 Validator functions: mustBeNumericOrLogical
 - DefiningClass : Documentor
 
-##### isSearchRecursive #####
+#### isSearchRecursive ####
 
 _Toggle whether subdirectories are included in file search (multiple input case only)_
 
-
+  Toggle whether subdirectories are included in file search (multiple input case only)
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th>[/tr](/tr)
@@ -181,15 +177,13 @@ _Toggle whether subdirectories are included in file search (multiple input case 
 Validator functions: mustBeNumericOrLogical
 - DefiningClass : Documentor
 
-##### isSaveRecursive #####
+#### isSaveRecursive ####
 
 _Recreates original directory tree in dirOut (multiple doc output case only)_
-
 
 See also HelpDocMd.isSeachRecursive
 TODO use mapdirectorytree.m or something to figure out the subdirectory structure to use and change the default to TRUE.
 (for now, just dumping all documentation into single folder - dirOutTop
-
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th>[/tr](/tr)
@@ -204,13 +198,12 @@ TODO use mapdirectorytree.m or something to figure out the subdirectory structur
 Validator functions: mustBeNumericOrLogical
 - DefiningClass : Documentor
 
-##### dirOutTop #####
+#### dirOutTop ####
 
 _Output parent directory for the doc files_
 
 
 See also HelpDocMd.isSaveRecursive
-
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
@@ -226,11 +219,11 @@ See also HelpDocMd.isSaveRecursive
 Validator functions: mustBeStringOrChar
 - DefiningClass : Documentor
 
-##### mdDoc #####
+#### mdDoc ####
 
 _Reformated documentation_
 
-
+  Reformated documentation
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
@@ -247,14 +240,12 @@ Class: string
 Validator functions: mustBeStringOrChar
 - DefiningClass : Documentor
 
-##### syntax #####
+#### syntax ####
 
 _String specifier for output syntax: "mkd" (for Mkdocs markdown), "mat" (for MATLAB markup)_
 
-
 The sole difference between "mkd" and "mat" (for now) is that "mkd" will
 reformat the style of any embedded links in the comments.
-
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
@@ -271,14 +262,12 @@ Class: string
 Validator functions: @(syntax)mustBeMember(syntax,["mat","mkd"])
 - DefiningClass : Documentor
 
-##### isDetailed #####
+#### isDetailed ####
 
 _Toggles between basic/user (=false) and detailed/developer documentation (=true) [default: true]_
 
-
 When false, classes and class members with private, protected, or hidden
 attributes are excluded from the output documentation. [default = true]
-
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th><th>DefaultValue</th>[/tr](/tr)
@@ -293,51 +282,11 @@ attributes are excluded from the output documentation. [default = true]
 Validator functions: mustBeBoolean
 - DefiningClass : Documentor
 
-##### extIn #####
-
-_Input/Matlab file extension_
-
-
-
-[table](table)
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td>[/tr](/tr)
-[/table](/table)
-
-- GetAccess : public
-- SetAccess : public
-- GetMethod : 
-- SetMethod : 
-- DefaultValue : .m
-- Validation: 
-Validator functions: mustBeStringOrChar
-- DefiningClass : Documentor
-
-##### nameIn #####
-
-_Input names (without directory path or file extension)_
-
-
-
-[table](table)
-<table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
-<tr><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>false</td><td>true</td><td>false</td><td>true</td>[/tr](/tr)
-[/table](/table)
-
-- GetAccess : public
-- SetAccess : public
-- GetMethod : 
-- SetMethod : 
-- DefaultValue : Documentor
-- Validation: 
-Validator functions: mustBeStringOrChar
-- DefiningClass : Documentor
-
-##### extOut #####
+#### extOut ####
 
 _Output file extension (default = ".md")_
 
-
+  Output file extension (default = ".md")
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
@@ -353,11 +302,11 @@ _Output file extension (default = ".md")_
 Validator functions: mustBeStringOrChar
 - DefiningClass : Documentor
 
-##### mDir #####
+#### mDir ####
 
 _parent folder of mFiles(iM)_
 
-
+  parent folder of mFiles(iM)  
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
@@ -373,11 +322,11 @@ _parent folder of mFiles(iM)_
 Validator functions: mustBeFolder
 - DefiningClass : Documentor
 
-##### dirInTop #####
+#### dirInTop ####
 
 _top directory of src mFiles_
 
-
+  top directory of src mFiles
 
 [table](table)
 <table border=1><tr><th>Dependent</th><th>Constant</th><th>Abstract</th><th>Transient</th><th>Hidden</th><th>GetObservable</th><th>SetObservable</th><th>AbortSet</th><th>NonCopyable</th><th>HasDefault</th>[/tr](/tr)
@@ -394,19 +343,18 @@ Validator functions: mustBeStringOrChar
 - DefiningClass : Documentor
 
 ---
-### Methods ###
+## Methods ##
 
 
 ---
 
 
-### Documentor
+### Documentor ###
 
 
  _Custom MATLAB documentation into markup/down text files_ 
 
 Description: 
-
 Writes *thorough* Matlab documentation as simple, readable
 [Markdown](https://daringfireball.net/projects/markdown/) text which is
 
@@ -429,15 +377,15 @@ document:
 
 ### Example Output ###
 
-(TODO: add output to github page or readthedocs)
+[DocumentorClass](https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md)
 
-To see the final output online, see [this](https://ADD_URL.com) %
+(TODO: replace with link to github page or readthedocs page with the complete
+documentation for the entire helpMeDoc code library)
 
 ### References ###
 
 To test how the .md output will appear once reformatted to HTML:
 [https://daringfireball.net/projects/markdown/dingus](https://daringfireball.net/projects/markdown/dingus)
-
 
 
 #### Attributes: ####
@@ -455,22 +403,19 @@ To test how the .md output will appear once reformatted to HTML:
 ---
 
 
-### write
+### write ###
 
 
  _Write documentation to file_ 
 
 Description: 
+### Syntax
+     
+     [pathOut] = write( Self ) 
 
-WRITE creates (or, optionally, overwrites) a .md file and writes to it the
-contents of Self.mdDoc.
-
-### Syntax ###
-
-[pathOut] = write( Self )
-
-To enable overwriting of existing files, set Self.isOverwriting = true
-
+writes the contents of Self.mdDoc to file. To _overwrite_ an existing file,
+before calling WRITE, set
+      Self.isOverwriting = true
 
 
 #### Attributes: ####
@@ -488,33 +433,28 @@ To enable overwriting of existing files, set Self.isOverwriting = true
 ---
 
 
-### findfilestodocument
+### findfilestodocument ###
 
 
  _Return list of .m files to document from directory search_ 
 
 Description: 
-
 FINDFILESTODOCUMENT searches a directory for .m files and then removes any
-class method files from the list (methods are documented as part of the
+class method files from the list (methods are included as part of the
 overall class documentation).
 
-### Syntax ###
+### Syntax
+     
+     mFiles = Dr.FINDFILESTODOCUMENT( pathIn )
 
-mFiles = Dr.FINDFILESTODOCUMENT( pathIn )
-
-### Implementation Details ###
+### Implementation details
 
 FINDFILESTODOCUMENT wraps to findfiles with the function call:
-    
-    [~,mFiles] = findfiles( folder, "*.m", Dr.isSearchRecursive ) ;
+      
+     [~,mFiles] = findfiles( folder, "*.m", Dr.isSearchRecursive ) ;
 
 .m file types are then determined using Informer.mfiletype( mFiles ) and, if
 present in the list, methods .m files are removed.
-     
-TODO give user option of documenting retaining these methods files if for
-some reason there is a need to document them independently of the class?
-
 
 
 #### Attributes: ####
@@ -532,7 +472,7 @@ some reason there is a need to document them independently of the class?
 ---
 
 
-### tableattributes
+### tableattributes ###
 
 
  _Return html-table of class/classmember attributes_ 
@@ -540,7 +480,6 @@ some reason there is a need to document them independently of the class?
 Description: 
 
 tableStr = GETHELPTEXT( Attributes )
-
 
 
 #### Attributes: ####
@@ -558,13 +497,13 @@ tableStr = GETHELPTEXT( Attributes )
 ---
 
 
-### documentclassproperties
+### documentclassproperties ###
 
 
  _Return string vector of class property documentation_ 
 
 Description: 
-
+ DOCUMENTCLASSPROPERTIES Return string vector of class property documentation
 
 
 #### Attributes: ####
@@ -582,13 +521,13 @@ Description:
 ---
 
 
-### documentclassmethods
+### documentclassmethods ###
 
 
  _Return string vector of class method documentation_ 
 
 Description: 
-
+ DOCUMENTCLASSMETHODS Return string vector of class method documentation
 
 
 #### Attributes: ####
@@ -606,17 +545,15 @@ Description:
 ---
 
 
-### documentclassdef
+### documentclassdef ###
 
 
  _Return string vector of class documentation_ 
 
 Description: 
-
 DOCUMENTCLASSDEF documents basic class attributes followed by class member
 documentation (courtesy of calls to Documentor.documentclassproperties and
 Documentator.documementclassmethods)
-
 
 
 #### Attributes: ####
@@ -634,13 +571,12 @@ Documentator.documementclassmethods)
 ---
 
 
-### documentbasic
+### documentbasic ###
 
 
  _Return string vector of rudimentary documentation for all .m file types_ 
 
 Description: 
-
 DOCUMENTBASIC Documents the following .m file details:
 - Name : of the script, function, or class
 - Type: script, function, or class
@@ -648,7 +584,6 @@ DOCUMENTBASIC Documents the following .m file details:
 - DetailedDescription: body of the help/documentation
 
 
-
 #### Attributes: ####
 
 [table](table)
@@ -664,13 +599,12 @@ DOCUMENTBASIC Documents the following .m file details:
 ---
 
 
-### markuptodown
+### markuptodown ###
 
 
  _Replace MATLAB Markup elements with corresponding Mkdocs-style Markdown_ 
 
 Description: 
-
 Reformat links and link-text to Markdown syntax:
 i.e. MATLAB markup uses: [texttodisplay](https://www.thisSite.com)
 whereas Markdown uses: [text to display](https://www.thisSite.com)
@@ -689,7 +623,6 @@ Moreover, it doesn't distinguish between links and embedded HTML, so it
 messes up the latter (see: Documentor.tableattributes)
 
 
-
 #### Attributes: ####
 
 [table](table)
@@ -705,7 +638,7 @@ messes up the latter (see: Documentor.tableattributes)
 ---
 
 
-### documentfunction
+### documentfunction ###
 
 
  _adds function-specific info to documentation_ 
@@ -713,7 +646,6 @@ messes up the latter (see: Documentor.tableattributes)
 Description: 
 (NOTE: for now, this is just nArgin/nArgout but this should be elaborated
 in Informer.m -- e.g. by parsing the function arguments block when it exists)
-
 
 
 #### Attributes: ####
@@ -731,7 +663,7 @@ in Informer.m -- e.g. by parsing the function arguments block when it exists)
 ---
 
 
-### empty
+### empty ###
 
 
  _Returns an empty object array of the given size_ 
@@ -752,132 +684,132 @@ in Informer.m -- e.g. by parsing the function arguments block when it exists)
 
 ---
 
-### eq
+### eq ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### ne
+### ne ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### lt
+### lt ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### gt
+### gt ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### le
+### le ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### ge
+### ge ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### delete
+### delete ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### isvalid
+### isvalid ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### findprop
+### findprop ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### notify
+### notify ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### notify
+### notify ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### addlistener
+### addlistener ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### listener
+### listener ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### addlistener
+### addlistener ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### listener
+### listener ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### addlistener
+### addlistener ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### listener
+### listener ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### addlistener
+### addlistener ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### listener
+### listener ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### addlistener
+### addlistener ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### listener
+### listener ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
 
 ---
 
-### findobj
+### findobj ###
 [ _built-in method derived from *handle* class_ ]
 For more info, see MATLAB documentation]
