@@ -82,6 +82,8 @@ properties( AbortSet )
     % 
     % When false, classes and class members with private, protected, or hidden
     % attributes are excluded from the output documentation. [default = true]
+    %
+    % TODO: implementation!
     isDetailed(1,1) {mustBeBoolean} = true ;
 
     % Output file extension (default = ".md")
@@ -225,7 +227,7 @@ end
 % =========================================================================    
 methods( Access=private )
     %..... 
-    [docStr] = documentbasic( Dr )
+    [docStr] = documentbasic( Dr, Att, headingLevel )
     %.....
     [docStr] = documentclassdef( Dr )
     %.....

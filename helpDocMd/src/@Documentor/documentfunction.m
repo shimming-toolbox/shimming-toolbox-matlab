@@ -3,17 +3,17 @@ function [docStr] = documentfunction( Dr )
 % (NOTE: for now, this is just nArgin/nArgout but this should be elaborated
 % in Informer.m -- e.g. by parsing the function arguments block when it exists)
 
-Info = Dr.Info.Attributes ;
+assert( Dr.Info.mType=="function", 'mFile is not a function' ) ;
 
-assert( Info.mType=="function", 'mFile is not a function' ) ;
+Info   = Dr.Info.Attributes ;
 
-docStr = documentbasic( Dr ) ;
+docStr = Dr.documentbasic( ) ;
 
 % remove fields included in documentbasic 
 Info   = rmfield( Info, ["mType" ; "Name" ; "Description" ; "DetailedDescription"] ) ;
 fields = string( fieldnames( Info ) ) ;
 
-docStr = [docStr ; "" ; "### Attributes  "] ;
+docStr = [docStr ; "" ; "### Attributes" ; "" ] ;
 
 for iField = 1 : numel(fields)
     field = char( fields( iField ) ) ;

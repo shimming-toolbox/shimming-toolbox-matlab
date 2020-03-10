@@ -5,49 +5,25 @@ Info = Dr.Info.Attributes ;
 
 assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
 
-docStr = [ "- - -" ; "## Properties ##" ; "" ] ;
+docStr = [ "- - -" ; "## Properties" ; "" ] ;
 
 if isempty( Info.PropertyList )
     docStr = [ docStr ; "" ; "[No Properties]"; "" ] ;
     return ;
 else
     for iProp = 1 : numel( Info.PropertyList ) 
-        docStr = [ docStr ; "" ] ;
 
         Prop = Info.PropertyList( iProp ) ;
         
-        if ~isempty( Prop.Description )
-            docStr = [ docStr ; strcat( "#### ", Prop.Name, " ####" ) ; "" ; strcat( "_", Prop.Description, "_" ) ] ;
-        else % name only
-            docStr = [ docStr ; strcat( "#### ", Prop.Name, " ####" ) ; "" ] ;
-        end
-        
-        if ~strcmp( Prop.DetailedDescription, Prop.Description )                         
-        % NOTE: could change Informer so it doesn't fill DetailedDescription with the copy of Description
-            docStr = [ docStr ; "" ; Prop.DetailedDescription ] ;
-        end
+        if Dr.isDetailed || ( strcmp( Prop.GetAccess, 'public' ) && ~Prop.Hidden )
             
-        Prop = rmfield( Prop, {'Name'; 'Description' ; 'DetailedDescription'} ) ;
-        
-        if Dr.isDetailed
+            docStr = [ docStr ; "" ; Dr.documentbasic( Prop, 3 ) ] ;
+            % remove fields addressed already in documentbasic
+            Prop = rmfield( Prop, {'Name'; 'Description' ; 'DetailedDescription'} ) ;
 
-            propFields  = fieldnames( Prop ) ;
-
-            %% Place basic (logical) attributes into an HTML table
-            % i.e.:
-            % basicFields = { 'Dependent', 'Constant', 'Abstract', 'Transient', 'Hidden' ; ...
-            %             'GetObservable', 'SetObservable', 'AbortSet', 'NonCopyable', 'HasDefault' } ;
-            basicFields = propFields( structfun( @islogical, Prop ) ) ;
+            [attTable, Prop] = tablelogicalattributes( Prop ) ;
+            docStr     = [ docStr ; attTable ; "" ] ;
             
-            for iF = 1 : numel( basicFields )
-               BasicAttributes.( basicFields{iF} ) = Prop.( basicFields{iF} ) ;
-            end
-            
-            docStr = [ docStr ; "" ; Dr.tableattributes( BasicAttributes ) ; "" ] ;
-            clear BasicAttributes ;
-            Prop = rmfield( Prop, basicFields ) ;
-            
-            %% 
             propFields = fieldnames( Prop ) ;
          
             for iField = 1 : length( propFields ) 
@@ -76,67 +52,21 @@ else
     end
 end
 
+function [ attTable, Prop] = tablelogicalattributes( Prop )
+%TABLELOGICALATTRIBUTES Document logical attributes as an HTML table
+%
+% document logical attributes as an HTML table (moved here to trim down ugly for loop above)
+
+    propFields = fieldnames( Prop ) ;
+    boolFields = propFields( structfun( @islogical, Prop ) ) ;
+
+    for iF = 1 : numel( boolFields )
+       BoolAttributes.( boolFields{iF} ) = Prop.( boolFields{iF} ) ;
+    end
+
+    attTable = Dr.tableattributes( BoolAttributes ) ;
+    Prop     = rmfield( Prop, boolFields ) ;
+
+end 
+
 end
-    % if strcmp( mfiletype( Dr.pathIn ), 'classdef' )
-    %
-    % mdDoc = Dr.mHelp ;
-    %     %% Class members: Properties    
-    %     mdDoc = [ mdDoc; "" ; "### Members ###" ; ""]; 
-    %
-    %     Props = Mc.PropertyList
-    %
-    %     mdDoc = [ mdDoc; "#### Properties ####" ] ;
-    %
-    %     if isempty( Props )
-    %
-    %         mdDoc = [ mdDoc; "" ; "_(None)_" ; "" ] ;
-    %     else
-    %
-    %         for iProp = 1 : length( Props )
-    %
-    %             Prop   = Props( iProp )
-    %             mdDoc  = [ mdDoc ; strcat( "##### ", Prop.Name, "##### " ) ; "" ] ;
-    %             fields = fieldnames( Prop ) ;
-    %
-    %             for iField = 1 : length( fields )   
-    %                 field = fields{ iField } ;
-    %
-    %                 switch field
-    %                     case { 'GetAccess', 'SetAccess', 'Dependent', 'Constant', 'Abstract', 'Transient', 'Hidden',
-    %                            'GetObservable', 'SetObservable', 'AbortSet', 'NonCopyable', 'GetMethod', 'SetMethod', 'HasDefault' } 
-    %                         if isempty( Prop.(field) )
-    %                             entry = "_(None)_" ;
-    %                         else
-    %                             entry = join( string( Prop.( field ) ) ) ;
-    %                         end
-    %
-    %                         mdDoc = [ mdDoc ; strcat( "- ", fields{iField}, ": ", entry ) ] ;
-    %
-    %                     otherwise
-    %                         % do nothing
-    %                 end
-    %             end
-    %     
-    %             % TODO : Printing defaults: what is suitable to print (e.g. if
-    %             % default is rand(100,100,100) clearly it would be preferable
-    %             % to print the function call itself rather than the value).
-    %             % might need to parse the code text itself. 
-    %            % if Prop.HasDefault
-    %            %        mdDoc = [ mdDoc ; "- Default: " ] ;
-    %            %        isPrintingDefault=false ;
-    %            %     try
-    %            %        defaultString = splitlines( string( Prop.Default ) ) ;
-    %            %        mdDoc = [mdDoc ; defaultString ] ; 
-    %            %      catch Me
-    %            %          defaultString = "_(Not printable)_" ;
-    %            %    end
-    %            %
-    %            %  else
-    %            %      mdDoc = [ mdDoc ; "- Default: _(None)_" ] ;
-    %            % end
-    %
-    %
-    %             end
-    %
-    %         end 
-    %     end

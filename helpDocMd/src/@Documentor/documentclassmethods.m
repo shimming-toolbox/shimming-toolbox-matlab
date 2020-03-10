@@ -5,7 +5,7 @@ Info = Dr.Info.Attributes ;
 
 assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
 
-docStr = [ "---" ; "## Methods ##" ; "" ] ;
+docStr = [ "---" ; "## Methods" ; "" ] ;
 
 if isempty( Info.MethodList )
     docStr = [ docStr ; "" ; "[No Methods]"; "" ] ;
@@ -18,21 +18,21 @@ else
          
         if contains( which( Mthd.DefiningClass ), 'built-in' ) 
         % MATLAB built-in method: include name and defining class only:
-            docStr(end+1) = strcat( "### ", Mthd.Name, " ###" ) ;
-            docStr(end+1) = [ "[ _built-in method derived from *" + Mthd.DefiningClass + "* class_ ]" ];
+            docStr(end+1) = strcat( "### ", Mthd.Name ) ;
+            docStr(end+1) = [ "[ _built-in method derived from class_ **" + Mthd.DefiningClass + "** ]" ];
             docStr(end+1) = strcat( "For more info, see MATLAB documentation]" ) ;
         else
+            
+            docStr = [ docStr ; "" ; strcat( "### ", Mthd.Name ) ; "" ] ; 
+            
             if ~isempty( Mthd.Description )
-                docStr = [ docStr ; "" ; strcat( "### ", Mthd.Name, " ###" ) ; "" ] ; 
-                docStr = [ docStr ; "" ; strcat( " _", Mthd.Description, "_ " ) ; "" ] ;
-            else 
-                docStr = [ docStr ; "" ; strcat( "### ", Mthd.Name, " ###") ; "" ] ;
+                docStr = [ docStr ; strcat( "**Synopsis**: _", Mthd.Description, "_ " ) ; "" ] ;
             end
 
             if ~isempty( Mthd.DetailedDescription )
-                % NOTE: could change Informer so it doesn't fill DetailedDescription with the copy of Description
+                % NOTE: could change Informer so it doesn't fill DetailedDescription with the copy of Description...
                 if ~strcmp( Mthd.DetailedDescription, Mthd.Description )                         
-                    docStr = [ docStr ; "Description: " ; Mthd.DetailedDescription ] ;
+                    docStr = [ docStr ; Mthd.DetailedDescription ; "" ] ;
                 end
             end
     
@@ -46,7 +46,7 @@ else
                BasicAttributes.( basicFields{iF} ) = Mthd.( basicFields{iF} ) ;
             end
             
-            docStr = [ docStr ; "" ; "" ; "#### Attributes: ####" ; "" ; Dr.tableattributes( BasicAttributes ) ; "" ] ;
+            docStr = [ docStr ; "" ; "#### Attributes:" ; "" ; Dr.tableattributes( BasicAttributes ) ; "" ] ;
             
             clear BasicAttributes ;
             Mthd = rmfield( Mthd, basicFields ) ;

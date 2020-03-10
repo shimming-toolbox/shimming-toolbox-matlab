@@ -3,7 +3,7 @@ function [docStr] = documentclassdef( Dr )
 %
 % DOCUMENTCLASSDEF documents basic class attributes followed by class member
 % documentation (courtesy of calls to Documentor.documentclassproperties and
-% Documentator.documementclassmethods)
+% Documentator.documentclassmethods)
 
 Info = Dr.Info.Attributes ;
 
@@ -14,7 +14,7 @@ docStr = documentbasic( Dr ) ;
 % remove fields included in documentbasic 
 Info = rmfield( Info, {'mType' ; 'Name' ; 'Description' ; 'DetailedDescription'} ) ;
 
-docStr = [docStr ; "" ; "### Class Attributes ###"; "" ] ;
+docStr = [docStr ; "" ; "### Class Attributes"; "" ] ;
 
 %% Place basic (logical) attributes into an HTML table
 tableFields = { 'Hidden' ; 'Sealed' ; 'Abstract' ; 'Enumeration'; ... 
