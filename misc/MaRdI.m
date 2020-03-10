@@ -2700,6 +2700,9 @@ system( ['rm -r ' Params.tmpSaveDir] ) ;
 % averaged and compensated for 
 system(['fsleyes ' Params.dataSaveDir 'mgre.nii ' Params.dataSaveDir 'gre_seg.nii -cm red -a 70.0 &' ]);
 
+% NOTE/WARNING: `permute( img, [2 1 3])` 
+% seems to be required after nii load to restore the orignal orientation (i.e. prior to nii save)
+% **(not sure why this is, or if it even applies in all cases!)**
 Mask = load_untouch_nii( [ Params.dataSaveDir 'gre_seg.nii' ] );
 mask = Mask.img ;
 mask = logical(permute( mask, [2 1 3] )) ;
