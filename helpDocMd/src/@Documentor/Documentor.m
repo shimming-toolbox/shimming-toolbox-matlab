@@ -1,34 +1,32 @@
 classdef Documentor < handle
 %DOCUMENTOR Custom MATLAB documentation into markup/down text files
-%
-% Writes *thorough* Matlab documentation as simple, readable 
-% <https://daringfireball.net/projects/markdown/ Markdown> text which is
 % 
-% 1. Readily hosted online (e.g. <https://www.mkdocs.org/ MkDocs>,
-% <https://pages.github.com/>, <https://docs.readthedocs.io/en/stable/>)
+% The DOCUMENTOR class serves to write custom Matlab documentation as simple,
+% readable text files (i.e. <https://daringfireball.net/projects/markdown/ Markdown>).
+% Specifically, it serves to produce documentation that is readily hosted
+% online (e.g. <https://www.mkdocs.org/ MkDocs>, <https://pages.github.com/>,
+% <https://docs.readthedocs.io/en/stable/>) without the need for external
+% dependencies or tagging syntaxes that differ from Matlab's own markup style
+% (e.g. <https://github.com/sphinx-contrib/matlabdomain sphinx>).
+%
+% ### Usage
+%
+% Create a Documentor instance with the list of .m file paths of interest, then
+% call `write` to write to file: 
 % 
-% 2. Does not require additional dependencies or different syntax/tagging 
-% from Matlab's own markup style (e.g. sphinx)
+% ` 
+% Dr = Documentor( mFiles ) ;
+% Dr.write ; 
+% `
 %
-% ### Basic Usage ###
-%
-% 1. User creates a Documentor instance with the list of .m file paths to
-% document:
-%      
-%     Dr = Documentor( mFiles ) ;
-%
-% 2. To create the .md documentation, the user calls: 
-%      
-%     Dr.write ; 
-%
-% ### Example Output ###
+% ### Example
 % 
-% <https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md DocumentorClass>
+% <https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md helpDocMd>
 % 
 % (TODO: replace with link to github page or readthedocs page with the complete
-% documentation for the entire helpMeDoc code library)
+% documentation for the entire helpDocMd code library)
 % 
-% ### References ###
+% ### References
 % 
 % To test how the .md output will appear once reformatted to HTML:
 % <https://daringfireball.net/projects/markdown/dingus>
@@ -141,6 +139,7 @@ function [dirOutTop] = get.dirOutTop( Dr )
     end
     
     dirOutTop = Dr.dirOutTop ;
+
 end
 % =========================================================================    
 function [] = set.dirOutTop( Dr, dirOutTop )
@@ -158,6 +157,7 @@ function [] = set.dirOutTop( Dr, dirOutTop )
     end
     
     Dr.dirOutTop = string( dirOutTop ) ;
+
 end
 % =========================================================================    
 function [] = set.iM( Dr, iM )  

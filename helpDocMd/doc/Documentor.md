@@ -4,34 +4,32 @@
 
 **Synopsis:** _Custom MATLAB documentation into markup/down text files_
 
-Writes *thorough* Matlab documentation as simple, readable
-[Markdown](https://daringfireball.net/projects/markdown/) text which is
+The DOCUMENTOR class serves to write custom Matlab documentation as simple,
+readable text files (i.e. [Markdown](https://daringfireball.net/projects/markdown/)).
+Specifically, it serves to produce documentation that is readily hosted
+online (e.g. <https://www.mkdocs.org/ MkDocs>, [https://pages.github.com/](https://pages.github.com/),
+[https://docs.readthedocs.io/en/stable/](https://docs.readthedocs.io/en/stable/)) without the need for external
+dependencies or tagging syntaxes that differ from Matlab's own markup style
+(e.g. [sphinx](https://github.com/sphinx-contrib/matlabdomain)).
 
-1. Readily hosted online (e.g. [MkDocs](https://www.mkdocs.org/),
-<https://pages.github.com/>, [https://docs.readthedocs.io/en/stable/](https://docs.readthedocs.io/en/stable/))
+### Usage
 
-2. Does not require additional dependencies or different syntax/tagging
-from Matlab's own markup style (e.g. sphinx)
+Create a Documentor instance with the list of .m file paths of interest, then
+call `write` to write to file:
 
-### Basic Usage ###
+`
+Dr = Documentor( mFiles ) ;
+Dr.write ;
+`
 
-1. User creates a Documentor instance with the list of .m file paths to
-document:
-       
-      Dr = Documentor( mFiles ) ;
+### Example
 
-2. To create the .md documentation, the user calls:
-       
-      Dr.write ; 
-
-### Example Output ###
-
-[DocumentorClass](https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md)
+[helpDocMd](https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md)
 
 (TODO: replace with link to github page or readthedocs page with the complete
-documentation for the entire helpMeDoc code library)
+documentation for the entire helpDocMd code library)
 
-### References ###
+### References
 
 To test how the .md output will appear once reformatted to HTML:
 [https://daringfireball.net/projects/markdown/dingus](https://daringfireball.net/projects/markdown/dingus)
@@ -355,34 +353,32 @@ Validator functions: mustBeStringOrChar
  _Custom MATLAB documentation into markup/down text files_ 
 
 Description: 
-Writes *thorough* Matlab documentation as simple, readable
-[Markdown](https://daringfireball.net/projects/markdown/) text which is
+The DOCUMENTOR class serves to write custom Matlab documentation as simple,
+readable text files (i.e. [Markdown](https://daringfireball.net/projects/markdown/)).
+Specifically, it serves to produce documentation that is readily hosted
+online (e.g. <https://www.mkdocs.org/ MkDocs>, [https://pages.github.com/](https://pages.github.com/),
+[https://docs.readthedocs.io/en/stable/](https://docs.readthedocs.io/en/stable/)) without the need for external
+dependencies or tagging syntaxes that differ from Matlab's own markup style
+(e.g. [sphinx](https://github.com/sphinx-contrib/matlabdomain)).
 
-1. Readily hosted online (e.g. [MkDocs](https://www.mkdocs.org/),
-<https://pages.github.com/>, [https://docs.readthedocs.io/en/stable/](https://docs.readthedocs.io/en/stable/))
+### Usage
 
-2. Does not require additional dependencies or different syntax/tagging
-from Matlab's own markup style (e.g. sphinx)
+Create a Documentor instance with the list of .m file paths of interest, then
+call `write` to write to file:
 
-### Basic Usage ###
+`
+Dr = Documentor( mFiles ) ;
+Dr.write ;
+`
 
-1. User creates a Documentor instance with the list of .m file paths to
-document:
-       
-      Dr = Documentor( mFiles ) ;
+### Example
 
-2. To create the .md documentation, the user calls:
-       
-      Dr.write ; 
-
-### Example Output ###
-
-[DocumentorClass](https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md)
+[helpDocMd](https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md)
 
 (TODO: replace with link to github page or readthedocs page with the complete
-documentation for the entire helpMeDoc code library)
+documentation for the entire helpDocMd code library)
 
-### References ###
+### References
 
 To test how the .md output will appear once reformatted to HTML:
 [https://daringfireball.net/projects/markdown/dingus](https://daringfireball.net/projects/markdown/dingus)
