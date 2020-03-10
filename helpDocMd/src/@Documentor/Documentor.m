@@ -51,6 +51,9 @@ properties( AbortSet )
     % List of .m files to document (string vector of full file paths)
     mFiles {mustBeFile} = string( [ mfilename('fullpath') '.m' ] ) ;
 
+    % List of output documentation file paths (string vector of full file paths)
+    docFiles {mustBeStringOrCharOrCellstr} = "" ; 
+
     % Toggle whether to overwrite existing documentation files
     isOverwriting(1,1) {mustBeNumericOrLogical} = true ;
     
@@ -73,11 +76,7 @@ properties( AbortSet )
     %
     % See also 
     % - HelpDocMd.isSearchRecursive
-    % 
-    % NOTE: Not implemented! for now, just dumping all documentation into single folder - dirOutTop
-    % TODO: Use mapdirectorytree.m or something to figure out the subdirectory
-    % structure to use and change the default to `true`.
-    isSaveRecursive(1,1) {mustBeNumericOrLogical} = false ;
+    isSaveRecursive(1,1) {mustBeNumericOrLogical} = true ;
     
     % Output parent directory for the doc files
     %
@@ -89,7 +88,7 @@ properties( AbortSet )
     % See also Documentor.isSaveRecursive
     dirOutTop {mustBeStringOrChar} = "" ;     
     
-    % Reformated documentation
+    % Documentation string for `mFiles(iM)` to be printed to `docFiles(iM)`
     mdDoc string {mustBeStringOrChar} = "" ;
   
     % String specifier for output syntax: "mkd" (for Mkdocs markdown), "mat" (for MATLAB markup)
@@ -133,6 +132,7 @@ function Dr = Documentor( pathIn, Params )
 
     Dr.mFiles = Dr.findfilestodocument( pathIn ) ;
     Dr.Info   = Informer( Dr.mFiles(1) ) ;
+    Dr.docFiles = "_DEFAULTS_" ;
 
 end
 % =========================================================================    
@@ -179,6 +179,41 @@ function [] = set.dirOutTop( Dr, dirOutTop )
     end
     
     Dr.dirOutTop = string( dirOutTop ) ;
+
+end
+% =========================================================================    
+function [] = set.docFiles( Dr, docFiles )  
+        
+    docFiles = string( docFiles ) ;
+
+    if isequal( docFiles, "_DEFAULTS_" )
+
+        docFiles = strings( size( Dr.mFiles ) ) ;
+        
+        for iM = 1 : length( Dr.mFiles )
+            
+            [folder, docName] = fileparts( Dr.mFiles(iM) ) ;
+            
+            if Dr.isSaveRecursive % try to recreate subdir structure
+                % remove parent dir component
+                docFolder = [ Dr.dirOutTop + erase( folder, Dr.dirInTop ) ] ;
+
+                [isMade, msg, msgId] = mkdir( docFolder ) ;
+                
+                assert( isMade, msgId, ['Directory creation failed: ' msg ], '%s' ) ; 
+            else
+                docFolder = Dr.dirOutTop ;
+            end
+                
+            docFiles(iM) = [ docFolder + filesep + docName + Dr.extOut ] ;
+
+        end
+    end
+    
+    assert( length( unique(docFiles) ) == length( Dr.mFiles ), ...
+        "The list of output file paths must possess unique entries for each of the input .m files"  ) ;
+    
+    Dr.docFiles = docFiles ;
 
 end
 % =========================================================================    
@@ -239,7 +274,9 @@ methods
     %.....
     [mFiles]    = findfilestodocument( Dr, pathIn )
     %.....
-    [ pathOut ] = printdoc( Dr )
+    [ docFiles ] = printall( Dr )
+    %.....
+    [ docFile ] = printdoc( Dr )
 end
 % =========================================================================    
 % =========================================================================    
