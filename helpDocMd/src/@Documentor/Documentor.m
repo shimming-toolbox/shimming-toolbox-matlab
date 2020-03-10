@@ -2,17 +2,16 @@ classdef Documentor < handle
 %DOCUMENTOR Custom Matlab documentation into markup/down text files
 % 
 % The DOCUMENTOR class serves to print custom Matlab documentation to file 
-% (e.g. as <https://daringfireball.net/projects/markdown/ Markdown>)
+% (e.g. as <https://daringfireball.net/projects/markdown/ Markdown> text)
 % while avoiding external dependencies (e.g. <https://github.com/sphinx-contrib/matlabdomain sphinx>)
-% and tagging syntaxes at odds with Matlab's own style of
-% <https://www.mathworks.com/help/matlab/matlab_prog/marking-up-matlab-comments-for-publishing.html markup>
+% and tagging syntaxes at odds with Matlab's own markup 
+% <https://www.mathworks.com/help/matlab/matlab_prog/marking-up-matlab-comments-for-publishing.html style>.
 %
 % Viz., given a list of 
 % <https://www.mathworks.com/help/matlab/matlab_prog/add-help-for-your-program.html properly> 
 % commented .m files, a DOCUMENTOR instance outputs simple, readable text files
-% which are readily hosted online.
-%
-% ### <https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md Example>
+% which are readily hosted online. **See 
+% <https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md Example>.**
 % 
 % ### Usage
 %
