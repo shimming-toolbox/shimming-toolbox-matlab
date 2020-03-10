@@ -42,13 +42,14 @@ end
 properties( AbortSet )
 
     % Informer instance: Provides the info-content to document a given .m file
-    Info Informer ; % = Informer( which( "Documentor.m" ) ) ;
-
-    % List of .m files to document (string scalar or vector of full file paths)
-    mFiles {mustBeFile} = string( [ mfilename('fullpath') '.m' ] ) ;
-
-    % Index of next .m file in mFiles list to document
+    Info Informer ; 
+    % Info Informer = Informer( which( "Documentor.m" ) ) ;
+    
+    % Index of next .m file in list of files to document (i.e. `mFiles(iM)`)
     iM(1,1) uint64 {mustBePositive, mustBeInteger} = uint64(1) ;
+
+    % List of .m files to document (string vector of full file paths)
+    mFiles {mustBeFile} = string( [ mfilename('fullpath') '.m' ] ) ;
 
     % Toggle whether to overwrite existing documentation files
     isOverwriting(1,1) {mustBeNumericOrLogical} = true ;
@@ -56,13 +57,13 @@ properties( AbortSet )
     % Toggle whether subdirectories are included in file search (multiple input case only)
     isSearchRecursive(1,1) {mustBeNumericOrLogical} = true ;
    
-    % Recreates original directory tree in dirOut (multiple doc output case only) 
+    % Toggle to recreate original directory tree in `dirOutTop` (multiple mFiles case only) 
     %
     % #### Example
     % 
     % Given Documentor object instance `Dr`:
     %
-    % `if Dr.isSaveRecursive = false` 
+    % `if Dr.isSaveRecursive == false` 
     % ...all the output documentation files will be written to the same folder (i.e. `Dr.dirOutTop`)
     % 
     % `else`
@@ -73,8 +74,9 @@ properties( AbortSet )
     % See also 
     % - HelpDocMd.isSearchRecursive
     % 
-    % TODO use mapdirectorytree.m or something to figure out the subdirectory structure to use and change the default to TRUE.
-    % (for now, just dumping all documentation into single folder - dirOutTop
+    % NOTE: Not implemented! for now, just dumping all documentation into single folder - dirOutTop
+    % TODO: Use mapdirectorytree.m or something to figure out the subdirectory
+    % structure to use and change the default to `true`.
     isSaveRecursive(1,1) {mustBeNumericOrLogical} = false ;
     
     % Output parent directory for the doc files
@@ -111,10 +113,10 @@ end
 
 properties( Access=private, Dependent )
 
-    % parent folder of mFiles(iM)  
+    % Parent folder of next file to document (i.e. `mFiles(iM)`)
     mDir {mustBeFolder} = string( fileparts( mfilename('fullpath') ) ) ;
     
-    % top directory of src mFiles
+    % Top directory of src mFiles
     dirInTop {mustBeStringOrChar} = "" ;
 
 end
@@ -138,7 +140,6 @@ function [dirInTop] = get.dirInTop( Dr )
  
     if numel( Dr.mFiles ) == 1
        dirInTop = fileparts( Dr.mFiles ) ;
-
     else % find folder with fewest parent directories (i.e. slashes in path): 
         mDirs        = arrayfun( @fileparts, Dr.mFiles ) ;
         [~, iTopDir] = min( count( mDirs, filesep ) ) ;
@@ -184,7 +185,7 @@ end
 function [] = set.iM( Dr, iM )  
 
     % update Informer with new file:
-    Dr.Info.mPath = Dr.mFiles( iM ) ; 
+    Dr.Info.mFile = Dr.mFiles( iM ) ; 
     Dr.iM         = iM ;
 
 end
