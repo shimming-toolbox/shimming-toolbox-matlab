@@ -5,9 +5,10 @@ function [ filename ] = printdoc( Dr )
 %    
 %    [filename] = PRINTDOC( Self ) 
 %
-% Writes the contents of `Self.mdDoc` to `filename`. 
+% Prints the contents of `Self.mdDoc` to `filename`. 
 % To overwrite an existing file, first set `Self.isOverwriting = true`
-
+Dr.dirInTop
+Dr.dirOutTop
 filename = [ Dr.dirOutTop + filesep + Dr.Info.Attributes.Name + Dr.extOut ] ;
 
 assert( Dr.isOverwriting || ~exist( filename ), ...
@@ -15,7 +16,7 @@ assert( Dr.isOverwriting || ~exist( filename ), ...
      'or set ' inputname(1) '.isOverwriting =true to force overwrite'], '%s' );
 
 [fid, errMsg] = fopen( filename, 'w+') ;
-assert( fid~=-1, ['Write failed:' errMsg] ) ;
+assert( fid~=-1, ['Write failed: ' errMsg], '%s' ) ;
 
 fprintf( strcat("Writing doc: ", filename, "\n") ) ;
 fprintf( fid, '%s\n', Dr.mdDoc);
@@ -23,4 +24,3 @@ fprintf( fid, '%s\n', Dr.mdDoc);
 fclose(fid);
 
 end
-

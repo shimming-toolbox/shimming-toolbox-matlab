@@ -58,14 +58,33 @@ properties( AbortSet )
    
     % Recreates original directory tree in dirOut (multiple doc output case only) 
     %
-    % See also HelpDocMd.isSeachRecursive
+    % #### Example
+    % 
+    % Given Documentor object instance `Dr`:
+    %
+    % `if Dr.isSaveRecursive = false` 
+    % ...all the output documentation files will be written to the same folder (i.e. `Dr.dirOutTop`)
+    % 
+    % `else`
+    % ...
+    %
+    % #### References
+    %
+    % See also 
+    % - HelpDocMd.isSearchRecursive
+    % 
     % TODO use mapdirectorytree.m or something to figure out the subdirectory structure to use and change the default to TRUE.
     % (for now, just dumping all documentation into single folder - dirOutTop
     isSaveRecursive(1,1) {mustBeNumericOrLogical} = false ;
     
     % Output parent directory for the doc files
+    %
+    % **Example**
     % 
-    % See also HelpDocMd.isSaveRecursive
+    % If the top shared directory of the input .m Files is ` "/Users/Buddy/Projects/helpDocMd/src/" `;
+    % then, by default, ` dirOutTop = "/Users/Buddy/Projects/helpDocMd/doc/" ;`
+    % 
+    % See also Documentor.isSaveRecursive
     dirOutTop {mustBeStringOrChar} = "" ;     
     
     % Reformated documentation
@@ -121,10 +140,9 @@ function [dirInTop] = get.dirInTop( Dr )
        dirInTop = fileparts( Dr.mFiles ) ;
 
     else % find folder with fewest parent directories (i.e. slashes in path): 
-        mDirs = arrayfun( @fileparts, Dr.mFiles )
-
-        [~,iTopDir] = min( count( mDirs, filesep ) ) ;
-        dirInTop    = fileparts( mDirs( iTopDir ) ) ;
+        mDirs        = arrayfun( @fileparts, Dr.mFiles ) ;
+        [~, iTopDir] = min( count( mDirs, filesep ) ) ;
+        dirInTop     = mDirs( iTopDir ) ;
     end
 
 end
