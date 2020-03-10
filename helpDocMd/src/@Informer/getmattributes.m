@@ -41,8 +41,8 @@ function [Att] = getmattributes( mFile )
 % additional fields from an instance of the associated meta.class object:
 % (For more info, refer to the MATLAB documentation: <https://www.mathworks.com/help/matlab/ref/meta.class.html>)
 % 
-% 1. Fields containing logical scalars:
-%
+% _Fields containing logical scalars_:
+% 
 % - .Hidden 
 % - .Sealed
 % - .Abstract
@@ -51,15 +51,16 @@ function [Att] = getmattributes( mFile )
 % - .HandleCompatible
 % - .RestrictsSubclassing
 %
-% 2. Fields containing string arrays:
+% _Fields containing string arrays_:
 %
 % - .SuperclassList (the names of superclasses)
 % - .InferiorClasses (the names of deriving inferior classes)
 % - .ContainingPackage (the name of the containing package, if applicable, as a string-scalar)
 %
-% 3. Fields containing struct arrays:
+% _Fields containing struct arrays_:
 %
-% - .MethodList (Class methods derived from meta.method objects) 
+% - .MethodList (class methods derived from meta.method objects)
+%
 %   Elements of MethodList possess the following fields, with all but the final 4
 %   (which contain string arrays) containing scalar logicals:
 %   - .Static 
@@ -74,7 +75,8 @@ function [Att] = getmattributes( mFile )
 %   - .OutputNames
 %   - .DefiningClass 
 %
-% - .PropertyList (Class properties derived from meta.property objects) 
+% - .PropertyList (Class properties derived from meta.property objects)
+%
 % TODO: elaborate...
 %
 %

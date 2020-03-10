@@ -7,15 +7,12 @@ function [mHelp] = gethelptext( name )
     end
 
 mHelp = help( name ) ;
-
-if isempty( mHelp )
-    error( 'Nothing found. Verify item of interest is on the MATLAB path.' ) ;
+assert( ~isempty(mHelp), 'Nothing found. Verify item of interest is on the MATLAB path.' ) ;
 
 mHelp = splitlines( string( mHelp ) ) ;
- 
+     
 while( strcmp( mHelp(end), "" ) ) % trim blank concluding lines
      mHelp(end) = [] ;
 end
 
 end
-

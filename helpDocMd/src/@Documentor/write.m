@@ -1,16 +1,15 @@
 function [ pathOut ] = write( Dr )  
 %WRITE Write documentation to file
 % 
-% WRITE creates (or, optionally, overwrites) a .md file and writes to it the
-% contents of Self.mdDoc.
+% ### Syntax
+%    
+%    [pathOut] = write( Self ) 
 %
-% ### Syntax ###
-%
-% [pathOut] = write( Self ) 
-%
-% To enable overwriting of existing files, set Self.isOverwriting = true 
+% writes the contents of Self.mdDoc to file. To _overwrite_ an existing file,
+% before calling WRITE, set 
+%     Self.isOverwriting = true 
 
-pathOut = [Dr.dirOutTop + filesep + Dr.nameIn + Dr.extOut] ;
+pathOut = [ Dr.dirOutTop + filesep + Dr.Info.Attributes.Name + Dr.extOut ] ;
 
 assert( Dr.isOverwriting || ~exist( pathOut ), ...
     ['Doc file already exists. Assign a different file path for the output,' ...

@@ -1,23 +1,24 @@
 classdef Informer
 %INFORMER Details the functionality of a .m file
 % 
-% An INFORMER object describes a given .m file (i.e. a script, function, class
-% method, or classdef file).
+% The INFORMER class serves to _inform_ the **Documentor** class about the contents of .m
+% files: providing the funtional details needed to document them. An INFORMER
+% instance describes a given .m file (i.e. a script, function, class method, or
+% classdef file).
 %
-% The INFORMER class _informs_ the *Documentor* class about the content of .m
-% files: providing the funtional details needed to document them.
-%
-% In the general/anticipated use case, a user merely interacts with an Informer
+% Note: In the general/anticipated use case, a user merely interacts with an Informer
 % instance indirectly, as a member property of a Documentor object; however,
 % an Informer object can be constructed independently as indicated below.
 %
 % ### Syntax
-%    
-%    Info = Informer( mFile ) ;
-% 
-% ### Inputs
-% 
-% - mFile: full file path to the .m file of interest.
+% `
+% Info = Informer( mFile ) ;
+% `
+% ### Inputs    
+% `
+% mFile
+% `
+% - full file path to the .m file of interest.
 %
 % ### Usage
 % 

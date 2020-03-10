@@ -23,9 +23,10 @@ classdef Documentor < handle
 %
 % ### Example Output ###
 % 
-% (TODO: add output to github page or readthedocs)
-%
-% To see the final output online, see <https://ADD_URL.com this> % 
+% <https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md DocumentorClass>
+% 
+% (TODO: replace with link to github page or readthedocs page with the complete
+% documentation for the entire helpMeDoc code library)
 % 
 % ### References ###
 % 
@@ -83,12 +84,6 @@ properties( AbortSet )
     % attributes are excluded from the output documentation. [default = true]
     isDetailed(1,1) {mustBeBoolean} = true ;
 
-    % Input/Matlab file extension 
-    extIn {mustBeStringOrChar} = Documentor.Ext.matlab ;
-
-    % Input names (without directory path or file extension)
-    nameIn {mustBeStringOrChar} = string( mfilename ) ;
-    
     % Output file extension (default = ".md")
     extOut(1,1) {mustBeStringOrChar} = Documentor.Ext.markdown ;
     
@@ -189,8 +184,6 @@ function [] = set.mFiles( Dr, mFiles )
     end
 
     Dr.mFiles = mFiles ;
-    
-    [ Dr.dirIn, Dr.nameIn, Dr.extIn ] = arrayfun( @fileparts, mFiles ) ;
 
     if strcmp( Dr.dirOutTop, "" )
        Dr.dirOutTop = Dr.dirInTop ;

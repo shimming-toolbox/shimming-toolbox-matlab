@@ -5,19 +5,15 @@ function [docStr] = documentfunction( Dr )
 
 Info = Dr.Info.Attributes ;
 
-assert( Info.mType, "function", 'mFile is not a function' ) ;
+assert( Info.mType=="function", 'mFile is not a function' ) ;
 
 docStr = documentbasic( Dr ) ;
 
+% remove fields included in documentbasic 
+Info   = rmfield( Info, ["mType" ; "Name" ; "Description" ; "DetailedDescription"] ) ;
 fields = string( fieldnames( Info ) ) ;
 
-% remove fields included in documentbasic 
-fields( fields=="mType" )               = [] ;
-fields( fields=="Name" )                = [] ;
-fields( fields=="Description" )         = [] ;
-fields( fields=="DetailedDescription" ) = [] ;
-
-docStr = [docStr ; "" ; "### Attributes ###"] ;
+docStr = [docStr ; "" ; "### Attributes  "] ;
 
 for iField = 1 : numel(fields)
     field = char( fields( iField ) ) ;
