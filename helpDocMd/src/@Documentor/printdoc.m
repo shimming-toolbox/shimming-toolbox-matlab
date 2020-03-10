@@ -1,24 +1,23 @@
-function [ pathOut ] = write( Dr )  
-%WRITE Write documentation to file
+function [ filename ] = printdoc( Dr )  
+%PRINTDOC Write documentation to file
 % 
 % ### Syntax
 %    
-%    [pathOut] = write( Self ) 
+%    [filename] = PRINTDOC( Self ) 
 %
-% writes the contents of Self.mdDoc to file. To _overwrite_ an existing file,
-% before calling WRITE, set 
-%     Self.isOverwriting = true 
+% Writes the contents of `Self.mdDoc` to `filename`. 
+% To overwrite an existing file, first set `Self.isOverwriting = true`
 
-pathOut = [ Dr.dirOutTop + filesep + Dr.Info.Attributes.Name + Dr.extOut ] ;
+filename = [ Dr.dirOutTop + filesep + Dr.Info.Attributes.Name + Dr.extOut ] ;
 
-assert( Dr.isOverwriting || ~exist( pathOut ), ...
+assert( Dr.isOverwriting || ~exist( filename ), ...
     ['Doc file already exists. Assign a different file path for the output,' ...
      'or set ' inputname(1) '.isOverwriting =true to force overwrite'], '%s' );
 
-[fid, errMsg] = fopen( pathOut, 'w+') ;
+[fid, errMsg] = fopen( filename, 'w+') ;
 assert( fid~=-1, ['Write failed:' errMsg] ) ;
 
-fprintf( strcat("Writing doc: ", pathOut, "\n") ) ;
+fprintf( strcat("Writing doc: ", filename, "\n") ) ;
 fprintf( fid, '%s\n', Dr.mdDoc);
 
 fclose(fid);
