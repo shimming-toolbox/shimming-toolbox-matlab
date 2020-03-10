@@ -90,7 +90,7 @@
 %  documentation?  e.g. what internal calls to custom (or matlab) functions are
 %  made in a given piece of code?  (e.g. see
 %  <https://www.mathworks.com/help/matlab/ref/checkcode.html codecheck>)
-
-    
- 
-
+%
+% 10. if/when it becomes presentable, replace the example link in the Documentor.m
+% description to the github page or readthedocs page with a link to the complete
+% documentation for the entire helpDocMd code library
