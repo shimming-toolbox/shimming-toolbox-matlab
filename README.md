@@ -119,3 +119,7 @@ For the documentation, in the Matlab command prompt type:
 ## Contributors
 
 [List of contributors.](https://github.com/neuropoly/realtime_shimming/graphs/contributors)
+
+## License and warranty
+
+This software is distributed under the following [license](LICENSE). THIS SOFTWARE MAY NOT BE USED FOR MEDICAL DIAGNOSTIC AS IT IS NOT SANCTIONNED BY AUTHORITIES SUCH AS HEALTH CANADA AND THE FOOD AND DRUG ADMINISTRATION.
