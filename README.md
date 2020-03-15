@@ -5,7 +5,7 @@
 - [Getting started](#getting-started)
 - [SOP](#SOP)
 - [Contributors](#contributors)
-- [License](#license)
+- [License](#license-and-warranty)
 
 ## Overview
 
