@@ -1,6 +1,6 @@
 # helpDocMd
 
-Matlab&reg; help documentation into Markdown for custom .m files 
+Utilities for documenting custom Matlab&reg source code.
 
 - [Purpose](#purpose)
 - [Getting started](#gettingstarted)
@@ -8,10 +8,10 @@ Matlab&reg; help documentation into Markdown for custom .m files
 - [References](#references)
 - [License](#license)
  
-## Purpose ~statement of the ~Obvious~
+## Purpose statement ~of the Obvious~
 
 The most convenient way to document code manually is, of course, to embed
-descriptive comments within the source code itself. That said, MATLAB&reg is,
+descriptive comments within the source code itself. That said, MATLAB&reg; is,
 after all, a programming _language_: to the extent the code works, it should
 _literally_ describe itself. The internal documentation viewer (via `doc` and
 `help` commands) is, of course, very useful; however, there are occasions when
@@ -24,8 +24,7 @@ first place: namely, to assign *your* menial work to a machine.
 
 The purpose of this codebase is to guide, structure, and (to the extent
 possible) autogenerate Matlab&reg; source documentation that is readily hosted
-online (e.g. [1][mkdocs],[2][github],[3][readthedocs]) in simple, readable [Markdown][markdown]. 
-
+online (e.g. [1][mkdocs],[2][github],[3][readthedocs]) in simple, readable [Markdown][markdown].
 Further, this should not require a peculiar tagging syntax to MATLAB's own
 style of [markup][markup] or additional dedependecies ([e.g.][sphinx]).
 
@@ -33,7 +32,6 @@ style of [markup][markup] or additional dedependecies ([e.g.][sphinx]).
 [mkdocs]: https://www.mkdocs.org
 [github]: https://pages.github.com/
 [readthedocs]: https://readthedocs.org/
-
 [markup]: https://www.mathworks.com/matlabcentral/answers/help/markup/
 [markdown]: https://daringfireball.net/projects/markdown/ 
 [sphinx]: https://pypi.org/project/sphinxcontrib-matlabdomain/ 
@@ -50,7 +48,7 @@ style of [markup][markup] or additional dedependecies ([e.g.][sphinx]).
 
 1. Clone this repository or download the source code.
 
-2. Start up MATLAB and add '/src/' folder to the MATLAB path recursively to include its subfolders:
+2. Start up Matlab and add the '/src/' folder to the path recursively to include its subfolders:
 `addpath(genpath( '.../src/' )  ;`
 
 ## Basics
