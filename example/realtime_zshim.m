@@ -81,15 +81,15 @@ end
 % Read in paths: FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path
 % These folders will be generated when using 'MaRdI.sortimages'
 %% ------------------------------------------------------------------------
-% FM_mag_path = input('(ADD SLASH AT THE END!) Field map mag path: ');
-% FM_phase_path = input('Field map phase path: ');
-% MGRE_mag_path = input('MGRE mag path: ');
+FM_mag_path = input('(ADD SLASH AT THE END!) Field map mag path: ');
+FM_phase_path = input('Field map phase path: ');
+MGRE_mag_path = input('MGRE mag path: ');
 respTrace_path = 'PMUresp_signal.resp';
 
 % Hardcode here if needed:
-FM_mag_path = '09_gre_field_mapping_PMUlog/';
-FM_phase_path = '10_gre_field_mapping_PMUlog/';
-MGRE_mag_path = '11_gre_realtime_zshim_NOSHIM/';
+% FM_mag_path = '09_gre_field_mapping_PMUlog/';
+% FM_phase_path = '10_gre_field_mapping_PMUlog/';
+% MGRE_mag_path = '11_gre_realtime_zshim_NOSHIM/';
 
 
 
@@ -103,6 +103,7 @@ if (strcmp('human',scan_obj) == 1)
     Params.centerlineMethod = 'spinalcord';  % 'midfov': middle of FOV; 'spinalcord': to create a mask around the spinal cord
 elseif (strcmp('phantom',scan_obj) == 1)
         Params.centerlineMethod = 'midfov';  % 'midfov': middle of FOV; 'spinalcord': to create a mask around the spinal cord
+        Params.cylinderSize = input('Enter diameter (in mm) of desired ROI: ');
 else
     error('\nError: Enter "phantom" or "human" as function argument');
 end
@@ -116,7 +117,7 @@ shimVoi = Mag.segmentspinalcanal_s(Params);
 
 % field map time series
 
-Params.unwrapper = 'FslPrelude'; 
+Params.unwrapper = 'FslPrelude'; % or 'QGU'
 Fields = FieldEval( FM_mag_path, FM_phase_path, Params ); 
 
 % pathToNii = './' ; % where to save the images
