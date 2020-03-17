@@ -1,26 +1,21 @@
 function [] = mustBeBoolean( A )
-%% MUSTBEBOOLEAN Validate value is a 1 or 0, true or false
+%MUSTBEBOOLEAN Validate value equals 1 or 0, true or false
 %
-% MUSTBEBOOLEAN is a
-% <https://www.mathworks.com/help/matlab/matlab_prog/argument-validation-functions.html validation function> 
-% which issues an error if the input argument is not comprised solely of 1's or
-% 0's, true or false. (The input can be an array of any size.)
-% 
-% The wrapper function is merely shorthand for: mustBeMember( A, [ 0 1 ] )
-% 
-% ### Usage ###
+% Issues an error when the input is not comprised solely of 1's or 0's, true or false. 
+%    
+%    [] = mustBeBoolean( A ) 
 %
-% [] = MUSTBEBOOLEAN( A ) 
+% Input `A` can be of any size.
 %
-% ### References ###
-%
-% See also 
-%
-% <https://www.mathworks.com/help/matlab/ref/mustbemember.html mustBeMember>
-%
-% <https://www.mathworks.com/help/matlab/matlab_prog/argument-validation-functions.html validation functions> 
-%%
+% mustBeBoolean is a *validation* function:
+% <https://www.mathworks.com/help/matlab/matlab_prog/argument-validation-functions.html> 
 
-mustBeMember( A, [ 0 1 ] ) ;
+if all( islogical(A) )
+    return ;
+elseif isnumeric(A) && all( [A==0] | [A==1] )
+    return ;
+else
+    error( 'Value must equal 1 or 0.' ) ;
+end
 
 end
