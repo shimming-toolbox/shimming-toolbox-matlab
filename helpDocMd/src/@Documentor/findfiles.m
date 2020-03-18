@@ -1,4 +1,4 @@
-function [mFiles] = findfilestodocument( Dr, pathIn )
+function [mFiles] = findfiles( Dr, pathIn )
 %FINDFILESTODOCUMENT Return list of .m files to document from directory search
 % 
 % FINDFILESTODOCUMENT searches a directory for .m files and then removes any
