@@ -138,13 +138,13 @@ end
 % =========================================================================    
 function [dirInTop] = get.dirInTop( Dr )
  
-    if numel( Dr.mFiles ) == 1
-       dirInTop = fileparts( Dr.mFiles ) ;
-    else % find folder with fewest parent directories (i.e. slashes in path): 
-        mDirs        = arrayfun( @fileparts, Dr.mFiles ) ;
-        [~, iTopDir] = min( count( mDirs, filesep ) ) ;
-        dirInTop     = mDirs( iTopDir ) ;
-    end
+    % find folder with fewest parent directories (i.e. slashes in path): 
+    mDirs        = arrayfun( @fileparts, Dr.mFiles ) ;
+    [~, iTopDir] = min( count( mDirs, filesep ) ) ;
+    path     = mDirs( iTopDir ) ;
+
+    %return parent directory
+    dirInTop = fileparts( path );
 
 end
 % =========================================================================    
@@ -152,7 +152,7 @@ function [dirOutTop] = get.dirOutTop( Dr )
 
     if strcmp( Dr.dirOutTop, "" )
         try  % output doc folder in parent directory of ./mFiles
-            Dr.dirOutTop = strcat( fileparts( Dr.dirInTop ), filesep, "doc" ) ;
+            Dr.dirOutTop = strcat( Dr.dirInTop, filesep, "doc" ) ;
         catch ME
             warning( [ 'Failed to create default dirOutTop directory.\n' ... 
                       'Assign the doc output directory manually.' ], '%s' ) ;
@@ -179,6 +179,7 @@ function [] = set.dirOutTop( Dr, dirOutTop )
     end
     
     Dr.dirOutTop = string( dirOutTop ) ;
+    Dr.docFiles = "_DEFAULTS_" ;
 
 end
 % =========================================================================    
