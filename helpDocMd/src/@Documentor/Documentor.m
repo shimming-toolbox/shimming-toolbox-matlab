@@ -130,7 +130,7 @@ function Dr = Documentor( pathIn, Params )
         return ;
     end
 
-    Dr.mFiles = Dr.findfilestodocument( pathIn ) ;
+    Dr.mFiles = Dr.findfiles( pathIn ) ;
     Dr.Info   = Informer( Dr.mFiles(1) ) ;
     Dr.docFiles = "_DEFAULTS_" ;
 
