@@ -31,8 +31,25 @@ function [  ] = template(  )
 % for basic scripts, functions, class definitions, etc. 
 %
 % should also be able print to a new file.m (w/out overwrite option)
+% 
+% DEFAULT.link[1]: http://en.wikipedia.org/wiki/Markdown        "Markdown"
 DEFAULT_SECTIONS = { 'NAME', 'SYNTAX', 'DESCRIPTION', 'INPUTS', 'OUTPUTS', 'EXAMPLES', 'NOTES', 'SEE ALSO' } ;
 %?
+
+end
+
+
+function [  ] = recommendations(  )
+%RECOMMENDATIONS On technical writing 
+%
+% ... 
+
+end
+
+function [  ] = references(  )
+%REFERENCES Suggested references 
+%
+% ...
 
 end
 
