@@ -1,7 +1,7 @@
-function [txt] = table( isCopying, nSize, nCharPerCell ) 
+function [txt] = table( isCopying, nSize, nCharPerCell, prefix ) 
 %TABLE Create and [return|copy|print] a character table
 %
-%   [~] = table( 1, nSize, nSizeCell ) 
+%   [~] = table( 1, nSize, nSizeCell, "%" ) 
 % 
 % Copies an empty character table with `nSize(1)` rows and `nSize(2)` columns
 % to the clipboard and prints to the standard output. nSizeCell(2) sets the
@@ -11,6 +11,7 @@ function [txt] = table( isCopying, nSize, nCharPerCell )
 % 1. Example 
 %
 % >> Helper.table(1,[3 5],[1 10])% outputs:
+% '
 % |          |          |          |          |          |
 % |----------|----------|----------|----------|----------|
 % |          |          |          |          |          |
@@ -27,22 +28,27 @@ function [txt] = table( isCopying, nSize, nCharPerCell )
 % e.g. using the dummy argument `[~] = txt();`.
     arguments
         isCopying(1,1) {mustBeBoolean}                     = false ;
-        nSize(1,2) {mustBePositive, mustBeInteger}         = [3 3] ;
+        nSize(1,2) {mustBePositive, mustBeInteger}         = [3 2] ;
         nCharPerCell(1,2) {mustBePositive, mustBeInteger}  = [1 10] ;
+        prefix {mustBeStringScalarOrCharVector}            = "%    " ; 
         % fName {mustBeStringScalarOrCharVector}             = tempname ;
     end
 
-%TODO implement nCharsPerCell(1) >1 spacing (not comptable w/Markdown, but could still look good
-
 %------------------------------ 
 %% Create table
+
 cell1 = [ '|' repmat( ' ', [1 nCharPerCell(2)] ) ] ;
+cell1 = repmat( cell1, [ nCharPerCell(1) 1 ] ) ;
+
 row1  = [ repmat( cell1, [1 nSize(2) ] ) '|'] ;
 row2  = replace( row1, ' ', '-' ) ;
 
 cTable = [ row1 ; row2 ; repmat(row1,[nSize(1)-1 1] ) ] ;
-cTable = compose( string(cTable) + '\n' ) ;
 
+% sandwich between empty lines
+cTable = [ prefix ; repmat( prefix,[size(cTable,1) 1 ] ) + string(cTable) ; prefix ] ;
+
+cTable = compose( cTable + '\n' ) ;
 
 %------------------------------ 
 %% Output
