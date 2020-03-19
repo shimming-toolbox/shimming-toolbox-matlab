@@ -1,5 +1,12 @@
-function [mFiles] = findfiles( src, isSearchRecursive )
-%FINDFILES Return list of documentable .m files
+<<<<<<< HEAD
+=======
+function [mFiles] = findfiles( Dr, pathIn )
+%FINDFILESTODOCUMENT Return list of .m files to document from directory search
+% 
+% FINDFILESTODOCUMENT searches a directory for .m files and then removes any
+% class method files from the list (methods are included as part of the
+% overall class documentation).
+>>>>>>> c7986dd9df84345852c790161874fd640b4c595f
 %
 % ### Syntax
 %    
