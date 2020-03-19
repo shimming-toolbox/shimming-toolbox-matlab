@@ -1,33 +1,48 @@
 function [List, paths] = findfiles( searchDir, searchPattern, isSearchRecursive, isExcludingHidden )
-% FINDFILES Returns list of files from directory search
+% FINDFILES Search a directory for filenames matching a pattern
+%     
+%    [List, paths] = findfiles( searchDir, searchPattern, isSearchRecursive, isExcludingHidden )
 %
-% ### Syntax
-%    
-%    [List, paths] = FINDFILES( searchDir, searchPattern, isSearchRecursive )
+% Returns the list of files in `searchDir` and its subdirectories with file
+% names matching `searchPattern`. 
 %
-% Wraps to dir() and returns List: 1-D struct array of Matlab files. Full file
+% __Description__
+% Wraps to dir() [1] and returns List: 1-D struct array of Matlab files. Full file
 % paths from the List.folder and List.name fields are output as a string vector
 % in the second return argument.
 % 
-% ### Inputs
-%      
-% - searchDir [default="./"]  
-%   Search directory
+% Each of the input arguments is optional, so `findfiles( )` will yield the
+% same result as `findfiles( ".", "*.*", 1, 1  )`
+% __OPTIONS__                                           
+%     
+% `searchDir` The base directory of the search. [default="."]   
 %
-% - searchPattern [default, all files with explicit file extensions: "*.*"]  
-%   searchPattern of interest (can be an array, in which case the patterns are search successively)
+% `searchPattern` The searchPattern of interest. If provided as a string array,
+% patterns searched successively
+% [default, all files with explicit file extensions: "*.*"]  
 %
-% - isSearchRecursive [default=1]  
-%   Boolean toggle to include subdirectories in search. 
+% `isSearchRecursive` Toggle to include subdirectories in search when true
+% [default=1]  
 %
-% - isExcludingHidden [default=1]  
-%   Boolean toggle to exclude hidden files (i.e. for Unix: filenames beggining with "." )
+% `isExcludingHidden` Toggle to exclude hidden files when true.
+% (i.e. for Unix: filenames beggining with "." )
+% [default=1]  
 %
-% ### References ###
+% Inputs:
+%  
+%| Name              |`Default`   | {type} (size)   |  description |
+%| ----------        | ---------- | ----------------| ----------  -------- |
+%|`searchDir `       |`"."`       |{string}(1,1)    | Base directory of search
+%|`searchPattern`    |`"*.*"      | {string}(any)   | e.g "*.m" for Matlab source code|
+%|`isSearchRecursive`|`true`      | {logical} (1,1) |                         |
+%|`isExcludingHidden`|`true`      | {logical} (1,1) |                         |
 %
-% See also
 %
-% <https://www.mathworks.com/help/matlab/ref/dir.html dir>
+% __SEE__
+% [1]: https://www.mathworks.com/help/matlab/ref/dir.html
+%
+% See also 
+% dir
     arguments
         searchDir(1,:) { mustBeStringScalarOrCharVector, mustBeFolder } = "." ;
         searchPattern  {mustBeStringOrCharOrCellstr} = "*.*" ;    
