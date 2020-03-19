@@ -4,7 +4,12 @@
 % input constraints (size, type, validation functions) and default assignments.
 % (for defaults, it might be more sensible generally to copy the assignment
 % portion of the code itself (e.g. "= zeros(100,100)") rather than the value itself.)
-%   
+% 
+%   -Probably not difficult to do! 
+%   This simple [code search][https://www.mathworks.com/matlabcentral/answers/101485-how-do-i-find-a-file-containing-a-particular-string-in-a-given-directory-in-matlab-7-13-r2011b] 
+%   described could be a useful starting point. 
+%   An even simpler option is probably just to use `type( filename )`
+%
 %   Notes: 
 %   - (See related item (9?) down the list re: adding the option to include
 %   implementation details in the documentation)
