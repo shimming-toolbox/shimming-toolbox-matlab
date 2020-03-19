@@ -10,20 +10,94 @@ classdef Documentor < handle
 % Viz., given a list of 
 % <https://www.mathworks.com/help/matlab/matlab_prog/add-help-for-your-program.html properly> 
 % commented .m files, a DOCUMENTOR instance outputs simple, readable text files
-% which are readily hosted online. **See 
+% which are readily hosted online. 
+% **See 
 % <https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md Example>.**
 % 
-% ### Usage
-%
-% Create a Documentor instance with the list of .m file paths of interest, then
-% call `printdoc` to write to file: 
+% ### Basic usage
+% 
+% To construct a Documentor instance (e.g. one called `Dr`), call:
 %    
-%    Dr = Documentor( mFiles ) ;  
-% 
-%    Dr.printdoc ; 
-% 
-% ### References
+%    Dr = Documentor( src ) ;
 %
+% Input `src` is a string vector of file system paths: these can refer to 
+% specific .m files of interest, and/or as source code directories. (The latter are
+% searched for compatible .m files).
+% 
+% To print all of the documentation to file, call:
+%    
+%    Dr.printdoc( ) ;
+%
+% #### Demo: Documentor.m 
+% 
+% To print documentation for the Documentor class: 
+%
+% 1. Ensure the class is accessible on the MATLAB path by typing 
+%   
+%   which('Documentor') 
+%
+% into the command prompt. If this displays 'Documentor not found', then find
+% the file Documentor.m and move to its parent folder via `cd`.
+% 
+% 2. If `which('Documentor')` displays the correct path to Documentor.m, the
+% documentation should now be printable, using the default configuration, by calling
+%     
+%    Dr = Documentor( which('Documentor') ) ;
+%
+%    Dr.printdoc( ) ;
+%
+% If successful, the documentation file path is displayed in the command window.
+%
+% ### General usage
+% 
+% Read the section on **Basic Usage** first!
+%
+% #### Construction syntax
+%
+%     Dr = Documentor(  ) ;
+%     Dr = Documentor( src ) ;
+%     Dr = Documentor( src, Options ) ;
+% 
+% When called without arguments, `Documentor()` constructs a default object,
+% assigning the respective defaults to each of its properties; public
+% properties can still be reconfigured following construction.
+% 
+% As described previously in the **Basic usage** section, `src` paths can be
+% provided as an argument to the constructor to automatically assign and/or
+% search for *documentable* .m files. If `src` is the only input argument,
+% default values will be assigned to most properties of the returned object.
+%
+% **Note:** Any invalid or *incompatible* paths suggested by `src` will be
+% automatically omitted (refer to the **Documenting .m files** section for
+% details).
+% 
+% When called with a second argument, `Options` --- 
+% 
+% By default, if `src` paths include directories that contain subfolders, these too
+% are recursively searched for .m files. To bypass the default behaviour and
+% restrict the search depth to directories explicitly listed in `src`, the
+% constructor should be called with the second argument: A parameters struct `Options` a field Options.isSearchRecursive in the second argument position
+% without with a `0` in the second argument position, i.e.
+%    
+%    isSearchRecursive = false ; 
+%    Dr = Documentor( src, isSearchRecursive ) ;
+%
+% #### Documenting .m files
+%
+% The list of .m files to be documented is assigned to the value of Documentor property `mFiles`.
+%
+% To ensure that the list consists exclusively of *documentable* files, assignments to `mFiles` are
+% implicitly filtered: i.e. when setting `Dr.mFiles = src`, the actual assignment will be 
+% `Dr.mFiles = Documentor.findfiles( src, Dr.isSearchRecursive )`.
+%
+% (For more info, see the documentation entries for Documentor.findfiles and Documentor.mFiles)
+%
+% #### Configuring options 
+% 
+% ...TODO
+%
+% ### References
+% 
 % To test how a markdown sample will display when reformatted to HTML:
 % - <https://daringfireball.net/projects/markdown/dingus>
 %
@@ -39,26 +113,46 @@ properties( Constant )
 
 end
 
-properties( AbortSet )
-
-    % Informer instance: Provides the info-content to document a given .m file
+properties( Access=private, AbortSet )
+    % Informer object-array: Provides info on each .m file in `mFiles`
     Info Informer ; 
     % Info Informer = Informer( which( "Documentor.m" ) ) ;
-    
+end 
+
+properties( AbortSet )
+
     % Index of next .m file in list of files to document (i.e. `mFiles(iM)`)
     iM(1,1) uint64 {mustBePositive, mustBeInteger} = uint64(1) ;
 
     % List of .m files to document (string vector of full file paths)
-    mFiles {mustBeFile} = string( [ mfilename('fullpath') '.m' ] ) ;
+    %
+    % To ensure that the list consists solely of *documentable* files, property
+    % reassignments (or, *assignments*, in the case of object construction) are
+    % mediated (filtered) by an implicit function call: i.e. whenever the
+    % property is set (as in `Dr.mFiles = src`) it is, in effect, as a return value
+    % (namely, `Dr.mFiles = Documentor.findfiles( src, Dr.isSearchRecursive ) ;`).
+    % 
+    % #### References
+    %
+    % For details re: implementation and what constitutes a 'documentable' file,
+    % See also 
+    % Documentor.findfiles 
+    mFiles {mustBeFileOrFolder} = string( [ mfilename('fullpath') '.m' ] ) ;
 
     % List of output documentation file paths (string vector of full file paths)
-    docFiles {mustBeStringOrCharOrCellstr} = "" ; 
+    dFiles {mustBeStringOrCharOrCellstr} = "" ; 
 
-    % Toggle whether to overwrite existing documentation files
-    isOverwriting(1,1) {mustBeNumericOrLogical} = true ;
+    % Toggle whethers to overwrite existing documentation files (logical column vector with length == numel(mFiles))
+    isOverwriting(:,1) {mustBeBoolean} = false ;
     
-    % Toggle whether subdirectories are included in file search (multiple input case only)
-    isSearchRecursive(1,1) {mustBeNumericOrLogical} = true ;
+    % Toggle whether subdirectories are included .m file search 
+    % 
+    % (i.e when calling `Documentor.mFiles = src` and `src` contains directory paths)
+    % 
+    % See also
+    % -Documentor.findfiles
+    % -Documentor.mFiles
+    isSearchRecursive(1,1) {mustBeBoolean} = true ;
    
     % Toggle to recreate original directory tree in `dirOutTop` (multiple mFiles case only) 
     %
@@ -70,13 +164,13 @@ properties( AbortSet )
     % ...all the output documentation files will be written to the same folder (i.e. `Dr.dirOutTop`)
     % 
     % `else`
-    % ...
+    % ...an attempt is made to mirror the original directory tree of the top .m file source folder
     %
     % #### References
     %
     % See also 
     % - HelpDocMd.isSearchRecursive
-    isSaveRecursive(1,1) {mustBeNumericOrLogical} = true ;
+    isSaveRecursive(1,1) {mustBeBoolean} = true ;
     
     % Output parent directory for the doc files
     %
@@ -88,7 +182,7 @@ properties( AbortSet )
     % See also Documentor.isSaveRecursive
     dirOutTop {mustBeStringOrChar} = "" ;     
     
-    % Documentation string for `mFiles(iM)` to be printed to `docFiles(iM)`
+    % Documentation string for `mFiles(iM)` to be printed to `dFiles(iM)`
     mdDoc string {mustBeStringOrChar} = "" ;
   
     % String specifier for output syntax: "mkd" (for Mkdocs markdown), "mat" (for MATLAB markup)
@@ -102,7 +196,7 @@ properties( AbortSet )
     % When false, classes and class members with private, protected, or hidden
     % attributes are excluded from the output documentation. [default = true]
     %
-    % TODO: implementation!
+    % NOTE/TODO: only partially implemented! (also, a selection of *degrees* of details rather than 0/1 might be better) 
     isDetailed(1,1) {mustBeBoolean} = true ;
 
     % Output file extension (default = ".md")
@@ -124,15 +218,16 @@ end
 % =========================================================================    
 methods
 % =========================================================================    
-function Dr = Documentor( pathIn, Params )
+function Dr = Documentor( pathIn )
 
     if nargin == 0
         return ;
     end
 
-    Dr.mFiles = Dr.findfilestodocument( pathIn ) ;
+    Dr.mFiles = Documentor.findfiles( pathIn ) ;
+
     Dr.Info   = Informer( Dr.mFiles(1) ) ;
-    Dr.docFiles = "_DEFAULTS_" ;
+    Dr.dFiles = "_DEFAULTS_" ;
 
 end
 % =========================================================================    
@@ -182,13 +277,13 @@ function [] = set.dirOutTop( Dr, dirOutTop )
 
 end
 % =========================================================================    
-function [] = set.docFiles( Dr, docFiles )  
+function [] = set.dFiles( Dr, dFiles )  
         
-    docFiles = string( docFiles ) ;
+    dFiles = string( dFiles ) ;
 
-    if isequal( docFiles, "_DEFAULTS_" )
+    if isequal( dFiles, "_DEFAULTS_" )
 
-        docFiles = strings( size( Dr.mFiles ) ) ;
+        dFiles = strings( size( Dr.mFiles ) ) ;
         
         for iM = 1 : length( Dr.mFiles )
             
@@ -205,15 +300,15 @@ function [] = set.docFiles( Dr, docFiles )
                 docFolder = Dr.dirOutTop ;
             end
                 
-            docFiles(iM) = [ docFolder + filesep + docName + Dr.extOut ] ;
+            dFiles(iM) = [ docFolder + filesep + docName + Dr.extOut ] ;
 
         end
     end
     
-    assert( length( unique(docFiles) ) == length( Dr.mFiles ), ...
+    assert( length( unique(dFiles) ) == length( Dr.mFiles ), ...
         "The list of output file paths must possess unique entries for each of the input .m files"  ) ;
     
-    Dr.docFiles = docFiles ;
+    Dr.dFiles = dFiles ;
 
 end
 % =========================================================================    
@@ -227,17 +322,11 @@ end
 % =========================================================================    
 function [] = set.mFiles( Dr, mFiles )  
 
-    mType = Dr.Info.mfiletype( mFiles ) ; 
-
-    if any( mType == "NA" )
-        badPaths = mFiles( mType == "NA" ) ;
-        warning('Excluding the following invalid (possibly unimplemented) .m files from documentation: ')
-        display( badPaths ) ;
-        mFiles( mType == "NA" ) = [] ;
-    end
+    [mFiles] = Documentor.findfiles( mFiles, Dr.isSearchRecursive ) ;
     
-    if isempty( mFiles )
-        error( "List of .m files suitable for documentation is empty") ;
+    if isempty( mFiles ) || isequal( mFiles, "" )
+        warning( 'Nothing assigned: No Documentor-compatible .m files were found using the given parameters.') ;
+        return ;
     end
 
     Dr.mFiles = mFiles ;
@@ -272,11 +361,7 @@ end
 % =========================================================================    
 methods
     %.....
-    [mFiles]    = findfilestodocument( Dr, pathIn )
-    %.....
-    [ docFiles ] = printall( Dr )
-    %.....
-    [ docFile ] = printdoc( Dr )
+    [ docFile ] = printdoc( Dr, iM )
 end
 % =========================================================================    
 % =========================================================================    
@@ -295,6 +380,8 @@ end
 % =========================================================================
 % =========================================================================    
 methods( Static )
+    %.....
+    [mFiles]     = findfiles( pathIn, isSearchRecursive )
     %.....
     [ mdDocStr ] = markuptodown( muDocStr )
 end

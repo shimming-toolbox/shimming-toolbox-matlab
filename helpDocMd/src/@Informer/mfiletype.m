@@ -43,10 +43,11 @@ function [mType, mPath, mExist] = mfiletype( mFile )
 %
 % - This function follows the method outlined <https://blogs.mathworks.com/loren/2013/08/26/what-kind-of-matlab-file-is-this/ here>
     arguments
-        mFile {mustBeStringOrCharOrCellstr} ;
+        mFile {mustBeA{ mFile,["string" "char" "cellstr"] }} ;
     end
-
-mPath   = abspath( strip( string( mFile ) ) ) ; % throws an error for invalid paths
+******************
+% throws an error for invalid paths
+mPath   = abspath( strip( string( mFile ) ) ) ; 
 mExist  = arrayfun( @exist, mPath ) ; 
 mType   = repmat( "NA", [length(mPath) 1 ]) ;
 

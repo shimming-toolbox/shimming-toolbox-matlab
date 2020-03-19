@@ -1,41 +1,86 @@
-function [ pathOut ] = abspath( pathIn )
-% ABSPATH Return absolute path from relative path input 
-%
-% ### Syntax ###
-%
-% pathOut = ABSPATH( pathIn ) 
-%
-% #### Inputs ####
+function [ pathOut, pathType ] = abspath( pathIn, isAbs )
+%ABSPATH Validate and convert file system paths
+%    
+%    [pathOut, pathType] = abspath( pathIn )  
 % 
-% - pathIn : relative file system path(s) as a string array, 'cell-string', or
-% character array of any dimension. (If an element of pathIn is already an
-% absolute path, it will be returned as the output.)
+% ABSPATH checks each element of the input argument `pathIn` for valid file
+% system paths (which can be relative or full/absolute) and returns two arrays
+% of the same type (string, char, or cellstr) and size (arbitrary) as the
+% input.
+%
+% The possibilities for a given return element `(i)` are:
 % 
-% #### Outputs ####
+%|`pathIn(i)`  | `pathOut(i)`| `pathType(i)`                       |
+%|:------------|:-----------:| :---------------------------------: |
+%| is a file   | full path   | "file"                              |
+%| is a folder | full path   | "directory"                         |
+%| else        |   ""        | the error message from [fileattrib] |
 %
-% - pathOut: absolute path(s), sized and typed according to the input. 
+% __Note__ 
+% MATLAB function [fileattrib] is the ~proverbial workhorse~--naaayy--
+% *functional!* workhorse behind abspath, which is really just a wrapper
+% function, otherwise dedicated to housekeeping. 
+% 
+% Re: invalid input paths, the error message returned from fileattrib() will
+% presumably be 'No such file or directory.' However the MATLAB documentation
+% is unclear as to whether other possibilities exist (i.e. in the case where
+% the function is called with a single argument). 
 %
-% ### References ###
+% For more info, refer to the MATLAB documentation.
 %
-% See also dir, fileattrib
+% [fleattrib]: https://www.mathworks.com/help/matlab/ref/fileattrib.html
+%
+% See also 
+% FILEATTRIB 
     arguments
-        pathIn {mustBeStringOrCharOrCellstr, mustBeFileOrFolder} ;
+        pathIn { mustBeStringOrCharOrCellstr } ;
     end
 
-pathInStr = strip( string( pathIn ) ) ;
+[ pathOut, pathType ] = callfileattrib( strip( string( pathIn ) ) ) ;
 
-[~, Values] = arrayfun( @fileattrib, pathInStr ) ;
-
-%% Match return value class/type and size to those of the input:
-pathOut = reshape( { Values.Name }, size( pathInStr ) ) ; % cellstr
-
+%% Match return-types to input
 switch class( pathIn )
-    case 'string'
-        pathOut = string( pathOut ) ;
     case 'char'
-        pathOut = char( pathOut ) ;
-    otherwise % double-check...
-        assert( iscellstr( pathIn ) && iscellstr( pathOut ), 'Unexpected input type' ) ;
+        pathOut  = char( pathOut ) ;
+        pathType = char( pathType ) ;
+    case 'cell'
+        pathOut  = cellstr( pathOut) ;
+        pathType = cellstr( pathType ) ;
+    otherwise 
+        assert( isstring( pathIn ) && isstring( pathOut ) && isstring( pathType ), 'Unexpected result. See code.' )
 end
 
-end
+end % abspath()
+
+function [ pathOut, pathType ] = callfileattrib( pathInStr )
+%CALLFILEATTRIB
+%
+% NOTE: Returns 1&2 from arrayfun-call @fileattrib are cell arrays respectively containing:
+% 1. scalar logicals == true for valid paths.
+% 2. structs of file/folder attributes for valid paths; char vectors of error messages otherwise.
+[far1, far2] = arrayfun( @fileattrib, pathInStr, 'UniformOutput', false ) ;
+isPath       = reshape( [ far1{:} ], size( pathInStr ) ) ;
+
+% initialize returns 
+pathOut      = repmat( "", size( pathInStr ) ) ;
+pathType     = repmat( "", size( pathInStr ) ) ;
+
+if any( ~isPath ) 
+    pathType( ~isPath ) = string( far2( ~isPath ) ) ;
+end 
+
+if any( isPath )
+
+    PathAttributes          = [ far2{isPath} ] ;
+    pathOut( isPath )       = string( { PathAttributes.Name } ) ;
+
+    validPathType           = strings( size( PathAttributes ) ) ;
+    isDir                   = [ PathAttributes.directory ] ;
+    validPathType( isDir )  = "directory" ;
+    validPathType( ~isDir ) = "file" ;
+
+    pathType( isPath )      = validPathType ;
+
+end 
+ 
+end % callfileattrib
