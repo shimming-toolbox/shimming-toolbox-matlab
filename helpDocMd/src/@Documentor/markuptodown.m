@@ -5,18 +5,18 @@ function [ mdDocStr ] = markuptodown( muDocStr )
 % i.e. MATLAB markup uses: <https://www.thisSite.com text to display>
 % whereas Markdown uses: [text to display](https://www.thisSite.com)
 %
-% ### Syntax ###
-%
 % [ mdDocStr ] = MARKUPTODOWN( muDocStr )
 % 
-% ### NOTE/TODO ###
+% TODO
 %
-% The implementation is simplistic: basically works for weblinks, but needs
+% + currrent implementation is simplistic: Basically works for weblinks, but needs
 % to be elaborated for local links to custom functions & classes: either tags
 % or relative paths could be used for Mkdocs build.
 %
-% Moreover, it doesn't distinguish between links and embedded HTML, so it
+% + it doesn't distinguish between links and embedded HTML, so it
 % messes up the latter (see: Documentor.tableattributes)
+% 
+% + replace instances of 'MATLAB' and/or 'MATLAB(R)' with 'MATLAB&reg;'
 
 assert( isstring( muDocStr ), 'Input argument must be a string' ) ;
 
