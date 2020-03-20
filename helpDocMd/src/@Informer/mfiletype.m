@@ -1,52 +1,49 @@
 function [mType, mPath, mExist] = mfiletype( mFile )
-%MFILETYPE Return type of .m file ("script"|"function"|"classdef"|"method")
-% 
-% MFILETYPE returns the type of .m file(s) as a string (or string vector). 
-%
-% ### Syntax
+%MFILETYPE Returns the type of .m file ["script"|"function"|"classdef"|"method"]
 %    
-%    [mType] = MFILETYPE( mFile )
-%    [mType, mPath] = MFILETYPE( mFile )
-%    [mType, mPath, mExist] = MFILETYPE( mFile )
-% 
-% ### Usage
+%    [mType, mPath, mExist] = mfiletype( mFile )
 %
-%    [mType] = MFILETYPE( mFile )
+% __DESCRIPTION__
+% `mfiletype` checks the list of Matlab source files specified by the [string-,
+% char-, or cellstr-] array of file paths `mFile` and returns the string vector `mType`
+% with the i-th element containing
 %
-% mFile must be a valid file path (or set of file paths) as a string array,
-% char array, or cell of character vectors (aka "cell-string").
-% Possibilities for the return mType are: 
+% `mType(i)`| `mFile(i)` is...
+% ----------|-----------------------------------------------------------------|
+% "script"  | a script file
+% "function"| a function file (even one with void arguments)
+% "classdef"| a class definition file
+% "method"  | a class method file (any .m file in a folder beginning with "@")
+%   "NA"    | an unimplemented or non-Matlab file with a .m file extension
+%    ""     | an invalid file path (e.g. folder, non-Matlab, or non-existent)
 %
-% - "script"   : a script
-% - "function" : a function, even one with void arguments
-% - "classdef" : a class definition file
-% - "method"   : a class member method, i.e. any function within a folder beginning with "@"
-% - "NA"       : not a MATLAB file, or not implemented (e.g. function produces an error when called by nargin())
+% **Note** `mType(i)` will be "NA" whenever the file could not be assessed
+% (e.g. a function that produces an error when called by `nargin`). An
+% assignment other than "NA" however does not guarantee that a file *is*
+% implemented, and it may still contain errors.
 %
-% [mType, mPath] = MFILETYPE( mFile )
-% 
-% Returns string vector 'mPath' of the full file paths.
+% Additional returns: 
 %
-%    [mType, mPath, mExist] = MFILETYPE( mFile )
+% -`mPath` a string vector containing the full file paths to the source files
 %
-% Returns vector of doubles 'mExist': the return values from MATLAB exist() for
-% each of the files. Note that the call is made with the single path argument,
-% so mExist will return "2" even for classdef files. (Also, note that exist()
-% will return "2" for all of the above cases (even when the file merely ends in
-% '.m' but is not a MATLAB file.) 
+% -`mExist` a vector of doubles returned by calling the Matlab [exist] function
+% for each of the files. Note that the call is made with the single path
+% argument, so `mExist` will be "2" even for classdef files.  Also, note that
+% `exist()` will return "2" even when the file merely ends in '.m' but is not
+% actually a MATLAB file.
 %
-% ### References
+% __SEE__
+% - [exist][https://www.mathworks.com/help/matlab/ref/exist.html]
 %
-% See also:
+% `mfiletype` implements the method outlined
+% [here](https://blogs.mathworks.com/loren/2013/08/26/what-kind-of-matlab-file-is-this/)
 %
-% - <https://www.mathworks.com/help/matlab/ref/exist.html exist>
-%
-% - This function follows the method outlined <https://blogs.mathworks.com/loren/2013/08/26/what-kind-of-matlab-file-is-this/ here>
+% See also
+% EXIST
     arguments
         mFile {mustBeA{ mFile,["string" "char" "cellstr"] }} ;
     end
-******************
-% throws an error for invalid paths
+
 mPath   = abspath( strip( string( mFile ) ) ) ; 
 mExist  = arrayfun( @exist, mPath ) ; 
 mType   = repmat( "NA", [length(mPath) 1 ]) ;
