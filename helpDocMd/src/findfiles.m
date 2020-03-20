@@ -7,9 +7,9 @@ function [List, paths] = findfiles( searchDir, searchPattern, isSearchRecursive,
 % names matching `searchPattern`. 
 %
 % __Description__
-% Wraps to dir() [1] and returns List: 1-D struct array of Matlab files. Full file
-% paths from the List.folder and List.name fields are output as a string vector
-% in the second return argument.
+% Wraps to Matlab function `dir` [1] and returns List: 1-D struct array of
+% Matlab files. Full file paths from the List.folder and List.name fields are
+% output as a string vector in the second return argument.
 % 
 % Each of the input arguments is optional, so `findfiles( )` will yield the
 % same result as `findfiles( ".", "*.*", 1, 1  )`
@@ -42,7 +42,7 @@ function [List, paths] = findfiles( searchDir, searchPattern, isSearchRecursive,
 % [1]: https://www.mathworks.com/help/matlab/ref/dir.html
 %
 % See also 
-% dir
+% DIR
     arguments
         searchDir(1,:) { mustBeStringScalarOrCharVector, mustBeFolder } = "." ;
         searchPattern  {mustBeStringOrCharOrCellstr} = "*.*" ;    
@@ -77,6 +77,7 @@ paths = "" ;
 for iFile = 1 : length( List ) 
     paths( iFile ) = string( fullfile( List(iFile).folder, List(iFile).name ) ) ;
 end
+
 paths = paths' ;
 
 end
