@@ -41,24 +41,27 @@ function [mType, mPath, mExist] = mfiletype( mFile )
 % See also
 % EXIST
     arguments
-        mFile {mustBeA{ mFile,["string" "char" "cellstr"] }} ;
+        mFile { mustBeA( mFile, ["string" "char" "cellstr"] ) } ;
     end
 
-mPath   = abspath( strip( string( mFile ) ) ) ; 
-mExist  = arrayfun( @exist, mPath ) ; 
-mType   = repmat( "NA", [length(mPath) 1 ]) ;
+mPath  = abspath( strip( string( mFile ) ) ) ; 
+mExist = arrayfun( @exist, mPath ) ; 
+mType  = repmat( "", size( mPath ) ) ;
+mType( ~endsWith( mPath, ".m" ) ) = "NA" ;
 
-% Saving initial working dir as it will change for each file to ensure it
-% is at the top of the path to avoid potential naming conflicts. (Could update
-% the MATLAB path for each file and then undo the update but this seems easier
-% and presumably equivalent to, if not faster than, the alternative.)
-userDir = pwd ; 
+% mPath indices corresponding to .m files
+iMFiles = find( [ isfile( mPath ) & endsWith( mPath, ".m" ) ] ) ;
 
-for iM = 1 : numel( mPath ) 
+% cd to each file to ensure it has precedence on the Matlab path, avoiding
+% naming conflicts. Alt., the MATLAB path could be updated for each file, then
+% reverted, but that may be slower.
+userDir = pwd ;
 
-    [ folder, name, ext ] = fileparts( mPath( iM ) ) ;
-
-    cd( folder ) ; % ensures file is at the top of the MATLAB path 
+for iM = 1 : nnz( iMFiles ) 
+   
+    [ folder, name, ext ] = fileparts( mPath( iMFiles( iM ) ) ) ;
+    
+    cd( folder ) ;  
 
     % Explicitly test classdef possibility first to bypass the other statements.
     % (i.e. exist() currently returns "2" even for classdef files when
@@ -68,11 +71,15 @@ for iM = 1 : numel( mPath )
 
     elseif mExist( iM ) == 2
         try
-            nArg = nargin( name ) ; % issues error if not a function/method name
-            [~,parentName] = fileparts( folder ) ; % path-stripped folder name
+            % issues error if not a function/method name
+            nArg = nargin( name ) ; 
             
+            % path-stripped folder name
+            [~, parentName] = fileparts( folder ) ; 
+                
             if startsWith( parentName, '@' ) 
-% should be sufficient but double-checking could be done with meta.class if necessary
+            % should be sufficient but double-checking could be done with
+            % meta.class if necessary
                 mType( iM ) = "method" ;
             else
                 mType( iM ) = "function" ;
