@@ -3,28 +3,25 @@ function [ pathOut, pathType ] = abspath( pathIn )
 %    
 %    [pathOut, pathType] = abspath( pathIn )  
 % 
-% `abspath` wraps to the Matlab function [fileattrib] to check each element of
-% the input argument `pathIn` for valid file system paths (which can be
-% relative or full/absolute). It returns two arrays of the same type (string,
-% char, or cellstr) and size (arbitrary) as the input.
+% Wraps to the Matlab function `fileattrib` to check each element of the input
+% array `pathIn` for valid file system paths (which can be relative or
+% full/absolute). It returns two arrays of the same type (string, char, or
+% cellstr) and size (arbitrary) as the input.
 %
 % The possibilities for a given return element `(i)` are:
 % 
-% |`pathIn(i)`  | `pathOut(i)`| `pathType(i)`                       |
-% |-------------|-------------|-------------------------------------|
-% | is a file   | full path   | "file"                              |
-% | is a folder | full path   | "directory"                         |
-% | else        |   ""        | the error message from [fileattrib] |
+% `pathIn(i)`  | `pathOut(i)`| `pathType(i)`                       
+% -------------|-------------|-------------------------------------
+%  is a file   | full path   | "file"                              
+%  is a folder | full path   | "directory"                         
+%  else        |   ""        | the error message from [fileattrib] 
 %
-% __Note__ 
-% Re: invalid input paths, the error message returned from fileattrib() will
-% presumably be 'No such file or directory.' However the MATLAB documentation
-% is unclear as to whether other possibilities exist for the case where
-% the function is called with a single argument, as is done here. 
-%
-% For more info, refer to the MATLAB documentation.
-%
-% [fleattrib]: https://www.mathworks.com/help/matlab/ref/fileattrib.html
+% **Note** for invalid input paths, the error message returned from
+% `fileattrib( pathIn(i) )` will presumably be 'No such file or directory.'
+% However the MATLAB documentation is unclear whether other possibilities exist
+% for the case where the function is called with a single argument, as is done
+% here. For more info, refer to the MATLAB documentation: 
+% [fleattrib](https://www.mathworks.com/help/matlab/ref/fileattrib.html/)
 %
 % See also 
 % FILEATTRIB 
