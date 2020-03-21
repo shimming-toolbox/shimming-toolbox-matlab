@@ -7,34 +7,34 @@ function [mType, mPath, mExist] = mfiletype( mFile )
 % `mfiletype` checks the list of Matlab source files specified by the [string-,
 % char-, or cellstr-] array of file paths `mFile` and returns:
 % 
-% 1. the string vector `mType` with entries:
+% 1. `mType` a string vector with entries
 %
-% `mType(i)`| When input `mFile(i)` is...  
+% `mType(i)`| when input `mFile(i)` is...  
 % ----------|-----------------------------------------------------------------|
 % "script"  | a script file 
 % "function"| a function file (even one with void arguments)
 % "classdef"| a class definition file
-% "method"  | a class method file (any .m file in a folder beginning with "@")
+% "method"  | a .m function (~=constructor) in a folder beginning with "@"
 %   "NA"    | an unimplemented or non-Matlab file with a .m file extension
 %    ""     | an invalid file path (e.g. folder, non-Matlab, or non-existent)
 % 
-% 2.`mPath` a string vector of the full file paths corresponding to the input
+% 2.`mPath` a string vector of the full file system paths.
 %
-% 3. `mExist` a vector of return from calling `mExist(i)=exist(mFile(i));` i.e.
-% with the single file path argument, so, it *should* be == 2, however...
+% 3. `mExist` a vector of return values (doubles) from Matlab function `exist` [2], 
+% namely: `mExist(i) = exist( mFile(i) );` the value *should* be == 2.
 %
 % __NOTE__
-% The current implementation, which follows the method outlined [here], is
-% very rudimentary and relies entirely on Matlab's [exist] function, which, as
-% the official documentation states, *does not* check the contents of '.m'
-% files. So, although `mType(i)` will be "NA" whenever the file could not be
-% assessed (e.g. a function that produces an error when called by `nargin`), an
-% assignment other than "NA" however does not guarantee that a file *is* in
-% working condition: it may still contain errors.
+% This function (which implements [1]) is very rudimentary; relying entirely
+% on Matlab's [exist] function, which, as the official documentation states,
+% *does not* check the contents of '.m' files.  So, although `mType(i)` will be
+% "NA" whenever file `i` could not be assessed (e.g. a function that produces
+% an error when called by `nargin`), an assignment other than "NA" however does
+% not guarantee that a file *is* in working condition, and it may still contain
+% errors.
 %
 % __SEE__
-% [here]: https://blogs.mathworks.com/loren/2013/08/26/what-kind-of-matlab-file-is-this/
-% [exist]: https://www.mathworks.com/help/matlab/ref/exist.html/
+% [1]: https://blogs.mathworks.com/loren/2013/08/26/what-kind-of-matlab-file-is-this/
+% [2]: https://www.mathworks.com/help/matlab/ref/exist.html/
 %
 % See also
 % EXIST
@@ -80,8 +80,7 @@ for iM = 1 : nnz( iMFiles )
             [~, parentName] = fileparts( folder ) ; 
                 
             if startsWith( parentName, '@' ) 
-            % should be sufficient but double-checking could be done with
-            % meta.class if necessary
+            % should be sufficient, but meta.class.fromName could be used to double-check. 
                 mType( iM ) = "method" ;
             else
                 mType( iM ) = "function" ;
