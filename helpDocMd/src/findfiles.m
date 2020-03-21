@@ -1,67 +1,55 @@
-function [List, paths] = findfiles( searchDir, searchPattern, isSearchRecursive, isExcludingHidden )
+function [paths, List] = findfiles( sFolder, sFilePattern, isRecursive, isExcludingHidden )
 % FINDFILES Search a directory for filenames matching a pattern
-%     
-%    [List, paths] = findfiles( searchDir, searchPattern, isSearchRecursive, isExcludingHidden )
-%
-% Returns the list of files in `searchDir` and its subdirectories with file
-% names matching `searchPattern`. 
-%
-% __Description__
-% Wraps to Matlab function `dir` [1] and returns List: 1-D struct array of
-% Matlab files. Full file paths from the List.folder and List.name fields are
-% output as a string vector in the second return argument.
 % 
-% Each of the input arguments is optional, so `findfiles( )` will yield the
-% same result as `findfiles( ".", "*.*", 1, 1  )`
-% __OPTIONS__                                           
+%    [paths, List] = findfiles( sFolder, sFilePattern, isRecursive, isExcludingHidden )
+% 
+% Looks for files in `sFolder` with filenames matching `sFilePattern` by
+% calling Matlab function [dir] and returns the file paths as elements of a
+% string column vector `paths`. Structs output by `dir()` are arrayed and
+% returned as `List.
+% 
+% INPUTS
 %     
-% `searchDir` The base directory of the search. [default="."]   
+%   sFolder=["."]
+%     The base directory of the search.    
 %
-% `searchPattern` The searchPattern of interest. If provided as a string array,
-% patterns searched successively
-% [default, all files with explicit file extensions: "*.*"]  
+%   sFilePattern=["*.*"] 
+%     The searchPattern of interest. If provided as a string array, patterns
+%     are searched successively. (The default corresponds to including  all
+%     files with explicit with explicit file extensions.)
 %
-% `isSearchRecursive` Toggle to include subdirectories in search when true
-% [default=1]  
+%   isRecursive=[true|1]
+%     Toggle to include (1) or exclude (0) subdirectories in the search.
 %
-% `isExcludingHidden` Toggle to exclude hidden files when true.
-% (i.e. for Unix: filenames beggining with "." )
-% [default=1]  
+%   isExcludingHidden=[true|1]
+%     Toggle to include (1) or exclude (0) hidden files (i.e. for
+%     Unix: filenames beginning with "." )  
 %
-% Inputs:
-%  
-%| Name              |`Default`   | {type} (size)   |  description |
-%| ----------        | ---------- | ----------------| ----------  -------- |
-%|`searchDir `       |`"."`       |{string}(1,1)    | Base directory of search
-%|`searchPattern`    |`"*.*"      | {string}(any)   | e.g "*.m" for Matlab source code|
-%|`isSearchRecursive`|`true`      | {logical} (1,1) |                         |
-%|`isExcludingHidden`|`true`      | {logical} (1,1) |                         |
+% ETC 
 %
+%   For more info, refer to the documentation for
+%   [dir](https://www.mathworks.com/help/matlab/ref/dir.html)
 %
-% __SEE__
-% [1]: https://www.mathworks.com/help/matlab/ref/dir.html
-%
-% See also 
-% DIR
+% See also DIR
     arguments
-        searchDir(1,:) { mustBeStringScalarOrCharVector, mustBeFolder } = "." ;
-        searchPattern  {mustBeStringOrCharOrCellstr} = "*.*" ;    
-        isSearchRecursive(1,1) {mustBeBoolean} = true ;
+        sFolder(1,:) { mustBeStringScalarOrCharVector, mustBeFolder } = "." ;
+        sFilePattern  {mustBeStringOrCharOrCellstr} = "*.*" ;    
+        isRecursive(1,1) {mustBeBoolean} = true ;
         isExcludingHidden(1,1) {mustBeBoolean} = true ;
     end
 
-searchStr = strcat( searchDir, filesep )  ;
+searchStr = strcat( sFolder, filesep )  ;
 
-if isSearchRecursive
+if isRecursive
     searchStr = strcat( searchStr, '**', filesep )  ;
 end
 
-searchPattern = string( searchPattern ) ;
+sFilePattern = string( searchPattern ) ;
 
-List = dir( strcat(searchStr,searchPattern(1)) ) ;
+List = dir( strcat(searchStr,sFilePattern(1)) ) ;
 
-for iPattern = 2 : numel( searchPattern )
-    List = [ List ; dir( strcat( searchStr, searchPattern(iPattern) ) ) ] ;
+for iPattern = 2 : numel( sFilePattern )
+    List = [ List ; dir( strcat( searchStr, sFilePattern(iPattern) ) ) ] ;
 end
 
 %% remove folders
