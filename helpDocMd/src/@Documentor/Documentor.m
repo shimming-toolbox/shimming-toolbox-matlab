@@ -128,8 +128,12 @@ function Dr = Documentor( pathIn, Params )
 
     if nargin == 0
         return ;
+    elseif nargin == 2
+        if ~isempty( Params.dirOutTop )
+            Dr.dirOutTop = Params.dirOutTop ;
+        end
     end
-
+    
     Dr.mFiles = Dr.findfiles( pathIn ) ;
     Dr.Info   = Informer( Dr.mFiles(1) ) ;
     Dr.docFiles = "_DEFAULTS_" ;
@@ -139,13 +143,48 @@ end
 function [dirInTop] = get.dirInTop( Dr )
  
     % find folder with fewest parent directories (i.e. slashes in path): 
-    mDirs        = arrayfun( @fileparts, Dr.mFiles ) ;
-    [~, iTopDir] = min( count( mDirs, filesep ) ) ;
-    path     = mDirs( iTopDir ) ;
+    parts = {};
+    nFiles = numel(Dr.mFiles);
+    for iFile = 1:nFiles
+        parts{iFile} = strsplit(Dr.mFiles(iFile), filesep);
+    end
+    nParts = size(parts{1,iFile},2);
+    
+    % find the first different element of parts
+    isDifferent = 0;
+    
+    for iPart = 1:nParts
+        if ~isDifferent
+            % start at first different name
+            oldName = parts{1,1}(iPart);
+            for iFile1 = 1:numel(parts)
+                name = parts{1,iFile1}(iPart);
 
-    %return parent directory
-    dirInTop = fileparts( path );
-
+                if oldName ~= name
+                    isDifferent = 1;
+                    partDifferent = iPart;
+                    break;
+                end
+            end
+            
+            if isDifferent
+                break;
+            end
+        end
+    end
+    if ~isDifferent
+        partDifferent = nParts;
+    end
+    
+    path = "";
+    for iPart = 1:(partDifferent-1)
+        if iPart ~= (partDifferent-1)
+            path = strcat(path, parts{1,1}(iPart), filesep);
+        else
+            path = strcat(path, parts{1,1}(iPart));
+        end
+    end
+    dirInTop = path;
 end
 % =========================================================================    
 function [dirOutTop] = get.dirOutTop( Dr )
