@@ -1,39 +1,33 @@
 function [] = mustBeFileOrFolder( A )
-%% MUSTBEFILEORFOLDER Validate value is a path (or set of paths) to existing files or folders
+%MUSTBEFILEORFOLDER Assert input consists exclusively of valid file system paths
+%    
+%    [] = mustBeFileorFolder( A ) 
+% 
+% Throws an error if any single element of `A` is neither an existing file nor
+% folder path: namely, if `all( [ isfile( A ) | isfolder( A ) ] )` evaluates to
+% `false`.
+% 
+% __INPUTS__
 %
-% MUSTBEFILEORFOLDER is a validation function which wraps to isfile() and
-% isfolder() and throws an error if the input argument is not comprised solely
-% of existing file system paths. (The input can be a string array, character
-% array, or cell array of character vectors (aka "cell-string") of any size.)
+%   `A` 
+%     A string- or cellstr-array of any size, or a single-row character vector.
 %
-% ---
-% ### Usage ###
+% __ETC__
 %
-% [] = MUSTBEFILEORFOLDER( A ) 
+% -[Validation functions](https://www.mathworks.com/help/matlab/matlab_prog/argument-validation-functions.html)
+% -[isfolder](https://www.mathworks.com/help/matlab/ref/isfolder.html)
+% -[isfile][https://www.mathworks.com/help/matlab/ref/isfile.html)
 %
-% ### References ###
-%
-% See also 
-%
-% <https://www.mathworks.com/help/matlab/ref/isfolder.html isfolder>
-%
-% <https://www.mathworks.com/help/matlab/ref/isfile.html isfile>
-%
-% <https://www.mathworks.com/help/matlab/matlab_prog/argument-validation-functions.html validation functions> 
-%%
-    arguments
-        A {mustBeStringOrCharOrCellstr} ;
-    end
+% See also
+% ISFOLDER, ISFILE
 
-A      = strip( string( A ) ) ;
-A      = A(:) ;
 isPath = [ isfile( A ) | isfolder( A ) ] ;
 
 if any( ~isPath )
-    error( strcat( 'Not an existing file or directory path:\n', join( A(~isPath),"\n") ), '%s' ) ;
+    badPaths = string(A) ; 
+    badPaths = A(~isPath) ;
+    errMsg   = sprintf( '%s', strjoin( [ "Invalid path:" ; badPaths(:) ], '\n' ) ) ;
+    error( 'mustBeFileOrFolder:invalidPath', errMsg ) ;
 end
 
 end
-
-
-
