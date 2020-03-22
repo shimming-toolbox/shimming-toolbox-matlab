@@ -59,7 +59,8 @@ for iPattern = 2 : numel( sPattern )
     List = [ List ; dir( strcat( searchStr, sPattern(iPattern) ) ) ] ;
 end
 
-paths = fullfile( string( {List(:).folder} )', string( {List(:).name} )' ) ;
+[paths, iUnique] = unique( fullfile( string({List(:).folder})', string({List(:).name})' ) ) ;
+List             = List(iUnique) ; 
 
 if isExcludingHidden 
     if isunix
@@ -84,8 +85,8 @@ switch returnType
     % otherwise % (both)
 end
 
+paths = unique( paths( iInclude ) ) ;
 List  = List( iInclude ) ;
-paths = paths( iInclude ) ;
 
 %% Recast to input type
 switch class( sFolder )
