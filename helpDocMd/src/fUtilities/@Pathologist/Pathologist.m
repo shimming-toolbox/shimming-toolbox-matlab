@@ -23,9 +23,20 @@ properties( Access=private )
 
     sizeIn = 1
 
+end
+
+properties
+
+    %TODO: data can be private or at least hidden once subsasgn/subsref both work...
+
     % Path data: real or fictitious files or folders
     data {mustBeString} = "./" ;
 
+    % Sets the return datatype (class) of path info as "string" "char" or "cell"
+    % 
+    % (Default is whatever data type was used to initialize the object.) 
+    typeOut(1,1) string {mustBeMember(typeOut, ["string" "char" "cell"])} = "char" ;
+    
 end
 
 properties( Dependent )
@@ -70,6 +81,7 @@ function Path = Pathologist( pathIn )
     end
 
     Path.typeIn = string( class( pathIn ) ) ;
+    Path.typeOut = Path.typeIn ;
     Path.sizeIn = size( pathIn ) ;
     Path.data   = Pathologist.typecast( pathIn, "string" ) ;
 
@@ -199,11 +211,63 @@ function [isDir] = isfolder( Path )
 
 end
 % =========================================================================    
-function [mExist] = exist( pathIn )
+function [mExist] = exist( Path )
 
     mExist = arrayfun( @exist, Path.data ) ; 
     
 end
+% =========================================================================    
+function [folder, name, ext] = fileparts( Path )
+
+    [filepath,name,ext] = arrayfun( @fileparts, Path.data ) ;
+
+end
+% % =========================================================================    
+% function Path = subsasgn(Path, S, pathIn)
+%    
+%     if strcmp( S(1).type, '()' )
+%         switch class( pathIn )
+%             case 'char'
+%                 Path.data(S.subs{:}) = deblank( string( pathIn ) ) ;
+%                 return
+%             case 'cell'
+%                 assert( iscellstr(pathIn), 'Value must be a string, char, or cellstr')
+%                 Path.data(S.subs{:}) = deblank( string( pathIn ) ) ;
+%                 return 
+%             case 'string'
+%                 Path.data(S.subs{:})= pathIn ;
+%             otherwise
+%                 error('Value must be a string, char, or cellstr')
+%         end
+%     
+%     else % Call built-in for any other case
+%         Path = builtin('subsasgn', Path, S, pathIn);
+%     end
+% end
+% % =========================================================================    
+% function pathOut = subsref(Path, S)
+%
+%     if isequal(Path,[])
+%         Path = Pathologist.empty;
+%     end
+%
+%     switch S(1).type
+%         case '()'
+%             pathOut = Path.data(S.subs{:}) ;
+%         case '.' 
+%             % Call built-in for any other case
+%             pathOut{:} = builtin('subsref',Path,S); 
+%         otherwise
+%             pathOut{:} = builtin('subsref',Path,S); 
+%         %    switch S(1).subs
+%         %       case 'plot'
+%         %          % Reference to A.x and A.y call built-in subsref
+%         %          B = plot(A.x,A.y);
+%         %       otherwise
+%         %          % Enable dot notation for all properties and methods
+%         %          B = A.(S.subs);
+%      end
+% end
 % =========================================================================    
 
 end
@@ -259,7 +323,9 @@ methods( Static )
     %..... 
     [txtOut] = typecast( txtIn, castAs )
     %..... 
-    [dirs] = mapdirectorytree( baseDir, isReturnRelative, isExcludingHidden )
+    [dirs]   = mapdirectorytree( baseDir, isReturnRelative, isExcludingHidden )
+    %..... 
+    [Info]  = whatr( baseDir, isExcludingHidden )
 end
 % =========================================================================    
 % =========================================================================    

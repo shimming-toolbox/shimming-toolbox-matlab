@@ -28,11 +28,11 @@ function [ Info ] = whatr( baseDir, isExcludingHidden )
         isExcludingHidden(1,1) { mustBeBoolean } = true ;
     end
 
-baseDir = string( baseDir ) ;
+P = Pathologist( baseDir ) ;
 
 %% recursive what() 
-Info = what( baseDir ) ;
-dirs = mapdirectorytree( baseDir, false, isExcludingHidden ) ;   
+Info = what( P(1) ) ;
+dirs = P.mapdirectorytree( P(1), false, isExcludingHidden ) ;   
 
 for iSubDir = 1 : numel( dirs )
     Info = [ Info ; what( dirs( iSubDir ) ) ] ;
