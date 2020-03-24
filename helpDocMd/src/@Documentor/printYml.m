@@ -13,14 +13,15 @@ theme = struct('name', 'material');
 home = struct('Home', 'index.md');
 
 % navigation
-% seperate each folder in cells and find longest tree structure
+
+% seperate each folder in cells to be easier to work with
 parts = {};
-% nLevels = 0;
 nFiles = numel(Dr.docFiles);
 for iFile = 1:nFiles
     parts{iFile} = strsplit(Dr.docFiles(iFile), filesep);
-
-    % remove first letter when its a class ('@')
+    
+    % remove first letter when its a class ('@') TODO remove whole cell
+    % when the save recursive doesnt save the .md file in the class folder
     fieldName = parts{1,iFile}(end-1);
     if (fieldName{1}(1) == '@')
         fieldName = strip(fieldName,'@');
@@ -29,9 +30,9 @@ for iFile = 1:nFiles
 end
 
 % add each file one by one
-nav = {{}};
+nav = {};
 for iFile = 1:nFiles
-    nav = addFileLayer(nav, parts, iFile, Dr.extOut);
+    nav = addFileLayer(nav, parts, iFile, Dr.extOut, Dr.dirOutTop, Dr.docFiles(iFile));
 end
 
 % assemble
@@ -41,10 +42,13 @@ yml.nav = nav;
 % write
 YAML.write(filePath, yml)
 
+% Quickfix TODO : write it properly
+fixWrite(filePath);
+disp('done')
 end
 
 
-function [outNav] = addFileLayer(nav, parts, iFile, ext)
+function [outNav] = addFileLayer(nav, parts, iFile, ext, dirOutTop, fullpath)
     nParts = size(parts{1,iFile},2);
     
     % find the first different element of parts
@@ -72,6 +76,7 @@ function [outNav] = addFileLayer(nav, parts, iFile, ext)
     if ~isDifferent
         partDifferent = nParts - 1;
     end
+    
     % build "nav" depending on tre structure
     expression = 'nav';
 
@@ -86,42 +91,41 @@ function [outNav] = addFileLayer(nav, parts, iFile, ext)
         %find size of last input struct
         expressionSize = strcat('size(', expressionLastGet,',1)');
         nNavX = eval(expressionSize);
-        for iNavX = 1:nNavX
+        
+        if nNavX == 0
+            firstIsEmpty = 1;    
+        elseif iPart1 < nParts
+            for iNavX = 1:nNavX
 
-            expressionIsEmpty = strcat(expressionLastGet, '{', string(iNavX), ',1}' );
-
-            if ~isempty(eval(expressionIsEmpty))
-                
                 expressionIsField = strcat('isfield(', expressionLastGet, '{', string(iNavX), ',1}', ', parts{1,iFile}(', string(iPart1), '))');
-                
-                % isField()
+
+                % isfield()
                 if eval(expressionIsField)
                     found = 1;
                     foundWhere = iNavX;
                     break;
                 end
-                
-            else
-                firstIsEmpty = 1;
-            end
-            
-        end
 
+            end
+        end
+        
         % if it is not, create it
         if ~found
             %if its the last element aka the file
             if iPart1 >= nParts
-                structAssign = struct( erase(parts{1,iFile}(iPart1), ext),char(parts{1,iFile}(iPart1)));
-                expressionAssign = strcat(expressionLastGet, ' = structAssign');
+                %find path
+                relativePath = erase(fullpath,strcat(dirOutTop,filesep));
+                structAssign = struct( erase(parts{1,iFile}(iPart1), ext),char(relativePath));
+                expressionAssign = strcat(expressionLastGet, '{nNavX+1,1}', ' = structAssign;');
                 foundWhere = nNavX+1;
             else
                 if firstIsEmpty
-                    expressionAssign = strcat(expressionLastGet, '{1,1}.(parts{1,iFile}(', string(iPart1), ')) = {{}}');
-                    %nav{1,1}.(parts{1,iFile}(iPart1)) = {{}};
+                    expressionAssign = strcat(expressionLastGet, '{1,1}.(parts{1,iFile}(', string(iPart1), ')) = {};');
+                    %nav{1,1}.(parts{1,iFile}(iPart1)) = {};
                     foundWhere = 1;
                 else 
-                    expressionAssign = strcat(expressionLastGet, '{', string(nNavX+1), ',1}.(parts{1,iFile}(', string(iPart1), ')) = {{}}');
-                    %nav{nNavX+1,1}.(parts{1,iFile}(iPart1)) = {{}};
+                    expressionAssign = strcat(expressionLastGet, '{', string(nNavX+1), ',1}.(parts{1,iFile}(', string(iPart1), ')) = {};');
+                    %nav{nNavX+1,1}.(parts{1,iFile}(iPart1)) = {};
                     foundWhere = nNavX+1;
                 end
             end
@@ -135,10 +139,41 @@ function [outNav] = addFileLayer(nav, parts, iFile, ext)
         
         % prepare next iteration of for loop
         expression = strcat(expressionLastGet, '{', string(foundWhere), ',1}.(parts{1,iFile}(',string(iPart1),'))');
-
     end
     %
     outNav = nav;
 
 end
 
+function [] = fixWrite(filePath)
+    % open file
+    [fid, errMsg] = fopen( filePath, 'r' ) ;
+    assert( fid~=-1, ['Read failed: ' errMsg], '%s' ) ;
+    
+    text = fread(fid,'*char');
+    
+    % Find if the following line of character exists "- -". Deletes "- " if
+    % found
+    for itext  = 1:size(text,1)
+        if text(itext) == '-'
+            if text(itext+1) == ' '
+                if text(itext+2) == '-'
+                    text(itext) = ' ';
+                end
+            end
+        end
+    end
+    
+    % Close file
+    fclose(fid);
+    
+    % Open the same file but now empty
+    [fid, errMsg] = fopen( filePath, 'w+' ) ;
+    assert( fid~=-1, ['write failed: ' errMsg], '%s' ) ;
+    
+    % Write the fixed characters
+    fwrite(fid,text, '*char');
+    
+    % close file
+    fclose(fid);
+end

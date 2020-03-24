@@ -228,9 +228,14 @@ function Dr = Documentor( pathIn )
         end
     end
     
+<<<<<<< HEAD
     Dr.mFiles = Documentor.findfiles( pathIn ) ;
     Dr.Info   = Informer( Dr.mFiles(1) ) ;
     Dr.dFiles = "_DEFAULTS_" ;
+=======
+    Dr.mFiles = Dr.findfiles( pathIn ) ;
+    % Dr.Info = {} % or [] or zeros(numel(Dr.mFiles))
+        Dr.Info   = Informer( Dr.mFiles(1) ) ;
 
 end
 % =========================================================================    
@@ -284,8 +289,8 @@ end
 function [dirOutTop] = get.dirOutTop( Dr )
 
     if strcmp( Dr.dirOutTop, "" )
-        try  % output doc folder in parent directory of ./mFiles
-            Dr.dirOutTop = strcat( Dr.dirInTop, filesep, "doc" ) ;
+        try  % output docs folder in parent directory of ./mFiles
+            Dr.dirOutTop = strcat( Dr.dirInTop, filesep, "docs" ) ;
         catch ME
             warning( [ 'Failed to create default dirOutTop directory.\n' ... 
                       'Assign the doc output directory manually.' ], '%s' ) ;
@@ -331,7 +336,16 @@ function [] = set.dFiles( Dr, dFiles )
             if Dr.isSaveRecursive % try to recreate subdir structure
                 % remove parent dir component
                 docFolder = [ Dr.dirOutTop + erase( folder, Dr.dirInTop ) ] ;
-
+                
+                % class files are need to bbe documented one level higher
+                % in tree because they are one folder deeper
+                parts = strsplit(Dr.mFiles(iM), filesep);
+                fieldName = parts(end-1);
+                if (fieldName{1}(1) == '@')
+                    % goes to the parent directory if its a class
+                    docFolder = fileparts(docFolder);
+                end
+                
                 [isMade, msg, msgId] = mkdir( docFolder ) ;
                 
                 assert( isMade, msgId, ['Directory creation failed: ' msg ], '%s' ) ; 
