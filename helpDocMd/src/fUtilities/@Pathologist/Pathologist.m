@@ -136,30 +136,41 @@ end % methods
 % =========================================================================    
 methods( Access=private )
 % =========================================================================    
-function [pathOut] = returnasinput( Path, pathIn ) 
+function [varargout] = returnasinput( Path, varargin ) 
 % RETURNASINPUT Resize and recast a path value to correspond with user input
 %    
 %     [pathOut] = returnasinput( Path )
 %     [pathOut] = returnasinput( Path, pathIn )
+%     [pathOut1, pathOut2, ...] = returnasinput( Path, pathIn1, pathIn2,... )
 %
 % Reshapes `pathIn` according to `Path.sizeIn` when the 2 have the same number
-% of elements and recasts it as `Path.typeIn` to return `pathOut`. 
+% of elements and recasts it as `Path.typeIn` to return `pathOut`.
+%
 % When called with the single argument, `pathIn` is assigned the value of
 % `Path.data`. 
-    
-    if nargin < 2
-        pathIn = Path.data ;
-    end
+%
+% When called with > 2 inputs, resizing + recasting is applied successively to
+% define the respective returns.
 
-    if numel( pathIn ) > 1
-        if strcmp( Path.typeIn, 'char' )
-            pathIn = reshape( pathIn, [Path.sizeIn(1) 1 Path.sizeIn(3:end)] ) ;
-        else
-            pathIn = reshape( pathIn, Path.sizeIn ) ; 
+    if nargin == 1
+        pathIn = Path.data ;
+    elseif nargin == 2
+        pathIn = varargin{1} ;
+        if numel( pathIn ) > 1
+            if strcmp( Path.typeIn, 'char' )
+                pathIn = reshape( pathIn, [Path.sizeIn(1) 1 Path.sizeIn(3:end)] ) ;
+            else
+                pathIn = reshape( pathIn, Path.sizeIn ) ; 
+            end
+        end
+
+        varargout{1} = Path.typecast( pathIn, Path.typeIn ) ;
+
+    elseif nargin > 2
+        for iP = 1 : numel( varargin )
+            varargout{iP} = Path.returnasinput( varargin{iP} ) ;
         end
     end
-
-    pathOut = Path.typecast( pathIn, Path.typeIn ) ;
 
 end
 % =========================================================================    
@@ -168,6 +179,8 @@ end % private methods
 % =========================================================================    
 % =========================================================================    
 methods( Static )
+    %..... 
+    [pathOut, pathType] = abs( pathIn )
     %..... 
     [txtOut] = typecast( txtIn, castAs )
 end
