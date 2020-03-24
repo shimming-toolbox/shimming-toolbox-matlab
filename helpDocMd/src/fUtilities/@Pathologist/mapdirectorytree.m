@@ -1,29 +1,28 @@
 function [dirs] = mapdirectorytree( baseDir, isReturnRelative, isExcludingHidden )
 % MAPDIRECTORYTREE Returns list of subdirectories
-%
-% ### Usage ### 
-%
-% dirs = MAPDIRECTORYTREE( baseDir, isReturnRelative, isExcludingHidden )
+%    
+%     dirs = MAPDIRECTORYTREE( baseDir, isReturnRelative, isExcludingHidden )
 % 
-% Returns a string column vector wherein each element is a path to a subdirectory.
+% Returns paths to the subdirectories of `baseDir` as elements of the string
+% column vector `dirs`.
 %
-% ### Inputs ###
+% __INPUTS__
 %
-% - baseDir
-%   [default = "."]
-%   Parent/top directory as string scalar
+%   baseDir=["."]
+%     Parent/top directory as string scalar
 %
-% - isReturnRelative 
-%   [default = 1]
-%   Boolean toggle to return the subdirectory paths as relative (true) or absolute (false). 
+%   isReturnRelative=[true|1]
+%     Boolean toggle: Returns the subdirectory paths as relative to `baseDir` 
+%     when true, or in absolute terms when false.
 %
-% - isExcludingHidden     
-%   [default = 1]
-%   Boolean toggle includes hidden folders in the returned list when set to 0 (false).
+%   isExcludingHidden=[true|1]
+%     Boolean toggle includes hidden folders in the returned list when set to 0
+%     (false).
 %
-% ### References ###
+% __ETC__
 %
-% See also fileattrib, dir
+% See also 
+% FILEATTRIB, DIR
     arguments
         baseDir(1,:) { mustBeStringScalarOrCharVector, mustBeFolder } = "." ;
         isReturnRelative(1,1) { mustBeBoolean }  = true ;
