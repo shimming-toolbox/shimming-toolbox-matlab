@@ -30,6 +30,12 @@ end
 
 properties( Dependent )
 
+    % list of files among Path.data
+    files ;
+    
+    % list of folders among Path.data
+    folders ;
+
     % Number of input paths
     nPaths ;
 
@@ -107,6 +113,18 @@ function [baseDir] = get.baseDir( Path )
 
 end
 % =========================================================================    
+function [files] = get.files( Path )
+
+    files = Path.data( Path.isfile ) ;
+
+end
+% =========================================================================    
+function [folders] = get.folders( Path )
+
+    folders = Path.data( Path.isfolder ) ;
+
+end
+% =========================================================================    
 function [nPaths] = get.nPaths( Path )
     
     nPaths = numel( Path.data ) ;
@@ -130,8 +148,42 @@ function [parentDir] = get.parentDir( Path )
 
 end
 % =========================================================================    
+function [isValid] = isvalid( Path )
+%ISVALID Returns true for elements of Path.data that refer to files or folders
+%
+% `Path.isValid = [ Path.isfile | Path.isfolder ]`
+
+    isValid = [ Path.isfile | Path.isfolder ] ;
+
+end
+% =========================================================================    
 
 end % methods
+% =========================================================================    
+% =========================================================================    
+
+methods % overloaded MATLAB methods
+% =========================================================================    
+function [isFilepath] = isfile( Path )
+
+    isFilepath = isfile( Path.data ) ;
+
+end
+% =========================================================================    
+function [isDir] = isfolder( Path )
+
+    isDir = isfolder( Path.data ) ;
+
+end
+% =========================================================================    
+function [mExist] = exist( pathIn )
+
+    mExist = arrayfun( @exist, Path.data ) ; 
+    
+end
+% =========================================================================    
+
+end
 % =========================================================================    
 % =========================================================================    
 methods( Access=private )
