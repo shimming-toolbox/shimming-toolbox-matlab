@@ -36,6 +36,9 @@ properties( Dependent )
     % list of folders among Path.data
     folders ;
 
+    % subfolders of each folder element of Path.data
+    subfolders ;
+    
     % Number of input paths
     nPaths ;
 
@@ -122,6 +125,26 @@ end
 function [folders] = get.folders( Path )
 
     folders = Path.data( Path.isfolder ) ;
+
+end
+% =========================================================================    
+function [subfolders] = get.subfolders( Path )
+
+    
+    if all( Path.isfolder == false )
+        subfolders = string([]) ;
+        return ; 
+    end
+
+    folders = Path.folders ; 
+    subfolders = string( [] ) ;
+%TODO: change call so Path.subfolders(i) returns the column vector of subfolders in Path.folders(i)...
+    if ~isempty( folders )  
+        for iDir = 2 : numel( folders ) 
+            subfoldersiDir = Path.mapdirectorytree( folders(iDir), false, false ) 
+            subfolders     = [ subfolders ; subfoldersiDir ] ; 
+        end
+    end
 
 end
 % =========================================================================    
@@ -235,6 +258,8 @@ methods( Static )
     [pathOut, pathType] = abs( pathIn )
     %..... 
     [txtOut] = typecast( txtIn, castAs )
+    %..... 
+    [dirs] = mapdirectorytree( baseDir, isReturnRelative, isExcludingHidden )
 end
 % =========================================================================    
 % =========================================================================    
