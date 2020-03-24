@@ -1,9 +1,7 @@
-classdef (Abstract) Helper
-%HELPER Templates and tools for documenting code
-%alt.name: GUIDEDOC? DOCASSISTANT? HELPDOC?
-%
+classdef (Abstract) elper
+%ADVISOR Templates and tools for documenting code
 % 
-% HELPER provides templates for writing help entries to new MATLAB files
+% Advisor provides templates for writing help entries to new MATLAB files
 %
 % WIP
 
@@ -14,7 +12,7 @@ end
 % =========================================================================    
 methods
 
-function [ Hlp ] = Helper(  )
+function [ Ad ] = Advisor(  )
     return ;
 end
 
