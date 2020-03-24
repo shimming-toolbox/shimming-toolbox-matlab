@@ -13,6 +13,9 @@ theme = struct('name', 'material');
 home = struct('Home', 'index.md');
 
 % navigation
+
+% iterate through each iLevels if the file has the same tree struct
+
 % seperate each folder in cells and find longest tree structure
 parts = {};
 % nLevels = 0;
@@ -29,9 +32,9 @@ for iFile = 1:nFiles
 end
 
 % add each file one by one
-nav = {{}};
+nav = {};
 for iFile = 1:nFiles
-    nav = addFileLayer(nav, parts, iFile, Dr.extOut);
+    nav = addFileLayer(nav, parts, iFile, Dr.extOut, Dr.dirOutTop, Dr.docFiles(iFile));
 end
 
 % assemble
@@ -40,11 +43,11 @@ yml.nav = nav;
 
 % write
 YAML.write(filePath, yml)
-
+disp('done')
 end
 
 
-function [outNav] = addFileLayer(nav, parts, iFile, ext)
+function [outNav] = addFileLayer(nav, parts, iFile, ext, dirOutTop, fullpath)
     nParts = size(parts{1,iFile},2);
     
     % find the first different element of parts
@@ -86,42 +89,41 @@ function [outNav] = addFileLayer(nav, parts, iFile, ext)
         %find size of last input struct
         expressionSize = strcat('size(', expressionLastGet,',1)');
         nNavX = eval(expressionSize);
-        for iNavX = 1:nNavX
+        
+        if nNavX == 0
+            firstIsEmpty = 1;    
+        elseif iPart1 < nParts
+            for iNavX = 1:nNavX
 
-            expressionIsEmpty = strcat(expressionLastGet, '{', string(iNavX), ',1}' );
-
-            if ~isempty(eval(expressionIsEmpty))
-                
                 expressionIsField = strcat('isfield(', expressionLastGet, '{', string(iNavX), ',1}', ', parts{1,iFile}(', string(iPart1), '))');
-                
-                % isField()
+
+                % isfield()
                 if eval(expressionIsField)
                     found = 1;
                     foundWhere = iNavX;
                     break;
                 end
-                
-            else
-                firstIsEmpty = 1;
-            end
-            
-        end
 
+            end
+        end
+        
         % if it is not, create it
         if ~found
             %if its the last element aka the file
             if iPart1 >= nParts
-                structAssign = struct( erase(parts{1,iFile}(iPart1), ext),char(parts{1,iFile}(iPart1)));
-                expressionAssign = strcat(expressionLastGet, ' = structAssign');
+                relativePath = erase(fullpath,strcat(dirOutTop,filesep));
+                %USE PATH
+                structAssign = struct( erase(parts{1,iFile}(iPart1), ext),char(relativePath));
+                expressionAssign = strcat(expressionLastGet, '{nNavX+1,1}', ' = structAssign');
                 foundWhere = nNavX+1;
             else
                 if firstIsEmpty
-                    expressionAssign = strcat(expressionLastGet, '{1,1}.(parts{1,iFile}(', string(iPart1), ')) = {{}}');
-                    %nav{1,1}.(parts{1,iFile}(iPart1)) = {{}};
+                    expressionAssign = strcat(expressionLastGet, '{1,1}.(parts{1,iFile}(', string(iPart1), ')) = {};');
+                    %nav{1,1}.(parts{1,iFile}(iPart1)) = {};
                     foundWhere = 1;
                 else 
-                    expressionAssign = strcat(expressionLastGet, '{', string(nNavX+1), ',1}.(parts{1,iFile}(', string(iPart1), ')) = {{}}');
-                    %nav{nNavX+1,1}.(parts{1,iFile}(iPart1)) = {{}};
+                    expressionAssign = strcat(expressionLastGet, '{', string(nNavX+1), ',1}.(parts{1,iFile}(', string(iPart1), ')) = {};');
+                    %nav{nNavX+1,1}.(parts{1,iFile}(iPart1)) = {};
                     foundWhere = nNavX+1;
                 end
             end
@@ -135,10 +137,8 @@ function [outNav] = addFileLayer(nav, parts, iFile, ext)
         
         % prepare next iteration of for loop
         expression = strcat(expressionLastGet, '{', string(foundWhere), ',1}.(parts{1,iFile}(',string(iPart1),'))');
-
     end
     %
     outNav = nav;
 
 end
-
