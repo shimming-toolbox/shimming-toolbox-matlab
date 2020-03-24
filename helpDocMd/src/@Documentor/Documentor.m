@@ -140,7 +140,7 @@ properties( AbortSet )
     mFiles {mustBeFileOrFolder} = string( [ mfilename('fullpath') '.m' ] ) ;
 
     % List of output documentation file paths (string vector of full file paths)
-    dFiles {mustBeStringOrCharOrCellstr} = "" ; 
+    dFiles {mustBeStringOrCharOrCellstr} = "_DEFAULTS_" ; 
 
     % Toggle whethers to overwrite existing documentation files (logical column vector with length == numel(mFiles))
     isOverwriting(:,1) {mustBeBoolean} = false ;
@@ -228,14 +228,9 @@ function Dr = Documentor( pathIn )
         end
     end
     
-<<<<<<< HEAD
     Dr.mFiles = Documentor.findfiles( pathIn ) ;
     Dr.Info   = Informer( Dr.mFiles(1) ) ;
-    Dr.dFiles = "_DEFAULTS_" ;
-=======
-    Dr.mFiles = Dr.findfiles( pathIn ) ;
     % Dr.Info = {} % or [] or zeros(numel(Dr.mFiles))
-        Dr.Info   = Informer( Dr.mFiles(1) ) ;
 
 end
 % =========================================================================    
@@ -317,7 +312,7 @@ function [] = set.dirOutTop( Dr, dirOutTop )
     end
     
     Dr.dirOutTop = string( dirOutTop ) ;
-    Dr.dFiles = "_DEFAULTS_" ;
+    Dr.dFiles = "_DEFAULTS_" ; % why set again?
 
 end
 % =========================================================================    
