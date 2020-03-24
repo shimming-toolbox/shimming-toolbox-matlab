@@ -1,53 +1,39 @@
-<<<<<<< HEAD
-=======
-function [mFiles] = findfiles( Dr, pathIn )
-%FINDFILESTODOCUMENT Return list of .m files to document from directory search
-% 
-% FINDFILESTODOCUMENT searches a directory for .m files and then removes any
-% class method files from the list (methods are included as part of the
-% overall class documentation).
->>>>>>> c7986dd9df84345852c790161874fd640b4c595f
-%
-% ### Syntax
+function [mFiles] = findfiles( src, isRecursive )
+% FINDFILES Return list of .m files to document from directory search
 %    
 %    mFiles = Documentor.findfiles( src )
-%    mFiles = Documentor.findfiles( src, isSearchRecursive )
+%    mFiles = Documentor.findfiles( src, isRecursive )
 %
-% Documentor.findfiles returns a list of *documentable* .m files `mFiles`
-% based on the given set of file system paths `src`.
+% Returns a list of *documentable* .m files `mFiles` based on the set of file
+% system paths specified in `src`.
 %
-% -When `src` path elements point to .m files, Documentor.findfiles verifies that 
-% the Documentor class will indeed be able to document them.
-%
-% -When `src` path elements point to directories, Documentor.findfiles first
-% searches the directories for .m files (see **Note 3.** below), followed by the
-% compatibliy check described above.
+% `src` 
+% :    a [string-, char-, or cellstr-] array of paths to .m source files,
+%      and/or directories in which to search for them.
 % 
-% -When called with a single argument, subfolders of any directory elements in
-% `src` are recursively searched for files (i.e. by default,
-% `isSearchRecursive=true`). To restrict the search depth to directories
-% explicitly included in `src`, the function can be called with `0` as the
-% second argument.
+% `isRecursive`
+% :    a Boolean toggle to include subdirectories in the search. To restrict
+%      the search directories explicitly included in `src`, the function
+%      should be called with `0` as the second argument.
+%      [default=`true`]
 %
-% ### Inputs
+% `mFiles`
+% :     String-vector list of *Documentor-compatible* .m files 
 %
-% -`src`: a string-, char-, or cellstr-array of file system paths
+% When source files are included in the input, the function verifies that the
+% Documentor class will indeed be able to document them (see Note 2. below).
 %
-% Optional:
-% 
-% -`isSearchRecursive [default=1]`: a scalar logical
-%  
-% ### Outputs 
+% When `src` elements point to directories, the function first searches the
+% directories for .m files, followed by the compatibility check (see Note 3.
+% below).
 %
-% `mFiles`: String-vector list of *Documentor-compatible* .m files 
-%
-% ### Implementation notes: 
+% __NOTES__
 %
 % **1. Warnings and errors:** 
 %
-% If identified, invalid paths or incompatible .m
-% files suggested by the given inputs will elicit warning messages and, if no
-% documentable .m files are found, an error is issued.
+% If identified, invalid paths or incompatible .m files suggested by the given
+% inputs will elicit warning messages and, if no documentable .m files are
+% found whatsoever, an error is issued.
 % 
 % **2. Re:'Documentability':** 
 %
@@ -60,11 +46,12 @@ function [mFiles] = findfiles( Dr, pathIn )
 % This will be the case for nominal .m files (non-MATLAB files with
 % '.m' file extensions) as well as invalid MATLAB files (source files with
 % buggy implementations that preclude assessment with `Informer.mfiletype`).
+% For more info, refer to the documentation for Informer.mfiletype
 %
 % -`if mType == "method"`: 
-% Standalone source files pertaining to class-methods are, likewise, omitted from
-% `mFiles` as methods are included as part of the overall class documentation,
-% rather than documented separately.
+% Standalone source files pertaining to class-methods are, likewise, omitted
+% from `mFiles` as methods are included as part of the overall class
+% documentation, rather than documented separately.
 %
 % **3. .m file search:** 
 %
@@ -72,43 +59,69 @@ function [mFiles] = findfiles( Dr, pathIn )
 % `Documentor.findfiles` searches for any .m files contained therein by
 % wrapping to the standalone function *findfiles.m*, effectively calling:
 %     
-%    [~,mFiles] = findfiles( src( isfolder(src) ), "*.m", isSearchRecursive ) ;
+%    [~,mFiles] = findfiles( src( isfolder(src) ), "*.m", isRecursive ) ;
 %
 % (If `src` contains multiple directories, findfiles.m will be called iteratively,
 % with `mFiles` accordingly appended.)
 %
-% ### References
+% NOTE/TODO: Handling the case where multiple directories are included and
+% `isRecursive == true`. There is the potential here to include directories
+% multiple times (can be easily filtered out ahead of time using
+% Pathologist.subfolders -- just need to implement the filter). More
+% importantly, a folder the user didn't really want included might be included
+% anyway if it happens to be a sub of one that was specified... Should a
+% warning be issued?
+% 
+% __ETC__
+%
+% - standalone function: findfiles.m 
+% - Informer.mfiletype
 %
 % See also
-%
-% - findfiles.m (standalone function)
-% - Informer.mfiletype
+% FINDFILES
     arguments
         src {mustBeStringOrCharOrCellstr} ;
-        isSearchRecursive(1,1) {mustBeBoolean} = true ;
+        isRecursive(1,1) {mustBeBoolean} = true ;
     end
 
+% TODO: make Pathologist initialize `data` w/full paths when possible...
+src    = abspath( src ) ;
+P      = Pathologist(src) ; 
+mFiles = P.files ;
+dirsIn = P.folders ;
 
-%% Find .m files:
-mFiles = src( isfile( src ) ) ;
+%% Validate input paths exist 
+if all( ~P.isvalid )
+    error( [ 'helpDocMd:Documentor.findfiles:invalidPath', ...
+             'Failed to validate any of the given input paths..'] ) ;
 
-if any( isfolder( src ) ) % dir search
+elseif any( ~P.isvalid )
+    % in case the list is long, print it above the warning
+    display( src( ~P.isvalid) ) ;  
+    warning( '*** Input paths listed above do not exist or could otherwise not be validated ***' ) ;
+end
 
-    dirsIn = src( isfolder( src ) ) ;    
+if isRecursive && numel( dirsIn ) > 1
+% TODO filter potential repeat-dirs & verify it might actually be a problem
+% before issuing a warning...
+% if any( Dirs.folders == Dirs.baseDir ) 
+    warning( [ 'Mutliple folders included with recursive option:'  ...
+        'Search may be slow and/or inadvertently include undesired directories...' ] ) ;
+end
 
+%% Directory search .m :
+if ~isempty( dirsIn ) 
     for iDir = 1 : length( dirsIn )
-        
-        [~, mFilesiDir] = findfiles( dirsIn(iDir), "*.m", isSearchRecursive ) ;
-        
+        mFilesiDir = findfiles( dirsIn(iDir), "*.m", isRecursive ) ;
         if ~isempty(mFilesiDir) && ~isequal( mFilesiDir, "")
             mFiles = [ mFiles ; mFilesiDir ] ;
         end
     end
-
 end
 
-if isempty(mFiles) || isequal( mFiles, "")
-    error('*** Failed to find any .m files using the given inputs ***') ;
+if isempty(mFiles) || isequal( mFiles, "" )
+    error( [ 'helpDocMd:Documentor.findfiles:invalidPath', ...
+             'Failed to find any .m files using the given inputs.'] ) ;
 end
 
 %% Validate .m files:
@@ -118,7 +131,6 @@ invalidFiles = mFiles( mTypes=="NA" ) ;
 if numel( invalidFiles ) > 0 
     display( invalidFiles ) ; % in case the list is long, print it above the warning 
     warning( '*** The above .m files are invalid (possibly incomplete) and cannot be documented  ***' ) ;
-    
     % Remove invalid files
     mFiles( mTypes=="NA" ) = [] ;
     mTypes( mTypes=="NA" ) = [] ;
@@ -128,60 +140,5 @@ end
 mFiles( mTypes=="method" ) = [] ;
 
 assert( numel( mFiles ) > 0, 'Failed to find any Documentor-compatible .m files.') ;
-
-end
-
-function [ srcValid ] = validateinputpaths( srcIn ) 
-%Validate input paths 
-
-srcIn    = strip( string( srcIn ) ) ; 
-srcIn    = srcIn(:) ; 
-isPath = [ isfile( srcIn ) | isfolder( srcIn ) ] ;
-
-if all( isPath ) % Easiest case: srcIn consists entirely of valid paths already accessible to MATLAB:
-    srcValid = abspath( srcIn ) ; 
-    return ;
-
-else 
-   ************
-    % 2nd easiest case: srcIn consists entirely of valid paths already accessible to MATLAB:
-    % src paths (if complete) could be good but not on the current MATLAB path, quickly:
-
-    error( strcat( 'Not an existing file or directory path:\n', join( A(~isPath),"\n") ), '%s' ) ;
-end
-
-if all( isfile( src ) | isfolder( src ) )
-    srcValidated = abspath( src ) ;
-else
-    try
-        srcValidated = abspath( src ) ;
-    end
-
-% In case relative path(s) were provided, convert to absolute:
-% NOTE: abspath() will throw an error if called with an invalid path---
-% likely undesirable (e.g. if *most* paths are files, but a few are missing).
-% Instead, use try/catch: log indices of any invalid paths and issue a warning if present
-iInvalid = [] ;
-
-for iPath = 1 : numel( src )
-    try
-        src( iPath ) = abspath( src(iPath) ) ;  
-    catch Me
-        iInvalid( end+1 ) = iPath ; 
-    end
-end
-
-if numel( iInvalid ) == numel( src ) 
-    error( 'Failed to validate any of the input paths.' ) ;
-
-elseif iInvalid > 0
-    display( src(iInvalid) ) ; % in case the list is long, print it above the warning 
-    warning( '*** Input paths listed above do not exist or could otherwise not be validated ***' ) ;
-
-badPath   =  ;
-warning( strcat(, src(iPath) ) ) ;
-if nBadPaths > 0
-    src( iBadPaths ) = [] ;
-end
 
 end
