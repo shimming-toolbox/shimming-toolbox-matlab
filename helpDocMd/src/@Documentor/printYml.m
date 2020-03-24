@@ -22,8 +22,8 @@ parts = {};
 nFiles = numel(Dr.docFiles);
 for iFile = 1:nFiles
     parts{iFile} = strsplit(Dr.docFiles(iFile), filesep);
-
-    % remove first letter when its a class ('@')
+    
+    % remove first letter when its a class ('@') TODO remove whole cell
     fieldName = parts{1,iFile}(end-1);
     if (fieldName{1}(1) == '@')
         fieldName = strip(fieldName,'@');
@@ -43,6 +43,11 @@ yml.nav = nav;
 
 % write
 YAML.write(filePath, yml)
+
+% Quickfix TODO : write it properly
+fixWrite(filePath);
+
+
 disp('done')
 end
 
@@ -141,4 +146,29 @@ function [outNav] = addFileLayer(nav, parts, iFile, ext, dirOutTop, fullpath)
     %
     outNav = nav;
 
+end
+
+function [] = fixWrite(filePath)
+    [fid, errMsg] = fopen( filePath, 'r' ) ;
+    assert( fid~=-1, ['Read failed: ' errMsg], '%s' ) ;
+    
+    text = fread(fid,'*char');
+    
+    for itext  = 1:size(text,1)
+        if text(itext) == '-'
+            if text(itext+1) == ' '
+                if text(itext+2) == '-'
+                    text(itext) = ' ';
+                end
+            end
+        end
+    end
+    fclose(fid);
+    
+    [fid, errMsg] = fopen( filePath, 'w+' ) ;
+    assert( fid~=-1, ['write failed: ' errMsg], '%s' ) ;
+    
+    fwrite(fid,text, '*char');
+    fclose(fid);
+%fprintf( fid, '%s\n', Dr.mdDoc ) ;
 end
