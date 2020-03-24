@@ -14,16 +14,14 @@ home = struct('Home', 'index.md');
 
 % navigation
 
-% iterate through each iLevels if the file has the same tree struct
-
-% seperate each folder in cells and find longest tree structure
+% seperate each folder in cells to be easier to work with
 parts = {};
-% nLevels = 0;
 nFiles = numel(Dr.docFiles);
 for iFile = 1:nFiles
     parts{iFile} = strsplit(Dr.docFiles(iFile), filesep);
     
     % remove first letter when its a class ('@') TODO remove whole cell
+    % when the save recursive doesnt save the .md file in the class folder
     fieldName = parts{1,iFile}(end-1);
     if (fieldName{1}(1) == '@')
         fieldName = strip(fieldName,'@');
@@ -46,8 +44,6 @@ YAML.write(filePath, yml)
 
 % Quickfix TODO : write it properly
 fixWrite(filePath);
-
-
 disp('done')
 end
 
@@ -80,6 +76,7 @@ function [outNav] = addFileLayer(nav, parts, iFile, ext, dirOutTop, fullpath)
     if ~isDifferent
         partDifferent = nParts - 1;
     end
+    
     % build "nav" depending on tre structure
     expression = 'nav';
 
@@ -116,10 +113,10 @@ function [outNav] = addFileLayer(nav, parts, iFile, ext, dirOutTop, fullpath)
         if ~found
             %if its the last element aka the file
             if iPart1 >= nParts
+                %find path
                 relativePath = erase(fullpath,strcat(dirOutTop,filesep));
-                %USE PATH
                 structAssign = struct( erase(parts{1,iFile}(iPart1), ext),char(relativePath));
-                expressionAssign = strcat(expressionLastGet, '{nNavX+1,1}', ' = structAssign');
+                expressionAssign = strcat(expressionLastGet, '{nNavX+1,1}', ' = structAssign;');
                 foundWhere = nNavX+1;
             else
                 if firstIsEmpty
@@ -149,11 +146,14 @@ function [outNav] = addFileLayer(nav, parts, iFile, ext, dirOutTop, fullpath)
 end
 
 function [] = fixWrite(filePath)
+    % open file
     [fid, errMsg] = fopen( filePath, 'r' ) ;
     assert( fid~=-1, ['Read failed: ' errMsg], '%s' ) ;
     
     text = fread(fid,'*char');
     
+    % Find if the following line of character exists "- -". Deletes "- " if
+    % found
     for itext  = 1:size(text,1)
         if text(itext) == '-'
             if text(itext+1) == ' '
@@ -163,12 +163,17 @@ function [] = fixWrite(filePath)
             end
         end
     end
+    
+    % Close file
     fclose(fid);
     
+    % Open the same file but now empty
     [fid, errMsg] = fopen( filePath, 'w+' ) ;
     assert( fid~=-1, ['write failed: ' errMsg], '%s' ) ;
     
+    % Write the fixed characters
     fwrite(fid,text, '*char');
+    
+    % close file
     fclose(fid);
-%fprintf( fid, '%s\n', Dr.mdDoc ) ;
 end
