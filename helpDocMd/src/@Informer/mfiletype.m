@@ -45,7 +45,10 @@ function [mType, mPath, mExist] = mfiletype( mFile )
 % pos. TODO? Enable optional keyword input (e.g. function name) and defer to it
 % if abspath etc. fail to find anything assuming file path paths? ("+")
 
-mPath  = abspath( strip( string( mFile ) ) ) ; 
+Paths  = Pathologist( mFile ) ;
+mPath  = Paths.abs( mFile ) ;
+
+% mPath  = abspath( strip( string( mFile ) ) ) ; 
 mExist = arrayfun( @exist, mPath ) ; 
 mType  = repmat( "", size( mPath ) ) ;
 mType( ~endsWith( mPath, ".m" ) ) = "NA" ;

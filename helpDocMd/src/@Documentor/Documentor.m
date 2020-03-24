@@ -312,7 +312,7 @@ function [] = set.dirOutTop( Dr, dirOutTop )
     end
     
     Dr.dirOutTop = string( dirOutTop ) ;
-    Dr.docFiles = "_DEFAULTS_" ;
+    Dr.dFiles = "_DEFAULTS_" ;
 
 end
 % =========================================================================    
