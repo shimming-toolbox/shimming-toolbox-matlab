@@ -70,7 +70,7 @@ if nargin > 1
         MaRdI.sortimages( unsortedDicomDir, sortedDicomDir, 1 );
     elseif (varargin{1} == 0)
         % move the files is optional boolean is 0
-        MaRdI.sortimages( unsortedDicomDir, sortedDicomDir );
+        MaRdI.sortimages( unsortedDicomDir, sortedDicomDir, 0 );
     end
     % copy respiratory trace file from mounted drive to local directory
     unix('cp /SYNGO_TRANSFER/SYNGO_TRANSFER/PMUresp_signal.resp .')
