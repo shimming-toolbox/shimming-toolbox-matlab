@@ -1,7 +1,7 @@
-function [txt] = table( isCopying, nSize, nCharPerCell, prefix ) 
-%TABLE Create and [return|copy|print] a character table
+function [txt] = txttable( isCopying, nSize, nCharPerCell, prefix ) 
+%TXTTABLE Create and [return|copy|print] a character table
 %
-%   [~] = table( 1, nSize, nSizeCell, "%" ) 
+%   [~] = txttable( 1, nSize, nSizeCell, "%" ) 
 % 
 % Copies an empty character table with `nSize(1)` rows and `nSize(2)` columns
 % to the clipboard and prints to the standard output. nSizeCell(2) sets the
@@ -10,7 +10,7 @@ function [txt] = table( isCopying, nSize, nCharPerCell, prefix )
 % 
 % 1. Example 
 %
-% >> Helper.table(1,[3 5],[1 10])% outputs:
+% >> Helper.txttable(1,[3 5],[1 10])% outputs:
 % '
 % |          |          |          |          |          |
 % |----------|----------|----------|----------|----------|
@@ -25,7 +25,7 @@ function [txt] = table( isCopying, nSize, nCharPerCell, prefix )
 % __DESCRIPTION__
 %
 % To suppress the print display, call the function with a return argument, 
-% e.g. using the dummy argument `[~] = txt();`.
+% e.g. using the dummy argument `[~] = txttable();`.
     arguments
         isCopying(1,1) {mustBeBoolean}                     = false ;
         nSize(1,2) {mustBePositive, mustBeInteger}         = [3 2] ;
