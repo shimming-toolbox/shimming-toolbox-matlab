@@ -1,6 +1,6 @@
 # helpDocMd
 
-`functions` to `help` extract *.m*bedded source `doc` and export to *.md*
+`functions` to `help` extract ***.m***bedded source `doc`s + export them as ***.md***
 
 - [Overview](#overview)
 - [Getting started](#gettingstarted)
@@ -11,16 +11,21 @@
 ## Overview
 
 **_helpDocMd_** aims to provide an easy process for publishing custom
-MATLAB&reg; documentation—particularly class-based API documentation—and
-specifically as [Markdown] text, which is readily reformatted to HTML for
-hosting online ([1][mkdocs], [2][github], [3][readthedocs]).
+MATLAB&reg; documentation:
+
++ particularly class-based API documentation  
+
++ specifically as [Markdown] to be readily hosted online ([1][mkdocs], [2][github], [3][readthedocs]). 
+
 
 [mkdocs]: https://www.mkdocs.org
 [github]: https://pages.github.com/
 [readthedocs]: https://readthedocs.org/
 [Markdown]: https://daringfireball.net/projects/markdown/
 
+
 >What's wrong with the built-in `help` and `doc` commands?
+
 
 Both are very useful, and the recently introduced 
 [Live Editor](https://www.mathworks.com/help/matlab/matlab_prog/what-is-a-live-script-or-function.html)
@@ -50,7 +55,6 @@ questionable...)
 ### Dependencies
 
 - MATLAB&reg; Version R2019b or later.
-9.7.0.1216025 () Update 1 PR2019b
 
 ### Installation
 
@@ -105,3 +109,5 @@ Re: hosting documentation online:
 - [ReadTheDocs](https://docs.readthedocs.io/en/stable/)
 
 ## License
+
+Same for parent repo: [realtime_shimming](https://github.com/neuropoly/realtime_shimming/blob/master/LICENSE)
