@@ -1,19 +1,54 @@
 classdef Documentor < handle
-%DOCUMENTOR Custom Matlab documentation into markup/down text files
-% 
-% The DOCUMENTOR class serves to print custom Matlab documentation to file 
-% (e.g. as <https://daringfireball.net/projects/markdown/ Markdown> text)
-% while avoiding external dependencies (e.g. <https://github.com/sphinx-contrib/matlabdomain sphinx>)
-% and tagging syntaxes at odds with Matlab's own markup 
-% <https://www.mathworks.com/help/matlab/matlab_prog/marking-up-matlab-comments-for-publishing.html style>.
+% DOCUMENTOR Custom Matlab documentation into markup/down text files
 %
-% Viz., given a list of 
-% <https://www.mathworks.com/help/matlab/matlab_prog/add-help-for-your-program.html properly> 
-% commented .m files, a DOCUMENTOR instance outputs simple, readable text files
-% which are readily hosted online. 
-% **See 
-% <https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md Example>.**
+% The Documentor prints custom Matlab documentation to text files 
+% (principally, as [Markdown](https://daringfireball.net/projects/markdown/).
 % 
+% Refer to the README document for basic usage.
+% 
+% __CONSTRUCTOR SYNTAX__
+%
+%     Dr = Documentor(  ) ;
+%     Dr = Documentor( src ) ;
+%     Dr = Documentor( src, isSearchRecursive ) ;
+% 
+% Typically a Documentor instance `Dr` will be created by calling the
+% constructor with at least the first argument `src`: a string vector of file
+% paths to .m source files and/or directories in which to search for them.
+% Upon initialization, documentation can be published using the default
+% settings by calling `Dr.printdoc();`
+%
+% `isSearchRecursive` is a scalar logical specifying whether any subdirectories
+% of those listed in `src` are to be included in a file search. By default, it
+% will be `true` when `src` contains just a single directory, and `false` when
+% multiple directories are present. These defaults can be bypassed in either
+% case by passing the corresponding boolean as the second argument. The value
+% retained as a public property in the returned object (`Dr.isSearchRecursive`)
+% for future reference.
+%
+% `src` is used to initialize the public property `mFiles`, which contains the
+% list of source files to be included in any published output, and which can be
+% reconfigured after initialization.
+% 
+% Note that any invalid or *incompatible* paths suggested by `src` will be
+% automatically filtered out from assignments to `mFiles`. That is, by setting
+% `Dr.mFiles = src`, the actual assignment will always be 
+% `Dr.mFiles = Documentor.findfiles( src, Dr.isSearchRecursive )`. 
+% For more info, refer to the documentation entries for Documentor.findfiles
+% and Documentor.mFiles.
+%
+% __ETC__
+% 
+% To test how a markdown sample will display when reformatted to HTML:
+% - <https://daringfireball.net/projects/markdown/dingus>
+
+
+
+
+% __OPTIONS__
+% 
+% ...TODO
+%
 % ### Basic usage
 % 
 % To construct a Documentor instance (e.g. one called `Dr`), call:
@@ -52,59 +87,11 @@ classdef Documentor < handle
 % 
 % Read the section on **Basic Usage** first!
 %
-% #### Construction syntax
-%
-%     Dr = Documentor(  ) ;
-%     Dr = Documentor( src ) ;
-%     Dr = Documentor( src, Options ) ;
-% 
-% When called without arguments, `Documentor()` constructs a default object,
-% assigning the respective defaults to each of its properties; public
-% properties can still be reconfigured following construction.
-% 
-% As described previously in the **Basic usage** section, `src` paths can be
-% provided as an argument to the constructor to automatically assign and/or
-% search for *documentable* .m files. If `src` is the only input argument,
-% default values will be assigned to most properties of the returned object.
-%
-% **Note:** Any invalid or *incompatible* paths suggested by `src` will be
-% automatically omitted (refer to the **Documenting .m files** section for
-% details).
-% 
-% When called with a second argument, `Options` --- 
-% 
-% By default, if `src` paths include directories that contain subfolders, these too
-% are recursively searched for .m files. To bypass the default behaviour and
-% restrict the search depth to directories explicitly listed in `src`, the
-% constructor should be called with the second argument: A parameters struct `Options` a field Options.isSearchRecursive in the second argument position
-% without with a `0` in the second argument position, i.e.
-%    
-%    isSearchRecursive = false ; 
-%    Dr = Documentor( src, isSearchRecursive ) ;
 %
 % #### Documenting .m files
-%
-% The list of .m files to be documented is assigned to the value of Documentor property `mFiles`.
-%
-% To ensure that the list consists exclusively of *documentable* files, assignments to `mFiles` are
-% implicitly filtered: i.e. when setting `Dr.mFiles = src`, the actual assignment will be 
-% `Dr.mFiles = Documentor.findfiles( src, Dr.isSearchRecursive )`.
-%
-% (For more info, see the documentation entries for Documentor.findfiles and Documentor.mFiles)
-%
-% #### Configuring options 
-% 
-% ...TODO
-%
-% ### References
-% 
-% To test how a markdown sample will display when reformatted to HTML:
-% - <https://daringfireball.net/projects/markdown/dingus>
-%
-% Re: hosting documentation online:
-% - <https://www.mkdocs.org/ MkDocs>, 
-% - <https://pages.github.com/ Github>,
-% - <https://docs.readthedocs.io/en/stable/ ReadTheDocs>
+
+
+
 
 properties( Constant )
 
@@ -132,9 +119,11 @@ properties( AbortSet )
     % property is set (as in `Dr.mFiles = src`) it is, in effect, as a return value
     % (namely, `Dr.mFiles = Documentor.findfiles( src, Dr.isSearchRecursive ) ;`).
     % 
-    % #### References
+    % __ETC__ 
     %
-    % For details re: implementation and what constitutes a 'documentable' file,
+    % For details regarding the implementation and what constitutes a
+    % 'documentable' file, 
+    %
     % See also 
     % Documentor.findfiles 
     mFiles {mustBeFileOrFolder} = string( [ mfilename('fullpath') '.m' ] ) ;
@@ -156,7 +145,7 @@ properties( AbortSet )
    
     % Toggle to recreate original directory tree in `dirOutTop` (multiple mFiles case only) 
     %
-    % #### Example
+    % __EXAMPLE__
     % 
     % Given Documentor object instance `Dr`:
     %
@@ -166,10 +155,10 @@ properties( AbortSet )
     % `else`
     % ...an attempt is made to mirror the original directory tree of the top .m file source folder
     %
-    % #### References
+    % __ETC__
     %
     % See also 
-    % - HelpDocMd.isSearchRecursive
+    % HelpDocMd.isSearchRecursive
     isSaveRecursive(1,1) {mustBeBoolean} = true ;
     
     % Output parent directory for the doc files
@@ -218,19 +207,20 @@ end
 % =========================================================================    
 methods
 % =========================================================================    
-function Dr = Documentor( pathIn )
+function Dr = Documentor( pathIn, isSearchRecursive )
 
     if nargin == 0
         return ;
-    elseif nargin == 2
+    elseif nargin < 2
+        isSearchRecursive = true ;
+
         if ~isempty( Params.dirOutTop )
             Dr.dirOutTop = Params.dirOutTop ;
         end
     end
     
-    Dr.mFiles = Documentor.findfiles( pathIn ) ;
+    Dr.mFiles = Documentor.findfiles( pathIn, isSearchRecursive ) ;
     Dr.Info   = Informer( Dr.mFiles(1) ) ;
-    % Dr.Info = {} % or [] or zeros(numel(Dr.mFiles))
 
 end
 % =========================================================================    
