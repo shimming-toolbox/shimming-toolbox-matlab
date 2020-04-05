@@ -1,18 +1,76 @@
-function [] = printYml( Dr, filePath)
+function [] = printYml( Dr, filePath, Params)
 %PRINTYML print yml configuration file according to docFiles
 %
-% ### Syntax
+% __Syntax__
 %
 %   [] = PRINTYML( Self, filePath) 
+%   [] = PRINTYML( Self, filePath, Params) 
+%
+% __OPTIONS__
+%
+% `filePath` is the path of the file where the .yml file will be generated
+%
+% `Params.theme` is a character vector containing the name of the them to
+% use
+%
+% `Params.projectName` is a character vector of the name of the project
+% (will be displayed as the site name)
+%
+% % `Params.home` is a character vector of the homepage (default value is
+% 'index.md')
+%
+% `Params.repoURL` is a character vector that specifies the link to the
+% remote directory.
 %
 % for the Yml configuration file to work, the documentation must be in a
 % folder called docs in the same folder
 
-% theme and homepage
-theme = struct('name', 'material');
-home = struct('Home', 'index.md');
+if nargin == 2
+    
+    if isstruct(filePath)
+        return ;
+    end
+    
+    Params.theme = 'material' ;
+    Params.projectName = 'Your_Project' ;
+    
+elseif nargin == 3
+    
+    if ~isfield(Params, 'theme')
+        Params.theme = 'material' ;
+    else
+        mustBeStringOrChar( Params.theme ) ;
+        Params.theme = char(Params.theme) ;
+    end
+    
+    if ~isfield(Params, 'projectName')
+        Params.projectName = 'Your_Project' ;
+    else
+        mustBeStringOrChar( Params.projectName ) ;
+        Params.projectName = char(Params.projectName) ;
+    end
+    
+    if ~isfield(Params, 'home')
+        Params.home = 'index.md' ;
+    else
+        mustBeStringOrChar( Params.home ) ;
+        Params.home = char(Params.home) ;
+    end
+    
+    if ~isfield(Params, 'repoURL')
+        Params.repoURL = '' ;
+    else
+        mustBeStringOrChar( Params.repoURL ) ;
+        Params.repoURL = char(Params.repoURL) ;        
+    end
+else
+    return ;
+end
 
-% navigation
+% theme and homepage
+theme = struct('name', Params.theme) ;
+homepage = struct('Home', Params.home) ;
+%% navigation
 
 % seperate each folder in cells to be easier to work with
 parts = {};
@@ -31,13 +89,19 @@ end
 
 % add each file one by one
 nav = {};
+nav{1} = homepage;
 for iFile = 1:nFiles
     nav = addFileLayer(nav, parts, iFile, Dr.extOut, Dr.dirOutTop, Dr.dFiles(iFile));
 end
 
-% assemble
-yml = struct('site_name', 'Shimming_Toolbox', 'theme', theme, 'nav', {{}});
-yml.nav = nav;
+%% assemble
+if isempty(Params.repoURL)
+    yml = struct('site_name', Params.projectName, 'theme' ,theme, 'nav', {{}});
+else
+    yml = struct('site_name', Params.projectName, 'theme', theme ,'repo_url', Params.repoURL , 'nav', {{}});
+end
+    
+    yml.nav = nav;
 
 % write
 YAML.write(filePath, yml)
