@@ -10,7 +10,7 @@ classdef Documentor < handle
 %
 %     Dr = Documentor(  ) ;
 %     Dr = Documentor( src ) ;
-%     Dr = Documentor( src, isSearchRecursive ) ;
+%     Dr = Documentor( src, params ) ;
 % 
 % Typically a Documentor instance `Dr` will be created by calling the
 % constructor with at least the first argument `src`: a string vector of file
@@ -18,13 +18,16 @@ classdef Documentor < handle
 % Upon initialization, documentation can be published using the default
 % settings by calling `Dr.printdoc();`
 %
-% `isSearchRecursive` is a scalar logical specifying whether any subdirectories
+% `params.isSearchRecursive` is a scalar logical specifying whether any subdirectories
 % of those listed in `src` are to be included in a file search. By default, it
 % will be `true` when `src` contains just a single directory, and `false` when
 % multiple directories are present. These defaults can be bypassed in either
 % case by passing the corresponding boolean as the second argument. The value
 % retained as a public property in the returned object (`Dr.isSearchRecursive`)
 % for future reference.
+%
+% `params.outputDir` is a path specifying where the output documentation will be
+% generated.
 %
 % `src` is used to initialize the public property `mFiles`, which contains the
 % list of source files to be included in any published output, and which can be
@@ -129,7 +132,7 @@ properties( AbortSet )
     mFiles {mustBeFileOrFolder} = string( [ mfilename('fullpath') '.m' ] ) ;
 
     % List of output documentation file paths (string vector of full file paths)
-    dFiles {mustBeStringOrCharOrCellstr} = "_DEFAULTS_" ; 
+    dFiles {mustBeStringOrCharOrCellstr} = "" ; 
 
     % Toggle whethers to overwrite existing documentation files (logical column vector with length == numel(mFiles))
     isOverwriting(:,1) {mustBeBoolean} = false ;
@@ -207,21 +210,30 @@ end
 % =========================================================================    
 methods
 % =========================================================================    
-function Dr = Documentor( pathIn, isSearchRecursive )
+function Dr = Documentor( pathIn, params )
 
     if nargin == 0
         return ;
     elseif nargin < 2
-        isSearchRecursive = true ;
-
-        if ~isempty( Params.dirOutTop )
-            Dr.dirOutTop = Params.dirOutTop ;
+        params.isSearchRecursive = true ;
+    elseif nargin == 2
+        
+        % assign output directory if not empty
+        if isfield( params, 'outputDir' )
+            Dr.dirOutTop = params.outputDir ;
         end
+        
+        % assign default if empty
+        if ~isfield( params, 'isSearchRecursive' )
+            params.isSearchRecursive = true ;
+        end
+        
     end
     
-    Dr.mFiles = Documentor.findfiles( pathIn, isSearchRecursive ) ;
+    Dr.mFiles = Documentor.findfiles( pathIn, params.isSearchRecursive ) ;
     Dr.Info   = Informer( Dr.mFiles(1) ) ;
-
+    Dr.dFiles = "_DEFAULTS_" ;
+    
 end
 % =========================================================================    
 function [dirInTop] = get.dirInTop( Dr )
@@ -302,7 +314,10 @@ function [] = set.dirOutTop( Dr, dirOutTop )
     end
     
     Dr.dirOutTop = string( dirOutTop ) ;
-    Dr.dFiles = "_DEFAULTS_" ; % why set again?
+    % Dr.dFiles is set again because if the output directory is changed,
+    % the output path names have to be regenerated. This triggers the
+    % set.dFiles method.
+    Dr.dFiles = "_DEFAULTS_" ; 
 
 end
 % =========================================================================    

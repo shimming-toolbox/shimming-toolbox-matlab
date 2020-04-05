@@ -16,9 +16,9 @@ home = struct('Home', 'index.md');
 
 % seperate each folder in cells to be easier to work with
 parts = {};
-nFiles = numel(Dr.docFiles);
+nFiles = numel(Dr.dFiles);
 for iFile = 1:nFiles
-    parts{iFile} = strsplit(Dr.docFiles(iFile), filesep);
+    parts{iFile} = strsplit(Dr.dFiles(iFile), filesep);
     
     % remove first letter when its a class ('@') TODO remove whole cell
     % when the save recursive doesnt save the .md file in the class folder
@@ -32,7 +32,7 @@ end
 % add each file one by one
 nav = {};
 for iFile = 1:nFiles
-    nav = addFileLayer(nav, parts, iFile, Dr.extOut, Dr.dirOutTop, Dr.docFiles(iFile));
+    nav = addFileLayer(nav, parts, iFile, Dr.extOut, Dr.dirOutTop, Dr.dFiles(iFile));
 end
 
 % assemble
