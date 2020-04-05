@@ -1,16 +1,14 @@
 function [mHelpHeader] = extracthelpheader( mHelp, name )  
 %EXTRACTHELPHEADER Return the leading line of help-text
-%
-% ### Syntax
-%
-%    mHelpHeader = EXTRACTHELPHEADER( mHelp )
-%    mHelpHeader = EXTRACTHELPHEADER( mHelp, name )
+%    
+%     mHelpHeader = EXTRACTHELPHEADER( mHelp )
+%     mHelpHeader = EXTRACTHELPHEADER( mHelp, name )
 % 
 % If 'name' is provided as a second input argument and it appears as the first
 % word of the header line (irrespective of case) it will be removed from the
 % returned string.
 %
-% ### Example
+% __EXAMPLE__
 %
 %    mHelp = Informer.gethelptext( 'Informer.gethelptext' ) 
 % 
@@ -26,10 +24,9 @@ function [mHelpHeader] = extracthelpheader( mHelp, name )
 % %
 % % "Return help-text of script|function|method|property as string-vector"
 %
-% ### References 
+% __ETC__
 %
 % See also
-%
 % Informer.gethelptext
     arguments
         mHelp {mustBeStringOrCharOrCellstr} ;

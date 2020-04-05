@@ -1,20 +1,18 @@
 function [mHelpBody] = extracthelpbody( mHelp )  
 %EXTRACTHELPBODY Return the body of help-text, trimmed of the leading line
+%     
+%     mHelpBody = EXTRACTHELPBODY( mHelp ) ;
 %
 % EXTRACTHELPBODY returns a body of help-text (i.e. from Informer.gethelptext) 
 % and trims it of its leading line of text. (If the text consists solely of the
 % leading line, then this line is returned.)
 %
-% ### Syntax
-%      
-%     mHelpBody = EXTRACTHELPBODY( mHelp ) ;
-% 
-% ### Example
+% __EXAMPLE__
 % 
 % % To display the current section of text, without the title line:
 % mHelpBody = Informer.extracthelpbody( Informer.gethelptext( 'Informer.extracthelpbody' ) )
 %
-% ### References 
+% __ETC__
 %
 % See also
 %

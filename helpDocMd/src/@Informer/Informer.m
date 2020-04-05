@@ -1,8 +1,8 @@
-classdef Informer
-%INFORMER Details the functionality of a .m file
+classdef Examiner 
+%EXAMINER Details the functionality of a .m file
 % 
-% The INFORMER class serves to _inform_ the **Documentor** class about the contents of .m
-% files: providing the funtional details needed to document them. An INFORMER
+% The Examiner class informs the **Documentor** class about the contents of .m
+% files: providing the funtional details needed to document them. An Examiner
 % instance describes a given .m file (i.e. a script, function, class method, or
 % classdef file).
 %

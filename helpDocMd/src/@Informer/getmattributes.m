@@ -1,15 +1,12 @@
 function [Att] = getmattributes( mFile )
 %GETMATTRIBUTES Return functional description of a .m file
-% 
-% ### Syntax
 %    
 %    Att = GETMATTRIBUTES( mFile )
-% 
-% ### Inputs
 %
-% - mFile: a path string to a single .m file (a script, function, classdef, or class method)
+% Returns a struct of attributes `Att` describing the .m file `mFile` (a
+% script, function, classdef, or class method) given as a path string 
 %
-% ### Outputs
+% __OUTPUT__
 %
 % - Att: a struct of .m file attributes containing the following basic fields:
 % 
@@ -23,7 +20,7 @@ function [Att] = getmattributes( mFile )
 %   - .DetailedDescription: Body of help-text (string vector returned from
 %   Informer.extracthelpbody) 
 %
-% ### Function files
+% 1. Function files
 %
 % If the .m file is a function, Att additionally contains fields: 
 %
@@ -35,7 +32,7 @@ function [Att] = getmattributes( mFile )
 % types, validation functions, and defaults, when declared in an
 % arguments block, and add these as fields to Attributes)
 %
-% ### Classdef files
+% 2. Classdef files
 %
 % If the .m file is a class definition, Attributes derives the following 
 % additional fields from an instance of the associated meta.class object:
@@ -104,7 +101,7 @@ function [Att] = getmattributes( mFile )
 % optional---suddenly the InputNames of the corresponding meta.method object
 % disappear and are replaced by an uninformative 'varargin'??
 %
-% ### References
+% __ETC__
 %
 % See also 
 %

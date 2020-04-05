@@ -1,7 +1,5 @@
 function [Att] = metainfo( MetaObj )
 %EXTRACTMETAINFO Return info (struct) derived from a meta.object
-% 
-% ### Syntax
 %    
 %    Att = metainfo( MetaObj )
 %
