@@ -270,8 +270,10 @@ function [] = set.mFiles( Dr, mFiles )
     end
     
     % output docs folder in parent directory of ../mFiles
-    Dr.dirOutTop = strcat( Dr.dirInTop, filesep, "docs" ) ;
-
+    % as default but not if an output folder path is provided
+    if Dr.dirOutTop == ""
+        Dr.dirOutTop = strcat( Dr.dirInTop, filesep, "docs" ) ;
+    end
 end
 % =========================================================================    
 function [mdDoc] = get.mdDoc( Dr )  
