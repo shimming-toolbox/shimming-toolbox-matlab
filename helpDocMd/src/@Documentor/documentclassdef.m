@@ -14,7 +14,7 @@ docStr = documentbasic( Dr ) ;
 % remove fields included in documentbasic 
 Info = rmfield( Info, {'mType' ; 'Name' ; 'Description' ; 'DetailedDescription'} ) ;
 
-docStr = [docStr ; "" ; "### Class Attributes"; "" ] ;
+docStr = [docStr ; "" ; "__ATTRIBUTES__"; "" ] ;
 
 %% Place basic (logical) attributes into an HTML table
 tableFields = { 'Hidden' ; 'Sealed' ; 'Abstract' ; 'Enumeration'; ... 

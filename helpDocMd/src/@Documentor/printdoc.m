@@ -1,7 +1,5 @@
 function [ dFile ] = printdoc( Dr, iM )
 %PRINTDOC Write documentation to file(s)
-% 
-% ### Syntax
 %    
 %    [dFiles] = PRINTDOC( Dr ) 
 %    [dFile]  = PRINTDOC( Dr, iM ) 
@@ -10,7 +8,7 @@ function [ dFile ] = printdoc( Dr, iM )
 % iteratively descends the list of .m files in `Dr.mFiles`, printing default
 % documentation to the output file paths listed in `Dr.dFiles`.
 
-%
+
 % This is equivalent to calling
 % If printing completes without error, 
 %
@@ -41,39 +39,39 @@ function [ dFile ] = printdoc( Dr, iM )
 % **Note 2** 
 % To overwrite existing files, set `Dr.isOverwriting = true` prior to calling PRINTDOC.
 
-% if nargin == 1
-%     for iM = 1 : numel( Dr.mFiles )
-%         docFile(iM) = Dr.printdoc( iM ) ;
-%     end
-% else
-%     try
-%         docFile(iM) = Dr.printdoc( iM ) ;
-%     catch Me
-%         display( help( mfilename('fullfile') ) ) ;
-%         display('Print failed.')
-%         Me.rethrow() ;
-%     end
-% end
+if nargin == 1
+    for iM = 1 : numel( Dr.mFiles )
+        fprintf( strcat("Preparing doc ", num2str(iM), "/", num2str(numel( Dr.mFiles )), "\n" ) );
+        dFile(iM) = Dr.printdoc( iM ) ;
+    end
 
-Dr.iM = iM ;
-
-assert( Dr.isOverwriting || ~exist( Dr.dFiles( Dr.iM ) ), ...
-    ['Doc file already exists. Assign a different file path for the output,' ...
-     'or set ' inputname(1) '.isOverwriting =true to force overwrite'], '%s' );
-
-[fid, errMsg] = fopen( Dr.dFiles( Dr.iM ), 'w+' ) ;
-assert( fid~=-1, ['Print abort-fail: ' errMsg], '%s' ) ;
-
-fprintf( strcat("Writing doc: ", Dr.dFiles( Dr.iM ), "\n") ) ;
-fprintf( fid, '%s\n', Dr.mdDoc ) ;
-
-fclose(fid);
-
-docFile = Dr.dFiles( Dr.iM ) ;
-
+    return ;
 end
 
-% errMsg = [ 'Optional 2nd input must be either:\n ' ...
-%            '1. A valid scalar index to the vector of .m file paths ' ...
-%            '( i.e. ' inputname(1) '.mFiles ); Or,\n ' ...
-%            '2. A string = "all" (to iteratively document all .m files).\n ' ] ;
+try
+    Dr.iM   = iM ;
+    dFile   = Dr.dFiles( Dr.iM ) ;
+    dFolder = fileparts( dFile ) ;
+
+    assert( Dr.isOverwriting || ~exist( dFile ), ...
+        ['Doc file already exists. Assign a different output file path (`dFiles` property),' ...
+         'or change the `isOverwriting` property to `true` to force overwrite'], '%s' );
+
+    if ~isfolder( dFolder )
+        [isMade, msg, msgId] = mkdir( dFolder ) ;
+        assert( isMade, msgId, ['Directory creation failed: ' msg ] )
+    end    
+
+    [fid, errMsg] = fopen( dFile, 'w+' ) ;
+    assert( fid~=-1, ['Print abort-fail for :' char(dFile) '\n' errMsg], '%s' ) ;
+
+    fprintf( fid, '%s\n', Dr.mdDoc ) ;
+    fprintf( strcat("Written to: ", dFile, "\n") ) ;
+
+    fclose(fid);
+
+catch Me
+    Me.rethrow() ;
+end
+
+end

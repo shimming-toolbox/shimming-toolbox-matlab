@@ -8,12 +8,12 @@ function [mHelpBody] = extracthelpbody( mHelp )
 % leading line, then this line is returned.)
 %
 % __EXAMPLE__
-% 
+% ```
 % % To display the current section of text, without the title line:
 % mHelpBody = Informer.extracthelpbody( Informer.gethelptext( 'Informer.extracthelpbody' ) )
+% ```
 %
 % __ETC__
-%
 % See also
 %
 % -Informer.gethelptext

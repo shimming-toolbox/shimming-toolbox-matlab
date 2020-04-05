@@ -45,7 +45,7 @@ else
 
                     %TODO add size constraints
                 else 
-                    docStr(end+1) = strcat( "- ", field, " : ", string( Prop.( field ) ) ) ;
+                  docStr(end+1) = strcat( "- ", field, " : ", string( Prop.( field ) ) ) ;
                 end
             end
         end

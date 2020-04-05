@@ -1,20 +1,18 @@
 function [docStr] = documentbasic( Dr, Att, headingLevel )
 %DOCUMENTBASIC Return string vector of rudimentary documentation
-%
-% ### Syntax 
 %    
-%    [docStr] = DOCUMENTBASIC( Self )
-%    [docStr] = DOCUMENTBASIC( Self, Att )
-%    [docStr] = DOCUMENTBASIC( Self, Att, headingLevel )
+%    [docStr] = documentbasic( Self )
+%    [docStr] = documentbasic( Self, Att )
+%    [docStr] = documentbasic( Self, Att, headingLevel )
 %
-% When called without a second argument, DOCUMENTBASIC derives the following details
+% When called without a second argument, `documentbasic` derives the following details
 % from `Self.Info.Attributes` to return the documentation string vector `docStr`:
 % - Name : of the script, function, or class
 % - mType: script, function, or class file type
 % - Description: header line from the help/documentation
 % - DetailedDescription: body of the help/documentation
 % 
-% When called with a second argument, DOCUMENTBASIC works similarly to the
+% When called with a second argument, `documentbasic` works similarly to the
 % above case, however, details are instead derived from attributes-struct `Att`
 % (mType may be omitted in this case, but the other field names must be
 % present.)

@@ -1,9 +1,10 @@
 classdef Pathologist 
 % Pathologist File path utility class
-% 
-% ## Purpose
+%     
+%     PathO = Pathologist( pathIn ) ;
 %
-% Pathologist contains methods for handling paths to files and folders. 
+% Recasts the array of file paths `pathIn` as a `Pathologist` object,
+% containing simple+convenient methods for handling paths to files and folders. 
 %
 % Since a path designation in MATLAB can take one of three forms (char-,
 % string-, or cellstr-array), a primary purpose the class is merely to provide
@@ -64,12 +65,6 @@ properties( Dependent )
 
 end
 
-properties( Access=private, Dependent)
-
-    % isExisting(1,1)
-    % areAllExisting(1,1)
-end
-
 % =========================================================================
 % =========================================================================    
 methods
@@ -80,10 +75,10 @@ function Path = Pathologist( pathIn )
         return ;
     end
 
-    Path.typeIn = string( class( pathIn ) ) ;
+    Path.typeIn  = string( class( pathIn ) ) ;
     Path.typeOut = Path.typeIn ;
-    Path.sizeIn = size( pathIn ) ;
-    Path.data   = Pathologist.typecast( pathIn, "string" ) ;
+    Path.sizeIn  = size( pathIn ) ;
+    Path.data    = Pathologist.typecast( pathIn, "string" ) ;
 
 end
 % =========================================================================    
@@ -142,7 +137,6 @@ end
 % =========================================================================    
 function [subfolders] = get.subfolders( Path )
 
-    
     if all( Path.isfolder == false )
         subfolders = string([]) ;
         return ; 
@@ -200,31 +194,42 @@ end % methods
 methods % overloaded MATLAB methods
 % =========================================================================    
 function [isFilepath] = isfile( Path )
+%ISFOLDER Overloaded MATLAB function, returnArg = isfile( Path.data ) ;
 
     isFilepath = isfile( Path.data ) ;
 
 end
 % =========================================================================    
 function [isDir] = isfolder( Path )
+%ISFOLDER Overloaded MATLAB function, returnArg = isfolder( Path.data ) ;
 
     isDir = isfolder( Path.data ) ;
 
 end
 % =========================================================================    
 function [mExist] = exist( Path )
+%EXIST Overloaded MATLAB function, returnArg = arrayfun( @exist, Path.data ) ; 
 
     mExist = arrayfun( @exist, Path.data ) ; 
     
 end
 % =========================================================================    
 function [folder, name, ext] = fileparts( Path )
+%FILEPARTS Overloaded MATLAB function: [filepath,name,ext] = arrayfun( @fileparts, Path.data ) ;
 
     [filepath,name,ext] = arrayfun( @fileparts, Path.data ) ;
 
 end
-% % =========================================================================    
+% =========================================================================    
+
+end
+% =========================================================================    
+% =========================================================================    
+methods (Hidden) % (hidden) overloaded MATLAB methods
+% =========================================================================    
 % function Path = subsasgn(Path, S, pathIn)
-%    
+%SUBSREF Overloaded MATLAB function
+%
 %     if strcmp( S(1).type, '()' )
 %         switch class( pathIn )
 %             case 'char'
@@ -239,35 +244,38 @@ end
 %             otherwise
 %                 error('Value must be a string, char, or cellstr')
 %         end
-%     
+%
 %     else % Call built-in for any other case
 %         Path = builtin('subsasgn', Path, S, pathIn);
 %     end
 % end
 % % =========================================================================    
-% function pathOut = subsref(Path, S)
-%
-%     if isequal(Path,[])
-%         Path = Pathologist.empty;
-%     end
-%
-%     switch S(1).type
-%         case '()'
-%             pathOut = Path.data(S.subs{:}) ;
-%         case '.' 
-%             % Call built-in for any other case
-%             pathOut{:} = builtin('subsref',Path,S); 
-%         otherwise
-%             pathOut{:} = builtin('subsref',Path,S); 
-%         %    switch S(1).subs
-%         %       case 'plot'
-%         %          % Reference to A.x and A.y call built-in subsref
-%         %          B = plot(A.x,A.y);
-%         %       otherwise
-%         %          % Enable dot notation for all properties and methods
-%         %          B = A.(S.subs);
-%      end
-% end
+function pathOut = subsref(Path, S)
+%SUBSREF Overloaded MATLAB function
+    if isequal(Path,[])
+        Path = Pathologist.empty;
+    end
+
+    switch S(1).type
+        case '()'
+            pathOut = Path.data(S.subs{:}) ;
+        case '.' 
+            % Call built-in for any other case
+            pathOut = builtin('subsref',Path,S) ;
+        otherwise
+            % pathOut = cell2mat( builtin('subsref',Path,S) ) ;
+            pathOut = builtin('subsref',Path,S) ;
+            % pathOut{:} = builtin('subsref',Path,S); 
+        %    switch S(1).subs
+        %       case 'plot'
+        %          % Reference to A.x and A.y call built-in subsref
+        %          B = plot(A.x,A.y);
+        %       otherwise
+        %          % Enable dot notation for all properties and methods
+        %          B = A.(S.subs);
+     end
+     
+end
 % =========================================================================    
 
 end
