@@ -1,9 +1,11 @@
-function docStr = documentclassmethods( Dr )
+function docStr = documentclassmethods( Info )
 %DOCUMENTCLASSMETHODS Return string vector of class method documentation
+    arguments
+        Info struct ;
+    end
+% Info = Dr.Info.Attributes ;
 
-Info = Dr.Info.Attributes ;
-
-assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
+% assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
 
 docStr = [ "---" ; "## Methods" ; "" ] ;
 
@@ -46,7 +48,7 @@ else
                BasicAttributes.( basicFields{iF} ) = Mthd.( basicFields{iF} ) ;
             end
             
-            docStr = [ docStr ; "" ; "#### Attributes:" ; "" ; Dr.tableattributes( BasicAttributes ) ; "" ] ;
+            docStr = [ docStr ; "" ; "#### Attributes:" ; "" ; Documentor.tableattributes( BasicAttributes ) ; "" ] ;
             
             clear BasicAttributes ;
             Mthd = rmfield( Mthd, basicFields ) ;

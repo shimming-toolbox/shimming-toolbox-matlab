@@ -1,9 +1,11 @@
-function docStr = documentclassproperties( Dr )
+function docStr = documentclassproperties( Info, isDetailed )
 %DOCUMENTCLASSPROPERTIES Return string vector of class property documentation
+    arguments
+        Info struct ;
+        isDetailed {mustBeBoolean} = true ;
+    end
 
-Info = Dr.Info.Attributes ;
-
-assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
+% assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
 
 docStr = [ "- - -" ; "## Properties" ; "" ] ;
 
@@ -15,9 +17,10 @@ else
 
         Prop = Info.PropertyList( iProp ) ;
         
-        if Dr.isDetailed || ( strcmp( Prop.GetAccess, 'public' ) && ~Prop.Hidden )
+        if isDetailed || ( strcmp( Prop.GetAccess, 'public' ) && ~Prop.Hidden )
             
-            docStr = [ docStr ; "" ; Dr.documentbasic( Prop, 3 ) ] ;
+            docStr = [ docStr ; "" ; Documentor.documentbasic( Prop, 3 ) ] ;
+
             % remove fields addressed already in documentbasic
             Prop = rmfield( Prop, {'Name'; 'Description' ; 'DetailedDescription'} ) ;
 
@@ -64,7 +67,7 @@ function [ attTable, Prop] = tablelogicalattributes( Prop )
        BoolAttributes.( boolFields{iF} ) = Prop.( boolFields{iF} ) ;
     end
 
-    attTable = Dr.tableattributes( BoolAttributes ) ;
+    attTable = Documentor.tableattributes( BoolAttributes ) ;
     Prop     = rmfield( Prop, boolFields ) ;
 
 end 
