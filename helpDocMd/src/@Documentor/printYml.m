@@ -76,6 +76,7 @@ homepage = struct('Home', Params.home) ;
 parts = {};
 nFiles = numel(Dr.dFiles);
 for iFile = 1:nFiles
+   
     parts{iFile} = strsplit(Dr.dFiles(iFile), filesep);
     
     % remove first letter when its a class ('@') TODO remove whole cell
@@ -91,6 +92,12 @@ end
 nav = {};
 nav{1} = homepage;
 for iFile = 1:nFiles
+    % Make sure Dr.dFiles(iFile) does not countain '-'
+    if contains(Dr.dFiles(iFile),"-")
+        stringReturn = strcat("File not written because countains '-': ",string(Dr.dFiles(iFile))) ;
+        sprintf(stringReturn)
+        continue ;
+    end
     nav = addFileLayer(nav, parts, iFile, Dr.extOut, Dr.dirOutTop, Dr.dFiles(iFile));
 end
 
