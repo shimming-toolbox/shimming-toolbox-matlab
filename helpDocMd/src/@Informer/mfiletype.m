@@ -24,17 +24,17 @@ function [mType, mPath, mExist] = mfiletype( mFile )
 % namely: `mExist(i) = exist( mFile(i) );` the value *should* be == 2.
 %
 % __NOTE__
-% This function (which implements [1]) is very rudimentary; relying entirely
-% on Matlab's [exist] function, which, as the official documentation states,
-% *does not* check the contents of '.m' files.  So, although `mType(i)` will be
-% "NA" whenever file `i` could not be assessed (e.g. a function that produces
-% an error when called by `nargin`), an assignment other than "NA" however does
-% not guarantee that a file *is* in working condition, and it may still contain
-% errors.
+% Although `mType(i)` will be "NA" whenever file `i` could not be assessed
+% (e.g. a function that produces an error when called by `nargin`), an
+% assignment other than "NA" does *not* guarantee the file is in
+% working condition, and it may still contain errors.
 %
-% __SEE__
-% [1]: https://blogs.mathworks.com/loren/2013/08/26/what-kind-of-matlab-file-is-this/
-% [2]: https://www.mathworks.com/help/matlab/ref/exist.html/
+% This owes to `mfiletype`'s simplistic implementation [1]: The approach
+% relies entirely on MATLAB's `exist` function [2] which, as the official
+% documentation states, does not check the contents of '.m' files.  
+%
+% [1]: (https://blogs.mathworks.com/loren/2013/08/26/what-kind-of-matlab-file-is-this/)
+% [2]: (https://www.mathworks.com/help/matlab/ref/exist.html/)
 %
 % See also
 % EXIST
@@ -48,10 +48,10 @@ function [mType, mPath, mExist] = mfiletype( mFile )
 Paths  = Pathologist( mFile ) ;
 mPath  = Paths.abs( mFile ) ;
 
-% mPath  = abspath( strip( string( mFile ) ) ) ; 
-mExist = arrayfun( @exist, mPath ) ; 
+mExist = Paths.exist() ;
 mType  = repmat( "", size( mPath ) ) ;
-mType( ~endsWith( mPath, ".m" ) ) = "NA" ;
+mType( endsWith( mPath, ".m" ) ) = "NA" ;
+mType( [isfolder(mPath) | ~isfile(mPath)] ) = "" ;
 
 % mPath indices corresponding to .m files
 iMFiles = find( [ isfile( mPath ) & endsWith( mPath, ".m" ) ] ) ;
@@ -63,9 +63,11 @@ iMFiles = find( [ isfile( mPath ) & endsWith( mPath, ".m" ) ] ) ;
 % path could be updated for each file, then reverted, but that may be slower.)
 userDir = pwd ;
 
-for iM = 1 : nnz( iMFiles ) 
-   
-    [ folder, name, ext ] = fileparts( mPath( iMFiles( iM ) ) ) ;
+for iFile = 1 : nnz( iMFiles ) 
+  
+    iM = iMFiles( iFile ) ;
+
+    [ folder, name, ext ] = fileparts( mPath( iM ) ) ;
     cd( folder ) ;  
 
     % Explicitly test classdef possibility first to bypass the other statements.
