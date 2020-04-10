@@ -21,7 +21,7 @@ else
             
             docStr = [ docStr ; "" ; Documentor.documentbasic( Prop, 3 ) ] ;
 
-            % remove fields addressed already in documentbasic
+            % remove fields already covered by documentbasic
             Prop = rmfield( Prop, {'Name'; 'Description' ; 'DetailedDescription'} ) ;
 
             [attTable, Prop] = tablelogicalattributes( Prop ) ;
@@ -48,7 +48,8 @@ else
 
                     %TODO add size constraints
                 else 
-                  docStr(end+1) = strcat( "- ", field, " : ", string( Prop.( field ) ) ) ;
+                    % strcat( "- ", field, " : ", string( Prop.( field ) ) )
+                  docStr = [docStr ; strcat( "- ", field, " : ", strjoin(string( Prop.( field ) ), "; " ) ) ] ;
                 end
             end
         end
