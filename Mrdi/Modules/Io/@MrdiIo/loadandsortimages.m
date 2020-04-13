@@ -1,6 +1,9 @@
 function [Imgs, Hdrs] = loadandsortimages( List, nBytesMax )
 %LOADANDSORTIMAGES Load and sort image files
 %
+%     [Imgs, Hdrs] = MrdiIo.loadandsortimages( List ) 
+%     [Imgs, Hdrs] = MrdiIo.loadandsortimages( List, nBytesMax ) 
+%
 % MrdiIo.loadandsortimages accepts a list of image files to read (i.e. returned from
 % MrdiIo.findimagefiles() ), loads the supported file types (), .. and sorts
 % images+headers into 2 cell arrays which respective contain numeric arrays of
@@ -14,17 +17,16 @@ function [Imgs, Hdrs] = loadandsortimages( List, nBytesMax )
 % For the image arrays, these dimensions are respectively 3, 4, 5, and 6;
 % For the headers, they are respectively 1,2,3, and 4.
 % 
-% Usage
-%
-%   [Imgs, Hdrs] = LOADANDSORTIMAGES( List ) 
-%   [Imgs, Hdrs] = LOADANDSORTIMAGES( List, nBytesMax ) 
+% __OPTIONS__ 
 %
 %   nBytesMax [default: 2 * 1E9]
 %       byte limit on load. Function aborts if limit is exceeded.
 %       (Note: matlab 'memory' function exists to query available memory but
 %       currently only works on Windows)
 % 
-% See also MrdiIo.findimagefiles, MrdiIo.make
+% __ETC__ 
+% See also 
+% MrdiIo.findimagefiles, MrdiIo.make
     arguments
         List(:,1) struct ;
         nBytesMax(1,1) {mustBePositive} = MrdiIo.defaults('nBytesMax') ;

@@ -1,41 +1,24 @@
-%%  Returns list of image files from dir() search
-% 
-% Wraps to dir() and returns List: 1-D struct array of image files
-% 
-% List = MrdiIo.findimagefiles( searchDir, searchExt, isSearchRecursive )
-% 
-% Inputs
-%   
-%   searchDir [default: './']
-%       search directory
-%
-%   searchExt [default: [".dcm", ".IMA" ]]
-%       image file extension of interest
-%
-%   isSearchRecursive [default: TRUE]
-%       also searches subdirectories if true
-%
-% See also dir, MrdiIo.loadandsortimages()
-
 function [List] = findimagefiles( searchDir, searchExt, isSearchRecursive )
 %FINDIMAGEFILES Returns list of image files from dir() search
+%      
+%      List = MrdiIo.findimagefiles( searchDir, searchExt, isSearchRecursive )
 % 
-% Wraps to dir() and returns List: 1-D struct array of image files
-% 
-% List = MrdiIo.findimagefiles( searchDir, searchExt, isSearchRecursive )
-% 
-% Inputs
+% Wraps to `dir()` and returns List: 1-D struct array of image files
+%
+% __INPUTS__
 %   
-%   searchDir [default: './']
-%       search directory
+%   `searchDir` [default: './']
+%     search directory
 %
-%   searchExt [default: [".dcm", ".IMA" ]]
-%       image file extension of interest
+%   `searchExt` [default: [".dcm", ".IMA" ]]
+%     image file extension of interest
 %
-%   isSearchRecursive [default: TRUE]
-%       also searches subdirectories if true
-%
-% See also dir, MrdiIo.loadandsortimages()
+%   `isSearchRecursive` [default: TRUE]
+%     also searches subdirectories if true
+% 
+% __ETC__
+% See also 
+% dir, MrdiIo.loadandsortimages()
     arguments
         searchDir(1,:) = './' ;
         searchExt {mustBeMember( searchExt, [".dcm", ".IMA" ] ) } = MrdiIo.FileExt.supportedInputs ;

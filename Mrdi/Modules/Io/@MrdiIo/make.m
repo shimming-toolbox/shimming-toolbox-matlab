@@ -1,18 +1,15 @@
 function [Imgs] = make( varargin ) 
 %MAKE  Return cell array of Mrdi objects 
+%     
+%     [Imgs] = make( searchDir ) 
+%     [Imgs] = make( Params ) 
 %
-% MrdiIo.make searches for images files and initializes Mrdi objects with the
-% image data. 
+% Searches for images files and initializes Mrdi objects with the image data. 
 %
-% Usage
-%
-%   [Imgs] = make( searchDir ) 
-%   [Imgs] = make( Params ) 
-%
-% Inputs
+% __INPUTS__
 %   
-%   searchDir 
-%       directory to search for images (string or char array)
+%   `searchDir` 
+%     directory to search for images (string or char array)
 
 %   Options: [default: = MrdiIo.defaults ]
 %   

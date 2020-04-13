@@ -1,9 +1,3 @@
-%% MrdiIo  MR DICOM Image I/O 
-% 
-% Class for writing/reading images, and saving/instantiating Mrdi
-% objects to/from file.
-%%
-
 classdef MrdiIo
 %MrdiIo  MR DICOM Image I/O 
 % 
