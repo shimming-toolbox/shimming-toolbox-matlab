@@ -1,7 +1,7 @@
-function realtime_zshim(varargin)
+function realtime_zshim(scan_obj, varargin)
 
 %% ************************************************************************
-% function realtime_zshim(varargin)
+% function realtime_zshim(scan_obj, varargin)
 %
 % DESCRIPTION: This function will generate static and dynaminc (due to
 % respiration) Gz components based on a fieldmap time series (magnitude and
@@ -12,11 +12,25 @@ function realtime_zshim(varargin)
 % the static and dynaminc Gz component maps to match the MGRE image. 
 % Lastly the average Gz values within the ROI are computed for each slice.
 %
-% INPUTS: If working with a DICOM socket transfer, call realtime_zshim(0)
-% or realtime_zshim(1). The user will then be prompted to input the unsorted
-% DICOM directory and the desired sorted DICOM directory. The boolean 0/1
-% indicates whether or not the files should be moved or copied. If working
-% with previously sorted DICOMS, call realtime_zshim with no arguments.
+% INPUTS: 
+%
+% (1)  If working with a DICOM socket transfer (online processing mode):
+%      realtime_zshim("scan_obj", 0) or realtime_zshim("scan_obj", 1)
+%
+% (2)  If working with previously sorted DICOMS (offline processing): 
+%      realtime_zshim("scan_obj")
+%
+% -> "scan_obj" should be either 'phantom' or 'human'
+%
+% 'phantom' -> a central square-shaped ROI will be generated for averaging
+% the Gz field
+% 'human' -> The spinal cord toolbox (SCT) will be used to segment the spinal cord
+
+% The boolean 0/1 indicates whether or not the files should be moved or copied.
+
+% The user will then be prompted to input the unsorted
+% DICOM directory and the desired sorted DICOM directory. 
+%
 % There will then be a prompt to input the following paths:
 %
 % FM_mag_path : path to DICOM folder containing magnitude magniude images for
@@ -37,18 +51,10 @@ function realtime_zshim(varargin)
 % Ryan Topfer, MSc. ryan.topfer@polymtl.ca
 % Eva Alonso Ortiz (EAO), PhD. eva.alonso.ortiz@gmail.com 
 %
-% LAST MODIFIED: Oct. 2019
+% LAST MODIFIED: Jan. 2020
 %
 %*************************************************************************
 
-% set debug_mode = 1 if in debug mode
-debug_mode = 0;
-
-%% ------------------------------------------------------------------------
-%  Copy respiratory trace file to the PWD
-%% ------------------------------------------------------------------------
-
-unix('cp /SYNGO_TRANSFER/SYNGO_TRANSFER/PMUresp_signal.resp .')
 
 %% ------------------------------------------------------------------------
 % Sort DICOM socket transfer images
@@ -56,9 +62,9 @@ unix('cp /SYNGO_TRANSFER/SYNGO_TRANSFER/PMUresp_signal.resp .')
 % (ex: '/SYNGO_TRANSFER/SYNGO_TRANSFER/20191101.acdc_95p.201911011532/')
 % enter the desired path for the sorted images
 %% ------------------------------------------------------------------------
-if nargin > 0
-    unsortedDicomDir = input('unsortedDicomDir = ');
-    sortedDicomDir = input('sortedDicomDir = ');
+if nargin > 1 
+    unsortedDicomDir = input('Enter the directory path for the unsorted dicom images (ADD SLASH AT THE END!): ');
+    sortedDicomDir = input('Enter the desired path for the sorted images: ');
     if (varargin{1} == 1)
         % copy the files if optional boolean is 1
         MaRdI.sortimages( unsortedDicomDir, sortedDicomDir, 1 );
@@ -66,6 +72,8 @@ if nargin > 0
         % move the files is optional boolean is 0
         MaRdI.sortimages( unsortedDicomDir, sortedDicomDir );
     end
+    % copy respiratory trace file from mounted drive to local directory
+    unix('cp /SYNGO_TRANSFER/SYNGO_TRANSFER/PMUresp_signal.resp .')
 end
         
 
@@ -73,13 +81,15 @@ end
 % Read in paths: FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path
 % These folders will be generated when using 'MaRdI.sortimages'
 %% ------------------------------------------------------------------------
-FM_mag_path = input('FM_mag_path = ');
-FM_phase_path = input('FM_phase_path = ');
-MGRE_mag_path = input('MGRE_mag_path = ');
+FM_mag_path = input('(ADD SLASH AT THE END!) Field map mag path: ');
+FM_phase_path = input('Field map phase path: ');
+MGRE_mag_path = input('MGRE mag path: ');
+respTrace_path = 'PMUresp_signal.resp';
 
-% FM_mag_path = '03_realtime_fieldmap1/';
-% FM_phase_path = '04_realtime_fieldmap1/';
-% MGRE_mag_path = '05_a_gre_DYNshim1/';
+% Hardcode here if needed:
+% FM_mag_path = '09_gre_field_mapping_PMUlog/';
+% FM_phase_path = '10_gre_field_mapping_PMUlog/';
+% MGRE_mag_path = '11_gre_realtime_zshim_NOSHIM/';
 
 
 
@@ -88,7 +98,16 @@ MGRE_mag_path = input('MGRE_mag_path = ');
 %% ------------------------------------------------------------------------
 Mag = MaRdI(MGRE_mag_path);
 Params.dataLoadDir = MGRE_mag_path;
-Params.centerlineMethod = 'spinalcord';  % 'midfov': middle of FOV; 'spinalcord': to create a mask around the spinal cord
+
+if (strcmp('human',scan_obj) == 1)
+    Params.centerlineMethod = 'spinalcord';  % 'midfov': middle of FOV; 'spinalcord': to create a mask around the spinal cord
+elseif (strcmp('phantom',scan_obj) == 1)
+        Params.centerlineMethod = 'midfov';  % 'midfov': middle of FOV; 'spinalcord': to create a mask around the spinal cord
+        Params.cylinderSize = input('Enter diameter (in mm) of desired ROI: ');
+else
+    error('\nError: Enter "phantom" or "human" as function argument');
+end
+
 shimVoi = Mag.segmentspinalcanal_s(Params);
 
 %% ------------------------------------------------------------------------
@@ -97,7 +116,14 @@ shimVoi = Mag.segmentspinalcanal_s(Params);
 %% ------------------------------------------------------------------------
 
 % field map time series
-Fields = FieldEval( FM_mag_path, FM_phase_path ); 
+
+Params.unwrapper = 'FslPrelude'; % or 'QGU'
+Fields = FieldEval( FM_mag_path, FM_phase_path, Params ); 
+
+% pathToNii = './' ; % where to save the images
+% isSavingSingleNiis = true ;
+% Fields.write( pathToNii, 'nii', isSavingSingleNiis ) ;
+
 % Note: Field.img (static b0) refers to the *mean probe signal (saved in the output as Field.Aux.Data.p) 
 % and the respiratory component is a relative deviation from the mean (scaled to RMS PMU)
 % 
@@ -113,6 +139,12 @@ Fields = FieldEval( FM_mag_path, FM_phase_path );
 % point in time to the current PMU reading, and that seems less stable to me (e.g. if the belt loosens, 
 % or the subject touches it, then both respiratory and static corrections fail, rather than just the former)
 
+% image filtering
+% for ind = 1:size(Fields.img,5)
+%     %Fields.img(:,:,1,1,ind) = imgaussfilt(squeeze(Fields.img(:,:,1,1,ind)),1);
+%     Fields.img(:,:,1,1,ind) = imnlmfilt(squeeze(Fields.img(:,:,1,1,ind)),'DegreeOfSmoothing',20);
+% end
+
 % Siemens PMU recording
 Pmu   = ProbeTracking(respTrace_path);
 
@@ -121,6 +153,18 @@ Pmu   = ProbeTracking(respTrace_path);
 %% ------------------------------------------------------------------------
 Fields.associateaux( Pmu );
 
+%% ------------------------------------------------------------------------
+% plot the field map time series
+%% ------------------------------------------------------------------------
+
+figure
+
+montage(squeeze(Fields.img));
+caxis([0 1000])
+colorbar
+title('Field map time series (Hz)') ;
+
+print('-djpeg','B0_TimeSeries.jpeg');
 
 %% ------------------------------------------------------------------------
 % rescale and compute z-gradients  
@@ -134,9 +178,23 @@ g = 1000/(42.576E6) ; % [units: mT/Hz]
 
 for measNo = 1:Fields.getnumberofmeasurements
     [~,Fields.img(:,:,1,1,measNo)] = gradient( ...
-     squeeze(g*Fields.img(:,:,1,1,measNo)), Y0/1000, Z0/1000 ) ; % [units: mT/m]
+     squeeze(g*Fields.img(:,:,1,1,measNo)), Y0(1,:)/1000, Z0(:,1)/1000 ) ; % [units: mT/m]
     %squeeze(g*Fields.img(:,:,1,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
 end
+
+%% ------------------------------------------------------------------------
+% plot the Gz map time series
+%% ------------------------------------------------------------------------
+
+figure
+
+montage(1e3*squeeze(Fields.img));
+caxis([-200 200])
+colorbar
+title('Gz map time series (\muT/m)') ;
+
+print('-djpeg','Gz_TimeSeries.jpeg');
+
 
 %% ------------------------------------------------------------------------
 % modeled static + respiratory fields (in Field.img and Field.Model.Riro.img respectively)
@@ -177,11 +235,16 @@ title('Static Gz (\muT/m)') ;
 subplot(2,1,2);
 imagesc( 1e3*Field.Model.Riro.img ) ;
 axis equal
-caxis([0 0.02])
+caxis([-20 20])
 colorbar
 title('RMS RIRO') ;
 
 print('-djpeg','Gz_map.jpeg');
+
+% EAO: this does not work for these images. Look into it.
+% pathToNii = './' ; % where to save the images
+% isSavingSingleNiis = true ;
+% Field.write( pathToNii, 'nii', isSavingSingleNiis ) ;
 
 %% ------------------------------------------------------------------------
 % interpolate field gradient images to target slices for shimming:
@@ -196,6 +259,48 @@ mask = logical( sum( mask, 4 ) ) ; % combine echo-specific masks
 % 'interp/extrap' (nearest-neighbour substitution) :
 Field.resliceimg( X,Y,Z, mask ) ; % reslice static b0 image 
 Field.Model.Riro.resliceimg( X,Y,Z, mask ) ; % reslice RIRO image
+
+
+%% ------------------------------------------------------------------------
+% plot some results
+%% ------------------------------------------------------------------------
+
+figure 
+
+for ind = 1:1:size(Field.img,3)
+    subplot_tight(2,size(Field.img,3),ind)
+    imagesc( 1e3*Field.img(:,:,ind) ) ;
+    caxis([-200 200])
+    %colorbar
+    set(gca, 'XTickLabel', [],'XTick',[])
+    set(gca, 'YTickLabel', [],'YTick',[])
+    if ind == 1
+        title('resampled static Gz (\muT/m)') ;
+        set(get(gca,'title'),'Position',[150 0.3 1])
+        cb = colorbar('Location','northoutside');
+        pos=get(cb,'Position');
+        set(cb,'Position',pos+[0.4,0.08,0.1,0]);
+    end
+end
+
+
+for ind = 1:1:size(Field.img,3) 
+    subplot_tight(2,size(Field.img,3),size(Field.img,3)+ind)
+    imagesc( 1e3*Field.Model.Riro.img(:,:,ind) ) ;
+    caxis([-20 20])
+    %colorbar
+    set(gca, 'XTickLabel', [],'XTick',[])
+    set(gca, 'YTickLabel', [],'YTick',[])
+    if ind == 1
+        title('resampled RMS RIRO (\muT/m)') ;
+        set(get(gca,'title'),'Position',[150 0.3 1])
+                cb = colorbar('Location','northoutside');
+        pos=get(cb,'Position');
+        set(cb,'Position',pos+[0.4,0.08,0.1,0]);
+    end
+end
+
+print('-djpeg','resampled_Gz_map.jpeg');
 
 %% ------------------------------------------------------------------------
 % Simple (voxelwise) Z-shim calculation:
@@ -240,8 +345,8 @@ end
 
 fclose(fileID);
 
-% unless in debug mode, copy Dynamic_Gradients.txt to mounted drive
-if debug_mode == 0
+% unless in offline processing mode (nargin = 1), copy Dynamic_Gradients.txt to mounted drive
+if nargin > 1
    unix('cp zshim_gradients.txt /SYNGO_TRANSFER/SYNGO_TRANSFER/')
 end
 

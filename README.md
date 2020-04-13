@@ -5,7 +5,7 @@
 - [Getting started](#getting-started)
 - [SOP](#SOP)
 - [Contributors](#contributors)
-- [License](#license)
+- [License](#license-and-warranty)
 
 ## Overview
 
@@ -120,14 +120,11 @@ For the documentation, in the Matlab command prompt type:
 
 [List of contributors.](https://github.com/neuropoly/realtime_shimming/graphs/contributors)
 
-## License
+## License and warranty
 
-The MIT License (MIT)
+This software is distributed under the following [license](LICENSE). THIS SOFTWARE MAY NOT BE USED FOR MEDICAL DIAGNOSIS AS IT IS NOT SANCTIONED BY AUTHORITIES SUCH AS HEALTH CANADA AND THE FOOD AND DRUG ADMINISTRATION.
 
-Copyright (c) 2018 Polytechnique Montreal, Université de Montréal
+By using this software, you indemnify the General Hospital Corporation (Boston, MA) and Ecole Polytechnique (Montreal, QC) from any liability arising from use of this software. Installation and use of the software shall be construed as consent to waive any future right to take legal action against the above-mentioned parties for any damages related to the use of the software, whether for the software's intended applications or otherwise.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
