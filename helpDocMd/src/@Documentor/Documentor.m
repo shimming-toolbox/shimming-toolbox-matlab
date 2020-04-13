@@ -93,18 +93,14 @@ methods
 % =========================================================================    
 function Dr = Documentor( src, Params )
     
+    narginchk(0,2) ;
+
     if nargin == 0
         return ;
-    end
-    
-    DEFAULTS.detailLevel = 1 ; % for doc content autofill 
-    DEFAULTS.outputDir   = [] ; % for docFile assignment (print output path)
-    
-    if nargin == 1
-        Params = DEFAULTS ; 
-    else
-        assert( isstruct(Params), 'Optional second argument should be a struct of parameters')
-        Params = assignifempty( Params, DEFAULTS ) ;
+    elseif nargin == 1
+        Params = struct([]) ;
+    elseif ~isstruct(Params)
+        error('Optional second input must be a struct of parameters') ;
     end
     
     % Find/filter/assign .m files to document
@@ -115,8 +111,19 @@ function Dr = Documentor( src, Params )
         Dr(iM).mFile = mFiles(iM) ; 
     end
 
-    Dr.draftdoccontent( Params.detailLevel ) ;
-    Dr.autoassigndocfiles( Params.outputDir ) ;
+    % assign docContent (documentation content)
+    if isfield( Params, 'detailLevel' )
+        Dr.draftdoccontent( Params.detailLevel ) ;
+    else
+        Dr.draftdoccontent() ;
+    end
+
+    % assign docFile (output file names) 
+    if isfield( Params, 'outputDir' )
+        Dr.autoassigndocfiles( Params.outputDir ) ;
+    else
+        Dr.autoassigndocfiles( ) ;
+    end
 
 end
 % =========================================================================    
