@@ -1,15 +1,17 @@
-function [docStr] = documentclassdef( Dr )
+function [docStr] = documentclassdef( Info, isDetailed )
 %DOCUMENTCLASSDEF Return string vector of class documentation 
 %
 % DOCUMENTCLASSDEF documents basic class attributes followed by class member
 % documentation (courtesy of calls to Documentor.documentclassproperties and
 % Documentator.documentclassmethods)
-
-Info = Dr.Info.Attributes ;
+    arguments
+        Info struct ;
+        isDetailed {mustBeBoolean} = true ;
+    end
 
 assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
 
-docStr = documentbasic( Dr ) ;
+docStr = Documentor.documentbasic( Info ) ;
 
 % remove fields included in documentbasic 
 Info = rmfield( Info, {'mType' ; 'Name' ; 'Description' ; 'DetailedDescription'} ) ;
@@ -24,7 +26,7 @@ for iF = 1 : numel( tableFields )
     BasicAttributes.( tableFields{iF} ) = string( Info.( tableFields{iF} ) ) ;
 end
 
-docStr = [ docStr ; "" ; Dr.tableattributes( BasicAttributes ) ; "" ] ; 
+docStr = [ docStr ; "" ; Documentor.tableattributes( BasicAttributes ) ; "" ] ; 
 
 Info = rmfield( Info, tableFields ) ;
 
@@ -44,8 +46,8 @@ for iField = 1 : numel(fields)
     end
 end
 
-docStr = [ docStr ; "" ; Dr.documentclassproperties ] ;    
-docStr = [ docStr ; "" ; Dr.documentclassmethods ] ;    
+docStr = [ docStr ; "" ; Documentor.documentclassproperties( Info, isDetailed ) ] ;    
+docStr = [ docStr ; "" ; Documentor.documentclassmethods( Info ) ] ;    
 
 end
     % names = strcat( "_", join(names, ", "), "_" ) ; % italicize

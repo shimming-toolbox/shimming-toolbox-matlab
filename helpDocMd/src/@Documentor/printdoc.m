@@ -1,77 +1,72 @@
-function [ dFile ] = printdoc( Dr, iM )
-%PRINTDOC Write documentation to file(s)
+function [ docFile, errMsg ] = printdoc( Dr, Options )
+%PRINTDOC Write documentation to file
 %    
-%    [dFiles] = PRINTDOC( Dr ) 
-%    [dFile]  = PRINTDOC( Dr, iM ) 
+%    [docFile, errMsg] = Dr.printdoc( ) 
+%    [docFile, errMsg] = Dr.printdoc( "isOverwriting", true ) 
 %
-% When called with a single argument (Documentor instance `Dr`), PRINTDOC 
-% iteratively descends the list of .m files in `Dr.mFiles`, printing default
-% documentation to the output file paths listed in `Dr.dFiles`.
-
-
-% This is equivalent to calling
-% If printing completes without error, 
+% Publishes the strings assigned to `Dr.docContent` to the filepaths assigned
+% to `Dr.docFile`. 
 %
-% PRINTDOC prints the
-% current contents of `Dr.mdDoc` to `docFile` (i.e. to `Dr.dFiles(Dr.iM)`).
-
-% If string scalar "all" is given as the second argument, 
+% To overwrite existing files, use the above name-value argument pair.
 %
-%
-%
-% If scalar index `iM` is given as the second argument, PRINTDOC updates `Dr`
-% to print `Dr.dFiles(iM)` (short-hand for `Dr.iM = iM ; Dr.printdoc() ;`).
-%
-% If printing completes without errors, PRINTDOC returns the path(s) to the
-% printed documentation as a string vector.
-% 
-% **Note 1** 
-% When called with a second argument, documentation will be printed
-% using the default formating. To bypass it (one file at a time): 
-%
-% 1. Set `Dr.iM` to the element of interest in `Dr.mFiles` to update the
-% `Dr.mdDoc` string vector.
-%
-% 2. Edit or replace the default content of `Dr.mdDoc` as desired. 
-%
-% 3. Print by calling `Dr.printdoc()` without the second argument.
-% 
-% **Note 2** 
-% To overwrite existing files, set `Dr.isOverwriting = true` prior to calling PRINTDOC.
-
-if nargin == 1
-    for iM = 1 : numel( Dr.mFiles )
-        fprintf( strcat("Preparing doc ", num2str(iM), "/", num2str(numel( Dr.mFiles )), "\n" ) );
-        dFile(iM) = Dr.printdoc( iM ) ;
+% Output file paths and error messages are returned as string vectors to output
+% arguments 1 and 2. Entries of `errMsg` are blank "" if printing succeeded without error.
+    arguments
+        Dr Documentor ;
+        Options.isOverwriting {mustBeBoolean} = false( size(Dr) ) ;
     end
 
-    return ;
+%% Check inputs 
+assert( numel(unique([Dr.docFile]')) == numel(Dr), ... 
+    '"docFile" property values (i.e. paths to the printed documentation files) must be unique.' ) ;
+
+if ( numel(Options.isOverwriting) == 1 ) && ( numel(Dr) > 1 )
+    Options.isOverwriting = repmat(Options.isOverwriting, size(Dr)) ;
+
+elseif ( numel(Options.isOverwriting) ~= numel(Dr) )
+    error( ['Input value for "isOverwriting" must be a logical scalar (e.g. `true`, to apply to all Documentor entries) ' ...
+            'or a logical array with the same size as the given Documentor object array.'])
 end
 
-try
-    Dr.iM   = iM ;
-    dFile   = Dr.dFiles( Dr.iM ) ;
-    dFolder = fileparts( dFile ) ;
+%% Initialize outputs 
+docFile = [Dr.docFile]' ;
+errMsg  = strings( size(docFile) ) ;
 
-    assert( Dr.isOverwriting || ~exist( dFile ), ...
-        ['Doc file already exists. Assign a different output file path (`dFiles` property),' ...
-         'or change the `isOverwriting` property to `true` to force overwrite'], '%s' );
+%% Print 
+for iM = 1 : numel(Dr)
 
-    if ~isfolder( dFolder )
-        [isMade, msg, msgId] = mkdir( dFolder ) ;
-        assert( isMade, msgId, ['Directory creation failed: ' msg ] )
-    end    
+    if isfile( docFile(iM) ) &&  ~Options.isOverwriting(iM)
+        errMsg(iM) = ['docFile already exists. To overwrite files, use the name-value argument pair '...
+                      'printdoc("isOverwriting", true). Alternatively, reassign the output paths via the `docFile` property.' ] ;
+    else
+        try
+            docFolder = fileparts( docFile(iM) ) ;
+            
+            if isfolder( docFolder ) 
+                [isValidPath, Values, msgId] = fileattrib( docFolder ) ;
+                isWritable = Values.UserWrite ;
+                if ~isWritable
+                    [isWritable,errMsg,~] = fileattrib( docFolder, '+w' ) ;
+                    assert( isWritable, ['Cannot write to the path assigned to `docFile`. ' ...
+                        'Change the path permissions or reassign `docFile`.'] ) ;
+                end
+            else
+                [isMade, errMsg(iM), msgId] = mkdir( docFolder ) ;
+                assert( isMade, msgId, errMsg(iM) ) ;
+            end    
 
-    [fid, errMsg] = fopen( dFile, 'w+' ) ;
-    assert( fid~=-1, ['Print abort-fail for :' char(dFile) '\n' errMsg], '%s' ) ;
+            [fid, errMsg(iM)] = fopen( Dr(iM).docFile, 'w+' ) ;
+            assert( fid~=-1, errMsg(iM) ) ;
 
-    fprintf( fid, '%s\n', Dr.mdDoc ) ;
-    fprintf( strcat("Written to: ", dFile, "\n") ) ;
+            fprintf( fid, '%s\n', Dr(iM).docContent ) ;
+            fclose(fid);
 
-    fclose(fid);
+        catch Me
+            errMsg(iM) = Me.message ;
+        end
+    end
 
-catch Me
-    Me.rethrow() ;
 end
+
 
 end

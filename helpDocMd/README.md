@@ -70,7 +70,7 @@ To print the documentation for the Documentor class itself:
 
 If successful, the documentation file path is displayed in the command window.
 Once formated to HTML on GitHub, it looks like
-[this](https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/doc/Documentor.md).
+[this](https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/docs/Documentor.md).
 
 ## FAQe 
 

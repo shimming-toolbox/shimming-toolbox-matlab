@@ -1,4 +1,4 @@
-function [tableStr] = tableattributes( Dr, Attributes )  
+function [tableStr] = tableattributes( Attributes )  
 %TABLEATTRIBUTES Return html-table of class/classmember attributes 
 %
 % tableStr = GETHELPTEXT( Attributes )

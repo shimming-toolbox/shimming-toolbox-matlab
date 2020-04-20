@@ -1,33 +1,34 @@
 classdef Informer 
 %INFORMER Details the functionality of a .m file
 % 
-% The Informer class informs the **Documentor** class about the contents of .m
-% files: providing the funtional details needed to document them. An Informer
-% instance describes a given .m file (i.e. a script, function, class method, or
-% classdef file).
+% The `Informer` class informs the `Documentor` class about the contents of .m
+% files: providing the functional details needed to document them. 
 %
-% Note: In the general/anticipated use case, a user merely interacts with an Informer
-% instance indirectly, as a member property of a Documentor object; however,
-% an Informer object can be constructed independently as indicated below.
+% In general, the class works behind the scenes and would not be directly
+% called upon by a user; however, an Informer object can be constructed
+% independently as indicated below.
 %
-% ### Syntax
-% `
-% Info = Informer( mFile ) ;
-% `
-% ### Inputs    
-% `
-% mFile
-% `
-% - full file path to the .m file of interest.
-%
-% ### Usage
+% __CONSTRUCTOR SYNTAX__
+%     
+%     Info = Informer( mFile ) ;
 % 
-% Informer only has two properties public properties: mFile and Attributes,
-% a struct storing all available information on the .m file. Info.Attributes
-% cannot be set directly, but is updated each time Info.mFile is set. The
-% read-only fields of Informer.Attributes depend on the given .m-file type and
-% should be fairly self-explanatory given the field names; nevertheless, more
-% detail is available in the method documentation for Informer.getmattributes.
+% Creates an `Informer` object pertaining to .m file (a script, function, class
+% method, or classdef file) pointed to by the path string `mFile`.
+% If `mFile` contains multiple files, then `Info` is returned as an
+% object-array.
+% 
+% `Informer` has but two properties: `mFile` and `Attributes`.
+%
+% `Attributes` is a struct containing all available functional details
+% regarding `mFile`. 
+%
+% `Attributes` cannot be set directly, but is updated whenever `mFile` is set.
+%
+% The read-only fields of `Attributes` depend on the given .m-file type and
+% should be fairly self-explanatory given the field names. More detail is
+% available in the method documentation for Informer.getmattributes.
+%
+ 
 
 properties( AbortSet = true )
 
@@ -86,9 +87,26 @@ function [ Info ] = Informer( mFile )
             error('File not found') ;
         end
     end
+   
+    mFile = string( mFile ) ;    
+    
+    Info.mFile      = mFile(1) ;
+    Info.Attributes = Informer.getmattributes(mFile(1)) ;
 
-   Info.mFile      = string( mFile ) ;    
-   Info.Attributes = Informer.getmattributes( mFile ) ;
+    if numel( mFile ) > 1
+        
+        fprintf( strcat("Retrieving file info (x/", num2str(numel(mFile)), "): 1..." ) ) ;
+        
+        for iM = 2 : numel( mFile )
+            fprintf( [ num2str(iM) '...' ] ) ;
+            Info(iM).mFile      = mFile(iM) ;
+            Info(iM).Attributes = Informer.getmattributes(mFile(iM)) ;
+        end
+        
+        fprintf( '\n' ) ;
+    
+        Info = Info' ;
+    end
 
 end
 % =========================================================================    

@@ -217,7 +217,7 @@ end
 function [folder, name, ext] = fileparts( Path )
 %FILEPARTS Overloaded MATLAB function: [filepath,name,ext] = arrayfun( @fileparts, Path.data ) ;
 
-    [filepath,name,ext] = arrayfun( @fileparts, Path.data ) ;
+    [folder, name, ext] = arrayfun( @fileparts, Path.data ) ;
 
 end
 % =========================================================================    

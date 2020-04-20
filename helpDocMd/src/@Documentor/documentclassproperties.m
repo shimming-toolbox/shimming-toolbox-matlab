@@ -1,9 +1,11 @@
-function docStr = documentclassproperties( Dr )
+function docStr = documentclassproperties( Info, isDetailed )
 %DOCUMENTCLASSPROPERTIES Return string vector of class property documentation
+    arguments
+        Info struct ;
+        isDetailed {mustBeBoolean} = true ;
+    end
 
-Info = Dr.Info.Attributes ;
-
-assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
+% assert( strcmp(Info.mType, "classdef"), 'mFile is not a class' ) ;
 
 docStr = [ "- - -" ; "## Properties" ; "" ] ;
 
@@ -15,10 +17,11 @@ else
 
         Prop = Info.PropertyList( iProp ) ;
         
-        if Dr.isDetailed || ( strcmp( Prop.GetAccess, 'public' ) && ~Prop.Hidden )
+        if isDetailed || ( strcmp( Prop.GetAccess, 'public' ) && ~Prop.Hidden )
             
-            docStr = [ docStr ; "" ; Dr.documentbasic( Prop, 3 ) ] ;
-            % remove fields addressed already in documentbasic
+            docStr = [ docStr ; "" ; Documentor.documentbasic( Prop, 3 ) ] ;
+
+            % remove fields already covered by documentbasic
             Prop = rmfield( Prop, {'Name'; 'Description' ; 'DetailedDescription'} ) ;
 
             [attTable, Prop] = tablelogicalattributes( Prop ) ;
@@ -45,7 +48,8 @@ else
 
                     %TODO add size constraints
                 else 
-                  docStr(end+1) = strcat( "- ", field, " : ", string( Prop.( field ) ) ) ;
+                    % strcat( "- ", field, " : ", string( Prop.( field ) ) )
+                  docStr = [docStr ; strcat( "- ", field, " : ", strjoin(string( Prop.( field ) ), "; " ) ) ] ;
                 end
             end
         end
@@ -64,7 +68,7 @@ function [ attTable, Prop] = tablelogicalattributes( Prop )
        BoolAttributes.( boolFields{iF} ) = Prop.( boolFields{iF} ) ;
     end
 
-    attTable = Dr.tableattributes( BoolAttributes ) ;
+    attTable = Documentor.tableattributes( BoolAttributes ) ;
     Prop     = rmfield( Prop, boolFields ) ;
 
 end 
