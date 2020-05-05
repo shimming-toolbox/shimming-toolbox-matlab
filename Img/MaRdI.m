@@ -91,7 +91,7 @@ if nargin == 1
             'Input must be a path string leading to a single dicom image OR to a dicom-containing folder' )
 
         Img.img = double( dicomread( imgPath ) ) ;
-        Img.Hdr = MaRdI.dicominfosiemens( imgPath ) ;
+        Img.Hdr = dicominfosiemens( imgPath ) ;
 
         %  Add/replace a few Hdr entries:
         
@@ -113,7 +113,7 @@ if nargin == 1
         end
         
         % Read protocol info from 1st loaded image (arbitrary):
-        SpecialHdr = MaRdI.dicominfosiemens( imgList{1} ) ;
+        SpecialHdr = dicominfosiemens( imgList{1} ) ;
 
         nRows      = SpecialHdr.Height ;
         nColumns   = SpecialHdr.Width ;
@@ -171,7 +171,7 @@ if nargin == 1
         end
         
         % Save the complete 1st Hdr
-        Img.Hdr = MaRdI.dicominfosiemens( Img.Hdrs{1}.Filename ) ;
+        Img.Hdr = dicominfosiemens( Img.Hdrs{1}.Filename ) ;
             
         Img.rescaleimg() ;
 
@@ -2560,47 +2560,6 @@ weights = flipdim( weights, 1 ) ;
 % normalize
 weights = weights - min(weights(:)) ;
 weights = weights/max(weights(:)) ;
-
-end
-% =========================================================================
-function [ Hdr ] = dicominfosiemens( filename )
-%DICOMINFOSIEMENS
-%
-% Hdr = DICOMINFOSIEMENS
-%
-% Wraps to Matlab's DICOMINFO to return the standard DICOM Hdr, but also
-% add fields returned by PARSE_SIEMENS_SHADOW.
-%
-% (Also replaces original Hdr. fields with more precise values should they
-% be available in Hdr.MrProt., e.g. In the case of Siemens socket-delivered
-% images, some fields are missing, & others are simply of reduced precision, 
-% e.g. Hdr.ImagingFrequency is rounded to kHz)
-%
-% See also DICOMINFO, PARSE_SIEMENS_SHADOW
-
-Hdr = dicominfo( filename ) ;
-
-% parses additional info (e.g. "MrProt" (re: protocol))
-[ Hdr.Img, Hdr.Ser, Hdr.MrProt ] = parse_siemens_shadow( Hdr ) ;
-fprintf('\n') ;
-
-% parse_mrprot produces many, many warning messages (at least for DICOMs from the Prisma).
-% This should suppress all but the 1st instance:
-[ lastMsg, lastWarnId ] = lastwarn( ) ;
-warning( 'off', lastWarnId ) ;
-
-% for some reason (?) Img.Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency appears
-% to have multiple elements, only the first is non-empty and it contains the
-% Larmor freq., but, explicitly/manually trying to access it produces an error.
-% +for some reason (?) the error is avoided by first copying the value to the
-% temporary variable (f0), hence:
-f0 = Hdr.MrProt.sTXSPEC.asNucleusInfo.lFrequency  ;
-Hdr.ImagingFrequency = f0 * 1E-6 ; % [units : MHz]
-
-% absolute table position (.Hdr field doesn't exist for the socket-delivered .dcm images)
-if ~myisfield( Hdr.Img, 'Private_0019_1013' ) && ~isempty( Hdr.Img.ImaAbsTablePosition )
-    Img.Hdr.Private_0019_1013 = Hdr.Img.ImaAbsTablePosition ; % [units : mm?]
-end
 
 end
 % =========================================================================
