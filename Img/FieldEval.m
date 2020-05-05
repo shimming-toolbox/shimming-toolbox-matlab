@@ -618,30 +618,6 @@ end
 
 end
 % =========================================================================
-function [] = chartriro( Field, p )
-%CHARTRIRO
-%
-% [] = CHARTRIRO( Field )
-% [] = CHARTRIRO( Field, p )
-%
-assert( myisfield( Field.Model, 'Riro' ) && ~isempty( Field.Model.Riro ) ) ;
-
-dbstop in FieldEval at 599
-
-pR = resample( p, 30, 100 ) ; % resample from 100 to 30 Hz
-pR = medfilt1( pR, 5 ) ;
-
-nFrames = length( pR ) ;
-riro = zeros( [ Field.Model.Riro.getgridsize() nFrames ] ) ;
-
-for iFrame = 1 : nFrames
-    iFrame/nFrames
-    iRiro = Field.getriro( pR( iFrame ) ) ;
-    riro(:,:,:, iFrame) = iRiro.img ;    
-end
-
-end
-% =========================================================================
 function [] = scalefieldstrength( Field, B01 )
 %SCALEFIELDSTRENGTH
 %
