@@ -7,7 +7,7 @@
 %% -----
 % Sort unorganized images from DICOM socket transfer 
 % isCopying (boolean) is optional (move or copy the .IMA files)
-MaRdI.sortimages( unsortedDicomDir, sortedDicomDir, isCopying )
+sortdicoms( unsortedDicomDir, sortedDicomDir, isCopying )
 
 % load t2w magnitude for SCT segmentation
 Mag = MaRdI( '/Users/ryan/Projects/Shimming/Acdc/202004_Ismrm/data/acdc_73/05-T2w_1mm' ) ;

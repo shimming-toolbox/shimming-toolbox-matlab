@@ -67,10 +67,10 @@ if nargin > 1
     sortedDicomDir = input('Enter the desired path for the sorted images: ');
     if (varargin{1} == 1)
         % copy the files if optional boolean is 1
-        MaRdI.sortimages( unsortedDicomDir, sortedDicomDir, 1 );
+        sortdicoms( unsortedDicomDir, sortedDicomDir, 1 );
     elseif (varargin{1} == 0)
         % move the files is optional boolean is 0
-        MaRdI.sortimages( unsortedDicomDir, sortedDicomDir, 0 );
+        sortdicoms( unsortedDicomDir, sortedDicomDir, 0 );
     end
     % copy respiratory trace file from mounted drive to local directory
     unix('cp /SYNGO_TRANSFER/SYNGO_TRANSFER/PMUresp_signal.resp .')
@@ -79,7 +79,7 @@ end
 
 %% ------------------------------------------------------------------------
 % Read in paths: FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path
-% These folders will be generated when using 'MaRdI.sortimages'
+% These folders will be generated when using 'sortdicoms'
 %% ------------------------------------------------------------------------
 FM_mag_path = input('(ADD SLASH AT THE END!) Field map mag path: ');
 FM_phase_path = input('Field map phase path: ');
