@@ -34,10 +34,12 @@ MATLAB&reg; documentation:
 1. Clone this repository or download the source code.
 
 2. Start up Matlab and add the downloaded 'src' directory along with its
-   subfolders to the path by typing `addpath(genpath( '.../src/' )  ;
-   which('Documentor')` into the command prompt (replacing the ellipsis with
-   the path to the downloaded folder). The filepath to Documentor.m should be
-   displayed.
+   subfolders to the path by typing 
+   
+   `addpath( genpath( '.../src/' ); which('Documentor')`
+   
+   into the command prompt (replacing the ellipsis with the path to the downloaded folder). 
+   The filepath to Documentor.m should be displayed.
 
 ## Basics
 
@@ -53,22 +55,25 @@ To publish it, the process is simple:
    want to include as entries in a string vector: let's call it `src`.
 
 2. Initialize a `Documentor` object (e.g. one called `Dr`) with your list:  
-
+```
     Dr = Documentor( src ) ;  
+```
 
 3. To print all of the documentation to Markdown text files, call:  
-
-    Dr.printdoc( ) ;  
+```
+    Dr.printdoc( ) ; 
+```
 
 #### Example
 
 To print the documentation for the Documentor class itself:
+```
+   Dr = Documentor( which('Documentor') ) ;  
+   Dr.printdoc( ) ;
+```
 
-    Dr = Documentor( which('Documentor') ) ;
+If successful, the .md file path is displayed in the command window.
 
-    Dr.printdoc( ) ;
-
-If successful, the documentation file path is displayed in the command window.
 Once formated to HTML on GitHub, it looks like
 [this](https://github.com/neuropoly/realtime_shimming/blob/helpDocMd/helpDocMd/docs/Documentor.md).
 
@@ -101,7 +106,7 @@ have been requesting for years ([4][stack1], [5][stack2]) so who knows...)
 
 ## References
 
-- [test a Markdown sample](https://daringfireball.net/projects/markdown/dingus) for how it will display once reformatted to HTML.
+- [Test](https://daringfireball.net/projects/markdown/dingus) a Markdown sample for how it will display once reformatted to HTML.
 
 Re: hosting documentation online:
 - [MkDocs](https://www.mkdocs.org/)
