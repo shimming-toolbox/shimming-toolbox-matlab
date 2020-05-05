@@ -2273,70 +2273,6 @@ methods(Hidden=true)
 %   1) might be deprecated
 %   2) may or may not be useful to a typical user
 % =========================================================================
-function Img = cropimg( Img, gridSizeImgCropped, centralPoint )
-%CROPIMG
-%
-% Img = CROPIMG( Img, croppedDims )
-% Img = CROPIMG( Img, croppedDims, centralPoint )
-% 
-% centralPoint are the indices of the original img voxel to become the centralPoint of 
-% the cropped array.
-%
-% default  (nargin == 2)
-%   centralPoint = round( size(Img.img)/2 );
-% 
-% note: 
-% if centralPoint +/- croppedDims/2 exceeds the original bounds, the array is cropped at the bound (as opposed to zero filling)
-% -------
-% *** TODO
-%
-%   make compatible for odd-sized arrays
-    
-gridSizeImgOriginal = size(Img.img) ;
-
-if (nargin == 2) || isempty(centralPoint)
-    centralPoint = round( gridSizeImgOriginal/2 ) ;
-end
-
-low  = centralPoint - round(gridSizeImgCropped/2) + [1 1 1] ;
-high = low + gridSizeImgCropped - [1 1 1] ;  
-
-for dim = 1: 3
-   if low(dim) < 1
-      low(dim) = 1 ;
-   end
-   if high(dim) > gridSizeImgOriginal(dim)
-      high(dim) = gridSizeImgOriginal(dim) ;
-  end
-end
-    
-% Update header
-[X, Y, Z] = Img.getvoxelpositions( ); 
-x0        = X(low(1),low(2),low(3)) ;
-y0        = Y(low(1),low(2),low(3)) ;
-z0        = Z(low(1),low(2),low(3)) ;
-
-Img.Hdr.ImagePositionPatient = [x0 y0 z0] ;
-
-[rHat, cHat, sHat] = Img.getdirectioncosines( ) ;  
-
-Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, sHat ) ;
-
-% crop img
-Img.img = Img.img( low(1):high(1), low(2):high(2), low(3):high(3) ) ; 
-
-if myisfield( Img.Hdr, 'MaskingImage' )  && ~isempty( Img.Hdr.MaskingImage ) 
-    
-   Img.Hdr.MaskingImage = Img.Hdr.MaskingImage( low(1):high(1), low(2):high(2), low(3):high(3) ) ; 
-
-end
-
-% Update header
-Img.Hdr.Rows                 = size(Img.img, 1) ;
-Img.Hdr.Columns              = size(Img.img, 2) ;       
-
-end
-% =========================================================================
 function [] = nii( Img )
 %NII - Write MaRdI image to NiFtI file
 %
@@ -2364,62 +2300,6 @@ nii( squeeze(Img.img), Params )  ;
 
 end
 % =========================================================================
-function Img = zeropad( Img, padSize, padDirection )
-%ZEROPAD
-% Img = ZEROPAD( Img, padSize, padDirection )
-%
-% padSize = [ nZerosRows nZerosColumns nZerosSlices ] 
-%
-% padDirection == 'post' || 'pre' || 'both'
-%
-% -------
-%   See also PADARRAY()
-    
-gridSizeOriginalImg = size(Img.img) ;
-
-Img.img = padarray( Img.img, padSize, 0, padDirection ) ; 
-
-if myisfield( Img.Hdr, 'MaskingImage' )  && ~isempty( Img.Hdr.MaskingImage ) 
-    
-   Img.Hdr.MaskingImage = padarray( Img.Hdr.MaskingImage, padSize, 0, padDirection ) ; 
-
-end
-
-% Update header
-Img.Hdr.Rows                 = size(Img.img, 1) ;
-Img.Hdr.Columns              = size(Img.img, 2) ;       
-
-if ~strcmp( padDirection, 'post' )
-% update image position 
-% (i.e. location in DICOM RCS of 1st voxel in data array (.img))
-    
-    voxelSize = Img.getvoxelspacing() ;
-
-    dr = voxelSize(1) ; % spacing btwn rows 
-    dc = voxelSize(2) ; % spacing btwn columns
-    ds = voxelSize(3) ;
-    
-    nr = padSize(1) ;
-    nc = padSize(2) ;
-    ns = padSize(3) ;
-    
-    [r, c, s] = Img.getdirectioncosines( ) ;
-
-    % -1 because the zeros are padded before ('pre') 1st element (origin)        
-    dx = -1*( r(1)*dr*nr + c(1)*dc*nc + s(1)*ds*ns ) ; 
-    dy = -1*( r(2)*dr*nr + c(2)*dc*nc + s(2)*ds*ns ) ;
-    dz = -1*( r(3)*dr*nr + c(3)*dc*nc + s(3)*ds*ns ) ;
-
-    x1 = Img.Hdr.ImagePositionPatient(1) + dx ;
-    y1 = Img.Hdr.ImagePositionPatient(2) + dy ;
-    z1 = Img.Hdr.ImagePositionPatient(3) + dz ;
-
-    Img.Hdr.ImagePositionPatient = [x1 y1 z1] ;
-
-    Img.Hdr.SliceLocation = dot( Img.Hdr.ImagePositionPatient, s ) ;
-end
-
-end
 % =========================================================================
 
 end
@@ -2520,41 +2400,6 @@ nImages = length( List ) ;
 assert( nImages ~= 0, 'No .dcm or .IMA files found in given directory' ) ;
 
 end
-
-end
-% =========================================================================
-function fullDir = getfulldir( dataLoadDir, iDir )
-%GETFULLDIR
-% 
-% fullDir = GETFULLDIR( parentDir, index ) 
-%
-%   Searches parentDir[ectory] for subdirectory beginning with index- (e.g.
-%   .../dataLoadDir/[index]-* ) to return its full path.
-%
-%   (Useful for rapidly initializing MaRdI with a dicom folder.)
-
-if nargin < 2
-    error('Function requires 2 input arguments: parent directory and index.')
-end
-
-if isnumeric(iDir)
-    iDir = num2str( iDir ) ;
-end
-
-if length( iDir ) == 1
-    iDir = ['0' iDir] ;
-end
-
-if ~strcmp( dataLoadDir(end), '/' )
-    dataLoadDir(end+1) = '/' ;
-end
-
-Tmp = dir( [ dataLoadDir iDir '-*'] ) ;
-fldrName = Tmp.name ;
-
-[fullDir,~,~] = fileparts( [dataLoadDir fldrName '/'] ) ;
-
-fullDir(end+1) = '/' ;
 
 end
 % =========================================================================
@@ -2850,67 +2695,6 @@ for iImage = 1 : nImages
 
 end
     
-end
-% =========================================================================
-function [ studyDirs ] = tablestudy( sortedDicomDir )
-%TABLESTUDY 
-%
-% Returns a cell array ( studyDirs ) pertaining to the study directory input
-% ( sortedDicomDir ) where each element in the second column is a MaRdI-loadable 
-% images series. (The 1st column is merely the row index.)
-%
-% e.g. Protocol to load MaRdI-object :
-%
-%   % omit semi-colon to display the full cell array (i.e. with the row indices)
-%   [ studyDirs ] = MaRdI.tablestudy( sortedDicomDir ) 
-%
-%   % determine the row index of the series you want to load (e.g. 10):
-%   Img = MaRdI( studyDirs{ 10, 2 } ) ;
-
-assert( nargin == 1, 'Function requires sortedDicomDirectory as input argument.' ) ;
-
-if ~strcmp( sortedDicomDir(end), '/' ) 
-    sortedDicomDir(end+1) = '/' ;
-end
-
-studyDirs = cell( 0 ) ;
-
-Tmp      = dir( [ sortedDicomDir ] );
-Tmp      = Tmp( 3:end ) ; % ignore self ('.') and parent ('..') dirs
-nEntries = length( Tmp ) ;
-
-for iEntry = 1 : nEntries 
-
-   if Tmp( iEntry ).isdir
-   
-       tmpSeriesSubdir = [ Tmp( iEntry ).name '/'] ;
-    
-        TmpEchoSubdirs = dir( [ sortedDicomDir tmpSeriesSubdir 'echo*' ] ) ;
-        nEchoSubdirs   = length( TmpEchoSubdirs ) ;
-
-        if nEchoSubdirs ~= 0
-
-            for iEchoSubdir = 1 : nEchoSubdirs
-
-                studyDirs{end+1, 2} = strcat( sortedDicomDir, tmpSeriesSubdir, TmpEchoSubdirs(iEchoSubdir).name )  ;
-                iSeries = size( studyDirs, 1 ) ;
-                studyDirs{ iSeries, 1 } = iSeries ;
-            end
-
-        % check if tmpSeriesSubdir itself contains images
-        elseif length( dir( [ sortedDicomDir tmpSeriesSubdir '/*.dcm'] ) ) ~= 0 || ...
-                length( dir( [ sortedDicomDir tmpSeriesSubdir '/*.IMA'] ) ) ~= 0 
-
-           studyDirs{end+1, 2} = strcat( sortedDicomDir,tmpSeriesSubdir )  ;
-            iSeries = size( studyDirs, 1 ) ;
-            studyDirs{ iSeries, 1 } = iSeries ;
-
-        end
-
-   end
-   
-end
-
 end
 % =========================================================================
 function [Params] = savefigure( img, Params )
