@@ -1891,15 +1891,15 @@ Hdr.InPlanePhaseEncodingDirection  = Img.Hdr.InPlanePhaseEncodingDirection ;
 
 nSlices       = size( Img.img, 3 ) ;
 nEchoes       = numel( Img.getechotime() ) ;
-nAcquisitions = numel( Img.getacquisitiontime ) ;
+nAcquisitions = size( Img.getacquisitiontime , 3 ) ;
 
-nImg = nSlices*nEchoes*nAcquisitions ;
+nImg = nSlices*nEchoes*nAcquisitions ; 
 
 for iSlice = 1 : nSlices 
     for iEcho  = 1 : nEchoes 
         for iAcq = 1 : nAcquisitions  
 
-            iImg = iSlice*iEcho*iAcq ;
+            iImg = (iSlice - 1) * (nEchoes + nAcquisitions) + (iEcho - 1) * nAcquisitions + iAcq;
 
             disp( [num2str(100*iImg/nImg) '% ...'] ) ;
     
