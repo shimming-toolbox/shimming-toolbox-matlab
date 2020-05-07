@@ -21,15 +21,17 @@ If your are new to git or github, the following articles may help you:
 
 # Programming guidelines
 
-When contributing to the library, for maintainability, please adhere to the
-[Matlab programming guidelines (Richard Johnson)](https://www.mathworks.com/matlabcentral/fileexchange/46056-matlab-style-guidelines-2-0?s_tid=mwa_osa_a)
+When contributing to the library, for maintainability, ___please follow___ the 
+[programming guidelines](https://www.mathworks.com/matlabcentral/fileexchange/46056-matlab-style-guidelines-2-0?s_tid=mwa_osa_a) 
+for Matlab by Richard Johnson.
 
-For general information on OO-programming in Matlab:
-http://www.cs.ubc.ca/~murphyk/Software/matlabTutorial/html/objectOriented.html
+For information on object-oriented programming in Matlab, this quick 
+[overview](http://www.cs.ubc.ca/~murphyk/Software/matlabTutorial/html/objectOriented.html)
+by Kevin P Murphy is excellent.
 
-All classes are * handle * as opposed to * value * classes.
-For more info on this distinction:
-https://www.mathworks.com/help/matlab/matlab_oop/comparing-handle-and-value-classes.html  
+A number of classes are defined as *handle* as opposed to *value* classes.
+For more info on this important distinction, see the Matlab
+[documentation.](https://www.mathworks.com/help/matlab/matlab_oop/comparing-handle-and-value-classes.html)
 
 # Fixing a bug
 
