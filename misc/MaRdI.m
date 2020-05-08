@@ -1920,7 +1920,7 @@ for iSlice = 1 : nSlices
 
             Hdr.SliceLocation        = dot( Hdr.ImagePositionPatient, sHat ) ;
            
-            dicomwrite( Img.img(:,:,iSlice,iEcho, iAcq) , filename, 'ObjectType', 'MR Image Storage', Hdr ) ;
+            dicomwrite( uint16(Img.img(:,:,iSlice,iEcho, iAcq)) , filename, 'ObjectType', 'MR Image Storage', Hdr ) ;
             
             if( iSlice==1 )
                 info                  = dicominfo( filename ) ;
