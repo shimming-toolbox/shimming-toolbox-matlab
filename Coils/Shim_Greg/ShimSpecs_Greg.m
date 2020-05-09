@@ -1,34 +1,26 @@
 classdef ShimSpecs_Greg < ShimSpecs
-%SHIMSPECS_GREG
-% 
-% Shim System Specifications for the AC/DC neck coil
-% 
-% ShimSpecs_Greg is a ShimSpecs subclass
+%SHIMSPECS_GREG Shim System Specifications for the 8ch. AC/DC 3T neck coil
+%     
+%     Specs = ShimSpecs_Greg(  )
 %
-% .......
-%   
-% Usage
-%
-% Specs = ShimSpecs_Greg(  )
-%
-%   Specs contains fields
-%
+% Specs contains fields
 %           
-%       .Amp    
-%           relating to amplifcation
+%     .Amp    
+%       relating to amplifcation
 %
-%       .Com
-%           relating to communication (e.g. RS-232)
+%     .Com
+%       relating to communication (e.g. RS-232)
 %
-%       .Adc 
-%           relating to analog-to-digital conversion
+%     .Adc 
+%       relating to analog-to-digital conversion
 %
-%       .Dac 
-%           relating to digital-to-analog conversion
+%     .Dac 
+%       relating to digital-to-analog conversion
 %
-% =========================================================================
-% author::ryan.topfer@polymtl.ca
-% =========================================================================
+% __ETC___
+%
+% See also
+% ShimSpecs
 
 properties
     Adc;

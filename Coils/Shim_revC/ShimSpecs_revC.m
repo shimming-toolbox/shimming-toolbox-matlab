@@ -1,46 +1,26 @@
 classdef ShimSpecs_revC < ShimSpecs
-%ShimSpecs_revC
-% 
-% Shim System Specifications for the AC/DC neck coil
-%
-% .......
-%   
-% Usage
-%
-% Specs = ShimSpecs_revC(  )
-%
-%   Specs contains fields
-%
-%           
-%       .Amp    
-%           relating to amplifcation
-%
-%       .Com
-%           relating to communication (e.g. RS-232)
-%
-%       .Adc 
-%           relating to analog-to-digital conversion
-%
-%       .Dac 
-%           relating to digital-to-analog conversion
-%   
-% =========================================================================
-% Part of series of classes pertaining to shimming:
-%
-%    ProbeTracking
-%    ShimCal
-%    ShimCom
-%    ShimEval
-%    ShimOpt
-%    ShimSpecs
-%    ShimTest 
-%    ShimUse
+%ShimSpecs_revC Shim System Specifications for the 8ch. AC/DC 3T neck coil 
 %     
-%    ShimSpecs_revC is a ShimSpecs subclass
+%     Specs = ShimSpecs_revC(  )
 %
-% =========================================================================
-% Updated::20181105::ryan.topfer@polymtl.ca
-% =========================================================================
+% Specs contains fields
+%           
+%     .Amp    
+%       relating to amplifcation
+%
+%     .Com
+%       relating to communication (e.g. RS-232)
+%
+%     .Adc 
+%       relating to analog-to-digital conversion
+%
+%     .Dac 
+%       relating to digital-to-analog conversion
+% 
+% __ETC___
+%
+% See also
+% ShimSpecs
 
 properties
     Adc;
@@ -54,9 +34,13 @@ function Shim = ShimSpecs_revC(  )
 %SHIMSPECS - Shim System Specifications 
 
 Shim.Id.systemName   = 'Greg' ;
+
 Shim.Id.channelNames = cell(8,1) ;
+Shim.Id.channelUnits = cell(8,1) ;
+
 for iCh = 1 :8 
     Shim.Id.channelNames(iCh) = { ['Ch' num2str(iCh) ] } ; 
+    Shim.Id.channelUnits(iCh) = { '[A]' } ; 
 end
     
 Shim.Com.baudRate    = 9600 ;  

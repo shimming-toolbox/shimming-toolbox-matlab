@@ -126,11 +126,7 @@ function  [ Params ] = assigndefaultparameters( Params )
 % DEFAULT_ISINTERPOLATINGREFERENCEMAPS = true ;
 
 DEFAULT_ISCALIBRATINGREFERENCEMAPS = false ;
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Acdc/Calibration/data/ShimReferenceMaps_Acdc_20180606.mat';
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_Greg_20181103';
-% DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_Greg_20190201' ;
-DEFAULT_PATHTOSHIMREFERENCEMAPS = '~/Projects/Shimming/Static/Calibration/Data/ShimReferenceMaps_Greg_20190501' ;
-DEFAULT_PROBESPECS              = [] ;
+DEFAULT_PATHTOSHIMREFERENCEMAPS    = [ shimbindir() 'ShimReferenceMaps_Greg' ] ;
 
 DEFAULT_INSTITUTIONNAME = 'IUGM' ;
 DEFAULT_STATIONNAME     = 'MRC35049' ;
