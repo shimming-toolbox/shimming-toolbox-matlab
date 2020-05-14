@@ -1912,8 +1912,9 @@ for iSlice = 1 : nSlices
 
             %-------
             % image specific hdr info 
-            Hdr.ImageNumber          = iSlice*iEcho*iAcq ;
-            Hdr.InstanceNumber       = iSlice*iEcho*iAcq ;
+            Hdr.EchoNumbers          = Img.Hdrs{iSlice,iEcho,iAcq}.EchoNumbers;
+            Hdr.ImageNumber          = iAcq ;
+            Hdr.InstanceNumber       = iAcq ;
             Hdr.AcquisitionTime      = Img.Hdrs{iSlice,iEcho,iAcq}.AcquisitionTime ;
             
             Hdr.ImagePositionPatient = [(X(1,1,iSlice)) (Y(1,1,iSlice)) (Z(1,1,iSlice))] ;
@@ -1938,7 +1939,7 @@ if ~strcmp( imgFormat, 'dcm' )
     if isSavingSingleNiis
         list = MaRdI.findimages( saveDirectory ) ;
         for iImg = 1 : size( list, 1 )
-            system(['dcm2niix -s y -f %f_%r ' list{iImg}]) ;
+            system(['dcm2niix -s y -f %f_%e_%r ' list{iImg}]) ;
         end
     else
         system(['dcm2niix ' saveDirectory]) ;
