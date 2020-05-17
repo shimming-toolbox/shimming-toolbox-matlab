@@ -1951,7 +1951,74 @@ end
 
 end
 % =========================================================================
+function niftiwrite(Img, filename, varargin)
+%NIFTIWRITE
+%
+% NIFTIWRITE creates a file witn extension '.nii' from a MaRdI object
+%
+% params :  Img, filename, metadata, 
+%           Name, Value
+%
+%   'Combined'           - true (default) or false. If true, NIFTIWRITE
+%                          creates one file with the file extension '.nii'.
+%                          If false, NIFTIWRITE creates two files. One file
+%                          contains metadata and has the file extension
+%                          '.hdr'. The other files contains the volumetric
+%                          data and has the file extension '.img'.
+%                          NIFTIWRITE uses the file name you specified in
+%                          FILENAME for both files.
+%
+%   'Compressed'         - false(default) or true. If true, NIFTIWRITE
+%                          compresses the generated file (or files) using
+%                          gzip encoding, giving the file the .gz file
+%                          extension as well as the NIFTI file extension.
+%
+%   'Endian'             - 'little' (default) or 'big'.
+%                          Controls the endianness of the data NIFTIWRITE
+%                          writes to the file.
+%
+%   'Version'            - 'NIfTI1' or 'NIfTI2'. Specifies the NIfTI format
+%                          the data is to be written in. Default value
+%                          depends on the maximum value of the dimensions
+%                          of the volumetric data. The default value is
+%                          'NIfTI1' unless the maximum size in any
+%                          dimension is more than 32767. 
+%
+% Wrapper to niftiwrite
+% Based off Matlab's niftiwrite function
 
+% parse inputs
+%   validate inputs (if metadata is provided, same size as image)
+
+% create metadata (header) if not provided
+% DEFAULT
+
+nSlices       = size( Img.img, 3 ) ;
+nEchoes       = numel( Img.getechotime() ) ;
+nAcquisitions = size( Img.getacquisitiontime , 3 ) ;
+
+nImg = nSlices*nEchoes*nAcquisitions ;
+
+for iSlice = 1 : nSlices 
+    for iEcho  = 1 : nEchoes 
+        for iAcq = 1 : nAcquisitions  
+
+            iImg = (iSlice - 1) * (nEchoes + nAcquisitions) + (iEcho - 1) * nAcquisitions + iAcq;
+
+            disp( [num2str(100*iImg/nImg) '% ...'] ) ;
+            
+            %   Add specific metadata
+            
+            fullFilename = strcat( filename , '_' , string(iSlice) , '_' , string(iEcho) , '_' , string(iAcq) ) ;
+            
+            niftiwrite(Img.img(:,:,iSlice, iEcho, iAcq), fullFilename) ;
+
+        end
+    end
+end
+
+end
+% =========================================================================
 end
 % =========================================================================
 % =========================================================================
