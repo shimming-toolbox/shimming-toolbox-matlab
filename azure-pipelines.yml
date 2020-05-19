@@ -6,7 +6,7 @@
 
 # use the self-hosted runner at tristano.neuro.polymtl.ca
 # this has Matlab installed and a license to use it.
-pool: 'Tristano'
+pool: 'Default'
 
 steps:
 - script: |
