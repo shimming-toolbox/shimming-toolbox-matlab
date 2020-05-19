@@ -46,13 +46,6 @@ function realtime_zshim(scan_obj, varargin)
 %
 % OUTPUT: text file containing the static and dynamic Gz comnponent values 
 % for each slice of the magnitude images found in 'MGRE_mag_path'
-% 
-% AUTHORS: 
-%
-% Ryan Topfer, MSc. ryan.topfer@polymtl.ca
-% Eva Alonso Ortiz (EAO), PhD. eva.alonso.ortiz@gmail.com 
-%
-% LAST MODIFIED: May 2020
 %
 %*************************************************************************
 
