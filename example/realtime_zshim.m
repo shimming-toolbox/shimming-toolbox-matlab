@@ -52,9 +52,22 @@ function realtime_zshim(scan_obj, varargin)
 % Ryan Topfer, MSc. ryan.topfer@polymtl.ca
 % Eva Alonso Ortiz (EAO), PhD. eva.alonso.ortiz@gmail.com 
 %
-% LAST MODIFIED: Jan. 2020
+% LAST MODIFIED: May 2020
 %
 %*************************************************************************
+
+diary('logfile_realtime_zshim')
+
+% =========================== Header ==================================== %
+this_fname = '~~~~~~~~~~ realtime_zshim ~~~~~~~~~~';
+fprintf('%s\n', this_fname);
+fprintf('Current date and time: %s\n', datestr(now));
+
+path_parts = split(pwd,'/');
+this_fpath = string(path_parts(end));
+this_info = sprintf('%s',this_fpath);
+fprintf('Currently analyzing: %s\n', this_info);
+% =========================================================================
 
 
 %% ------------------------------------------------------------------------
@@ -119,6 +132,10 @@ shimVoi = Mag.segmentspinalcanal_s(Params);
 
 %Params.unwrapper = 'FslPrelude'; % or 'QGU'
 Params.unwrapper = 'QGU';
+
+this_info = sprintf('%s',Params.unwrapper);
+fprintf('2D phase unwrapping algorithm: %s\n', this_info);
+
 B0Fields = FieldEval( FM_mag_path, FM_phase_path, Params ); 
 
 % Note: Field.img (static b0) refers to the *mean probe signal (saved in the output as Field.Aux.Data.p) 
@@ -175,12 +192,10 @@ GzFields = B0Fields.copy();
 g = 1000/(42.576E6) ; % [units: mT/Hz] 
 
 ImageRes = B0Fields.getvoxelspacing() ; % [units: mm]
-% [~,Y0,Z0] = B0Fields.getvoxelpositions() ; % [units: mm]
 
 for measNo = 1:B0Fields.getnumberofmeasurements
     [~,GzFields.img(:,:,1,1,measNo)] = gradient( ...
     squeeze(g*B0Fields.img(:,:,1,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
-    %squeeze(g*B0Fields.img(:,:,1,1,measNo)), Y0(1,:)/1000, Z0(:,1)/1000 ) ; % [units: mT/m]
 end
 
 
@@ -204,9 +219,6 @@ end
 %% ------------------------------------------------------------------------
 
 GzField = FieldEval.modelfield( GzFields );
-
-% both lead to the same results, I will stick to using GzFields
-%B0Field = FieldEval.modelfield( B0Fields );
 
 
 % EAO: this code is a sanity check (reproduce Ryan's "modelfield")
@@ -269,39 +281,8 @@ GzField = FieldEval.modelfield( GzFields );
 
 
 %% ------------------------------------------------------------------------
-% rescale and compute z-gradients  
-%% ------------------------------------------------------------------------
-
-% [~,Y0,Z0] = B0Field.getvoxelpositions() ; % [units: mm]
-% 
-% [~, B0Field.img]            = gradient( g*B0Field.img, Y0(1,:)/1000, Z0(:,1)/1000 ) ; % [units: mT/m]
-% %[~, B0Field.Model.Riro.img] = gradient( g*B0Field.Model.Riro.img/B0Field.Model.Riro.Aux.Data.p, Y0(1,:)/1000, Z0(:,1)/1000 ) ; % [units: mT/m]
-% [~, B0Field.Model.Riro.img] = gradient( g*B0Field.Model.Riro.img, Y0(1,:)/1000, Z0(:,1)/1000 ) ; % [units: mT/m]
-
-
-%% ------------------------------------------------------------------------
 % plot some results
 %% ------------------------------------------------------------------------
-
-% figure
-% 
-% subplot(2,1,1);
-% imagesc( B0Field.img ) ;
-% axis equal
-% caxis([-0.2 0.2])
-% colorbar
-% title('Static Gz [mT/m]') ;
-% 
-% subplot(2,1,2);
-% imagesc( B0Field.Model.Riro.img ) ;
-% axis equal
-% caxis([-0.001 0.001])
-% colorbar
-% title('RIRO correction [mT/m]') ;
-% 
-% print('-djpeg','Gz_map.jpeg');
-
-
 
 figure
 
@@ -467,4 +448,4 @@ GzFields.write('Gz_tSeries/','nii',false)
 % compatible with various operations in the code
 
 
-
+diary off
