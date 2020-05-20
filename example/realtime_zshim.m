@@ -176,7 +176,7 @@ B0Fields.associateaux( Pmu );
 
 
 %% ------------------------------------------------------------------------
-% rescale and compute z-gradients  
+% compute z-gradients  
 %% ------------------------------------------------------------------------
 
 GzFields = B0Fields.copy();
@@ -287,11 +287,11 @@ colorbar
 title('Static Gz [mT/m]') ;
 
 subplot(2,1,2);
-imagesc( GzField.Model.Riro.img ) ;
+imagesc( GzField.Model.Riro.img/GzField.Model.Riro.Aux.Data.p ) ;
 axis equal
 caxis([-0.0001 0.0001])
 colorbar
-title('RIRO correction [mT/m]') ;
+title('RIRO correction [mT/m/unit-PMU]') ;
 
 %print('-djpeg','Gz_map.jpeg');
 
@@ -336,13 +336,13 @@ end
 
 for ind = 1:1:size(GzField.img,3) 
     subplot_tight(2,size(GzField.img,3),size(GzField.img,3)+ind)
-    imagesc( GzField.Model.Riro.img(:,:,ind) ) ;
+    imagesc( GzField.Model.Riro.img(:,:,ind)/GzField.Model.Riro.Aux.Data.p ) ;
     caxis([-0.0001 0.0001])
     %colorbar
     set(gca, 'XTickLabel', [],'XTick',[])
     set(gca, 'YTickLabel', [],'YTick',[])
     if ind == 1
-        title('resampled RIRO correction (mT/m)') ;
+        title('resampled RIRO correction (mT/m/unit-PMU)') ;
         set(get(gca,'title'),'Position',[150 0.3 1])
                 cb = colorbar('Location','northoutside');
         pos=get(cb,'Position');
@@ -360,7 +360,7 @@ print('-djpeg','resampled_Gz_map.jpeg');
 staticTarget = -GzField.img ;
 
 % Flip RIRO gradient polarity + rescale to units of [mT/m/unit-PMU]
-riroTarget   = -GzField.Model.Riro.img ;
+riroTarget   = -GzField.Model.Riro.img/GzField.Model.Riro.Aux.Data.p ;
 
 % slicewise corrections within shimVoi (spinal cord volume)
 nSlices = size( Mag.img, 3 ) ;
