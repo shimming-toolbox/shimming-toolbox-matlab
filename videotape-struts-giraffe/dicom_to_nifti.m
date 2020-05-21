@@ -1,5 +1,7 @@
 function dicom_to_nifti( unsortedDicomDir, pathNifti )
 
+%TODO: Output single multi-echo series as 4d nifti
+
 mkdir(pathNifti);
 disp(unsortedDicomDir);
 disp(unsortedDicomDir);
