@@ -1,9 +1,10 @@
 disp('Hello');
 
 % hack: install the shimming-toolbox package
-addpath(genpath('shimming-toolbox'))
+addpath(genpath('..'))
 
 data = 'data_testing/'
+% TODO: check if this folder exists and prompt to download (or maybe just download it directly)
 
 tmp = tempname
 mkdir(tmp)
