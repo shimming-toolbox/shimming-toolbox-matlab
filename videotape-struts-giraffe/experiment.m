@@ -29,7 +29,8 @@ infos = cell(length(list),1) ;
 jsons = cell(length(list),1) ;
 
 for iImg = 1 : length( list )
-   [img{iImg}, info{iImg}, json{iImg}] = img.read_nii( fullfile(nifti_path, list(iImg).name) ) ;
+   [imgs{iImg}, infos{iImg}, jsons{iImg}] = img.read_nii( ...
+       fullfile( nifti_path, list(iImg).name ) );
 end
 
 % exit;
