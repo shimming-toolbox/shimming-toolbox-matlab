@@ -23,4 +23,13 @@ disp(['-----'])
 disp(nifti_path)
 ls(nifti_path)
 
-exit;
+list  = dir( fullfile(nifti_path, '*.nii') ) ;
+imgs  = cell(length(list),1) ;
+infos = cell(length(list),1) ;
+jsons = cell(length(list),1) ;
+
+for iImg = 1 : length( list )
+   [img{iImg}, info{iImg}, json{iImg}] = img.read_nii( fullfile(nifti_path, list(iImg).name) ) ;
+end
+
+% exit;
