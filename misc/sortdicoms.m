@@ -54,7 +54,7 @@ for iImage = 1 : nImages
 
     display( ['Sorting... ' num2str(100*iImage/nImages) ' %)' ])
     
-    Hdr       = dicominfo( [unsortedDir '/' listOfImages(iImage).name] );
+    Hdr       = dicominfo_( [unsortedDir '/' listOfImages(iImage).name] );
     Hdr.Img   = parse_siemens_shadow( Hdr ) ;
     seriesDir = [ num2str(Hdr.SeriesNumber) '_' Hdr.SeriesDescription '/' ];
 
@@ -86,7 +86,8 @@ for iImage = 1 : nImages
     end
 
     [~, ~, ext]    = fileparts( Hdr.Filename ) ;
-    sortedFilename = fullfile( echoDir, strcat( Hdr.PatientName.FamilyName, '-', ...
+    % disp(Hdr.PatientName.FamilyName) % this second level doesn't exist in octave?
+    sortedFilename = fullfile( echoDir, strcat( Hdr.PatientName, '-', ...
                 Hdr.Img.ImaCoilString, '-', sliceStr, '-', acqStr, ext ) ) ;
     
     if isCopying

@@ -20,7 +20,7 @@ function [ Hdr ] = dicominfosiemens( varargin )
     
     switch class( varargin{1} )
         case {'char', 'string'}
-            Hdr = dicominfo( varargin{1} ) ;
+            Hdr = dicominfo_( varargin{1} ) ;
         case 'struct'
             Hdr = varargin{1} ;
         otherwise

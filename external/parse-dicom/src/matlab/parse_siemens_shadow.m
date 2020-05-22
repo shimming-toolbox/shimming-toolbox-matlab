@@ -26,10 +26,10 @@ if (size(dcm,2) > 1)
     error('parse_siemens_shadow does not work on arrayed dicominfo data!')
 end
 ver_string = private_field_str_fix(dcm.Private_0029_1008);
-csa_string = private_field_str_fix(dcm.Private_0029_10xx_Creator);
+% csa_string = private_field_str_fix(dcm.Private_0029_10xx_Creator);
 
 if (strcmp(ver_string,'IMAGE NUM 4'))
-    if (strcmp(csa_string,'SIEMENS CSA HEADER'))
+    if (1==1 || strcmp(csa_string,'SIEMENS CSA HEADER')) % TODO: this is hard-coded for our dataset; the real fix is to figure out how to give Octave access to .Private_0029_10xx_Creator
         img = parse_shadow_func(dcm.Private_0029_1010, debugOutput);
         if nargout == 1
             return;
