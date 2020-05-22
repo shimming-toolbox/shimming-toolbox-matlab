@@ -12,9 +12,10 @@ for iFolder = 3:length(folders)
     if system(['which dcm2niix']) == 1
       error 'dcm2niix is not installed.'
     end
-    subFolderNifti = fullfile(pathNifti, folders(iFolder).name)
+    subFolderNifti = fullfile(pathNifti, folders(iFolder).name);
+    subFolderDicom = fullfile(sortedDicomDir, folders(iFolder).name);
     mkdir(subFolderNifti);
-    system(['dcm2niix -b y -a y -o ' subFolderNifti ' ' sortedDicomDir]);
+    system(['dcm2niix -b y -a y -o ' subFolderNifti ' ' subFolderDicom]);
     
 end
 
