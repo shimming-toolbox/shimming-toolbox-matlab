@@ -1,23 +1,17 @@
-function dicom_to_nifti( sortedDicomDir, pathNifti )
+function dicom_to_nifti( unsortedDicomDir, pathNifti )
 
 %TODO: Output single multi-echo series as 4d nifti
 
 mkdir(pathNifti);
-disp(sortedDicomDir);
+disp(unsortedDicomDir);
 disp(pathNifti);
 
-folders = dir(sortedDicomDir);
-for iFolder = 3:length(folders)
-    % BEWARE: shell injection attacks here
-    if system(['which dcm2niix']) == 1
-      error 'dcm2niix is not installed.'
-    end
-    subFolderNifti = fullfile(pathNifti, folders(iFolder).name);
-    subFolderDicom = fullfile(sortedDicomDir, folders(iFolder).name);
-    mkdir(subFolderNifti);
-    system(['dcm2niix -a y -o "' subFolderNifti '" "' subFolderDicom '"']);
-    
+% BEWARE: shell injection attacks here
+if system(['which dcm2niix']) == 1
+  error 'dcm2niix is not installed.'
 end
+
+system(['dcm2niix -a y -o "' pathNifti '" "' unsortedDicomDir '"']);
 
 end
 

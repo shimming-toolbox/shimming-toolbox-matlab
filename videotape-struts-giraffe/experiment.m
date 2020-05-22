@@ -8,15 +8,9 @@ data = 'data_testing/'
 
 tmp = tempname
 mkdir(tmp)
-dicom_sorted = fullfile(tmp, 'dicom_sorted')
-sortdicoms(fullfile(data, 'dicom_unsorted'), dicom_sorted)
-
-disp(['Put results in ' dicom_sorted])
-ls(dicom_sorted)
-disp(['-----'])
 
 nifti_path = fullfile(tmp, 'niftis')
-dicom_to_nifti(dicom_sorted, nifti_path)
+dicom_to_nifti(fullfile(data, 'dicom_unsorted'), nifti_path)
 disp(nifti_path)
 ls(nifti_path)
 
@@ -60,13 +54,13 @@ for iUnwrap = 1:length(phase)
     
     unwrappedPhase{iUnwrap} = sunwrap(magNorm .* exp( 1i* phasePi ), 0.1);
     
-%     figure(1)
-%     subplot(121)
-%     imshow(mat2gray(unwrappedPhase{iUnwrap}(:,:,10)))
-%     title('unwrapped')
-%     subplot(122)
-%     imshow(mat2gray(phase{iUnwrap}(:,:,10)))
-%     title('wrapped')
+    figure(1)
+    subplot(121)
+    imshow(mat2gray(unwrappedPhase{iUnwrap}(:,:,10)))
+    title('unwrapped')
+    subplot(122)
+    imshow(mat2gray(phase{iUnwrap}(:,:,10)))
+    title('wrapped')
     
 end    
     
