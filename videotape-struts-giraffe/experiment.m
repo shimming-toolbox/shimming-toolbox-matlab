@@ -23,14 +23,21 @@ disp(['-----'])
 disp(nifti_path)
 ls(nifti_path)
 
-list  = dir( fullfile(nifti_path, '*.nii') ) ;
-imgs  = cell(length(list),1) ;
-infos = cell(length(list),1) ;
-jsons = cell(length(list),1) ;
+% imgs  = cell(length(list),1) ;
+% infos = cell(length(list),1) ;
+% jsons = cell(length(list),1) ;
+folders = dir(nifti_path);
+jImg = 1;
+for iFolder = 3:length(folders)
+    
+    list  = dir( fullfile(nifti_path, folders(iFolder).name, '*.nii') ) ;
 
-for iImg = 1 : length( list )
-   [imgs{iImg}, infos{iImg}, jsons{iImg}] = img.read_nii( ...
-       fullfile( nifti_path, list(iImg).name ) );
+    for iImg = 1 : length( list )
+       [imgs{jImg}, infos{jImg}, jsons{jImg}] = img.read_nii( ...
+           fullfile( nifti_path, folders(iFolder).name, list(iImg).name ) );
+       jImg = jImg + 1;
+    end
 end
-
+    
+    
 % exit;
