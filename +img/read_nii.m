@@ -14,9 +14,9 @@ function [img,info,json] = read_nii( niiFile )
 % folder of `niiFile` for an identically named file but with a .json file extension.
 % When such a file is present, the 3rd output is returned as a struct via 
 % `json = jsondecode( fileread( jsonFile ) );` otherwise, `json = []`.
-arguments
-    niiFile(1,:) string {mustBeStringScalarOrCharVector, mustBeFile} ;
-end
+%arguments
+%    niiFile(1,:) string {mustBeStringScalarOrCharVector, mustBeFile} ;
+%end
 
 info = niftiinfo( niiFile ); 
 img  = niftiread( info ); 
