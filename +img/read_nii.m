@@ -26,7 +26,12 @@ if nargout < 3
 end
 
 [folder, name] = fileparts( niiFile );
-jsonFile       = fullfile( folder, strcat(name, '.json') );
+if isempty(strfind(niiFile(end-8:end), '.nii.gz'))
+    jsonFile       = fullfile( folder, strcat(name, '.json') );
+else
+    [~, name] = fileparts( name ); %twice to remove the nii.gz
+    jsonFile       = fullfile( folder, strcat(name, '.json') );
+end
 
 if isfile( jsonFile )
     if isOctave()
