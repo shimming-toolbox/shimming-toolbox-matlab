@@ -61,3 +61,10 @@ octave --eval 'niftiinfo'
 ```
 
 
+3 Image
+
+```
+octave --eval 'pkg install -forge image'
+echo "pkg load image" >> ~/.octaverc
+octave --eval 'mat2gray'
+```
