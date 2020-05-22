@@ -29,7 +29,8 @@ end
 jsonFile       = fullfile( folder, strcat(name, '.json') );
 
 if isfile( jsonFile )
-    json = jsondecode( fileread( jsonFile ) );     
+    % json = jsondecode( fileread( jsonFile ) );  % matlab
+    json = loadjson( jsonFile );    % octave, via https://github.com/fangq/jsonlab
 else
     json = [];
 end
