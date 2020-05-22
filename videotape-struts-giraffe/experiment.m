@@ -19,7 +19,6 @@ tmp = tempname
 mkdir(tmp)
 nifti_path = fullfile(tmp, 'niftis')
 dicom_to_nifti(dicom_sorted, nifti_path)
-disp(['-----'])
 disp(nifti_path)
 ls(nifti_path)
 
@@ -36,6 +35,7 @@ end
 % Seperate in magnitude and phase, potentially doesnt work if other data
 % Could load in niftis twice as seperate variables specifying the
 % acquisition folder
+disp('seperate magnitude and phase')
 iMag = 0;
 iPhase = 0;
 for iList = 1:length(list)
@@ -52,6 +52,7 @@ for iList = 1:length(list)
     end
 end
 %% Unwrap (sunwrap)
+disp('Unwrap')
 unwrappedPhase = cell(length(phase),1);
 for iUnwrap = 1:length(phase)
     magNorm = mat2gray(mag{iUnwrap});
@@ -71,9 +72,5 @@ for iUnwrap = 1:length(phase)
     
 end    
     
-
-% iMag      = Mag.img(:,:,:,iEcho,iVolume) ;
-% iMag      = iMag./max(iMag(:)) ;
-% Phase.img(:,:,:,iEcho, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,iEcho,iVolume) ), Options.threshold ) ;
-
+disp(['-----'])
 % exit;
