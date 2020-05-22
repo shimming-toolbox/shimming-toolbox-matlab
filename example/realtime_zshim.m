@@ -15,7 +15,8 @@ function realtime_zshim(scan_obj, varargin)
 % INPUTS: 
 %
 % (1)  If working with a DICOM socket transfer (online processing mode):
-%      realtime_zshim("scan_obj", 0) or realtime_zshim("scan_obj", 1)
+%      realtime_zshim("scan_obj", 0) (move files from mounted drive) or
+%      realtime_zshim("scan_obj", 1) (copy files from mounted drive)
 %
 % (2)  If working with previously sorted DICOMS (offline processing): 
 %      realtime_zshim("scan_obj")
@@ -45,15 +46,21 @@ function realtime_zshim(scan_obj, varargin)
 %
 % OUTPUT: text file containing the static and dynamic Gz comnponent values 
 % for each slice of the magnitude images found in 'MGRE_mag_path'
-% 
-% AUTHORS: 
-%
-% Ryan Topfer, MSc. ryan.topfer@polymtl.ca
-% Eva Alonso Ortiz (EAO), PhD. eva.alonso.ortiz@gmail.com 
-%
-% LAST MODIFIED: Jan. 2020
 %
 %*************************************************************************
+
+diary('logfile_realtime_zshim')
+
+% =========================== Header ==================================== %
+this_fname = '~~~~~~~~~~ realtime_zshim ~~~~~~~~~~';
+fprintf('%s\n', this_fname);
+fprintf('Current date and time: %s\n', datestr(now));
+
+path_parts = split(pwd,'/');
+this_fpath = string(path_parts(end));
+this_info = sprintf('%s',this_fpath);
+fprintf('Currently analyzing: %s\n', this_info);
+% =========================================================================
 
 
 %% ------------------------------------------------------------------------
@@ -79,7 +86,7 @@ end
 
 %% ------------------------------------------------------------------------
 % Read in paths: FM_mag_path, FM_phase_path, MGRE_mag_path, respTrace_path
-% These folders will be generated when using 'sortdicoms'
+% These folders will be generated when using 'MaRdI.sortimages'
 %% ------------------------------------------------------------------------
 FM_mag_path = input('(ADD SLASH AT THE END!) Field map mag path: ');
 FM_phase_path = input('Field map phase path: ');
@@ -103,11 +110,10 @@ if (strcmp('human',scan_obj) == 1)
     Params.centerlineMethod = 'spinalcord';  % 'midfov': middle of FOV; 'spinalcord': to create a mask around the spinal cord
 elseif (strcmp('phantom',scan_obj) == 1)
         Params.centerlineMethod = 'midfov';  % 'midfov': middle of FOV; 'spinalcord': to create a mask around the spinal cord
-        Params.cylinderSize = input('Enter diameter (in mm) of desired ROI: ');
 else
     error('\nError: Enter "phantom" or "human" as function argument');
 end
-
+Params.cylinderSize = input('Enter diameter (in mm) of desired ROI: ');
 shimVoi = Mag.segmentspinalcanal_s(Params);
 
 %% ------------------------------------------------------------------------
@@ -117,12 +123,13 @@ shimVoi = Mag.segmentspinalcanal_s(Params);
 
 % field map time series
 
-Params.unwrapper = 'FslPrelude'; % or 'QGU'
-Fields = FieldEval( FM_mag_path, FM_phase_path, Params ); 
+%Params.unwrapper = 'FslPrelude'; % or 'QGU'
+Params.unwrapper = 'QGU';
 
-% pathToNii = './' ; % where to save the images
-% isSavingSingleNiis = true ;
-% Fields.write( pathToNii, 'nii', isSavingSingleNiis ) ;
+this_info = sprintf('%s',Params.unwrapper);
+fprintf('2D phase unwrapping algorithm: %s\n', this_info);
+
+B0Fields = FieldEval( FM_mag_path, FM_phase_path, Params ); 
 
 % Note: Field.img (static b0) refers to the *mean probe signal (saved in the output as Field.Aux.Data.p) 
 % and the respiratory component is a relative deviation from the mean (scaled to RMS PMU)
@@ -151,72 +158,119 @@ Pmu   = ProbeTracking(respTrace_path);
 %% ------------------------------------------------------------------------
 % link the two objects (interpolate PMU to the fieldmap time series)
 %% ------------------------------------------------------------------------
-Fields.associateaux( Pmu );
+B0Fields.associateaux( Pmu );
 
 %% ------------------------------------------------------------------------
 % plot the field map time series
 %% ------------------------------------------------------------------------
 
-figure
+% figure
+% 
+% montage(squeeze(B0Fields.img));
+% caxis([0 500])
+% colorbar
+% title('Field map time series (Hz)') ;
+% 
+% print('-djpeg','B0_TimeSeries.jpeg');
 
-montage(squeeze(Fields.img));
-caxis([0 1000])
-colorbar
-title('Field map time series (Hz)') ;
 
-print('-djpeg','B0_TimeSeries.jpeg');
 
 %% ------------------------------------------------------------------------
-% rescale and compute z-gradients  
+% compute z-gradients  
 %% ------------------------------------------------------------------------
+
+GzFields = B0Fields.copy();
 
 % scaling factor 
 g = 1000/(42.576E6) ; % [units: mT/Hz] 
 
-%ImageRes = Fields.getvoxelspacing() ; % [units: mm]
-[~,Y0,Z0] = Fields.getvoxelpositions() ; % [units: mm]
+ImageRes = B0Fields.getvoxelspacing() ; % [units: mm]
 
-for measNo = 1:Fields.getnumberofmeasurements
-    [~,Fields.img(:,:,1,1,measNo)] = gradient( ...
-     squeeze(g*Fields.img(:,:,1,1,measNo)), Y0(1,:)/1000, Z0(:,1)/1000 ) ; % [units: mT/m]
-    %squeeze(g*Fields.img(:,:,1,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
+for measNo = 1:B0Fields.getnumberofmeasurements
+    [~,GzFields.img(:,:,1,1,measNo)] = gradient( ...
+    squeeze(g*B0Fields.img(:,:,1,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
 end
+
+
 
 %% ------------------------------------------------------------------------
 % plot the Gz map time series
 %% ------------------------------------------------------------------------
 
-figure
-
-montage(1e3*squeeze(Fields.img));
-caxis([-200 200])
-colorbar
-title('Gz map time series (\muT/m)') ;
-
-print('-djpeg','Gz_TimeSeries.jpeg');
+% figure
+% 
+% montage(squeeze(GzFields.img));
+% caxis([-0.2 0.2])
+% colorbar
+% title('Gz map time series (mT/m)') ;
+% 
+% print('-djpeg','Gz_TimeSeries.jpeg');
 
 
 %% ------------------------------------------------------------------------
 % modeled static + respiratory fields (in Field.img and Field.Model.Riro.img respectively)
 %% ------------------------------------------------------------------------
-Field = FieldEval.modelfield( Fields );
+
+GzField = FieldEval.modelfield( GzFields );
 
 
-%% ------------------------------------------------------------------------
-% rescale and compute z-gradients  
-% Eva todo: Modeling the static+resp. fields then taking the
-% gradient is not the same thing as taking the gradient and then modeling the
-% static and resp. components. Commented this out and added "rescale and 
-% compute z-gradients" above.
-%% ------------------------------------------------------------------------
-
-% % scaling factor 
-% g = 1000/(42.576E6) ; % [units: mT/Hz] 
+% EAO: this code is a sanity check (reproduce Ryan's "modelfield")
+% Bt = zeros(size(GzFields.img,1),size(GzFields.img,2),2);
+% p_mean = mean( GzFields.Aux.Data.p ) ;
+% pressure = GzFields.Aux.Data.p;% - p_mean ;
 % 
-% [~,Y0,Z0] = Field.getvoxelpositions() ; % [units: mm]
+% % figure 
 % 
-% [~, Field.img]            = gradient( g*Field.img, Y0/1000, Z0/1000 ) ; % [units: mT/m]
-% [~, Field.Model.Riro.img] = gradient( g*Field.Model.Riro.img/Field.Model.Riro.Aux.Data.p, Y0/1000, Z0/1000 ) ; % [units: mT/m]
+% for indy = 70%:size(GzFields.img,1)
+%     for indx = 1:5:size(GzFields.img,2)
+%         if GzFields.Hdr.MaskingImage(indy,indx,1,1,1) == 1 
+%             Bt(indy,indx,:) = polyfit(pressure',squeeze(GzFields.img(indy,indx,1,1,:)),1);
+%             %Bt(indx,indy,1) = rms(pressure)* Bt(indx,indy,1);
+% 
+%             GzField.img(indy,indx) = Bt(indy,indx,2);
+%             GzField.Model.Riro.img(indy,indx) = Bt(indy,indx,1); 
+%             
+% %             if (indy == 70) && (indx == 34)
+%                 
+%                 figure
+%                 subplot(2,1,1);
+%                 scatter(pressure,squeeze(GzFields.img(indy,indx,1,1,:)));
+%                 hold on;
+%                 plot(pressure,polyval(squeeze(Bt(indy,indx,:)),pressure),'k--');
+%                 hold off;
+%                 xl = xlim;
+%                 yl = ylim;
+%                 xt = 0.05 * (xl(2)-xl(1)) + xl(1);
+%                 yt = 0.90 * (yl(2)-yl(1)) + yl(1);
+%                 caption = sprintf('y = %f * x + %f', Bt(indy,indx,1), Bt(indy,indx,2));
+%                 text(xt, yt, caption, 'FontSize', 16, 'Color', 'r', 'FontWeight', 'bold');
+%                 hold off;
+%                 
+%                 subplot(2,1,2);
+%                 plot(squeeze(GzFields.img(indy,indx,1,1,:)));
+% %             end
+%             
+%         end
+%     end
+% end
+% 
+% 
+% 
+% 
+% 
+% for indy = 1:size(GzFields.img,1)
+%     for indx = 1:size(GzFields.img,2)
+%         if GzFields.Hdr.MaskingImage(indy,indx,1,1,1) == 1 
+%             Bt(indy,indx,:) = polyfit(pressure',squeeze(B0Fields.img(indy,indx,1,1,:)),1);
+%             %Bt(indx,indy,1) = rms(pressure)* Bt(indx,indy,1);
+% 
+%             B0Field.img(indy,indx) = Bt(indy,indx,2);
+%             B0Field.Model.Riro.img(indy,indx) = Bt(indy,indx,1);
+%                 
+%         end
+%     end
+% end
+
 
 
 %% ------------------------------------------------------------------------
@@ -226,25 +280,21 @@ Field = FieldEval.modelfield( Fields );
 figure
 
 subplot(2,1,1);
-imagesc( 1e3*Field.img ) ;
+imagesc( GzField.img ) ;
 axis equal
-caxis([-200 200])
+caxis([-0.2 0.2])
 colorbar
-title('Static Gz (\muT/m)') ;
+title('Static Gz [mT/m]') ;
 
 subplot(2,1,2);
-imagesc( 1e3*Field.Model.Riro.img ) ;
+imagesc( GzField.Model.Riro.img/GzField.Model.Riro.Aux.Data.p ) ;
 axis equal
-caxis([-20 20])
+caxis([-0.0001 0.0001])
 colorbar
-title('RMS RIRO') ;
+title('RIRO correction [mT/m/unit-PMU]') ;
 
-print('-djpeg','Gz_map.jpeg');
+%print('-djpeg','Gz_map.jpeg');
 
-% EAO: this does not work for these images. Look into it.
-% pathToNii = './' ; % where to save the images
-% isSavingSingleNiis = true ;
-% Field.write( pathToNii, 'nii', isSavingSingleNiis ) ;
 
 %% ------------------------------------------------------------------------
 % interpolate field gradient images to target slices for shimming:
@@ -257,8 +307,8 @@ mask = Mag.getreliabilitymask( 0.05 ) ; % returns mask for each echo (4th dim)
 mask = logical( sum( mask, 4 ) ) ; % combine echo-specific masks
 
 % 'interp/extrap' (nearest-neighbour substitution) :
-Field.resliceimg( X,Y,Z, mask ) ; % reslice static b0 image 
-Field.Model.Riro.resliceimg( X,Y,Z, mask ) ; % reslice RIRO image
+GzField.resliceimg( X,Y,Z, mask ) ; % reslice static b0 image 
+GzField.Model.Riro.resliceimg( X,Y,Z, mask ) ; % reslice RIRO image
 
 
 %% ------------------------------------------------------------------------
@@ -267,15 +317,15 @@ Field.Model.Riro.resliceimg( X,Y,Z, mask ) ; % reslice RIRO image
 
 figure 
 
-for ind = 1:1:size(Field.img,3)
-    subplot_tight(2,size(Field.img,3),ind)
-    imagesc( 1e3*Field.img(:,:,ind) ) ;
-    caxis([-200 200])
+for ind = 1:1:size(GzField.img,3)
+    subplot_tight(2,size(GzField.img,3),ind)
+    imagesc( GzField.img(:,:,ind) ) ;
+    caxis([-0.2 0.2])
     %colorbar
     set(gca, 'XTickLabel', [],'XTick',[])
     set(gca, 'YTickLabel', [],'YTick',[])
     if ind == 1
-        title('resampled static Gz (\muT/m)') ;
+        title('resampled static Gz (mT/m)') ;
         set(get(gca,'title'),'Position',[150 0.3 1])
         cb = colorbar('Location','northoutside');
         pos=get(cb,'Position');
@@ -284,15 +334,15 @@ for ind = 1:1:size(Field.img,3)
 end
 
 
-for ind = 1:1:size(Field.img,3) 
-    subplot_tight(2,size(Field.img,3),size(Field.img,3)+ind)
-    imagesc( 1e3*Field.Model.Riro.img(:,:,ind) ) ;
-    caxis([-20 20])
+for ind = 1:1:size(GzField.img,3) 
+    subplot_tight(2,size(GzField.img,3),size(GzField.img,3)+ind)
+    imagesc( GzField.Model.Riro.img(:,:,ind)/GzField.Model.Riro.Aux.Data.p ) ;
+    caxis([-0.0001 0.0001])
     %colorbar
     set(gca, 'XTickLabel', [],'XTick',[])
     set(gca, 'YTickLabel', [],'YTick',[])
     if ind == 1
-        title('resampled RMS RIRO (\muT/m)') ;
+        title('resampled RIRO correction (mT/m/unit-PMU)') ;
         set(get(gca,'title'),'Position',[150 0.3 1])
                 cb = colorbar('Location','northoutside');
         pos=get(cb,'Position');
@@ -303,14 +353,14 @@ end
 print('-djpeg','resampled_Gz_map.jpeg');
 
 %% ------------------------------------------------------------------------
-% Simple (voxelwise) Z-shim calculation:
+% Simple (voxelwise) z-shim calculation:
 %% ------------------------------------------------------------------------
 
 % Flip static gradient field polarity (aim is to cancel it)
-staticTarget = -Field.img ;
+staticTarget = -GzField.img ;
 
 % Flip RIRO gradient polarity + rescale to units of [mT/m/unit-PMU]
-riroTarget   = -Field.Model.Riro.img/Field.Model.Riro.Aux.Data.p ;
+riroTarget   = -GzField.Model.Riro.img/GzField.Model.Riro.Aux.Data.p ;
 
 % slicewise corrections within shimVoi (spinal cord volume)
 nSlices = size( Mag.img, 3 ) ;
@@ -318,7 +368,7 @@ nSlices = size( Mag.img, 3 ) ;
 % static slicewise Gz correction [units: mT/m]
 Corrections.static = zeros( nSlices, 1 ) ; 
 % RIRO slicewise Gz correction [units: mT/m/unit-PMU]
-Corrections.riro   = zeros( nSlices, 1 ) ; 
+Corrections.riro   = zeros( nSlices, 1 ) ;
 
 
 for iSlice = 1 : nSlices
@@ -340,13 +390,55 @@ fileID = fopen('zshim_gradients.txt','w');
 for iSlice = 1:(nSlices)
     fprintf(fileID,'Vector_Gz[0][%i]= %.6f\n', iSlice-1, Corrections.static(iSlice)); 
     fprintf(fileID,'Vector_Gz[1][%i]= %.12f\n', iSlice-1, Corrections.riro(iSlice)); 
-    fprintf(fileID,'Vector_Gz[2][%i]= %.3f\n', iSlice-1, Field.Aux.Data.p); 
+    fprintf(fileID,'Vector_Gz[2][%i]= %.3f\n', iSlice-1, GzField.Aux.Data.p); 
 end
 
 fclose(fileID);
+
+
+figure
+
+subplot(2,1,1)
+hold on;
+plot(Corrections.static(:),'b','LineWidth',2)
+xlabel('slice number')
+ylabel('[mT/m]')
+title('static Gz corr');
+
+subplot(2,1,2)
+hold on;
+plot((max(GzField.Aux.Data.pRaw(:))-GzField.Aux.Data.p)*Corrections.riro(:),'b','LineWidth',2)
+xlabel('slice number')
+ylabel('[mT/m]')
+title('(max pressure - RMS pressure) * RIRO corr');
+
+percent_of_Gzstatic = 100.*((max(GzField.Aux.Data.pRaw(:))-GzField.Aux.Data.p)*Corrections.riro(:))./Corrections.static(:);
+for i = 1:size(Corrections.riro(:))
+    caption = sprintf('%1.1f %%', percent_of_Gzstatic(i));
+    text(i,((max(GzField.Aux.Data.pRaw(:))-GzField.Aux.Data.p)*Corrections.riro(i)),caption);
+end
+
+%                 xl = xlim;
+%                 yl = ylim;
+%                 xt = 0.05 * (xl(2)-xl(1)) + xl(1);
+%                 yt = 0.90 * (yl(2)-yl(1)) + yl(1);
+%                 caption = sprintf('y = %f * x + %f', Bt(indy,indx,1), Bt(indy,indx,2));
+%                 text(xt, yt, caption, 'FontSize', 16, 'Color', 'r', 'FontWeight', 'bold');
+
+
+
 
 % unless in offline processing mode (nargin = 1), copy Dynamic_Gradients.txt to mounted drive
 if nargin > 1
    unix('cp zshim_gradients.txt /SYNGO_TRANSFER/SYNGO_TRANSFER/')
 end
 
+B0Fields.write('B0_tSeries/','nii',false)
+GzFields.write('Gz_tSeries/','nii',false)
+
+
+% note: Fields.write will convert Fields.Img from double to uint16, which is not
+% compatible with various operations in the code
+
+
+diary off
