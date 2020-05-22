@@ -33,7 +33,9 @@ for iImg = 1 : length( list )
        fullfile( list(iImg).folder , list(iImg).name ) );
 end
 
-% Seperate in magnitude and phase
+% Seperate in magnitude and phase, potentially doesnt work if other data
+% Could load in niftis twice as seperate variables specifying the
+% acquisition folder
 iMag = 0;
 iPhase = 0;
 for iList = 1:length(list)
@@ -49,6 +51,29 @@ for iList = 1:length(list)
         magJson{iMag,1} = jsons{iList} ;
     end
 end
+%% Unwrap (sunwrap)
+unwrappedPhase = cell(length(phase),1);
+for iUnwrap = 1:length(phase)
+    magNorm = mat2gray(mag{iUnwrap});
+    
+    %Assumes there are wraps
+    phasePi = mat2gray(phase{iUnwrap})*2*pi - pi;
+    
+    unwrappedPhase{iUnwrap} = sunwrap(magNorm .* exp( 1i* phasePi ), 0.1);
+    
+%     figure(1)
+%     subplot(121)
+%     imshow(mat2gray(unwrappedPhase{iUnwrap}(:,:,10)))
+%     title('unwrapped')
+%     subplot(122)
+%     imshow(mat2gray(phase{iUnwrap}(:,:,10)))
+%     title('wrapped')
+    
+end    
+    
 
+% iMag      = Mag.img(:,:,:,iEcho,iVolume) ;
+% iMag      = iMag./max(iMag(:)) ;
+% Phase.img(:,:,:,iEcho, iVolume) = sunwrap( iMag .* exp( 1i* Phase.img(:,:,:,iEcho,iVolume) ), Options.threshold ) ;
 
 % exit;
