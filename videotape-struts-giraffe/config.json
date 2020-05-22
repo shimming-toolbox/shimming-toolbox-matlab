@@ -1,0 +1,68 @@
+{
+    "searchMethod": "fnmatch",
+    "defaceTpl": "pydeface --outfile {dstFile} {srcFile}",
+    "descriptions": [
+        {
+            "dataType": "anat",
+            "modalityLabel": "T1w",
+            "criteria": {
+                "SeriesDescription": "*T1W_3D*"
+            }
+        },
+        {
+            "dataType": "anat",
+            "modalityLabel": "T2w",
+            "criteria": {
+                "SidecarFilename": "007*",
+                "EchoTime": 0.1
+            }
+        },
+        {
+            "dataType": "anat",
+            "modalityLabel": "PD",
+            "criteria": {
+                "SeriesDescription": "*TSE*",
+                "EchoTime": 0.008
+            }
+        },
+        {
+            "dataType": "anat",
+            "modalityLabel": "FLAIR",
+            "criteria": {
+                "SeriesDescription": "*FLAIR*"
+            }
+        },
+        {
+            "dataType": "dwi",
+            "modalityLabel": "dwi",
+            "criteria": {
+                "SeriesDescription": "*DWI*"
+            }
+        },
+        {
+            "dataType": "anat",
+            "modalityLabel": "SWI",
+            "criteria": {
+                "SeriesDescription": "*SWI*"
+            }
+        },
+        {
+            "dataType": "fmap_mag",
+            "SeriesDescription": "a_gre_DYNshim",
+            "modalityLabel": "mag",
+            "criteria": {
+                "SeriesDescription": "a_gre_*",
+                "ImageType": ["*", "*", "M", "*"]
+              }
+        },
+        {
+            "dataType": "fmap_phase",
+            "SeriesDescription": "a_gre_DYNshim",
+            "modalityLabel": "phase",
+            "criteria": {
+                "SeriesDescription": "a_gre_*",
+                "ImageType": ["*", "*", "P", "*", "*"]
+              }
+        }
+    ]
+}

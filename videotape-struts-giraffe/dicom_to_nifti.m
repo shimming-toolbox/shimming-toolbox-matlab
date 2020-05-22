@@ -10,8 +10,8 @@ disp(pathNifti);
 if system(['which dcm2niix']) == 1
   error 'dcm2niix is not installed.'
 end
-
-system(['dcm2niix -a y -o "' pathNifti '" "' unsortedDicomDir '"']);
+participant = '';
+system(['dcm2bids -d "' unsortedDicomDir '"' ' -o '  '"' pathNifti '"' ' -p '  '"' participant '"' ' -c '  'config.json']);
 
 end
 
