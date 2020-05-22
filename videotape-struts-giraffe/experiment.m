@@ -37,7 +37,7 @@ disp('seperate magnitude and phase')
 iMag = 0;
 iPhase = 0;
 for iList = 1:length(list)
-    if (contains(list(iList).name(end-7:end), '_ph'))
+    if (!isempty(strfind(list(iList).name(end-7:end), '_ph')))
         iPhase = iPhase + 1 ;
         phase{iPhase,1} = imgs{iList} ;
         phaseInfo{iPhase,1} = infos{iList} ;
