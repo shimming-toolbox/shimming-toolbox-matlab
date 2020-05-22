@@ -1,4 +1,4 @@
-classdef MaRdI < matlab.mixin.SetGet 
+classdef MaRdI
 %MaRdI Ma(t)-R-dI(com)
 %
 %   Dicom iunto Matlab for Siemens MRI data
