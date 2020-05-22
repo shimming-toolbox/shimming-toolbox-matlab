@@ -26,7 +26,7 @@ if nargout < 3
 end
 
 [folder, name] = fileparts( niiFile );
-jsonFile       = fullfile( folder, name + ".json" ); 
+jsonFile       = fullfile( folder, strcat(name, '.json') );
 
 if isfile( jsonFile )
     json = jsondecode( fileread( jsonFile ) );     
