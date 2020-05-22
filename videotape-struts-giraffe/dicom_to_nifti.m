@@ -15,7 +15,7 @@ for iFolder = 3:length(folders)
     subFolderNifti = fullfile(pathNifti, folders(iFolder).name);
     subFolderDicom = fullfile(sortedDicomDir, folders(iFolder).name);
     mkdir(subFolderNifti);
-    system(['dcm2niix -b y -a y -o "' subFolderNifti '" "' subFolderDicom '"']);
+    system(['dcm2niix -a y -o "' subFolderNifti '" "' subFolderDicom '"']);
     
 end
 
