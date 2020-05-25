@@ -935,8 +935,8 @@ if isa( Fields, 'FieldEval' )
     Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
     Field.Aux.Data.p         = pMean ; 
     
-    % scale RIRO by RMSE of physio signal
-    Riro.img( mask )        = pShiftRms .* x(nVoxelsVoi+1:end) ;
+    % scale RIRO by RMSE of physio signal	
+    Riro.img( mask )        = pShiftRms .* x(nVoxelsVoi+1:end); 
     Riro.img( ~mask )       = 0 ;
     Riro.Hdr.MaskingImage   = mask ; % not redundant: mask used in following call to .getvaliditymask()
     Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
