@@ -47,7 +47,7 @@
             }
         },
         {
-            "dataType": "fmap_mag",
+            "dataType": "a_gre_DYNshim_mag",
             "SeriesDescription": "a_gre_DYNshim",
             "modalityLabel": "mag",
             "criteria": {
@@ -56,11 +56,29 @@
               }
         },
         {
-            "dataType": "fmap_phase",
+            "dataType": "a_gre_DYNshim_phase",
             "SeriesDescription": "a_gre_DYNshim",
             "modalityLabel": "phase",
             "criteria": {
                 "SeriesDescription": "a_gre_*",
+                "ImageType": ["*", "*", "P", "*", "*"]
+              }
+        },
+        {
+            "dataType": "gre_field_mapping_PMUlog_mag",
+            "SeriesDescription": "gre_field_mapping_PMUlog",
+            "modalityLabel": "mag",
+            "criteria": {
+                "SeriesDescription": "gre_field_mapping_PMUlog",
+                "ImageType": ["*", "*", "M", "*"]
+              }
+        },
+        {
+            "dataType": "gre_field_mapping_PMUlog_phase",
+            "SeriesDescription": "gre_field_mapping_PMUlog",
+            "modalityLabel": "phase",
+            "criteria": {
+                "SeriesDescription": "gre_field_mapping_PMUlog",
                 "ImageType": ["*", "*", "P", "*", "*"]
               }
         }
