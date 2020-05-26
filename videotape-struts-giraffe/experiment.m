@@ -16,8 +16,8 @@ tmp = tempname
 mkdir(tmp)
 
 niftiPath = fullfile(tmp, 'niftis')
-dicom_to_nifti(fullfile(data, 'dicom_unsorted'), niftiPath)
-% dicom_to_nifti(fullfile(data, 'ACDC108p'), nifti_path)
+% dicom_to_nifti(fullfile(data, 'dicom_unsorted'), niftiPath)
+dicom_to_nifti(fullfile(data, 'ACDC108p'), niftiPath)
 acquistionPath = fullfile(niftiPath, 'sub-');
 disp(acquistionPath)
 ls(acquistionPath)
@@ -29,37 +29,73 @@ if (manual)
     folderMag = input('Choose the magnitude fieldmap data','s')
     folderPhase = input('Choose the phase fieldmap data','s')
 else
-%     folderMag = 'gre_field_mapping_PMUlog_mag';
-%     folderPhase = 'gre_field_mapping_PMUlog_phase';
-    folderMag = 'a_gre_DYNshim_mag';
-    folderPhase = 'a_gre_DYNshim_phase';
+    folderMag = 'gre_field_mapping_PMUlog_mag';
+    folderPhase = 'gre_field_mapping_PMUlog_phase';
+%     folderMag = 'a_gre_DYNshim_mag';
+%     folderPhase = 'a_gre_DYNshim_phase';
 end
 
-% Load mag
+
 listMag = dir(fullfile(acquistionPath, folderMag, '*.nii*'));
-mag  = cell(length(listMag),1) ;
-magInfo = cell(length(listMag),1) ;
-magJson = cell(length(listMag),1) ;
-for iList = 1:length(listMag)
-    % Make sure it's mag data
-    if ~isempty(strfind(listMag(iList).name(end-12:end), '_mag'))
-        [mag{iList}, magInfo{iList}, magJson{iList}] = img.read_nii( ...
-        fullfile( listMag(iList).folder , listMag(iList).name ) );
+nEchos = length(listMag);
+if nEchos <= 0 
+   error(['No image in acquisition ' folderMag]) 
+end
+
+[~ ,tmpInfo, ~] = img.read_nii(fullfile( listMag(1).folder , listMag(1).name ));
+% preallocation
+% mag  = zeros([tmpInfo.ImageSize nEchos]);
+% magInfo =
+% magJson = 
+if tmpInfo.ImageSize(4) > 1 % If more than one one time
+    for iEcho = 1:nEchos
+        % Load and make sure it's mag data
+        if ~isempty(strfind(listMag(iEcho).name(end-12:end), '_mag'))
+            [mag(:,:,:,:,iEcho), magInfo(iEcho), magJson(iEcho)] = img.read_nii( ...
+            fullfile( listMag(iEcho).folder , listMag(iEcho).name ) );
+        end
+    end
+else
+    for iEcho = 1:nImgs
+        % Load and make sure it's mag data
+        if ~isempty(strfind(listMag(iEcho).name(end-12:end), '_mag'))
+            [mag(:,:,:,1,iEcho), magInfo(iEcho), magJson(iEcho)] = img.read_nii( ...
+            fullfile( listMag(iEcho).folder , listMag(iEcho).name ) );
+        end
     end
 end
+
 
 % Load phase
 listPhase = dir(fullfile(acquistionPath, folderPhase, '*.nii*'));
-phase  = cell(length(listPhase),1) ;
-phaseInfo = cell(length(listPhase),1) ;
-phaseJson = cell(length(listPhase),1) ;
-for iList = 1:length(listPhase)
-    % Make sure it's phase data
-    if ~isempty(strfind(listPhase(iList).name(end-12:end), '_phase'))
-        [phase{iList}, phaseInfo{iList}, phaseJson{iList}] = img.read_nii( ...
-        fullfile( listPhase(iList).folder , listPhase(iList).name ) );
+nEchos = length(listPhase);
+if nEchos <= 0
+   error(['No image in acquisition ' folderPhase]) 
+end
+
+[~ ,tmpInfo, ~] = img.read_nii(fullfile( listPhase(1).folder , listPhase(1).name ));
+% preallocation
+% phase  = zeros([tmpInfo.ImageSize nEchos]);
+% phaseInfo =
+% phaseJson = 
+if tmpInfo.ImageSize(4) > 1 % If more than one one time
+    for iEcho = 1:nEchos
+        % Load and make sure it's phase data
+        if ~isempty(strfind(listPhase(iEcho).name(end-12:end), '_phase'))
+            [phase(:,:,:,:,iEcho), phaseInfo(iEcho), phaseJson(iEcho)] = img.read_nii( ...
+            fullfile( listPhase(iEcho).folder , listPhase(iEcho).name ) );
+        end
+    end
+else
+    for iEcho = 1:nEchos
+        % Load and make sure it's phase data
+        if ~isempty(strfind(listPhase(iEcho).name(end-12:end), '_phase'))
+            [phase(:,:,:,1,iEcho), phaseInfo(iEcho), phaseJson(iEcho)] = img.read_nii( ...
+            fullfile( listPhase(iImg).folder , listPhase(iImg).name ) );
+        end
     end
 end
+
 
 %% Unwrap (sunwrap)
 disp('Unwrap')
