@@ -21,35 +21,25 @@ disp(niftiPath)
 ls(niftiPath)
 
 % Load in niftis 
+% accounting for the fact that this dataset has separate magnitude/phase channels
 % TODO: Switch to (x,y,z,time,Echo)
-list = dir(fullfile(niftiPath, ['**' filesep '*.nii*']));
-imgs  = cell(length(list),1) ;
-infos = cell(length(list),1) ;
-jsons = cell(length(list),1) ;
-for iImg = 1 : length( list )
-   [imgs{iImg}, infos{iImg}, jsons{iImg}] = img.read_nii( ...
-       fullfile( list(iImg).folder , list(iImg).name ) );
+
+disp('seperate magnitude and phase')
+
+list = dir(fullfile(niftiPath, 'sub-', 'fmap_mag', '*.nii*'));
+% TODO: sort
+for i = 1:length(list)
+   [mag{i}, magInfo{i}, magJson{i}] = img.read_nii( ...
+       fullfile( list(i).folder , list(i).name ) );
 end
 
-% Seperate in magnitude and phase, potentially doesnt work if other data
-% Could load in niftis twice as seperate variables specifying the
-% acquisition folder
-disp('seperate magnitude and phase')
-iMag = 0;
-iPhase = 0;
-for iList = 1:length(list)
-    if ~isempty(strfind(list(iList).name(end-12:end), '_phase'))
-        iPhase = iPhase + 1 ;
-        phase{iPhase,1} = imgs{iList} ;
-        phaseInfo{iPhase,1} = infos{iList} ;
-        phaseJson{iPhase,1} = jsons{iList} ;
-    else
-        iMag = iMag + 1 ;
-        mag{iMag,1} = imgs{iList} ;
-        magInfo{iMag,1} = infos{iList} ;
-        magJson{iMag,1} = jsons{iList} ;
-    end
+list = dir(fullfile(niftiPath, 'sub-', 'fmap_phase', '*.nii*'));
+% TODO: sort
+for i = 1:length(list)
+   [phase{i}, phaseInfo{i}, phaseJson{i}] = img.read_nii( ...
+       fullfile( list(i).folder , list(i).name ) );
 end
+
 %% Unwrap (sunwrap)
 disp('Unwrap')
 unwrappedPhase = cell(length(phase),1);
