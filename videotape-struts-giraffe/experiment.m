@@ -71,7 +71,7 @@ echoTimeDiff = phaseJson{2}.EchoTime - phaseJson{1}.EchoTime
 % if using wrapped phase % phasediff = angle( wrappedPhase{1} .* conj(wrappedPhase{2} ) ) ; then unwrap
 phasediff = unwrappedPhase{2} - unwrappedPhase{1};
 B0Fieldmap = phasediff./(2*pi*echoTimeDiff);
-B0Fieldmap = rehsape(B0Fieldmap, [size(B0Fieldmap)(1:2) 1 size(B0Fieldmap)(3)]) % montage insists on the format M-by-N-by-1-by-K
+B0Fieldmap = reshape(B0Fieldmap, [size(B0Fieldmap, 1) size(B0Fieldmap, 2) 1 size(B0Fieldmap, 3)]) % montage insists on the format M-by-N-by-1-by-K
 figure(2)
 montage(B0Fieldmap(:,:,:),'DisplayRange',[0 300])
 colorbar
