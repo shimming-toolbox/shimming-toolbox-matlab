@@ -14,7 +14,8 @@ dicom_to_nifti(fullfile(data, 'dicom_unsorted'), nifti_path)
 disp(nifti_path)
 ls(nifti_path)
 
-%Load in niftis
+% Load in niftis 
+% TODO: Switch to (x,y,z,time,Echo)
 list = dir(fullfile(nifti_path, ['**' filesep '*.nii*']));
 imgs  = cell(length(list),1) ;
 infos = cell(length(list),1) ;
@@ -53,7 +54,7 @@ for iUnwrap = 1:length(phase)
     phasePi = mat2gray(phase{iUnwrap})*2*pi - pi;
     
     unwrappedPhase{iUnwrap} = sunwrap(magNorm .* exp( 1i* phasePi ), 0.1);
-    
+%     
 %     figure(1)
 %     subplot(121)
 %     imshow(mat2gray(unwrappedPhase{iUnwrap}(:,:,10)))
@@ -64,5 +65,22 @@ for iUnwrap = 1:length(phase)
     
 end    
     
+%% Process B0 Field map
+% Assumes nEchoes >= 2 
+if length(unwrappedPhase)< 2
+    error('Less than 2 echo')
+end
+    
+echoTimeDiff = phaseJson{2}.EchoTime - phaseJson{1}.EchoTime
+% if using wrapped phase % phasediff = angle( wrappedPhase{1} .* conj(wrappedPhase{2} ) ) ; then unwrap
+phasediff = unwrappedPhase{2} - unwrappedPhase{1};
+B0Fieldmap = phasediff./(2*pi*echoTimeDiff);
+    
+figure(2)
+montage(B0Fieldmap(:,:,:),'DisplayRange',[0 300])
+colorbar
+title('B0FieldMap')
+
+
 disp(['-----'])
 % exit;
