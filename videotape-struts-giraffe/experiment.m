@@ -73,7 +73,7 @@ phasediff = unwrappedPhase{2} - unwrappedPhase{1};
 B0Fieldmap = phasediff./(2*pi*echoTimeDiff);
 B0Fieldmap = reshape(B0Fieldmap, [size(B0Fieldmap, 1) size(B0Fieldmap, 2) 1 size(B0Fieldmap, 3)]) % montage insists on the format M-by-N-by-1-by-K
 figure(2)
-montage(B0Fieldmap(:,:,:),'DisplayRange',[0 300])
+montage(B0Fieldmap,'DisplayRange',[0 300])
 colorbar
 title('B0FieldMap')
 
