@@ -4,7 +4,13 @@ disp('Hello');
 addpath(genpath('..'))
 
 data = 'data_testing/'
-% TODO: check if this folder exists and prompt to download (or maybe just download it directly)
+
+%% Download data when not already present
+if ~isfolder( data )
+    url = 'https://osf.io/7d2j5/?action=download' ;
+    fprintf( ['\n Downloading test data...\n URL=' url '\n'] ) ;
+    unzip(url) ;
+end
 
 tmp = tempname
 mkdir(tmp)
