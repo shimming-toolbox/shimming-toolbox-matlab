@@ -7,7 +7,7 @@ data = 'data_testing/'
 
 %% Download data when not already present
 if ~isfolder( data )
-    url = 'https://osf.io/7d2j5/?action=download' ;
+    url = 'https://osf.io/7d2j5/download?version=3' ;
     fprintf( ['\n Downloading test data...\n URL=' url '\n'] ) ;
     unzip(url, '.') ;
 end
