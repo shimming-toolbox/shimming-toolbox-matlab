@@ -8,16 +8,18 @@ disp(pathNifti);
 
 % BEWARE: shell injection attacks here
 if ispc == 1
-    if system(['where dcm2niix']) == 1
+    if system(['where dcm2niix']) ~= 0
         error 'dcm2niix is not installed.'
     end
 else
-    if system(['which dcm2niix']) == 1
+    if system(['which dcm2niix']) ~= 0
         error 'dcm2niix is not installed.'
     end
 end
 participant = '';
-system(['dcm2bids -d "' unsortedDicomDir '"' ' -o '  '"' pathNifti '"' ' -p '  '"' participant '"' ' -c '  'config.json']);
+if system(['dcm2bids -d "' unsortedDicomDir '"' ' -o '  '"' pathNifti '"' ' -p '  '"' participant '"' ' -c '  'config.json']) ~= 0
+  error 'dcm2bids failed'
+end
 
 end
 
