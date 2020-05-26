@@ -24,11 +24,16 @@ Shim.Hdr   = [] ;
 Shim.Field = [] ;       
 Shim.Model = [] ;
 Shim.Aux   = [] ;
-Shim.System.Specs    = ShimSpecs_Greg() ; 
+
+[ Field, Params, Specs] = ShimOpt.parseinput( varargin ) ;
+
+if isempty(Specs)
+    Shim.System.Specs = ShimSpecs_Greg() ; 
+else
+    Shim.System.Specs = Specs ;
+end
+
 Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
-
-
-[ Field, Params ] = ShimOpt.parseinput( varargin ) ;
 
 Params = ShimOpt_Greg.assigndefaultparameters( Params ) ;
 

@@ -145,9 +145,9 @@ Shim.Field  = [] ;
 Shim.Model  = [] ;
 Shim.Aux    = [] ;
 Shim.System = [] ;
-Shim.System.Specs = [] ;
 
-[ Field, Params ] = ShimOpt.parseinput( varargin ) ;
+[ Field, Params, Specs] = ShimOpt.parseinput( varargin ) ;
+Shim.System.Specs = Specs ;
 
 Params = ShimOpt.assigndefaultparameters( Params, Shim.System.Specs ) ;
 
@@ -2139,31 +2139,34 @@ save( Params.pathToShimReferenceMaps, 'img', 'Hdr' ) ;
 
 end
 % =========================================================================
-function [ Field, Params ] = parseinput( Inputs )
+function [ Field, Params, Specs] = parseinput( Inputs )
 %PARSEINPUT
 % 
-% Simple parser returns the optional user inputs Field and Params irrespective
+% Simple parser returns the optional user inputs Field, Params and Specs irrespective
 % of their input order (convenient).
 %
-% [ Field, Params ] = PARSEINPUT( Inputs )
+% [ Field, Params, Specs] = PARSEINPUT( Inputs )
 
 Field  = [] ;
 Params = [] ;
+Specs  = [] ;
 
 nArgin = length( Inputs ) ;
 
 if (nArgin > 0)
-    if (nArgin <= 2)
+    if (nArgin <= 3)
         for iArg = 1 : nArgin
             switch class( Inputs{iArg} ) 
                 case 'struct'
                     Params = Inputs{iArg} ;
                 case 'FieldEval'
                     Field = Inputs{iArg} ;
+                case 'ShimSpecs'
+                    Specs = Inputs{iArg} ;
             end
         end
     else
-        error('Too many input arguments. Should be <=2. See help ShimOpt') ;
+        error('Too many input arguments. Should be <=3. See help ShimOpt') ;
     end
 end
 
