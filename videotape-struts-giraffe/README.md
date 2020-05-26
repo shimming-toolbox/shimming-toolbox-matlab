@@ -9,7 +9,7 @@ unzip data_testing.zip
 2)
 
 ```
-matlab -nodisplay -nosplash -nojvm -r 'experiment;exit'
+matlab -nodisplay -nosplash -r 'experiment;exit'
 ```
 
 
