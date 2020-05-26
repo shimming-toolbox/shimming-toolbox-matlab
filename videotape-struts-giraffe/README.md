@@ -56,6 +56,18 @@ echo "addpath('~/octave/zmat-0.9.2')" >> ~/.octaverc
 octave --eval 'zmat'
 ```
 
+EDIT:
+
+..this stopped working suddenly (for ArchLinux), failing ? at least on ArchLinux. To fix it I followed the compilation instructions on https://github.com/fangq/zmat/releases:
+
+```
+git clone https://github.com/fangq/zmat.git zmat
+cd zmat/src/
+make clean oct
+mv ../zipmat.mex  ~/octave/zmat-0.9.2/
+```
+
+
 2c
 ```
 curl -JLO https://github.com/fangq/jnifti/archive/jnifti_toobox_v0.5.tar.gz
