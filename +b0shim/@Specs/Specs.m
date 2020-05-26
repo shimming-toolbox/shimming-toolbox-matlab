@@ -150,6 +150,30 @@ function [] = set.channelUnits( self, channelUnits )
     end
 end
 % =========================================================================
+function [] = save_json( self, filename )
+%SAVE_JSON Writes a `Specs` instance to json file
+%    
+%    save_json( self, filename )
+% 
+% Encodes `Specs`-type object `self` as json and writes to the path string
+% `filename`.
+%
+% __NOTE__
+% The function uses 
+
+    narginchk(2,2);
+    filename = string(filename) ; % typecast in case input as char
+    assert( length(filename)==1, ...
+        'save_json requires 2 inputs: The b0shim.Specs object and the ouput filename string') ;
+
+    json = jsonencode( self ) ;
+    
+    fid = fopen( filename ) ;
+    fwrite( fid, json ) ; 
+    fclose(fid) ;
+    
+end
+% =========================================================================
 
 end
 % =========================================================================
