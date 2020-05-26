@@ -2,7 +2,7 @@
 1)
 
 ```
-curl -JLO "https://osf.io/7d2j5/?action=download"
+curl -JLO "https://osf.io/7d2j5/download?version=3"
 unzip data_testing.zip
 ```
 
