@@ -1,10 +1,10 @@
-function dicom_to_nifti( unsortedDicomDir, pathNifti )
+function dicom_to_nifti( unsortedDicomDir, niftiPath )
 
 %TODO: Output single multi-echo series as 4d nifti
 
-mkdir(pathNifti);
+mkdir(niftiPath);
 disp(unsortedDicomDir);
-disp(pathNifti);
+disp(niftiPath);
 
 if ispc == 1
     which = 'where'
@@ -20,7 +20,7 @@ end
 
 % BEWARE: shell injection attacks here
 participant = '';
-if system(['dcm2bids -d "' unsortedDicomDir '"' ' -o '  '"' pathNifti '"' ' -p '  '"' participant '"' ' -c '  'config.json']) ~= 0
+if system(['dcm2bids -d "' unsortedDicomDir '"' ' -o '  '"' niftiPath '"' ' -p '  '"' participant '"' ' -c '  'config.json']) ~= 0
   error 'dcm2bids failed'
 end
 

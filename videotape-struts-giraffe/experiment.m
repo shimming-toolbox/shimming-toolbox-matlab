@@ -15,14 +15,14 @@ end
 tmp = tempname
 mkdir(tmp)
 
-nifti_path = fullfile(tmp, 'niftis')
-dicom_to_nifti(fullfile(data, 'dicom_unsorted'), nifti_path)
-disp(nifti_path)
-ls(nifti_path)
+niftiPath = fullfile(tmp, 'niftis')
+dicom_to_nifti(fullfile(data, 'dicom_unsorted'), niftiPath)
+disp(niftiPath)
+ls(niftiPath)
 
 % Load in niftis 
 % TODO: Switch to (x,y,z,time,Echo)
-list = dir(fullfile(nifti_path, ['**' filesep '*.nii*']));
+list = dir(fullfile(niftiPath, ['**' filesep '*.nii*']));
 imgs  = cell(length(list),1) ;
 infos = cell(length(list),1) ;
 jsons = cell(length(list),1) ;
