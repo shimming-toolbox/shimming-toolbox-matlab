@@ -9,7 +9,7 @@ data = 'data_testing/'
 if ~isfolder( data )
     url = 'https://osf.io/7d2j5/?action=download' ;
     fprintf( ['\n Downloading test data...\n URL=' url '\n'] ) ;
-    unzip(url) ;
+    unzip(url, '.') ;
 end
 
 tmp = tempname
