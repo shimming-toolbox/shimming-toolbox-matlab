@@ -17,27 +17,48 @@ mkdir(tmp)
 
 niftiPath = fullfile(tmp, 'niftis')
 dicom_to_nifti(fullfile(data, 'dicom_unsorted'), niftiPath)
-disp(niftiPath)
-ls(niftiPath)
+% dicom_to_nifti(fullfile(data, 'ACDC108p'), nifti_path)
+acquistionPath = fullfile(niftiPath, 'sub-');
+disp(acquistionPath)
+ls(acquistionPath)
 
-% Load in niftis 
-% accounting for the fact that this dataset has separate magnitude/phase channels
+%% load data
 % TODO: Switch to (x,y,z,time,Echo)
-
-disp('seperate magnitude and phase')
-
-list = dir(fullfile(niftiPath, 'sub-', 'fmap_mag', '*.nii*'));
-% TODO: sort
-for i = 1:length(list)
-   [mag{i}, magInfo{i}, magJson{i}] = img.read_nii( ...
-       fullfile( list(i).folder , list(i).name ) );
+manual = false;
+if (manual)
+    folderMag = input('Choose the magnitude fieldmap data','s')
+    folderPhase = input('Choose the phase fieldmap data','s')
+else
+%     folderMag = 'gre_field_mapping_PMUlog_mag';
+%     folderPhase = 'gre_field_mapping_PMUlog_phase';
+    folderMag = 'a_gre_DYNshim_mag';
+    folderPhase = 'a_gre_DYNshim_phase';
 end
 
-list = dir(fullfile(niftiPath, 'sub-', 'fmap_phase', '*.nii*'));
-% TODO: sort
-for i = 1:length(list)
-   [phase{i}, phaseInfo{i}, phaseJson{i}] = img.read_nii( ...
-       fullfile( list(i).folder , list(i).name ) );
+% Load mag
+listMag = dir(fullfile(acquistionPath, folderMag, '*.nii*'));
+mag  = cell(length(listMag),1) ;
+magInfo = cell(length(listMag),1) ;
+magJson = cell(length(listMag),1) ;
+for iList = 1:length(listMag)
+    % Make sure it's mag data
+    if ~isempty(strfind(listMag(iList).name(end-12:end), '_mag'))
+        [mag{iList}, magInfo{iList}, magJson{iList}] = img.read_nii( ...
+        fullfile( listMag(iList).folder , listMag(iList).name ) );
+    end
+end
+
+% Load phase
+listPhase = dir(fullfile(acquistionPath, folderPhase, '*.nii*'));
+phase  = cell(length(listPhase),1) ;
+phaseInfo = cell(length(listPhase),1) ;
+phaseJson = cell(length(listPhase),1) ;
+for iList = 1:length(listPhase)
+    % Make sure it's phase data
+    if ~isempty(strfind(listPhase(iList).name(end-12:end), '_phase'))
+        [phase{iList}, phaseInfo{iList}, phaseJson{iList}] = img.read_nii( ...
+        fullfile( listPhase(iList).folder , listPhase(iList).name ) );
+    end
 end
 
 %% Unwrap (sunwrap)
