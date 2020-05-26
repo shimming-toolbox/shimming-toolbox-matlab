@@ -19,26 +19,30 @@ end
 tmp = tempname
 mkdir(tmp)
 
+%% Dcm2Bids
 niftiPath = fullfile(tmp, 'niftis')
 % dicom_to_nifti(fullfile(data, 'dicom_unsorted'), niftiPath)
 dicom_to_nifti(fullfile(data, 'ACDC108p'), niftiPath)
 acquistionPath = fullfile(niftiPath, 'sub-');
+
+%% load data 
+% (Could be a function)
+
+% Setting to load data automatically or manually
+manual = false;
 disp(acquistionPath)
 ls(acquistionPath)
-
-%% load data
-manual = false;
 if (manual)
     folderMag = input('Choose the magnitude fieldmap data','s')
     folderPhase = input('Choose the phase fieldmap data','s')
 else
-    folderMag = 'gre_field_mapping_PMUlog_mag';
-    folderPhase = 'gre_field_mapping_PMUlog_phase';
-%     folderMag = 'a_gre_DYNshim_mag';
-%     folderPhase = 'a_gre_DYNshim_phase';
+    folderMag = 'gre_field_mapping_PMUlog_mag'; % dicom_unsorted
+    folderPhase = 'gre_field_mapping_PMUlog_phase'; % dicom_unsorted
+%     folderMag = 'a_gre_DYNshim_mag'; % ACDC108p
+%     folderPhase = 'a_gre_DYNshim_phase'; % ACDC108p
 end
 
-
+% Load mag
 listMag = dir(fullfile(acquistionPath, folderMag, '*.nii*'));
 nEchos = length(listMag);
 if nEchos <= 0 
@@ -117,15 +121,15 @@ for iAcq = 1:size(phase,4)
 end    
     
 % Plot
-figure(1)
-subplot(121)
-imshow(mat2gray(unwrappedPhase(:,:,1,1,1)))
-hold on
-title('unwrapped')
-subplot(122)
-imshow(mat2gray(phase(:,:,1,1,1)))
-title('wrapped')
-hold off
+% figure(1)
+% subplot(121)
+% imshow(mat2gray(unwrappedPhase(:,:,1,1,1)))
+% hold on
+% title('unwrapped')
+% subplot(122)
+% imshow(mat2gray(phase(:,:,1,1,1)))
+% title('wrapped')
+% hold off
 %% Process B0 Field map
 
 % Different process if only 1 echo
@@ -140,14 +144,15 @@ end
     
 
 B0Fieldmap = phasediff./(2*pi*echoTimeDiff);
-% B0Fieldmap = reshape(B0Fieldmap, [size(B0Fieldmap, 1) size(B0Fieldmap, 2) 1 size(B0Fieldmap, 3)]) % montage insists on the format M-by-N-by-1-by-K
 
-figure(2)
-montage(B0Fieldmap,'DisplayRange',[min(min(min(B0Fieldmap))) max(max(max(B0Fieldmap)))])
-hold on
-colorbar
-title('B0FieldMap (Hz)')
-hold off
+% Plot
+% B0FieldmapPlot = reshape(B0Fieldmap, [size(B0Fieldmap, 1) size(B0Fieldmap, 2) 1 size(B0Fieldmap, 3)]); % montage insists on the format M-by-N-by-1-by-K
+% figure(2)
+% montage(B0Fieldmap,'DisplayRange',[min(min(min(B0FieldmapPlot))) max(max(max(B0FieldmapPlot)))])
+% hold on
+% colorbar
+% title('B0FieldMap (Hz)')
+% hold off
 
 disp(['-----'])
 % exit;
