@@ -21,25 +21,25 @@ mkdir(tmp)
 
 %% Dcm2Bids
 niftiPath = fullfile(tmp, 'niftis')
-% dicom_to_nifti(fullfile(data, 'dicom_unsorted'), niftiPath)
-dicom_to_nifti(fullfile(data, 'ACDC108p'), niftiPath)
+dicom_to_nifti(fullfile(data, 'dicom_unsorted'), niftiPath)
+% dicom_to_nifti(fullfile(data, 'ACDC108p'), niftiPath)
 acquistionPath = fullfile(niftiPath, 'sub-');
 
 %% load data 
 % (Could be a function)
 
 % Setting to load data automatically or manually
-manual = false;
+manual = true;
 disp(acquistionPath)
 ls(acquistionPath)
 if (manual)
     folderMag = input('Choose the magnitude fieldmap data','s')
     folderPhase = input('Choose the phase fieldmap data','s')
 else
-    folderMag = 'gre_field_mapping_PMUlog_mag'; % dicom_unsorted
-    folderPhase = 'gre_field_mapping_PMUlog_phase'; % dicom_unsorted
-%     folderMag = 'a_gre_DYNshim_mag'; % ACDC108p
-%     folderPhase = 'a_gre_DYNshim_phase'; % ACDC108p
+%     folderMag = 'gre_field_mapping_PMUlog_mag'; % ACDC108p
+%     folderPhase = 'gre_field_mapping_PMUlog_phase'; % ACDC108p
+    folderMag = 'a_gre_DYNshim_mag'; % dicom_unsorted
+    folderPhase = 'a_gre_DYNshim_phase'; % dicom_unsorted
 end
 
 % Load mag
