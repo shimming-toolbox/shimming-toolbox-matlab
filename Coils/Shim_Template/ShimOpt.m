@@ -105,10 +105,33 @@ properties
     ShimmedField; % object of type FieldEval 
     System; %
 end
+
 properties( Hidden = true )
     Interpolant ;
     % Ref ; % original shim reference maps before interpolation
 end
+
+properties( Dependent )
+    % Total number of available basis vectors (shim channels) 
+    %
+    % E.g., in the standard linear equation used to optimize the shims, 
+    % `nChannels` is the column dimension of the linear "shim" operator `A`:
+    % `A*i - b0 = 0, nChannels = size(A,2)`.
+    %
+    % Note, however, the example is just for context: `nChannels` is a
+    % dependent property determined by the number of user provided basis
+    % images: it describes the shim system and nonconfigurable.
+    %
+    % In class' optimization methods, though the default may be to include all
+    % available channels, they can nevertheless be omitted by providing the
+    % appropriate input argument, e.g.: to omit channels 1-3 and use the 4th only:
+    % ```
+    % Params.activeStaticChannelsMask = [0 0 0 1]
+    % obj.optimizeshimcurrents( Params )
+    % ```
+    nChannels {mustBeInteger, mustBeScalarOrEmpty} = 0 ;
+end
+
 % =========================================================================
 % =========================================================================    
 methods
@@ -689,27 +712,19 @@ function A = getshimoperator( Shim )
 %
 %   where A * vectorOfShimCurrents = shimField
 
-nVoxelsImg      = Shim.getnumberofvoxels() ;
-nActiveChannels = Shim.getnactivechannels() ;
+nVoxelsImg = Shim.getnumberofvoxels() ;
 
-A = zeros( nVoxelsImg, nActiveChannels ) ; 
+A = zeros( nVoxelsImg, Shim.nChannels ) ; 
 
-for channel = 1 : nActiveChannels
+for channel = 1 : nChannels
     A(:, channel) = reshape( Shim.img(:,:,:, channel), [nVoxelsImg 1] ) ;
 end
 
 end
 % =========================================================================
-function nActiveChannels = getnactivechannels( Shim )
-%GETNACTIVECHANNELS 
-%
-% Returns number of active shim channels
-%
-% nActiveChannels = GETNACTIVECHANNELS( Shim ) ;
-%
-% nActiveChannels = size( Shim.img, 4 ) ;
+function nChannels = get.nChannels( Shim )
 
-nActiveChannels = size( Shim.img, 4 ) ;
+nChannels = size( Shim.img, 4 ) ;
 
 end
 % =========================================================================
@@ -721,7 +736,7 @@ function shimSupport = getshimsupport( Shim )
 %   shimSupport is a logical map over the grid (voxel positions) defined by
 %   Shim.img of where the shim reference maps have well defined values.
 
-shimSupport = sum(abs(Shim.img),4) > Shim.getnactivechannels()*eps  ;
+shimSupport = sum(abs(Shim.img),4) > Shim.nChannels*eps  ;
 
 % if myisfieldfilled( Shim.Hdr, 'MaskingImage' )
 %     shimSupport = shimSupport & Shim.Hdr.MaskingImage ;
