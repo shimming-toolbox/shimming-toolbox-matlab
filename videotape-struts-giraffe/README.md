@@ -1,4 +1,11 @@
 
+
+Dependencies:
+
+dcm2niix version v1.0.20200331
+Note: older versions do not properly convert json files for the phase data
+(one element of ImageType is missing).
+ 
 1)
 
 ```
