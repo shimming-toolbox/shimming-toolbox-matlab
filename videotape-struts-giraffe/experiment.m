@@ -23,17 +23,43 @@ mkdir(tmp)
 niftiPath = fullfile(tmp, 'niftis')
 dicom_to_nifti(fullfile(data, 'dicom_unsorted'), niftiPath) 
 % dicom_to_nifti(fullfile(data, 'ACDC108p'), niftiPath)
-acquistionPath = fullfile(niftiPath, 'sub-');
+acquisitionPath = fullfile(niftiPath, 'sub-');
+% TODO : Check if there is data
 
 %% load data 
 % (Could be a function)
 % Setting to load data automatically or manually
-manual = true;
-disp(acquistionPath)
-ls(acquistionPath)
-if (manual)
-    folderMag = input('Folder of the magnitude fieldmap data : ' , 's')
-    folderPhase = input('Folder of the phase fieldmap data : ' , 's')
+isManual = true;
+disp(acquisitionPath)
+ls(acquisitionPath)
+if (isManual)
+    % List the acquisitions
+    acquisitionList = dir(acquisitionPath); % get struct of the folder contents 
+    acquisitionList = acquisitionList( ~startsWith( {acquisitionList.name}, '.') ) ; % remove '.' and '..' entries e.g.
+    acquisitionList = acquisitionList( [acquisitionList.isdir] ) ;% might also want to remove potential files?
+    for iDir = 1 : length( acquisitionList )
+        fprintf( [ num2str(iDir) '. ' acquisitionList(iDir).name '\n' ] );
+    end
+    
+    % User input
+    numFolderMag = str2num(input('Enter the number for the appropriate magnitude fieldmap folder : ' , 's'));
+    numFolderPhase = str2num(input('Enter the number for the appropriate phase fieldmap folder : ' , 's'));  
+    
+    % Make sure data entered is correct
+    isAnInteger = (~mod(numFolderMag,1)) && (~mod(numFolderPhase,1));
+    if (isAnInteger)
+        isAppropriateNumber = ((((numFolderMag <= length(acquisitionList)) && (numFolderMag >= 1))) ...
+                            && (((numFolderPhase <= length(acquisitionList)) && (numFolderPhase >= 1))));
+        if ~isAppropriateNumber
+            error('Invalid input, integer out of bound') 
+        end
+    else
+        error('Invalid input, must be an integer') 
+    end
+
+    folderMag = acquisitionList(numFolderMag).name;
+    folderPhase = acquisitionList(numFolderPhase).name;
+        
 else
 %     folderMag = 'gre_field_mapping_PMUlog_mag'; % ACDC108p
 %     folderPhase = 'gre_field_mapping_PMUlog_phase'; % ACDC108p
@@ -42,19 +68,19 @@ else
 end
 
 % Load mag
-listMag = dir(fullfile(acquistionPath, folderMag, '*.nii*'));
-nEchos = length(listMag);
-if nEchos <= 0 
+listMag = dir(fullfile(acquisitionPath, folderMag, '*.nii*'));
+nEchoes = length(listMag);
+if nEchoes <= 0 
    error(['No image in acquisition ' folderMag]) 
 end
 
 [~ ,tmpInfo, ~] = img.read_nii(fullfile( listMag(1).folder , listMag(1).name ));
 % preallocation
-% mag  = zeros([tmpInfo.ImageSize nEchos]);
+% mag  = zeros([tmpInfo.ImageSize nEchoes]);
 % magInfo =
 % magJson = 
 if length(tmpInfo.ImageSize) == 3 % If more than one one time
-    for iEcho = 1:nEchos
+    for iEcho = 1:nEchoes
         % Load and make sure it's mag data
         if ~isempty(strfind(listMag(iEcho).name(end-12:end), '_mag'))
             [mag(:,:,:,:,iEcho), magInfo(iEcho), magJson(iEcho)] = img.read_nii( ...
@@ -62,7 +88,7 @@ if length(tmpInfo.ImageSize) == 3 % If more than one one time
         end
     end
 else
-    for iEcho = 1:nEchos
+    for iEcho = 1:nEchoes
         % Load and make sure it's mag data
         if ~isempty(strfind(listMag(iEcho).name(end-12:end), '_mag'))
             [mag(:,:,:,1,iEcho), magInfo(iEcho), magJson(iEcho)] = img.read_nii( ...
@@ -73,19 +99,19 @@ end
 
 
 % Load phase
-listPhase = dir(fullfile(acquistionPath, folderPhase, '*.nii*'));
-nEchos = length(listPhase);
-if nEchos <= 0
+listPhase = dir(fullfile(acquisitionPath, folderPhase, '*.nii*'));
+nEchoes = length(listPhase);
+if nEchoes <= 0
    error(['No image in acquisition ' folderPhase]) 
 end
 
 [~ ,tmpInfo, ~] = img.read_nii(fullfile( listPhase(1).folder , listPhase(1).name ));
 % preallocation
-% phase  = zeros([tmpInfo.ImageSize nEchos]);
+% phase  = zeros([tmpInfo.ImageSize nEchoes]);
 % phaseInfo =
 % phaseJson = 
 if length(tmpInfo.ImageSize) == 3 % If more than one one time
-    for iEcho = 1:nEchos
+    for iEcho = 1:nEchoes
         % Load and make sure it's phase data
         if ~isempty(strfind(listPhase(iEcho).name(end-12:end), '_phase'))
             [phase(:,:,:,:,iEcho), phaseInfo(iEcho), phaseJson(iEcho)] = img.read_nii( ...
@@ -93,7 +119,7 @@ if length(tmpInfo.ImageSize) == 3 % If more than one one time
         end
     end
 else
-    for iEcho = 1:nEchos
+    for iEcho = 1:nEchoes
         % Load and make sure it's phase data
         if ~isempty(strfind(listPhase(iEcho).name(end-12:end), '_phase'))
             [phase(:,:,:,1,iEcho), phaseInfo(iEcho), phaseJson(iEcho)] = img.read_nii( ...
