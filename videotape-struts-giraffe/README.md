@@ -7,14 +7,6 @@ Note: older versions do not properly convert json files for the phase data
 (one element of ImageType is missing).
  
 1)
-
-```
-curl -JLO "https://osf.io/7d2j5/download?version=3"
-unzip data_testing.zip
-```
-
-2)
-
 ```
 matlab -nodisplay -nosplash -r 'experiment;exit'
 ```
