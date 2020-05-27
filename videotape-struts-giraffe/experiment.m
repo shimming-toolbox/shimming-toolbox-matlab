@@ -33,8 +33,8 @@ manual = true;
 disp(acquistionPath)
 ls(acquistionPath)
 if (manual)
-    folderMag = input('Choose the magnitude fieldmap data','s')
-    folderPhase = input('Choose the phase fieldmap data','s')
+    folderMag = input('Folder of the magnitude fieldmap data : ' , 's')
+    folderPhase = input('Folder of the phase fieldmap data : ' , 's')
 else
 %     folderMag = 'gre_field_mapping_PMUlog_mag'; % ACDC108p
 %     folderPhase = 'gre_field_mapping_PMUlog_phase'; % ACDC108p
