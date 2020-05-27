@@ -27,7 +27,7 @@ narginchk(1,1);
 
 if [ isstring( nii ) | ischar( nii ) ] & isfile( nii )
     
-    [~, info] = img.read_nii( nii );
+    [~, info] = imutils.read_nii( nii );
 
 elseif isstruct( nii ) && isfield( nii, 'ImageSize' ) && ...
         isfield( nii, 'Transform' ) && isa( nii.Transform, 'affine3d' ) 
@@ -35,7 +35,7 @@ elseif isstruct( nii ) && isfield( nii, 'ImageSize' ) && ...
     info = nii ;
 
 else
-    error('Input must be a path to a .nii file, or a struct returned from `niftiinfo`')
+    error('Input must be a path to a .nii file, or a struct returned by `niftiinfo`')
 end
 
 % ---------------
