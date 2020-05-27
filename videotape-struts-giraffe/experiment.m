@@ -9,6 +9,7 @@ addpath(genpath('..'))
 
 data = 'data_testing/'
 
+% --------------------------------------
 %% Download data when not already present
 if ~isfolder( data )
     url = 'https://osf.io/7d2j5/download?version=4' ;
@@ -19,37 +20,53 @@ end
 tmp = tempname
 mkdir(tmp)
 
+% ---------
 %% Dcm2Bids
-niftiPath = fullfile(tmp, 'niftis')
-dicom_to_nifti(fullfile(data, 'dicom_unsorted'), niftiPath) 
+%
+niftiPath = fullfile( tmp, 'niftis' )
+dicom_to_nifti(fullfile( data, 'dicom_unsorted' ), niftiPath ) 
 % dicom_to_nifti(fullfile(data, 'ACDC108p'), niftiPath)
-acquisitionPath = fullfile(niftiPath, 'sub-');
+acquisitionPath = fullfile( niftiPath, 'sub-' );
 % TODO : Check if there is data
 
-%% load data 
-% (Could be a function)
+% ----------
+%% load data (Could be a function)
 % Setting to load data automatically or manually
 isManual = true;
 disp(acquisitionPath)
 ls(acquisitionPath)
+
 if (isManual)
     % List the acquisitions
     acquisitionList = dir(acquisitionPath); % get struct of the folder contents 
     acquisitionList = acquisitionList( ~startsWith( {acquisitionList.name}, '.') ) ; % remove '.' and '..' entries e.g.
     acquisitionList = acquisitionList( [acquisitionList.isdir] ) ;% might also want to remove potential files?
+    
     for iDir = 1 : length( acquisitionList )
         fprintf( [ num2str(iDir) '. ' acquisitionList(iDir).name '\n' ] );
     end
     
     % User input
-    numFolderMag = str2num(input('Enter the number for the appropriate magnitude fieldmap folder : ' , 's'));
-    numFolderPhase = str2num(input('Enter the number for the appropriate phase fieldmap folder : ' , 's'));  
+    iFolderMag   = str2num(input('Enter the number for the appropriate magnitude fieldmap folder : ' , 's'));
+    iFolderPhase = str2num(input('Enter the number for the appropriate phase fieldmap folder : ' , 's'));  
     
-    % Make sure data entered is correct
-    isAnInteger = (~mod(numFolderMag,1)) && (~mod(numFolderPhase,1));
-    if (isAnInteger)
-        isAppropriateNumber = ((((numFolderMag <= length(acquisitionList)) && (numFolderMag >= 1))) ...
-                            && (((numFolderPhase <= length(acquisitionList)) && (numFolderPhase >= 1))));
+    % Validate input 
+    % RT: NOTE: isAnInteger (which could just be isInteger) isn't an exhaustive check.
+    % Easier + more thorough would be sth like:
+    % isValidInput = false
+    % while ~isValidInput
+    %    fprintf('Enter the number corresponding to the mag...'\n')
+    %    iFolderMag = input( ... )
+    %    fprintf('Enter the number corresponding to the phase...'\n')
+    %    iFolderPhase = input( ... )
+    %
+    %   isValidInput = ~all( ismember( [iFolderMag iFolderPhase], [1:numel(acquisitionList)] ) );
+    % end
+    isAnInteger = (~mod(iFolderMag,1)) && (~mod(iFolderPhase,1));
+
+    if isAnInteger
+        isAppropriateNumber = ((((iFolderMag <= length(acquisitionList)) && (iFolderMag >= 1))) ...
+                            && (((iFolderPhase <= length(acquisitionList)) && (iFolderPhase >= 1))));
         if ~isAppropriateNumber
             error('Invalid input, integer out of bound') 
         end
@@ -57,19 +74,20 @@ if (isManual)
         error('Invalid input, must be an integer') 
     end
 
-    folderMag = acquisitionList(numFolderMag).name;
-    folderPhase = acquisitionList(numFolderPhase).name;
+    folderMag   = acquisitionList(iFolderMag).name;
+    folderPhase = acquisitionList(iFolderPhase).name;
         
 else
 %     folderMag = 'gre_field_mapping_PMUlog_mag'; % ACDC108p
 %     folderPhase = 'gre_field_mapping_PMUlog_phase'; % ACDC108p
-    folderMag = 'a_gre_DYNshim_mag'; % dicom_unsorted
+    folderMag   = 'a_gre_DYNshim_mag'; % dicom_unsorted
     folderPhase = 'a_gre_DYNshim_phase'; % dicom_unsorted
 end
 
 % Load mag
 listMag = dir(fullfile(acquisitionPath, folderMag, '*.nii*'));
 nEchoes = length(listMag);
+
 if nEchoes <= 0 
    error(['No image in acquisition ' folderMag]) 
 end
@@ -84,7 +102,7 @@ if length(tmpInfo.ImageSize) == 3 % If more than one one time
         % Load and make sure it's mag data
         if ~isempty(strfind(listMag(iEcho).name(end-12:end), '_mag'))
             [mag(:,:,:,:,iEcho), magInfo(iEcho), magJson(iEcho)] = img.read_nii( ...
-            fullfile( listMag(iEcho).folder , listMag(iEcho).name ) );
+                fullfile( listMag(iEcho).folder , listMag(iEcho).name ) );
         end
     end
 else
@@ -92,7 +110,7 @@ else
         % Load and make sure it's mag data
         if ~isempty(strfind(listMag(iEcho).name(end-12:end), '_mag'))
             [mag(:,:,:,1,iEcho), magInfo(iEcho), magJson(iEcho)] = img.read_nii( ...
-            fullfile( listMag(iEcho).folder , listMag(iEcho).name ) );
+                fullfile( listMag(iEcho).folder , listMag(iEcho).name ) );
         end
     end
 end
@@ -128,6 +146,7 @@ else
     end
 end
 
+% -----------------
 %% Unwrap (sunwrap)
 disp('Unwrap')
 
@@ -155,16 +174,18 @@ end
 % imshow(mat2gray(phase(:,:,1,1,1)))
 % title('wrapped')
 % hold off
+
+% --------------------
 %% Process B0 Field map
 
 % Different process if only 1 echo
 if size(unwrappedPhase,5) == 1
     echoTimeDiff = phaseJson(1).EchoTime;
-    phasediff = unwrappedPhase(:,:,:,:);
+    phasediff    = unwrappedPhase(:,:,:,:);
 else
     echoTimeDiff = phaseJson(2).EchoTime - phaseJson(1).EchoTime;
     % if using wrapped phase % phasediff = angle( wrappedPhase(1) .* conj(wrappedPhase(2) ) ) ; then unwrap
-    phasediff = unwrappedPhase(:,:,:,:,2) - unwrappedPhase(:,:,:,:,1);
+    phasediff    = unwrappedPhase(:,:,:,:,2) - unwrappedPhase(:,:,:,:,1);
 end
     
 
@@ -179,5 +200,16 @@ B0Fieldmap = phasediff./(2*pi*echoTimeDiff);
 % title('B0FieldMap (Hz)')
 % hold off
 
+% --------------------
+%% TODO: Save images
+% RT: NOTE: Would be nice to write the results to file (and display the filepaths upon completion).
+% `print()` is probably the easiest function to use to print a figure—
+% Not sure if it still works in this headless-commandline mode;
+% so maybe `imwrite()` is the better call.
+% **Ideal** (necessary TODO at some point soon): Write results *as NIfTI*! 
+% NOTE: This means ensuring the header info is correct: 
+% Should be easy here since no change has been made to positioning;
+% Need to be careful about data type & dimension info.
+ 
 disp(['-----'])
 % exit;
