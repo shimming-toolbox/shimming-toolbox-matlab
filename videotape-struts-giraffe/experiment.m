@@ -11,7 +11,7 @@ data = 'data_testing/'
 
 %% Download data when not already present
 if ~isfolder( data )
-    url = 'https://osf.io/7d2j5/download?version=3' ;
+    url = 'https://osf.io/7d2j5/download?version=4' ;
     fprintf( ['\n Downloading test data...\n URL=' url '\n'] ) ;
     unzip(url, '.') ;
 end
@@ -21,13 +21,12 @@ mkdir(tmp)
 
 %% Dcm2Bids
 niftiPath = fullfile(tmp, 'niftis')
-dicom_to_nifti(fullfile(data, 'dicom_unsorted'), niftiPath)
+dicom_to_nifti(fullfile(data, 'dicom_unsorted'), niftiPath) 
 % dicom_to_nifti(fullfile(data, 'ACDC108p'), niftiPath)
 acquistionPath = fullfile(niftiPath, 'sub-');
 
 %% load data 
 % (Could be a function)
-
 % Setting to load data automatically or manually
 manual = true;
 disp(acquistionPath)
