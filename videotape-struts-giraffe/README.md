@@ -7,6 +7,7 @@ Note: older versions do not properly convert json files for the phase data
 (one element of ImageType is missing).
  
 1)
+`cd` to directory of experiment.m and enter the following command:
 ```
 matlab -nodisplay -nosplash -r 'experiment;exit'
 ```
