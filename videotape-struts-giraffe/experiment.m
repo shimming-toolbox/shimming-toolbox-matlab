@@ -47,33 +47,25 @@ if (isManual)
     end
     
     % User input
-    iFolderMag   = str2num(input('Enter the number for the appropriate magnitude fieldmap folder : ' , 's'));
-    iFolderPhase = str2num(input('Enter the number for the appropriate phase fieldmap folder : ' , 's'));  
-    
-    % Validate input 
-    % RT: NOTE: isAnInteger (which could just be isInteger) isn't an exhaustive check.
-    % Easier + more thorough would be sth like:
-    % isValidInput = false
-    % while ~isValidInput
-    %    fprintf('Enter the number corresponding to the mag...'\n')
-    %    iFolderMag = input( ... )
-    %    fprintf('Enter the number corresponding to the phase...'\n')
-    %    iFolderPhase = input( ... )
-    %
-    %   isValidInput = ~all( ismember( [iFolderMag iFolderPhase], [1:numel(acquisitionList)] ) );
-    % end
-    isAnInteger = (~mod(iFolderMag,1)) && (~mod(iFolderPhase,1));
-
-    if isAnInteger
-        isAppropriateNumber = ((((iFolderMag <= length(acquisitionList)) && (iFolderMag >= 1))) ...
-                            && (((iFolderPhase <= length(acquisitionList)) && (iFolderPhase >= 1))));
-        if ~isAppropriateNumber
-            error('Invalid input, integer out of bound') 
+    isValidInput = false;
+    while ~isValidInput
+        strMag   = input('Enter the number for the appropriate magnitude fieldmap folder, (type "esc" to quit) : ' , 's');
+        if strMag == "esc"
+            return
         end
-    else
-        error('Invalid input, must be an integer') 
-    end
+        strPhase = input('Enter the number for the appropriate phase fieldmap folder, (type "esc" to quit) : ' , 's');  
+        if strPhase == "esc"
+            return
+        end
+        
+        iFolderMag = str2num(strMag) ;
+        iFolderPhase = str2num(strPhase) ;
+        
+        if ~isempty(iFolderMag) && ~isempty(iFolderPhase)
+            isValidInput = all( ismember( [iFolderMag iFolderPhase], [1:numel(acquisitionList)] ) );
+        end
 
+    end
     folderMag   = acquisitionList(iFolderMag).name;
     folderPhase = acquisitionList(iFolderPhase).name;
         
