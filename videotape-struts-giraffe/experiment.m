@@ -92,7 +92,7 @@ if nEchoes <= 0
    error(['No image in acquisition ' folderMag]) 
 end
 
-[~ ,tmpInfo, ~] = img.read_nii(fullfile( listMag(1).folder , listMag(1).name ));
+[~ ,tmpInfo, ~] = imutils.read_nii(fullfile( listMag(1).folder , listMag(1).name ));
 % preallocation
 % mag  = zeros([tmpInfo.ImageSize nEchoes]);
 % magInfo =
@@ -101,7 +101,7 @@ if length(tmpInfo.ImageSize) == 3 % If more than one one time
     for iEcho = 1:nEchoes
         % Load and make sure it's mag data
         if ~isempty(strfind(listMag(iEcho).name(end-12:end), '_mag'))
-            [mag(:,:,:,:,iEcho), magInfo(iEcho), magJson(iEcho)] = img.read_nii( ...
+            [mag(:,:,:,:,iEcho), magInfo(iEcho), magJson(iEcho)] = imutils.read_nii( ...
                 fullfile( listMag(iEcho).folder , listMag(iEcho).name ) );
         end
     end
@@ -109,7 +109,7 @@ else
     for iEcho = 1:nEchoes
         % Load and make sure it's mag data
         if ~isempty(strfind(listMag(iEcho).name(end-12:end), '_mag'))
-            [mag(:,:,:,1,iEcho), magInfo(iEcho), magJson(iEcho)] = img.read_nii( ...
+            [mag(:,:,:,1,iEcho), magInfo(iEcho), magJson(iEcho)] = imutils.read_nii( ...
                 fullfile( listMag(iEcho).folder , listMag(iEcho).name ) );
         end
     end
@@ -123,7 +123,7 @@ if nEchoes <= 0
    error(['No image in acquisition ' folderPhase]) 
 end
 
-[~ ,tmpInfo, ~] = img.read_nii(fullfile( listPhase(1).folder , listPhase(1).name ));
+[~ ,tmpInfo, ~] = imutils.read_nii(fullfile( listPhase(1).folder , listPhase(1).name ));
 % preallocation
 % phase  = zeros([tmpInfo.ImageSize nEchoes]);
 % phaseInfo =
@@ -132,7 +132,7 @@ if length(tmpInfo.ImageSize) == 3 % If more than one one time
     for iEcho = 1:nEchoes
         % Load and make sure it's phase data
         if ~isempty(strfind(listPhase(iEcho).name(end-12:end), '_phase'))
-            [phase(:,:,:,:,iEcho), phaseInfo(iEcho), phaseJson(iEcho)] = img.read_nii( ...
+            [phase(:,:,:,:,iEcho), phaseInfo(iEcho), phaseJson(iEcho)] = imutils.read_nii( ...
             fullfile( listPhase(iEcho).folder , listPhase(iEcho).name ) );
         end
     end
@@ -140,7 +140,7 @@ else
     for iEcho = 1:nEchoes
         % Load and make sure it's phase data
         if ~isempty(strfind(listPhase(iEcho).name(end-12:end), '_phase'))
-            [phase(:,:,:,1,iEcho), phaseInfo(iEcho), phaseJson(iEcho)] = img.read_nii( ...
+            [phase(:,:,:,1,iEcho), phaseInfo(iEcho), phaseJson(iEcho)] = imutils.read_nii( ...
             fullfile( listPhase(iEcho).folder , listPhase(iEcho).name ) );
         end
     end
