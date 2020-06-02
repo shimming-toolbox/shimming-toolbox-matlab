@@ -106,8 +106,8 @@ if (info0.AdditiveOffset == -PHASE_SCALING_SIEMENS) && (info0.MultiplicativeScal
     info.raw.datatype = 16;
     info.raw.bitpix   = 32;
 else
-    warning( ['The nii header differs from that expected of Siemens phase data.\n' ...
-              'Output values (units) are effectively unknown'] );
+    warning( 'The nii header differs from that expected of Siemens phase data.\n%s', ...
+              'Output values (units) are effectively unknown' );
     [img, info] = rescale( img0, info0 );
 end
 
