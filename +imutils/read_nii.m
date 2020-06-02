@@ -26,11 +26,13 @@ function [img,info,json] = read_nii( niiFile, options )
 % | 'basic'           | Rescale according to nii header info                   | 
 % | 'auto' [default]  | Rescale and convert to physical units when possible    |
 %
-% For now, the sole effect of `'auto'` is to convert Siemens raw phase images 
+% __NOTE__  
+% For now, the sole effect of `'auto'` is to convert Siemens raw phase images
 % to physical units (radians), which requires converting from their original
-% integer type to float (32-bit single is returned rather than double). 
-% The json sidecar must be available to verify the Manufacturer and ImageType entries. 
-% Otherwise, and for all other image inputs `'auto'` reverts to `'basic'`.
+% integer type (between [0,4095]) to a 32-bit "single" float (between [-pi,pi)). 
+% The json sidecar must be available to verify the Manufacturer and ImageType
+% entries. Otherwise, and for all other image inputs `'auto'` reverts to
+% `'basic'`.
 
 DEFAULTS.rescale = 'auto';
 
@@ -87,9 +89,12 @@ end
 %% Local functions
 % -----------------------------------------------------------------------------
 function [img, info] = convert_siemens_phase( img0, info0 )
-%CONVERT_SIEMENS_PHASE Return phase img in rad (recast from int to single)
+%CONVERT_SIEMENS_PHASE Return phase img in rad 
 %    
 %    [img, info] = convert_siemens_phase( img0, info0 )
+%
+% Converts from integer-type (between [0,4095]) to a 32-bit "single" float
+% (between [-pi,pi)). 
 
 PHASE_SCALING_SIEMENS = 4096;
 
