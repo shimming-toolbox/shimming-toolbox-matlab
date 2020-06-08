@@ -1045,7 +1045,7 @@ function [systemResponses, meanings] = definesystemresponses( )
 
 systemResponse = ['0x00'; '0x01'; '0x02'; '0x03'; '0x08'; '0xFF'] ;
 
-meanings    = cell{length(systemResponse), 1} ;
+meanings    = cell(length(systemResponse), 1) ;
 meanings{1} = 'ACK , command has been received and processed' ;
 meanings{2} = 'Unimplemented command' ;
 meanings{3} = 'A command parameters is out of range' ;
