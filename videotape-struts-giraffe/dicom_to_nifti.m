@@ -39,15 +39,13 @@ if ~isfolder(helperPath)
     error 'dcm2bids_helper could not create directory helper'
 end
 
-% make sure there is data in niftiPath/tmp_dcm2bids/helper
+% Make sure there is data in niftiPath/tmp_dcm2bids/helper
 helperfileList = dir(helperPath);
 if isempty(helperfileList)
     error 'No data to process'
 end
 
-% Create list of acquisitions by looking at 
-%   SeriesDescription
-%   SeriesNumber
+% Create list of acquisitions
 acquisitionNames = {};
 acquisitionNumbers = {};
 iAcq = 0;
@@ -71,6 +69,7 @@ for iFile = 1:length(helperfileList)
         % Create future folder name
         acquisitionNumbers{iAcq,1} = sprintf( '%03d', jsonInfo.SeriesNumber ) ;
         acquisitionNames{iAcq,1} = jsonInfo.SeriesDescription;
+        % Modality could be acquisition name
         modality{iAcq,1} = jsonInfo.Modality;
     end
 end
@@ -80,7 +79,7 @@ end
 acquisitionNames = acquisitionNames(ia);
 modality = modality(ia);
 
-% for every acqs,
+% For every acqs,
 outputDir = fullfile(niftiPath, 'code');
 
 clear iAcq
