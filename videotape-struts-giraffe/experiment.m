@@ -24,7 +24,7 @@ mkdir(tmp)
 %% Dcm2Bids
 %
 niftiPath = fullfile( tmp, 'niftis' )
-dicom_to_nifti(fullfile( data, 'dicom_unsorted' ), niftiPath ) 
+dicom_to_nifti(fullfile( data, 'acdc_48' ), niftiPath ) 
 % dicom_to_nifti(fullfile(data, 'ACDC108p'), niftiPath)
 acquisitionPath = fullfile( niftiPath, 'sub-' );
 % TODO : Check if there is data
@@ -43,7 +43,7 @@ if (isManual)
     acquisitionList = acquisitionList( [acquisitionList.isdir] ) ;% might also want to remove potential files?
     
     for iDir = 1 : length( acquisitionList )
-        fprintf( [ num2str(iDir) '. ' acquisitionList(iDir).name '\n' ] );
+        fprintf( [ num2str(iDir) ' : ' acquisitionList(iDir).name '\n' ] );
     end
     
     % User input
