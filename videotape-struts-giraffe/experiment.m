@@ -24,6 +24,7 @@ mkdir(tmp)
 %% Dcm2Bids
 %
 niftiPath = fullfile( tmp, 'niftis' )
+% TODO : Could add possibility to make own config file : dicom_to_nifti(inputPath, niftiPath, configPath ) 
 dicom_to_nifti(fullfile( data, 'acdc_48' ), niftiPath ) 
 % dicom_to_nifti(fullfile(data, 'ACDC108p'), niftiPath)
 acquisitionPath = fullfile( niftiPath, 'sub-' );
