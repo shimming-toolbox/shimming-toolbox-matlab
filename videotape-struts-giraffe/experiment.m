@@ -28,116 +28,21 @@ niftiPath = fullfile( tmp, 'niftis' )
 dicom_to_nifti(fullfile( data, 'acdc_48' ), niftiPath ) 
 % dicom_to_nifti(fullfile(data, 'ACDC108p'), niftiPath)
 acquisitionPath = fullfile( niftiPath, 'sub-' );
+
 % TODO : Check if there is data
 
 % ----------
 %% load data (Could be a function)
 % Setting to load data automatically or manually
-isManual = true;
+
 disp(acquisitionPath)
 ls(acquisitionPath)
 
-if (isManual)
-    % List the acquisitions
-    acquisitionList = dir(acquisitionPath); % get struct of the folder contents 
-    acquisitionList = acquisitionList( ~startsWith( {acquisitionList.name}, '.') ) ; % remove '.' and '..' entries e.g.
-    acquisitionList = acquisitionList( [acquisitionList.isdir] ) ;% might also want to remove potential files?
-    
-    for iDir = 1 : length( acquisitionList )
-        fprintf( [ num2str(iDir) ' : ' acquisitionList(iDir).name '\n' ] );
-    end
-    
-    % User input
-    isValidInput = false;
-    while ~isValidInput
-        strMag   = input('Enter the number for the appropriate magnitude fieldmap folder, (type "esc" to quit) : ' , 's');
-        if strMag == "esc"
-            return
-        end
-        strPhase = input('Enter the number for the appropriate phase fieldmap folder, (type "esc" to quit) : ' , 's');  
-        if strPhase == "esc"
-            return
-        end
-        
-        iFolderMag = str2num(strMag) ;
-        iFolderPhase = str2num(strPhase) ;
-        
-        if ~isempty(iFolderMag) && ~isempty(iFolderPhase)
-            isValidInput = all( ismember( [iFolderMag iFolderPhase], [1:numel(acquisitionList)] ) );
-        end
+mag = loadniftis(acquisitionPath);
+size(mag)
 
-    end
-    folderMag   = acquisitionList(iFolderMag).name;
-    folderPhase = acquisitionList(iFolderPhase).name;
-        
-else
-%     folderMag = 'gre_field_mapping_PMUlog_mag'; % ACDC108p
-%     folderPhase = 'gre_field_mapping_PMUlog_phase'; % ACDC108p
-    folderMag   = 'a_gre_DYNshim_mag'; % dicom_unsorted
-    folderPhase = 'a_gre_DYNshim_phase'; % dicom_unsorted
-end
+phase = loadniftis(acquisitionPath);
 
-% Load mag
-listMag = dir(fullfile(acquisitionPath, folderMag, '*.nii*'));
-nEchoes = length(listMag);
-
-if nEchoes <= 0 
-   error(['No image in acquisition ' folderMag]) 
-end
-
-[~ ,tmpInfo, ~] = imutils.read_nii(fullfile( listMag(1).folder , listMag(1).name ));
-% preallocation
-% mag  = zeros([tmpInfo.ImageSize nEchoes]);
-% magInfo =
-% magJson = 
-if length(tmpInfo.ImageSize) == 3 % If more than one one time
-    for iEcho = 1:nEchoes
-        % Load and make sure it's mag data
-        if ~isempty(strfind(listMag(iEcho).name(end-12:end), '_mag'))
-            [mag(:,:,:,:,iEcho), magInfo(iEcho), magJson(iEcho)] = imutils.read_nii( ...
-                fullfile( listMag(iEcho).folder , listMag(iEcho).name ) );
-        end
-    end
-else
-    for iEcho = 1:nEchoes
-        % Load and make sure it's mag data
-        if ~isempty(strfind(listMag(iEcho).name(end-12:end), '_mag'))
-            [mag(:,:,:,1,iEcho), magInfo(iEcho), magJson(iEcho)] = imutils.read_nii( ...
-                fullfile( listMag(iEcho).folder , listMag(iEcho).name ) );
-        end
-    end
-end
-
-
-% Load phase
-listPhase = dir(fullfile(acquisitionPath, folderPhase, '*.nii*'));
-nEchoes = length(listPhase);
-if nEchoes <= 0
-   error(['No image in acquisition ' folderPhase]) 
-end
-
-[~ ,tmpInfo, ~] = imutils.read_nii(fullfile( listPhase(1).folder , listPhase(1).name ));
-% preallocation
-% phase  = zeros([tmpInfo.ImageSize nEchoes]);
-% phaseInfo =
-% phaseJson = 
-if length(tmpInfo.ImageSize) == 3 % If more than one one time
-    for iEcho = 1:nEchoes
-        % Load and make sure it's phase data
-        if ~isempty(strfind(listPhase(iEcho).name(end-12:end), '_phase'))
-            [phase(:,:,:,:,iEcho), phaseInfo(iEcho), phaseJson(iEcho)] = imutils.read_nii( ...
-            fullfile( listPhase(iEcho).folder , listPhase(iEcho).name ) );
-        end
-    end
-else
-    for iEcho = 1:nEchoes
-        % Load and make sure it's phase data
-        if ~isempty(strfind(listPhase(iEcho).name(end-12:end), '_phase'))
-            [phase(:,:,:,1,iEcho), phaseInfo(iEcho), phaseJson(iEcho)] = imutils.read_nii( ...
-            fullfile( listPhase(iEcho).folder , listPhase(iEcho).name ) );
-        end
-    end
-end
 
 % -----------------
 %% Unwrap (sunwrap)
