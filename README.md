@@ -26,9 +26,9 @@ the Matlab path should be configured automatically at session start-up by adding
 (create the file if it does not exist):
 
 ```
-% Change ~/Code/realtime_shimming_repository/ to wherever the repository was downloaded/cloned:
-PATH_TO_REALTIME_SHIMMING_REPOSITORY = '~/Code/realtime_shimming_repository/' ;
-addpath( genpath( PATH_TO_REALTIME_SHIMMING_REPOSITORY ) ) ;
+% Change ~/Code/shimming-toolbox/ to wherever the repository was downloaded/cloned:
+PATH_TO_REALTIME_SHIMMING-TOOLBOX = '~/Code/shimming-toolbox/' ;
+addpath( genpath( PATH_TO_SHIMMING-TOOLBOX_REPOSITORY ) ) ;
 ```
 
 For "daemon mode" to work, the MATLAB session must be started from the command line, and from the home folder, e.g.:
@@ -41,7 +41,7 @@ For the command line start, MATLAB also needs to exist within the system path, e
 
 ```
 # add MATLAB path
-export PATH=$PATH:/Applications/MATLAB_R2015a.app/bin/
+export PATH=$PATH:/Applications/MATLAB_R2020a.app/bin/
 ```
 
 *For phase unwrapping:*
@@ -79,7 +79,7 @@ TODO cont...
 List of available maps:
 - UNF: https://drive.google.com/drive/folders/1DSCTeh9qRCgS55fWLGtsNeYdq8DsRyMg
 
-Download map and copy it under $PATH_REALTIMESHIMMING/data/
+Download map and copy it under $PATH_SHIMMING-TOOLBOX/data/
 
 ### Interfacing with hardware: **ShimUse( )** and **ShimCom( )**
 
