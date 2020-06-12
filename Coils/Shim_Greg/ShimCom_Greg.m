@@ -1,5 +1,5 @@
 classdef ShimCom_Greg < ShimCom 
-%SHIMCOM_GREG - Shim Communication for the 8-channel AC/DC neck coil 
+%SHIMCOM_GREG Shim Communication for the 8-channel AC/DC neck coil 
 %
 % .......
 %   
@@ -17,11 +17,6 @@ classdef ShimCom_Greg < ShimCom
 %
 %       .Params
 %
-% =========================================================================
-%    ShimCom_Greg is a ShimCom subclass.
-%
-% =========================================================================
-% Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -47,7 +42,7 @@ Shim.Params.nSendAttemptsMax = 5; % # communication attempts before error
 Shim.opencomport() ;
 
 isAckReceived = Shim.getsystemheartbeat() ;
-
+pause(5);
 if isAckReceived
     isCalibrationSuccessful = Shim.calibratedac() ;
     if ~isCalibrationSuccessful
@@ -62,8 +57,7 @@ end
 end
 % =========================================================================
 function [isAckReceived] = getsystemheartbeat( Shim ) ;
-%GETSYSTEMHEARTBEAT
-% Check if shim system is responding.
+%GETSYSTEMHEARTBEAT Return true when shim system is responsive
 
 Shim.Params.nBytesToRead = 1 ;   
 Shim.Data.output = Shim.Cmd.getSystemHeartbeat ;
@@ -93,7 +87,6 @@ assert( ( round(iCh) == iCh ) & ( iCh > 0 ) & ( iCh <= Shim.Specs.Amp.nChannels 
 Shim.Data.output        = Shim.Cmd.setAndLoadShimByChannel ;
 Shim.Data.output(end+1) = num2str( iCh - 1 ) ; % Arduino uses 0-based indexing
 Shim.Data.output = [Shim.Data.output Shim.currenttostring( current )] ;
-Shim.Data.output
 Shim.sendcmd() ;
 
 isSet = logical( str2num( fgetl( Shim.ComPort ) ) ) 

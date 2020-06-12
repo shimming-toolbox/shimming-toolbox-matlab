@@ -16,7 +16,7 @@ classdef ShimSpecs_Greg < ShimSpecs
 %
 %     .Dac 
 %       relating to digital-to-analog conversion
-%
+%   
 % __ETC___
 %
 % See also
@@ -42,14 +42,14 @@ for iCh = 1 :8
     Shim.Id.channelUnits(iCh) = { '[A]' } ; 
 end
     
-Shim.Com.baudRate      = 115200 ;
+Shim.Com.baudRate    = 115200 ;
 % Shim.Com.readTimeout = 500 ; %[units: ms]
 
-Shim.Com.dataBits      = 8 ;
-Shim.Com.stopBits      = 1 ;
-Shim.Com.flowControl   = 'NONE' ;
-Shim.Com.parity        = 'NONE' ;
-Shim.Com.byteOrder     = 'bigEndian' ;
+Shim.Com.dataBits    = 8 ;
+Shim.Com.stopBits    = 1 ;
+Shim.Com.flowControl = 'NONE' ;
+Shim.Com.parity      = 'NONE' ;
+Shim.Com.byteOrder   = 'bigEndian' ;
 
 % min delay (in seconds) between transmission and reception of data is 1 s
 %

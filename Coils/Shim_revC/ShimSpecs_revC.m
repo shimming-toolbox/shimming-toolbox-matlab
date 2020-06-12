@@ -16,7 +16,7 @@ classdef ShimSpecs_revC < ShimSpecs
 %
 %     .Dac 
 %       relating to digital-to-analog conversion
-% 
+%   
 % __ETC___
 %
 % See also
@@ -34,7 +34,6 @@ function Shim = ShimSpecs_revC(  )
 %SHIMSPECS - Shim System Specifications 
 
 Shim.Id.systemName   = 'Greg' ;
-
 Shim.Id.channelNames = cell(8,1) ;
 Shim.Id.channelUnits = cell(8,1) ;
 
@@ -43,8 +42,8 @@ for iCh = 1 :8
     Shim.Id.channelUnits(iCh) = { '[A]' } ; 
 end
     
-Shim.Com.baudRate    = 9600 ;  
-% Shim.Com.readTimeout = 500 ; %[units: ms] 
+Shim.Com.baudRate    = 9600 ;
+% Shim.Com.readTimeout = 500 ; %[units: ms]
 
 Shim.Com.dataBits    = 8 ;
 Shim.Com.stopBits    = 1 ;
