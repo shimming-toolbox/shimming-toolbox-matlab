@@ -63,11 +63,11 @@ for iImage = 1 : nImages
     end
     
     % Create directories for each series
-    if ~exist( [ sortedDir seriesDir ], 'dir' )
-        mkdir( [ sortedDir seriesDir ] );
+    if ~exist( fullfile( sortedDir, seriesDir), 'dir' )
+        mkdir( fullfile( sortedDir, seriesDir) ) ;
     end
     
-    echoDir = [ sortedDir seriesDir 'echo_' num2str( Hdr.EchoTime, 3 ) ] ;
+    echoDir = fullfile( sortedDir, seriesDir, ['echo_' num2str( Hdr.EchoTime, 3 ) ] );
          
     if ~exist( echoDir, 'dir' )
         mkdir( echoDir ) ;
