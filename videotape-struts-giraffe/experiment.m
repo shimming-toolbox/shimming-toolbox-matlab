@@ -1,13 +1,28 @@
+%% Dependencies:
+% dcm2niix version v1.0.20200331 (https://github.com/rordenlab/dcm2niix)
+% Note: older versions do not properly convert json files for the phase data
+% (one element of ImageType is missing).
+% dcm2bids (https://github.com/cbedetti/Dcm2Bids)
+% 
+% 1)a
+% cd to directory of experiment.m and enter the following command:
+% 
+% matlab -nodisplay -nosplash -r 'experiment;exit'
+%
+% 1)b
+% The experiment.m can also be opened in matlab's editor and run there
+
+%%
 clear all;
 clc;
 close all;
 %%
-disp('Hello');
 
-% hack: install the shimming-toolbox package
+% Add shimming-toolbox to the path
 addpath(genpath('..'))
 
-data = 'data_testing/'
+% Relative path for the data
+data = 'data_testing/';
 
 % --------------------------------------
 %% Download data when not already present
@@ -17,32 +32,43 @@ if ~isfolder( data )
     unzip(url, '.') ;
 end
 
-tmp = tempname
+% Create temporary folder for processing
+tmp = tempname;
 mkdir(tmp)
 
 % ---------
 %% Dcm2Bids
-%
+% Set output path for niftis
 niftiPath = fullfile( tmp, 'niftis' )
-% TODO : Could add possibility to make own config file : dicom_to_nifti(inputPath, niftiPath, configPath ) 
-dicom_to_nifti(fullfile( data, 'acdc_48' ), niftiPath ) 
-% dicom_to_nifti(fullfile(data, 'ACDC108p'), niftiPath)
+% Call dicom_to_nifti which uses dcm2niix and dcm2bids to seperate into
+% different nifti acquisitions
+dicom_to_nifti(fullfile( data, 'dicom_unsorted' ), niftiPath )
+
+% Set path for patient '' (Patient name is set to nothing for anonymity)
 acquisitionPath = fullfile( niftiPath, 'sub-' );
 
-% TODO : Check if there is data
-
 % ----------
-%% load data (Could be a function)
-% Setting to load data automatically or manually
+%% load data
 
+% Display acquisition path 
 disp(acquisitionPath)
+
+% Display the different acquisitions
 ls(acquisitionPath)
 
-mag = loadniftis(acquisitionPath);
+% Call loadniftis which asks the user which acquisition to load.
+disp('Enter magnitude data');
+[mag, magInfo, magJson] = loadniftis(acquisitionPath);
+
+% Display the size of the input data
 size(mag)
 
-phase = loadniftis(acquisitionPath);
+% Call loadniftis which asks the user which acquisition to load.
+disp('Enter phase data');
+[phase, phaseInfo, phaseJson] = loadniftis(acquisitionPath);
 
+% Display the size of the input data
+size(phase)
 
 % -----------------
 %% Unwrap (sunwrap)
@@ -52,26 +78,28 @@ disp('Unwrap')
 % unwrappedPhase = 
 for iAcq = 1:size(phase,4)
     for iEcho = 1:size(phase,5)
+        % Get the magnitude for a perticular echo
         magNorm = mat2gray(mag(:,:,:,iAcq,iEcho));
 
-        %Assumes there are wraps
+        % Calculate the phase in radians, assumes there are wraps
         phasePi = mat2gray(phase(:,:,:,iAcq,iEcho))*2*pi - pi;
-
+        
+        % Unwrap phase using sunwrap
         unwrappedPhase(:,:,:,iAcq,iEcho) = sunwrap(magNorm .* exp( 1i* phasePi ), 0.1);
   
     end
 end    
     
 % Plot
-% figure(1)
-% subplot(121)
-% imshow(mat2gray(unwrappedPhase(:,:,1,1,1)))
-% hold on
-% title('unwrapped')
-% subplot(122)
-% imshow(mat2gray(phase(:,:,1,1,1)))
-% title('wrapped')
-% hold off
+figure(1)
+subplot(121)
+imshow(mat2gray(unwrappedPhase(:,:,1,1,1)))
+hold on
+title('unwrapped')
+subplot(122)
+imshow(mat2gray(phase(:,:,1,1,1)))
+title('wrapped')
+hold off
 
 % --------------------
 %% Process B0 Field map
@@ -90,13 +118,13 @@ end
 B0Fieldmap = phasediff./(2*pi*echoTimeDiff);
 
 % Plot
-% B0FieldmapPlot = reshape(B0Fieldmap, [size(B0Fieldmap, 1) size(B0Fieldmap, 2) 1 size(B0Fieldmap, 3)]); % montage insists on the format M-by-N-by-1-by-K
-% figure(2)
-% montage(B0Fieldmap,'DisplayRange',[min(min(min(B0FieldmapPlot))) max(max(max(B0FieldmapPlot)))])
-% hold on
-% colorbar
-% title('B0FieldMap (Hz)')
-% hold off
+B0FieldmapPlot = reshape(B0Fieldmap, [size(B0Fieldmap, 1) size(B0Fieldmap, 2) 1 size(B0Fieldmap, 3)]); % montage insists on the format M-by-N-by-1-by-K
+figure(2)
+montage(B0Fieldmap,'DisplayRange',[min(B0FieldmapPlot,[],'all') max(B0FieldmapPlot,[],'all')])
+hold on
+colorbar
+title('B0FieldMap (Hz)')
+hold off
 
 % --------------------
 %% TODO: Save images
