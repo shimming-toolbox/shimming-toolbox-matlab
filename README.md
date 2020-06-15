@@ -37,7 +37,7 @@ For "daemon mode" to work, the MATLAB session must be started from the command l
 user@polymtl ~ $ matlab &
 ```
 
-For the command line start, MATLAB also needs to exist within the system path, e.g. add the following lines (adapted to refer to your version of MATLAB) to ~/.bash_profile
+For the command line start, MATLAB also needs to exist within the system path, e.g. For MacOS, add the following lines (adapted to refer to your version of MATLAB) to ~/.bash_profile
 
 ```
 # add MATLAB path
@@ -98,7 +98,7 @@ The class *ShimUse()* provides the generic user interface for the shim experimen
   - Copy the file `shim_params_template.m` to `shim_params.m` and edit `shim_params.m` according to your setup.
   - Launch experiment by instantiating a ShimUse object with the desired parameters: Shims = ShimUse( shim_params )
 
-- See example: realtime_shimming/example/XXX
+- See example: shimming-toolbox/example/XXX
 
 ## Class definitions
 
