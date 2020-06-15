@@ -1,16 +1,16 @@
 classdef Specs < dynamicprops
 %b0shim.Specs Shim system specifications (hardware description)
-% 
+%
 % A `Specs` object, together with a set of reference maps (basis set), forms
 % the basic representation of a shim system in the Shimming Toolbox. Notably,
 % to optimize the current configuration of a given array for a target b0-field
 % distribution (namely, to *shim it!*) these are the key prerequisities.
 %
-% The `Specs` object "in action" (when called upon by other Toolbox components)
-% behaves much like a static struct: only its properties (`systemName`,
-% `maxCurrentPerChannel`, etc.) are generally at play. As such, system-specific
-% objects can be conveniently saved as .json files, to be loaded and validated
-% by the generic interface—the `Specs()` constructor:
+% When called upon by other Toolbox components, the `Specs` object "in action"
+% behaves much like a static struct: only its *properties* are generally at
+% play. As such, system-specific objects can be conveniently saved as .json
+% files, to be loaded and validated by the generic interface—the `Specs()`
+% constructor:
 %
 % __CONSTRUCTOR SYNTAX__
 %    
@@ -27,6 +27,37 @@ classdef Specs < dynamicprops
 % When reinitializing a `Specs` object from file, `pathToJson` can be supplied
 % as a string or char vector to a publicly accessible URL, or to a local file. 
 %
+% __EXAMPLE__
+%
+% A rudimentary config.json file:
+% (Note that functionality to mix different elements from different arrays-fixed & iso-fixed does not exist yet)
+% {
+%     "name": "my_shim",
+%     "channels": [
+%         {
+%             "name": "Ch. 1",
+%             "units": "A",
+%             "limits": [
+%                 -5,
+%                 5
+%             ],
+%             "positioning": "table-fixed"
+%         },
+%         {
+%             "name": "Ch. 2: X-Gradient",
+%             "units": "mT/m",
+%             "limits": [
+%                 -100,
+%                 100
+%             ],
+%             "positioning": "iso-fixed"
+%         },
+%     ],
+%     "com": [],
+%     "pathToReferenceMaps": "",
+%     "this": []
+% }
+%
 % __ETC__
 %
 % 1. `Specs` inherits from `dynamicprops`: New properties can optionally be
@@ -38,32 +69,17 @@ classdef Specs < dynamicprops
 % 3. Should further customizing be desired (e.g. definining additional methods)
 % `Specs` can be subclassed. 
 %
-% __ETC__
-%
-% See also 
 % dynamicprops https://www.mathworks.com/help/matlab/ref/dynamicprops-class.html  
 % addprop https://www.mathworks.com/help/matlab/ref/dynamicprops.addprop.html  
 % handle https://www.mathworks.com/help/matlab/ref/handle-class.html
 
-%   Specs contains fields
-%
-%       .Amp    
-%           relating to amplifcation
-%
-%       .Com
-%           relating to communication (e.g. RS-232)
-%
-%       .Dac 
-%           relating to digital-to-analog conversion
-%
-
 properties  
 
-    % Shim system/package name: A single string-scalar.
+    % Shim system/package name as a string-scalar.
     % 
     % In general, all the code specific to a given shim system should be fully
-    % contained in a MATLAB subpackage folder. For example, if
-    % `specs.name = "my_shim"`, then the specs.json file should be saved
+    % contained in a MATLAB subpackage folder. For instance, if
+    % `specs.name = "my_shim"`, the specs.json file should be saved
     % (e.g. via `specs.save_json`) to the subpackage: +b0shim/+coils/+my_shim/specs.json
     %
     % `systemName` defines the column header when tabulating optimization results 
@@ -79,72 +95,34 @@ properties
     % __ETC__
     %
     % See also  
-    % channelNames  
-    % channelUnits  
-    % save_json  
-    name(1,1) string {valid.mustBeA(name, ["string" "char"])} = "my_shim" ;
+    % channels  
+    % save_json    
+    name(1,1) string = "my_shim" ;
+    
+    % URL or local path string to the json config file 
+    filename(1,1) string = "";
+    
+    % URL or local file path string to the shim basis maps (NIfTI images?TODO/TBD) 
+    pathToReferenceMaps(:,1) string = "";
 
-    % Channel IDs: 1 string/channel. 
+    % b0shim.parts.Channel object-array 
     %
-    % Used to tabulate `Opt`imization results
+    % See also  
+    % b0shim.parts.Channel
+    channels(:,1) b0shim.parts.Channel ;
+    
+    % b0shim.parts.Port object (Optional)
+    %  
+    % `ports` only needs to be defined for shim systems that subclass `b0shim.Com`
+    % to enable direct hardware control from MATLAB.
     %
-    % `channelNames` defines the row names when tabulating optimization results 
-    % in `b0shim.Opt.optimizeshimcurrents`
-    % 
+    % For other systems (e.g. scanner shims or virtual arrays) the property can
+    % be left empty.
+    %
     % See also
-    % channelUnits
-    channelNames(:,1) {valid.mustBeA(channelNames, "string")} = ["Ch1"; "Ch2"; "Ch3"] ;
+    % b0shim.parts.Port
+    ports(:,1) b0shim.parts.Port ;
 
-    % Shim units: 1 string/channel.  
-    %
-    % Along with `channelNames`, `channelUnits` is used when tabulating
-    % optimization results in `b0shim.Opt.optimizeshimcurrents`
-    % 
-    channelUnits(:,1) {valid.mustBeA(channelUnits, "string")} = ["[A]"; "[A]"; "[A]"] ;
-
-    maxCurrentPerChannel(:,1) {mustBeNumeric} = [5; 5; 5]
-
-end
-
-properties( Dependent, SetAccess='private' )
-
-    nActiveChannels {mustBeScalar, mustBeIntegerOrEmpty} ;
-
-end
-
-% % ------- 
-% % COM 
-% self.Com.baudRate    = 57600 ;  
-% self.Com.readTimeout = 500 ; % [units: ms] 
-%
-% self.Com.dataBits    = 8 ;
-% self.Com.stopBits    = 1 ;
-% self.Com.flowControl = 'NONE' ;
-% self.Com.parity      = 'NONE' ;
-% self.Com.byteOrder   = 'bigEndian' ;
-%
-% % min delay (in seconds) between transmission and reception of data.
-% self.Com.txRxDelay   = 0.001 ; % [units: s]
-%
-% % ------- 
-% % AMP 
-% self.Amp.maxCurrentPerChannel = 5 ; % (absolute) [units: amps]
-% self.Amp.maxCurrentPerBank    = 20 ; % (absolute) [units: amps]
-% % self.Amp.maxCurrentPerRail    = 10 ; % +/- [units: amps]
-%
-% self.Amp.nChannels       = 32 ;  
-% self.Amp.nActiveChannels = 24 ;
-%
-% % ------- 
-% % DAC
-% self.Dac.resolution = 16 ; % [bits]
-% self.Dac.maxCurrent = 5 ; % (absolute) [units: amps]
-
-
-properties
-Amp=[]; % relating to amplification
-Com=[]; % relating to communication (e.g. RS-232)
-Dac=[]; % relating to digital-to-analog conversion 
 end
 
 % =========================================================================
@@ -152,17 +130,13 @@ end
 methods
 % =========================================================================
 function self = Specs( jsonPath )
-%    
-%    specs = b0shim.Specs.load_json( filename ) ;
-%    specs = b0shim.Specs.load_json( url ) ;
-%
-% Loads and decodes a json file to initialize a struct then used to form `specs` a
-% b0shim.Specs object 
+    
     narginchk(0, 1);
     
     %% Check inputs
-    if nargin == 0
-        return; 
+    if nargin == 0 % Return default/template object
+        return;
+    % else % Decode json file to initialize a struct; convert to a b0shim.Specs object 
     end
 
     assert( [ischar(jsonPath) | isstring(jsonPath)] , ...
@@ -185,40 +159,6 @@ function self = Specs( jsonPath )
         specs = jsondecode( jsonTxt );
     end
 
-end
-% =========================================================================
-function [nActiveChannels] = get.nActiveChannels( self )
-
-    nActiveChannels = length( self.channelNames ) ;
-
-end
-% =========================================================================
-function [] = set.maxCurrentPerChannel( self, maxCurrentPerChannel )
-
-    switch length(maxCurrentPerChannel) 
-        case self.nActiveChannels
-            self.maxCurrentPerChannel = maxCurrentPerChannel ;
-        case 1 
-            self.maxCurrentPerChannel = repmat( maxCurrentPerChannel, [self.nActiveChannels 1] );
-        otherwise
-            error( 'b0shim:Specs:nCurrents_neq_nChannels', ...
-                ['maxCurrentPerChannel can be assigned either as a scalar (constant across channels),\n'
-                 ' or as a vector with an entry for each of the `nActiveChannels`.\n'] );
-    end
-end
-% =========================================================================
-function [] = set.channelUnits( self, channelUnits )
-
-    switch length( channelUnits ) 
-        case self.nActiveChannels
-            self.channelUnits = channelUnits;
-        case 1 
-            self.channelUnits = repmat( channelUnits, [self.nActiveChannels 1] );
-        otherwise
-            error( 'b0shim:Specs:nChannelUnits_neq_nChannels', ...
-                ['channelUnits can be assigned either as a scalar (constant across channels),\n'
-                 ' or as a vector with an entry for each of the `nActiveChannels`.\n'] );
-    end
 end
 % =========================================================================
 function [] = save_json( self, filename, Options )
@@ -246,7 +186,7 @@ function [] = save_json( self, filename, Options )
     arguments
         self b0shim.Specs;
         filename string;
-        Options.isOverwriting {mustBeBoolean} = false;
+        Options.isOverwriting {mustBeScalarOrEmpty,valid.mustBeBoolean} = false;
     end
     
     assert( length(filename)==1, ['save_json requires 2 inputs: ' ...
@@ -271,6 +211,11 @@ function [] = save_json( self, filename, Options )
     fwrite( fid, json ) ; 
     fclose(fid) ;
     
+end
+% =========================================================================
+function [isValid] = validate( self )
+%VALIDATE Return true if Specs configuration meets requirements
+    isValid=false;
 end
 % =========================================================================
 
