@@ -6,19 +6,23 @@ mkdir(niftiPath);
 disp(unsortedDicomDir);
 disp(niftiPath);
 
+% Check for which "which" to use depending on OS
 if ispc == 1
-    which = 'where'
+    which = 'where';
 else
-    which = 'which'
+    which = 'which';
 end
+
+% Make sur dcm2niix is installed
 if system([which ' dcm2niix']) ~= 0
     error 'dcm2niix is not installed.'
 end
+% Make sure dcm2bids is installed
 if system([which ' dcm2bids']) ~= 0
     error 'dcm2bids is not installed.'
 end
 
-% BEWARE: shell injection attacks here
+% Create bids structure for data
 participant = '';
 if system(['dcm2bids_scaffold -o ' niftiPath]) ~= 0
     error 'dcm2bids_scaffold'
@@ -29,6 +33,7 @@ if system(['cp -r ' unsortedDicomDir ' ' fullfile(niftiPath,'sourcedata')]) ~= 0
     error 'copy'
 end
 
+% Call the dcm2bids_helper
 if system(['dcm2bids_helper -d ' unsortedDicomDir ' -o ' niftiPath]) ~= 0
     error 'dcm2bids_helper'
 end
@@ -50,6 +55,7 @@ acquisitionNames = {};
 acquisitionNumbers = {};
 iAcq = 0;
 
+% Create list containing all files
 helperfileList =  helperfileList(~ismember({helperfileList.name},{'.','..'}));
 for iFile = 1:length(helperfileList)
     
@@ -69,7 +75,7 @@ for iFile = 1:length(helperfileList)
         % Create future folder name
         acquisitionNumbers{iAcq,1} = sprintf( '%03d', jsonInfo.SeriesNumber ) ;
         acquisitionNames{iAcq,1} = jsonInfo.SeriesDescription;
-        % Modality could be acquisition name
+        % *******Modality could be acquisition name ********
         modality{iAcq,1} = jsonInfo.Modality;
     end
 end
@@ -84,7 +90,7 @@ outputDir = fullfile(niftiPath, 'code');
 
 clear iAcq
 for iAcq = 1:length(acquisitionNames)
-%     create config file place in niftiPath/code
+%     create config file, place in niftiPath/code
     configFilePath = createConfig(outputDir, acquisitionNumbers{iAcq}, acquisitionNames{iAcq}, modality{iAcq});
 
 %     call dcm2bids
@@ -95,7 +101,8 @@ end
 
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+% Local functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function filePath = createConfig(outputDir, acquisitionNumber, acquisitionName, modality)
     
 % Create names
