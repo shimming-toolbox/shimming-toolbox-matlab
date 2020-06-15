@@ -1,6 +1,13 @@
 function dicom_to_nifti( unsortedDicomDir, niftiPath )
-
-%TODO: Output single multi-echo series as 4d nifti
+%DICOM_TO_NIFTI converts dicoms into niftis with dcm2bids output 
+%
+%   dicom_to_nifti( unsortedDicomDir, niftiPath )
+%
+% The input `unsortedDicomDir` is a path to a folder containing either be 
+% ".dcm" or ".IMA". The input `iftiPath`is a folder for the output. 
+%
+% The output will be niftis in seperate folders according to their
+% acquisition names that are in `niftiPath`.
 
 mkdir(niftiPath);
 disp(unsortedDicomDir);
