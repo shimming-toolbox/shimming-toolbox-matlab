@@ -1,9 +1,17 @@
 classdef Channel 
-%b0shim.parts.Channel Defines a shim coil element
+%CHANNEL Defines a shim coil element
+%
+% `Channel` provides a template description of a single coil element. The
+% properties of a `Channel` object-array thereby describe an array of shim
+% coils.
 % 
-% `Channel` provides a template description for a shim coil channel. 
-% An array of `Channel` objects is used to define a shim coil array.
-  
+% __CONSTRUCTOR SYNTAX__
+%    
+%    self = b0shim.parts.Channel()
+%
+% See also  
+% b0shim.parts.Contents  
+% b0shim.Specs  
 
 properties
 
