@@ -1,4 +1,4 @@
-function niftis = loadniftis(path)
+function [niftis, info, json] = loadniftis(path)
 %loadniftis Load a nifti acquisition from dcm2bids 
 %
 %     niftis = loadniftis(path)
@@ -51,9 +51,11 @@ else
     niftiPath = path;
 end
 
-%%% temp
-ls(niftiPath)
-%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% TODO : looking for the number of files is not a rigorous check, channels
+% are also in seperate files. Find a method to assign correctly channels and
+% echoes. Also output corresponding json and nifti info.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Load
 niftiList = dir(fullfile(niftiPath, '*.nii*'));
@@ -67,21 +69,15 @@ end
 % Get info for image size
 [~ ,tmpInfo, ~] = imutils.read_nii(fullfile( niftiList(1).folder , niftiList(1).name ));
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% TODO : looking for the number of files is not a rigorous check, channels
-% are also in seperate files.find a method to assign correctly channels and
-% echoes. Also output corresponding json and nifti info.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 % Format output data according to (x,y,z,time,echoe,channel)
 if length(tmpInfo.ImageSize) == 3 % If more than one time
     for iEcho = 1:nEchoes
-        [niftis(:,:,:,:,iEcho), magInfo(iEcho), magJson(iEcho)] = imutils.read_nii( ...
+        [niftis(:,:,:,:,iEcho), info(iEcho), json(iEcho)] = imutils.read_nii( ...
             fullfile( niftiList(iEcho).folder , niftiList(iEcho).name ) );
     end
 else
     for iEcho = 1:nEchoes
-        [niftis(:,:,:,1,iEcho), magInfo(iEcho), magJson(iEcho)] = imutils.read_nii( ...
+        [niftis(:,:,:,1,iEcho), info(iEcho), json(iEcho)] = imutils.read_nii( ...
             fullfile( niftiList(iEcho).folder , niftiList(iEcho).name ) );
     end
 end
