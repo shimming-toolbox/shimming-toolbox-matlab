@@ -24,7 +24,7 @@ classdef Port
 % See also  
 % [ serialport ](https://www.mathworks.com/help/matlab/ref/serialport.html)  
 % [ b0shim.parts.Contents ](./Contents.md)  
-% [ b0shim.Specs ](../Specs.md)  
+% [ b0shim.Config ](../Config.md)  
 
 properties
 

@@ -1,20 +1,20 @@
-classdef Specs < dynamicprops 
-%b0shim.Specs Shim system configuration (hardware description)
+classdef Config < dynamicprops 
+%b0shim.Config Shim system configuration (hardware description)
 % 
-% A `Specs` object, together with a set of reference maps (basis set), forms
+% A `Config` object, together with a set of reference maps (basis set), forms
 % the basic representation of a shim system in the Shimming Toolbox. Notably,
 % to optimize the current configuration of a given array for a target b0-field
 % distribution (namely, to *shim it!*) these are the key prerequisities.
 %
-% When called upon by other Toolbox components, the `Specs` object "in action"
+% When called upon by other Toolbox components, the `Config` object "in action"
 % behaves much like a static struct: only its *properties* are generally at
 % play. As such, system-specific objects can be conveniently saved as .json
-% config files to be loaded and validated by the generic interface—the `Specs()`
+% config files to be loaded and validated by the generic interface—the `Config()`
 % constructor:
 %
 % __CONSTRUCTOR SYNTAX__
 %    
-%    self = b0shim.Specs( filename )
+%    self = b0shim.Config( filename )
 %
 % Loads the shim configuration object `self` into memory using the config.json
 % file `filename`, which can be a local system file or URL. (If the file is
@@ -29,9 +29,9 @@ classdef Specs < dynamicprops
 % Briefly, call the constructor without arguments to return a default
 % object and convert it to a struct (ignore the warning issued by MATLAB)
 % ```
-%    params = struct( b0shim.Specs() );
+%    params = struct( b0shim.Config() );
 % ```
-% The fields of `params` correspond to Specs properties and can be assigned
+% The fields of `params` correspond to Config properties and can be assigned
 % as needed, e.g. to add and configure 2 channels:
 % ```
 %    params.channels(1:2)    = b0shim.parts.Channel;
@@ -54,17 +54,17 @@ classdef Specs < dynamicprops
 %    % Etc.
 % ```
 %
-% Once configured, the struct can be recast as a proper Specs object
+% Once configured, the struct can be recast as a proper Config object
 % by passing it to the constructor, and saved by calling `write_json` with
 % the desired filename, e.g.
 % ``` 
-%    self = b0shim.Specs( params );
+%    self = b0shim.Config( params );
 %    mkdir( './+b0shim/+coils/+my_shim_array' );
 %    write_json( self, './+b0shim/+coils/+my_shim_array/config.json' );
 % ``` 
 % 
 
-% When reinitializing a `Specs` object from an existing json file, `filename`
+% When reinitializing a `Config` object from an existing json file, `filename`
 % can be supplied as a string or char vector to a publicly accessible URL, or
 % to a local file. 
 %
@@ -74,14 +74,14 @@ classdef Specs < dynamicprops
 %
 % __ETC__
 %
-% 1. `Specs` inherits from `dynamicprops`: New properties can optionally be
+% 1. `Config` inherits from `dynamicprops`: New properties can optionally be
 % added via `addprop` method. 
 %
 % 2. `dynamicprops` is a `handle` class: Beware of the distinction when copying
 % a variable instance!
 %
 % 3. Should further customizing be desired (e.g. definining additional methods)
-% `Specs` can be subclassed. 
+% `Config` can be subclassed. 
 % 
 % 4. Though the configuration allows a mix of different `channel.positioning` modes
 % the functionality to deal with the mix does not yet exist—**TODO**. (This
@@ -100,8 +100,8 @@ properties (SetAccess=immutable)
     % 
     % In general, all the code specific to a given shim system should be fully
     % contained in a MATLAB subpackage folder. For instance, if
-    % `specs.name = "my_shim"`, the specs.json file should be saved
-    % (e.g. via `write_json()` to the subpackage: +b0shim/+coils/+my_shim/specs.json
+    % `Config.name = "my_shim"`, the config.json file should be saved
+    % (e.g. via `write_json()` to the subpackage: +b0shim/+coils/+my_shim/config.json
     %
     % `systemName` defines the column header when tabulating optimization results 
     % in `b0shim.Opt.optimizeshimcurrents`
@@ -153,7 +153,7 @@ end
 % =========================================================================
 methods  
 % =========================================================================
-function self = Specs( varargin )
+function self = Config( varargin )
     
     %% Check inputs
     narginchk(0, 1);
@@ -171,8 +171,8 @@ function self = Specs( varargin )
     %% Assign properties from input struct 
         
     fieldNames = fieldnames( params );
-    metaSpecs  = meta.class.fromName( 'b0shim.Specs' );
-    propNames  = {metaSpecs.PropertyList.Name} ;
+    metaConfig  = meta.class.fromName( 'b0shim.Config' );
+    propNames  = {metaConfig.PropertyList.Name} ;
 
     for iField = 1 : numel( fieldNames )
         
@@ -211,7 +211,7 @@ function [self] = loadobj( params )
 % saveobj
 % [ loadobj ](https://www.mathworks.com/help/matlab/ref/loadobj.html)
 
-    self = b0shim.Specs( params );
+    self = b0shim.Config( params );
 
 end
 % =========================================================================
