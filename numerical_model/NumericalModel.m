@@ -2,6 +2,9 @@ classdef NumericalModel < handle
     %NUMERICALMODEL Numerical Model for B0 data generation.
     
     properties
+        gamma = 42.58 * 10^6; % Hz/Tesla
+        fieldStrength = 3.0; % Tesla
+        
         starting_volume
         volume
         
@@ -43,7 +46,18 @@ classdef NumericalModel < handle
         end
         
     end
-
+    
+    methods (Static)
+        function signal = generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma)
+            % FA = flip angle in degrees
+            % T2star in seconds
+            % TE in seconds
+            % B0 in tesla
+            % gamma in Hz/Tesla
+            signal = protonDensity.*sind(FA).*exp(-TE./T2star-1i*gamma*deltaB0.*TE);
+        end
+    end
+    
     methods (Access = protected)
         function customVolume = customize_shepp_logan(obj, volume, class1, class2, class3)
             customVolume = volume;

@@ -62,6 +62,55 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
 
             testCase.assertTrue(all(all(testObj.volume.phase == 0)));
         end
+
+        function test_generate_signal_case_1(testCase)
+            
+            protonDensity = 80;
+            
+            T2star = 100;
+            FA = 90;
+            TE = 0;
+            deltaB0 = 0;
+            gamma = 42.58 * 10^6;
+            
+            actual_signal = NumericalModel.generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma);
+            expected_signal = protonDensity;
+            
+            testCase.verifyEqual(actual_signal, expected_signal);
+        end
+
+        function test_generate_signal_case_2(testCase)
+            
+            FA = 0;
+            
+            protonDensity = 80;
+            T2star = 100;
+            TE = 0;
+            deltaB0 = 0;
+            gamma = 42.58 * 10^6;
+            
+            actual_signal = NumericalModel.generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma);
+            expected_signal = 0;
+            
+            testCase.verifyEqual(actual_signal, expected_signal);
+        end
+
+        
+        function test_generate_signal_case_3(testCase)
+            
+            FA = 20;
+            protonDensity = 80;
+            T2star = 100;
+            TE = 0.010;
+            deltaB0 = 2;
+            gamma = 42.58 * 10^6;
+            
+            actual_signal = NumericalModel.generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma);
+            expected_signal = protonDensity.*sind(FA).*exp(-TE./T2star-1i*gamma*deltaB0.*TE);
+            
+            testCase.assertTrue(~isreal(expected_signal))
+            testCase.verifyEqual(actual_signal, expected_signal);
+        end
     end
 
 end
