@@ -1,0 +1,25 @@
+# Run shimming-toolbox unit tests.
+
+# TODO:
+#trigger:
+#- master
+
+# use the self-hosted runner at tristano.neuro.polymtl.ca
+# this has Matlab installed and a license to use it.
+pool: 'Default'
+
+steps:
+- script: |
+    # Beware: you MUST put `quit` at the end; Matlab does not auto-quit.
+    # And worse, our Matlab license only allows one process at a time (TODO: verify this),
+    # so a forgotten `quit` will block all tests on all branches.
+    # https://www.mathworks.com/matlabcentral/answers/523194-matlab-script-in-batch-from-unix-command-line
+    matlab -nodisplay -nosplash -r "disp('Unit tests!'); quit"
+  displayName: 'Unit Tests'
+- script: |
+    # Beware: you MUST put `quit` at the end; Matlab does not auto-quit.
+    # And worse, our Matlab license only allows one process at a time (TODO: verify this),
+    # so a forgotten `quit` will block all tests on all branches.
+    # https://www.mathworks.com/matlabcentral/answers/523194-matlab-script-in-batch-from-unix-command-line
+    matlab -nodisplay -nosplash -r "generate_doc.m; quit"
+  displayName: 'Build doc'
