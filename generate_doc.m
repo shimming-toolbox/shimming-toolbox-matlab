@@ -3,12 +3,16 @@
 % create .md files. Each file contains the formatted documentation for 
 % each function that is located under the folders.
 % 
-% Authors: Ryan Topfer, Alexandre D'Astous
+% Authors: Ryan Topfer, Alexandre D'Astous, Julien Cohen-Adad
 
 %% Initial setup
 % create new temp folder
 !mkdir temp
 cd temp
+
+pwd
+ls
+quit
 
 % Clone shimming-toolbox repos and add to matlab path
 !git clone https://github.com/shimming-toolbox/helpDocMd.git
