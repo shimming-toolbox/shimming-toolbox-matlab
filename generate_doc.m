@@ -23,7 +23,7 @@ addpath(genpath('./shimming-toolbox'))
 
 %% branch
 % Go into repository folder
-% cd shimming-toolbox
+cd shimming-toolbox
 % Create branch called update-website, if it already exists, wont change
 % branch
 !git checkout -b update-website
