@@ -18,9 +18,6 @@ clc;
 close all;
 %%
 
-% Add shimming-toolbox to the path
-addpath(genpath('..'))
-
 % Relative path for the data
 data = 'data_testing/';
 
