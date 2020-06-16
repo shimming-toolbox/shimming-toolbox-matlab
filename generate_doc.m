@@ -41,7 +41,7 @@ outputPath = './shimming-toolbox/docs/contributing/api_documentation';
 cd shimming-toolbox
 !git add *
 !git commit -m "Updated documentation"
-!git push
+!git push -u origin gh-pages
 cd ..
 %% The following code needs to be uncommented once MATLAB 2020 is installed 
 % on tristano
