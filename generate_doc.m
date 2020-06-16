@@ -12,7 +12,7 @@ cd temp
 
 pwd
 ls
-quit
+exit
 
 % Clone shimming-toolbox repos and add to matlab path
 !git clone https://github.com/shimming-toolbox/helpDocMd.git
