@@ -13,9 +13,17 @@
 !git checkout gh-pages
 
 %% Initial setup
+ls
+pwd
 cd ..
+ls
+pwd
+disp('Rename')
 % Rename 's' folder to 'shimming-toolbox'
-!mv s shimming-toolbox
+!mv -r s shimming-toolbox
+ls
+pwd
+
 % create new temp folder
 % !mkdir temp
 % Clone doc generation software
