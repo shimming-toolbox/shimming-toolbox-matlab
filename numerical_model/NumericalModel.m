@@ -6,7 +6,10 @@ classdef NumericalModel < handle
         volume
         
         % Default times in seconds @ 3T
-        T2star = struct('WM', 0.053, 'GM', 0.066, 'CSF', 0.10) 
+        T2star = struct('WM', 0.053, 'GM', 0.066, 'CSF', 0.10)
+        
+        % Default proton density
+        protonDensity = struct('WM', 70, 'GM', 82, 'CSF', 100)
     end
    
     methods
@@ -31,10 +34,11 @@ classdef NumericalModel < handle
             obj.starting_volume = phantom(dims(1), dims(2));
             
             obj.volume = struct('magn', [], 'phase', [], 'T2star', []);
-            obj.volume.magn = obj.starting_volume;
-            obj.volume.phase = obj.volume.magn * 0;
             
+            obj.volume.magn = obj.customize_shepp_logan(obj.starting_volume, obj.protonDensity.WM, obj.protonDensity.GM, obj.protonDensity.CSF);
+            obj.volume.phase = obj.volume.magn * 0;
             obj.volume.T2star = obj.customize_shepp_logan(obj.starting_volume, obj.T2star.WM, obj.T2star.GM, obj.T2star.CSF);
+
 
         end
         
