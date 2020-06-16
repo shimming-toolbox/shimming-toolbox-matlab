@@ -1,6 +1,6 @@
-classdef Specs < dynamicprops
-%b0shim.Specs Shim system specifications (hardware description)
-%
+classdef Specs < dynamicprops 
+%b0shim.Specs Shim system configuration (hardware description)
+% 
 % A `Specs` object, together with a set of reference maps (basis set), forms
 % the basic representation of a shim system in the Shimming Toolbox. Notably,
 % to optimize the current configuration of a given array for a target b0-field
@@ -9,54 +9,68 @@ classdef Specs < dynamicprops
 % When called upon by other Toolbox components, the `Specs` object "in action"
 % behaves much like a static struct: only its *properties* are generally at
 % play. As such, system-specific objects can be conveniently saved as .json
-% files, to be loaded and validated by the generic interface—the `Specs()`
+% config files to be loaded and validated by the generic interface—the `Specs()`
 % constructor:
 %
 % __CONSTRUCTOR SYNTAX__
 %    
-%    self = b0shim.Specs( )
-%    self = b0shim.Specs( pathToJson )
-%     
-% The void call to `b0shim.Specs()` returns the default object `self`. 
-% This is effectively a "wizard" mode to help define a new shim system (an
-% alternative to writing the json from scratch) and should only need to be
-% performed once: Properties can be assigned prior to writing to disk via  
-%      
-%     self.save_json( filename )  
+%    self = b0shim.Specs( filename )
 %
-% When reinitializing a `Specs` object from file, `pathToJson` can be supplied
-% as a string or char vector to a publicly accessible URL, or to a local file. 
+% Loads the shim configuration object `self` into memory using the config.json
+% file `filename`, which can be a local system file or URL. (If the file is
+% hosted on GitHub, note that the URL must be to the "Raw" file.)
+% 
+% **NOTE**: *Object properties are immutable* (fixed upon construction);
+% nonetheless, system configurations can easily be edited or created and
+% (optionally) saved to .json file. This can be achieved by editing/creating
+% the config.json file, or within MATLAB, e.g. by adapting an existing script an
+% such as [ b0shim.coils.greg ](./coils/greg/write_config_file.md)).
+%
+% Briefly, call the constructor without arguments to return a default
+% object and convert it to a struct (ignore the warning issued by MATLAB)
+% ```
+%    params = struct( b0shim.Specs() );
+% ```
+% The fields of `params` correspond to Specs properties and can be assigned
+% as needed, e.g. to add and configure 2 channels:
+% ```
+%    params.channels(1:2)    = b0shim.parts.Channel;
+%    
+%    % Configure the 1st channel
+%    params.channels(1).name        = "Ch. 1";
+%    params.channels(1).units       = "A";
+%    params.channels(1).limits      = [-5 5]; 
+%    params.channels(1).positioning = "iso-fixed";
+%
+%    % Configure the 2nd channel
+%    params.channels(2).name        = "Ch. 2";
+%    params.channels(2).units       = "A";
+%    params.channels(2).limits      = [-3 3]; 
+%    params.channels(2).positioning = "iso-fixed";
+%
+%    % Assign a name to the entire system:
+%    params.name = "my_shim_array";
+%
+%    % Etc.
+% ```
+%
+% Once configured, the struct can be recast as a proper Specs object
+% by passing it to the constructor, and saved by calling `write_json` with
+% the desired filename, e.g.
+% ``` 
+%    self = b0shim.Specs( params );
+%    mkdir( './+b0shim/+coils/+my_shim_array' );
+%    write_json( self, './+b0shim/+coils/+my_shim_array/config.json' );
+% ``` 
+% 
+
+% When reinitializing a `Specs` object from an existing json file, `filename`
+% can be supplied as a string or char vector to a publicly accessible URL, or
+% to a local file. 
 %
 % __EXAMPLE__
 %
-% A rudimentary config.json file:
-% (Note that functionality to mix different elements from different arrays-fixed & iso-fixed does not exist yet)
-% {
-%     "name": "my_shim",
-%     "channels": [
-%         {
-%             "name": "Ch. 1",
-%             "units": "A",
-%             "limits": [
-%                 -5,
-%                 5
-%             ],
-%             "positioning": "table-fixed"
-%         },
-%         {
-%             "name": "Ch. 2: X-Gradient",
-%             "units": "mT/m",
-%             "limits": [
-%                 -100,
-%                 100
-%             ],
-%             "positioning": "iso-fixed"
-%         },
-%     ],
-%     "com": [],
-%     "pathToReferenceMaps": "",
-%     "this": []
-% }
+% The rudimentary config.json file should resemble
 %
 % __ETC__
 %
@@ -68,19 +82,26 @@ classdef Specs < dynamicprops
 %
 % 3. Should further customizing be desired (e.g. definining additional methods)
 % `Specs` can be subclassed. 
+% 
+% 4. Though the configuration allows a mix of different `channel.positioning` modes
+% the functionality to deal with the mix does not yet exist—**TODO**. (This
+% probably doesn't apply to any existing hardware anyway but it could be
+% interesting!)
 %
-% dynamicprops https://www.mathworks.com/help/matlab/ref/dynamicprops-class.html  
-% addprop https://www.mathworks.com/help/matlab/ref/dynamicprops.addprop.html  
-% handle https://www.mathworks.com/help/matlab/ref/handle-class.html
+% See also  
+% [ dynamicprops ](https://www.mathworks.com/help/matlab/ref/dynamicprops-class.html)  
+% [ addprop ](https://www.mathworks.com/help/matlab/ref/dynamicprops.addprop.html)  
+% [ handle ](https://www.mathworks.com/help/matlab/ref/handle-class.html)  
+% [ b0shim.Contents ]( ../Contents.md )  
 
-properties  
+properties (SetAccess=immutable)
 
     % Shim system/package name as a string-scalar.
     % 
     % In general, all the code specific to a given shim system should be fully
     % contained in a MATLAB subpackage folder. For instance, if
     % `specs.name = "my_shim"`, the specs.json file should be saved
-    % (e.g. via `specs.save_json`) to the subpackage: +b0shim/+coils/+my_shim/specs.json
+    % (e.g. via `write_json()` to the subpackage: +b0shim/+coils/+my_shim/specs.json
     %
     % `systemName` defines the column header when tabulating optimization results 
     % in `b0shim.Opt.optimizeshimcurrents`
@@ -105,117 +126,105 @@ properties
     % URL or local file path string to the shim basis maps (NIfTI images?TODO/TBD) 
     pathToReferenceMaps(:,1) string = "";
 
-    % b0shim.parts.Channel object-array 
+    % Shim coil-element properties as a `b0shim.parts.Channel` object array
+    % 
+    % Each element has the 4 configurable properties `name, units, limits, positioning`
+    % (e.g., `"Ch.1", "A", [-5 5], "table-fixed"). Property desciptions are provided
+    % in the class documentation.
     %
     % See also  
-    % b0shim.parts.Channel
+    % [ b0shim.parts.Channel ]
     channels(:,1) b0shim.parts.Channel ;
     
-    % b0shim.parts.Port object (Optional)
+    % Serial-port parameters as a b0shim.parts.Port object (applies to specific systems only)
     %  
-    % `ports` only needs to be defined for shim systems that subclass `b0shim.Com`
-    % to enable direct hardware control from MATLAB.
+    % `ports` only needs to be defined for shim systems that subclass
+    % `b0shim.Com` to enable direct hardware control from MATLAB. For other
+    % systems (e.g. scanner shims or virtual arrays) the property can be left
+    % unassigned (i.e. the object will be `empty`).
     %
-    % For other systems (e.g. scanner shims or virtual arrays) the property can
-    % be left empty.
-    %
-    % See also
-    % b0shim.parts.Port
+    % See also  
+    % [ b0shim.parts.Port ]
     ports(:,1) b0shim.parts.Port ;
 
 end
 
 % =========================================================================
 % =========================================================================
-methods
+methods  
 % =========================================================================
-function self = Specs( jsonPath )
-    
-    narginchk(0, 1);
+function self = Specs( varargin )
     
     %% Check inputs
+    narginchk(0, 1);
     if nargin == 0 % Return default/template object
         return;
-    % else % Decode json file to initialize a struct; convert to a b0shim.Specs object 
+    elseif ischar(varargin{1}) || isstring(varargin{1})
+        params = read_json( varargin{1} );
+    elseif isstruct( varargin{1} )
+        params = varargin{1};
+    else
+        error( [mfilename ' constructor requires a single input:\n ' ...
+            'The path to a (json) config file, or a struct of configuration parameters'] )
     end
 
-    assert( [ischar(jsonPath) | isstring(jsonPath)] , ...
-        'Specs constructor accepts a single input: a filepath or URL to a json file') ;
+    %% Assign properties from input struct 
+        
+    fieldNames = fieldnames( params );
+    metaSpecs  = meta.class.fromName( 'b0shim.Specs' );
+    propNames  = {metaSpecs.PropertyList.Name} ;
 
-    specs = load_json( jsonPath ) 
+    for iField = 1 : numel( fieldNames )
+        
+        % value to be assigned
+        value = getfield( params, fieldNames{iField} );
+       
+        % look for match (case-insensitive)
+        iProp = strcmpi( fieldNames{iField}, propNames );
 
-    % ------------
-    %% Local functions 
-    
-    function [specs] = load_json( jsonPath )
-    %LOAD_JSON Return `specs` struct from json file (system path or URL)
-
-        if isfile( jsonPath )
-            jsonTxt = fileread( jsonPath );
-        else
-            jsonTxt = webread( jsonPath, weboptions( 'ContentType', 'text') );
+        if any(iProp) % assign a standard property 
+            self.(propNames{iProp}) = value ;
+        else % assign a custom parameter
+            addprop(self, fieldNames{iField});
+            self.(fieldNames{iField}) = value; 
         end
-            
-        specs = jsondecode( jsonTxt );
     end
 
 end
 % =========================================================================
-function [] = save_json( self, filename, Options )
-%SAVE_JSON Writes a `Specs` instance to json file
-%    
-%    specs.save_json( filename )
-%    specs.save_json( filename, "isOverwriting", true )
-% 
-% Encodes the `specs` object as json and writes to the path string `filename`.
+
+end
+% =========================================================================
+% =========================================================================
+methods (Hidden)
+% =========================================================================
+function [self] = loadobj( params )
+%LOADOBJ Special load process for .mat files
 %
-% To overwrite an existing file, use the `(..., "isOverwriting", true)`
-% argument-pair. 
+% As the class constructor generally requires a struct/json input argument,
+% the procedure for loading from/saving to *.mat* files needs to be customized.
+% (Note, this is separate from the .json load/save procedure.) 
+%  
+% [ See ](https://www.mathworks.com/help/matlab/matlab_oop/passing-arguments-to-constructors-during-load.html)  
 %
-% __ETC__
-%
-% - `save_json` wraps to Matlab's `jsonencode`, which outputs content in "compact"
-% form. If desired, many convenient tools exist to prettify (expand) the .json
-% file once written, such as:  
-%   1. [webbrowser](https://jsonformatter.org/json-pretty-print)  
-%   2. python CLI: `python -m json.tool filename`
-%   3. [vscode](https://marketplace.visualstudio.com/items?itemName=vthiery.prettify-selected-json)
+% See also
+% saveobj
+% [ loadobj ](https://www.mathworks.com/help/matlab/ref/loadobj.html)
+
+    self = b0shim.Specs( params );
+
+end
+% =========================================================================
+function [params] = saveobj( self )
+%SAVEOBJ Special save process for .mat files
 %
 % See also  
-% jsonencode    https://www.mathworks.com/help/matlab/ref/jsonencode.html
-    arguments
-        self b0shim.Specs;
-        filename string;
-        Options.isOverwriting {mustBeScalarOrEmpty,valid.mustBeBoolean} = false;
-    end
-    
-    assert( length(filename)==1, ['save_json requires 2 inputs: ' ...
-        'A b0shim.Specs instance and a string specifying the ouput file'] );
+% loadobj
 
-    if ~contains(filename, '.') % Add extension
-        filename = strcat( filename, '.json') ;
-    end
+    warning( 'OFF', 'MATLAB:structOnObject' );
+    params = struct( self ); 
+    warning( 'ON', 'MATLAB:structOnObject' );
 
-    assert( [~isfile(filename) | Options.isOverwriting], ['File already exists.' ...
-         'Use the name-value pair (...,"isOverwriting", true) to force overwrite.'])
-
-    % [~, folderName] = fileparts( fileparts( filename ) );
-    %
-    % if ~startsWith(folderName, '+')
-    %     warning('specs.json should typically be saved to a coil-specific package directory...');
-    % end
-
-    json = jsonencode( self ) ;
-    
-    fid = fopen( filename, 'w' ) ;
-    fwrite( fid, json ) ; 
-    fclose(fid) ;
-    
-end
-% =========================================================================
-function [isValid] = validate( self )
-%VALIDATE Return true if Specs configuration meets requirements
-    isValid=false;
 end
 % =========================================================================
 
