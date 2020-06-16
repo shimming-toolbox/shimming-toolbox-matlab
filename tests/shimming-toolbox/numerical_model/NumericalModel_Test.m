@@ -10,6 +10,7 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
     end
 
     methods (Test)
+        %% Class instance tests
         function test_initiate_object_is_expected_class(testCase)
 
             testObj = NumericalModel();
@@ -27,6 +28,7 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             testCase.verifyEqual(actualVolume, expectedVolume)
         end
  
+        %% Shepp-Logan type tests instance test
         function test_shepplogan_initialization_returns_expected_starting_volume(testCase)
             testObj = NumericalModel('Shepp-Logan');
 
@@ -49,20 +51,46 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
         function test_shepp_logan_defines_expected_magnitude_values(testCase)
             testObj = NumericalModel('Shepp-Logan');
 
-            testCase.assertTrue(all(testObj.volume.magn(abs(testObj.starting_volume-0.2)<0.001) == testObj.protonDensity.WM));
-            testCase.assertTrue(all(testObj.volume.magn(abs(testObj.starting_volume-0.3)<0.001) ==  testObj.protonDensity.GM));
-            testCase.assertTrue(all(testObj.volume.magn(abs(testObj.starting_volume-1)<0.001) == testObj.protonDensity.CSF));
-            testCase.assertTrue(all(testObj.volume.magn(abs(testObj.starting_volume)<0.001&testObj.starting_volume~=0) == testObj.protonDensity.WM/2));
-            testCase.assertTrue(all(testObj.volume.magn(abs(testObj.starting_volume-0.1)<0.001) == (testObj.protonDensity.GM - testObj.protonDensity.WM/2)/2));
-            testCase.assertTrue(all(testObj.volume.magn(abs(testObj.starting_volume-0.4)<0.001) == testObj.protonDensity.GM * 1.5));
+            testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume-0.2)<0.001) == testObj.protonDensity.WM));
+            testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume-0.3)<0.001) ==  testObj.protonDensity.GM));
+            testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume-1)<0.001) == testObj.protonDensity.CSF));
+            testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume)<0.001&testObj.starting_volume~=0) == testObj.protonDensity.WM/2));
+            testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume-0.1)<0.001) == (testObj.protonDensity.GM - testObj.protonDensity.WM/2)/2));
+            testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume-0.4)<0.001) == testObj.protonDensity.GM * 1.5));
         end
- 
-        function test_shepp_logan_defines_expected_zero_initial_phase(testCase)
+
+        %% simulate_signal method tests
+        
+        function test_simulate_signal_returns_expected_volume_size(testCase)
             testObj = NumericalModel('Shepp-Logan');
-
-            testCase.assertTrue(all(all(testObj.volume.phase == 0)));
+            
+            FA = 15;
+            TE = [0.003 0.015];
+            
+            
+            testObj.simulate_measurement(FA, TE);
+                        
+            expectedDims = [128, 128, 1, length(TE)];
+            actualDims = size(testObj.measurement);
+            testCase.verifyEqual(actualDims, expectedDims);
         end
-
+          
+         function test_getFunctions_returns_volume_of_expected_datatype(testCase)
+            testObj = NumericalModel('Shepp-Logan');
+            
+            FA = 15;
+            TE = [0.003 0.015];
+            
+            
+            testObj.simulate_measurement(FA, TE);
+            
+            testCase.assertTrue(isreal(testObj.getMagnitude()));
+            testCase.assertTrue(isreal(testObj.getPhase()));
+            testCase.assertTrue(isreal(testObj.getReal()));
+            testCase.assertTrue(isreal(testObj.getImaginary()));
+         end
+        
+        %% generate_signal method tests
         function test_generate_signal_case_1(testCase)
             
             protonDensity = 80;
@@ -95,7 +123,6 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             testCase.verifyEqual(actual_signal, expected_signal);
         end
 
-        
         function test_generate_signal_case_3(testCase)
             
             FA = 20;
