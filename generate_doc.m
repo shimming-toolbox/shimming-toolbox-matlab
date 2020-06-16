@@ -35,6 +35,7 @@ src = './shimming-toolbox';
 outputPath = './shimming-toolbox/docs/contributing/api_documentation';
 
 % Create dummy .md file
+!mkdir shimming-toolbox/docs/contributing
 !echo "Awesome!!!" > ./shimming-toolbox/docs/contributing/dummy.md
 % Push to gh-pages branch
 cd shimming-toolbox
