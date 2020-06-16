@@ -5,38 +5,28 @@
 % 
 % Authors: Ryan Topfer, Alexandre D'Astous, Julien Cohen-Adad
 
+%% Checkout gh-pages branch
+% at this point in the pipeline, we are located in the root of the
+% shimming-toolbox repository, under the master branch.
+!git checkout -b gh-pages
+% go into it if it previously failed, if not then it does not do anything
+!git checkout gh-pages
+
 %% Initial setup
+cd ..
+% Rename 's' folder to 'shimming-toolbox'
+!mv s shimming-toolbox
 % create new temp folder
-!mkdir temp
+% !mkdir temp
+% Clone doc generation software
+!git clone https://github.com/shimming-toolbox/helpDocMd.git
+% Add various paths
+addpath(genpath('./helpDocMd/src'))
+addpath(genpath('./shimming-toolbox'))
 % cd temp
 
-pwd
-ls
-exit
-
-% Clone shimming-toolbox repos and add to matlab path
-!git clone https://github.com/shimming-toolbox/helpDocMd.git
-
-% might not need it anymore
-% !git clone https://github.com/ewiger/yamlmatlab.git  
-
-addpath(genpath('./helpDocMd/src'))
-addpath(genpath('./yamlmatlab'))
-!git clone https://github.com/shimming-toolbox/shimming-toolbox.git
-addpath(genpath('./shimming-toolbox'))
-
-%% branch
-% Go into repository folder
-% cd shimming-toolbox
-% Create branch called update-website, if it already exists, wont change
-% branch
-!git checkout -b update-website
-% go into it if it previously failed, if not then it does not do anything
-!git checkout update-website
-cd ..
-
 %% API doc
-% delete current shimming-toolbox/docs/contributing/api_documentation/*
+% overwrite shimming-toolbox/docs/contributing/api_documentation/
 !rm -r shimming-toolbox/docs/contributing/api_documentation
 !mkdir shimming-toolbox/docs/contributing/api_documentation
 
@@ -44,23 +34,25 @@ cd ..
 src = './shimming-toolbox';
 outputPath = './shimming-toolbox/docs/contributing/api_documentation';
 
-src = Documentor.findfiles( src );
-
-% Remove files not working
-src = src(~contains(src,'shimming-toolbox/Coils/Shim_Siemens/Shim_Prisma/ShimOpt_Prisma.m'));
-src = src(~contains(src,'shimming-toolbox/Coils/Shim_Siemens/Shim_Prisma/Shim_HGM_Prisma/ShimOpt_HGM_Prisma.m'));
-src = src(~contains(src,'shimming-toolbox/Coils/Shim_Siemens/Shim_Prisma/Shim_IUGM_Prisma_fit/ShimOpt_IUGM_Prisma_fit.m'));
-src = src(~contains(src,'shimming-toolbox/Ui/ShimUse.m'));
-
-% Remove files not to be documented
-src = src(~contains(src,'shimming-toolbox/tests'));
-
-% Call documentor
-Options.outputDir = './shimming-toolbox/docs/contributing/api_documentation';
-Dr = Documentor( src , Options ) ;
-
-% Generate documentation
-Dr.printdoc() ;
+%% The following code needs to be uncommented once MATLAB 2020 is installed 
+% on tristano
+% src = Documentor.findfiles( src );
+% 
+% % Remove files not working
+% src = src(~contains(src,'shimming-toolbox/Coils/Shim_Siemens/Shim_Prisma/ShimOpt_Prisma.m'));
+% src = src(~contains(src,'shimming-toolbox/Coils/Shim_Siemens/Shim_Prisma/Shim_HGM_Prisma/ShimOpt_HGM_Prisma.m'));
+% src = src(~contains(src,'shimming-toolbox/Coils/Shim_Siemens/Shim_Prisma/Shim_IUGM_Prisma_fit/ShimOpt_IUGM_Prisma_fit.m'));
+% src = src(~contains(src,'shimming-toolbox/Ui/ShimUse.m'));
+% 
+% % Remove files not to be documented
+% src = src(~contains(src,'shimming-toolbox/tests'));
+% 
+% % Call documentor
+% Options.outputDir = './shimming-toolbox/docs/contributing/api_documentation';
+% Dr = Documentor( src , Options ) ;
+% 
+% % Generate documentation
+% Dr.printdoc() ;
 
 % Update mkDocs.yml APIdoc navigation automatically using functions from
 % @Documentor.printYml
@@ -88,9 +80,11 @@ Dr.printdoc() ;
 
 %%
 % Delete temp folder and all subfolders
-cd ..
-rmdir temp s
-
+% cd ..
+% rmdir temp s
+% 
+rmdir shimming-toolbox s
+rmdir helpDocMd s
 disp('done')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
