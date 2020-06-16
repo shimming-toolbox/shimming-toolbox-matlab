@@ -14,5 +14,12 @@ steps:
     # And worse, our Matlab license only allows one process at a time (TODO: verify this),
     # so a forgotten `quit` will block all tests on all branches.
     # https://www.mathworks.com/matlabcentral/answers/523194-matlab-script-in-batch-from-unix-command-line
-    matlab -nojvm -nodisplay -nosplash -r "disp('Hello from Matlab'); quit"
+    matlab -nodisplay -nosplash -r "disp('Unit tests!'); quit"
   displayName: 'Unit Tests'
+- script: |
+    # Beware: you MUST put `quit` at the end; Matlab does not auto-quit.
+    # And worse, our Matlab license only allows one process at a time (TODO: verify this),
+    # so a forgotten `quit` will block all tests on all branches.
+    # https://www.mathworks.com/matlabcentral/answers/523194-matlab-script-in-batch-from-unix-command-line
+    matlab -nodisplay -nosplash -r "disp('Build the docs!'); quit"
+  displayName: 'Build doc'
