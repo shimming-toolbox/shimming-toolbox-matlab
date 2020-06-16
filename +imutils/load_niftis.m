@@ -1,7 +1,7 @@
-function [niftis, info, json] = loadniftis(path)
-%LOADNIFTIS Load a nifti acquisition from dcm2bids 
+function [niftis, info, json] = load_niftis(path)
+%LOAD_NIFTIS Load a nifti acquisition from dcm2bids 
 %
-%     [niftis, info, json] = loadniftis(path)
+%     [niftis, info, json] = load_niftis(path)
 %
 % If `path` is a folder containing niftis, directly output niftis. If `path` is
 % a folder containing acquisitions, ask the user for which acquisition.
