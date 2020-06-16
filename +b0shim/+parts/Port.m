@@ -1,5 +1,7 @@
 classdef Port 
-%PORT Serial port protocol parameters
+%b0shim.parts.Port Serial port protocol parameters
+%    
+%    self = b0shim.parts.Port()
 % 
 % `Port` properties are simply 6 of the 7 the parameters passed to MATLAB's
 % `serialport` function when opening the communication line between a PC and
@@ -8,30 +10,21 @@ classdef Port
 % (i.e. systems that subclass `b0shim.Com` to define a communication interface).
 % For a host MRI, or a virtual shim array, this classdef is likely irrelevant.
 %
-% __CONSTRUCTOR SYNTAX__
-%    
-%    self = b0shim.parts.Port()
-%
-% Properties:  
-% ```
-% BaudRate, DataBits, StopBits, FlowControl, ByteOrder, Timeout  
-% ```
-%
 % __NOTES__  
 %
-% 1. While `Port` properties correspond to `serialport` arguments, the default
-% assignments differ (`Port` defaults are informed by the microcontrollers in use
-% at our lab).
+% 1. While `Port` properties all correspond to `serialport()` arguments,
+% their default values differ (`Port` defaults are informed by the
+% microcontrollers in use at our lab).
 %
 % 2. As a safety feature, the mandatory first argument to `serialport()`—the
 % device ID—is not included as a `Port` property: when connecting to a device,
 % a user still needs to specify the port name. (The parameter, in any case,
 % tends to vary as device names are determined by the OS.)
-%
+% 
 % See also  
-% b0shim.parts.Contents  
-% b0shim.Specs  
-% serialport    https://www.mathworks.com/help/matlab/ref/serialport.html
+% [ serialport ](https://www.mathworks.com/help/matlab/ref/serialport.html)  
+% [ b0shim.parts.Contents ](./Contents.md)  
+% [ b0shim.Specs ](../Specs.md)  
 
 properties
 
