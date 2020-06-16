@@ -21,5 +21,5 @@ steps:
     # And worse, our Matlab license only allows one process at a time (TODO: verify this),
     # so a forgotten `quit` will block all tests on all branches.
     # https://www.mathworks.com/matlabcentral/answers/523194-matlab-script-in-batch-from-unix-command-line
-    matlab -nodisplay -nosplash -r "generate_doc.m; quit"
+    matlab -nodisplay -nosplash -r "generate_doc; quit"
   displayName: 'Build doc'
