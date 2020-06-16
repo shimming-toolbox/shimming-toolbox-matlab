@@ -34,6 +34,13 @@ addpath(genpath('./shimming-toolbox'))
 src = './shimming-toolbox';
 outputPath = './shimming-toolbox/docs/contributing/api_documentation';
 
+% Create dummy .md file
+!echo "Awesome!!!" > ./shimming-toolbox/docs/contributing/dummy.md
+% Push to gh-pages branch
+!git add *
+!git commit -m "Updated documentation"
+!git push
+
 %% The following code needs to be uncommented once MATLAB 2020 is installed 
 % on tristano
 % src = Documentor.findfiles( src );
@@ -83,7 +90,7 @@ outputPath = './shimming-toolbox/docs/contributing/api_documentation';
 % cd ..
 % rmdir temp s
 % 
-rmdir shimming-toolbox s
+% rmdir shimming-toolbox s
 rmdir helpDocMd s
 disp('done')
 
