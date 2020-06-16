@@ -42,7 +42,7 @@ mkdir(tmp)
 niftiPath = fullfile( tmp, 'niftis' )
 % Call dicom_to_nifti which uses dcm2niix and dcm2bids to seperate into
 % different nifti acquisitions
-dicom_to_nifti(fullfile( data, 'dicom_unsorted' ), niftiPath )
+imutils.dicom_to_nifti(fullfile( data, 'dicom_unsorted' ), niftiPath )
 
 % Set path for patient '' (Patient name is set to nothing for anonymity)
 acquisitionPath = fullfile( niftiPath, 'sub-' );
@@ -58,14 +58,14 @@ ls(acquisitionPath)
 
 % Call loadniftis which asks the user which acquisition to load.
 disp('Enter magnitude data');
-[mag, magInfo, magJson] = loadniftis(acquisitionPath);
+[mag, magInfo, magJson] = imutils.load_niftis(acquisitionPath);
 
 % Display the size of the input data
 size(mag)
 
 % Call loadniftis which asks the user which acquisition to load.
 disp('Enter phase data');
-[phase, phaseInfo, phaseJson] = loadniftis(acquisitionPath);
+[phase, phaseInfo, phaseJson] = imutils.load_niftis(acquisitionPath);
 
 % Display the size of the input data
 size(phase)
