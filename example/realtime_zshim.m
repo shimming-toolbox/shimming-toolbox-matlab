@@ -104,6 +104,8 @@ respTrace_path = 'PMUresp_signal.resp';
 % load MGRE magnitude images for SCT segmentation
 %% ------------------------------------------------------------------------
 Mag = MaRdI(MGRE_mag_path);
+[mag_img,mag_info,mag_json] = imutils.read_nii('nifti/echo_2.46_gre_field_mapping_PMUlog_20200313131814_3.nii');
+
 Params.dataLoadDir = MGRE_mag_path;
 
 if (strcmp('human',scan_obj) == 1)
