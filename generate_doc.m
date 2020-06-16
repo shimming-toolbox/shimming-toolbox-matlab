@@ -13,16 +13,12 @@
 !git checkout gh-pages
 
 %% Initial setup
-ls
-pwd
+
 cd ..
-ls
-pwd
-disp('Rename')
-% Rename 's' folder to 'shimming-toolbox'
-!mv -r s shimming-toolbox
-ls
-pwd
+
+% Cant rename 's' folder to 'shimming-toolbox' since shimming-toolbox
+% already exists in ..
+% !mv -r s shimming-toolbox
 
 % create new temp folder
 % !mkdir temp
@@ -30,23 +26,23 @@ pwd
 !git clone https://github.com/shimming-toolbox/helpDocMd.git
 % Add various paths
 addpath(genpath('./helpDocMd/src'))
-addpath(genpath('./shimming-toolbox'))
+addpath(genpath('./s'))
 % cd temp
 
 %% API doc
 % overwrite shimming-toolbox/docs/contributing/api_documentation/
-!rm -r shimming-toolbox/docs/contributing/api_documentation
-!mkdir shimming-toolbox/docs/contributing/api_documentation
+!rm -r s/docs/contributing/api_documentation
+!mkdir s/docs/contributing/api_documentation
 
 % Generate API documentation
-src = './shimming-toolbox';
-outputPath = './shimming-toolbox/docs/contributing/api_documentation';
+src = './s';
+outputPath = './s/docs/contributing/api_documentation';
 
 % Create dummy .md file
-!mkdir shimming-toolbox/docs/contributing
-!echo "Awesome!!!" > ./shimming-toolbox/docs/contributing/dummy.md
+!mkdir s/docs/contributing
+!echo "Awesome!!!" > ./s/docs/contributing/dummy.md
 % Push to gh-pages branch
-cd shimming-toolbox
+cd s
 !git add *
 !git commit -m "Updated documentation"
 !git push -u origin gh-pages
