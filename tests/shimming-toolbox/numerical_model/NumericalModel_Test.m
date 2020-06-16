@@ -34,6 +34,18 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             actualVolume = testObj.starting_volume;
             testCase.verifyEqual(actualVolume, expectedVolume)
         end
+ 
+        function test_shepp_logan_defines_expected_t2star_values(testCase)
+            testObj = NumericalModel('Shepp-Logan');
+
+            testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume-0.2)<0.001) == testObj.T2star.WM));
+            testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume-0.3)<0.001) ==  testObj.T2star.GM));
+            testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume-1)<0.001) == testObj.T2star.CSF));
+            testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume)<0.001&testObj.starting_volume~=0) == testObj.T2star.WM/2));
+            testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume-0.1)<0.001) == (testObj.T2star.GM - testObj.T2star.WM/2)/2));
+            testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume-0.4)<0.001) == testObj.T2star.GM * 1.5));
+
+        end
     end
 
 end
