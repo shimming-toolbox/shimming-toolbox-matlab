@@ -8,7 +8,7 @@
 %% Initial setup
 % create new temp folder
 !mkdir temp
-cd temp
+% cd temp
 
 pwd
 ls
