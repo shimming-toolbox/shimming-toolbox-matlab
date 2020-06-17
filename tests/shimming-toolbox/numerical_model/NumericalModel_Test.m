@@ -1,12 +1,18 @@
 classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unittest.TestCase
 
     properties
+        testFileName = 'test.nii'
     end
 
     methods (TestClassSetup)
     end
 
     methods (TestClassTeardown)
+        function removeTempFolder(testCase)
+            if isfile(testCase.testFileName)
+                delete(testCase.testFileName)
+            end
+        end
     end
 
     methods (Test)
@@ -142,7 +148,22 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
 
             testCase.assertTrue(std(vecPhaseROI)~=0);
          end
+
          
+        %% save method tests
+        function test_save(testCase)
+            testObj = NumericalModel('Shepp-Logan');
+            
+            FA = 15;
+            TE = [0.003 0.015];
+
+            testObj.simulate_measurement(FA, TE);
+                        
+            testObj.save('Phase', testCase.testFileName);
+  
+            testCase.assertTrue(isfile(testCase.testFileName))
+        end
+        
         %% generate_signal method tests
         function test_generate_signal_case_1(testCase)
             
@@ -191,6 +212,7 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             testCase.assertTrue(~isreal(expected_signal))
             testCase.verifyEqual(actual_signal, expected_signal);
         end
+        
     end
 
 end

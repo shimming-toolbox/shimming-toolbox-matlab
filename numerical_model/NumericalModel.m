@@ -101,6 +101,27 @@ classdef NumericalModel < handle
             vol = imag(obj.measurement);
         end
         
+        function vol = save(obj, dataType, prefix)
+            % Get magnitude data
+            
+            switch dataType
+                case 'Magnitude'
+                	vol = obj.getMagnitude();
+                case 'Phase'
+                	vol = obj.getPhase();
+                case 'Real'
+                	vol = obj.getReal();
+                case 'Imaginary'
+                	vol = obj.getImaginary();
+                otherwise
+                    error('Unknown datatype')
+            end
+            
+            nii_vol = make_nii(imrotate(fliplr(vol), -90));
+            save_nii(nii_vol, prefix);
+        end
+
+        
         function obj = generate_deltaB0(obj, fieldType, params)       
             % type: 'linear' or ???
             % params: 
