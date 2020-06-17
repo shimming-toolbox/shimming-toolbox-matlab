@@ -8,9 +8,9 @@
 %% Checkout gh-pages branch
 % at this point in the pipeline, we are located in the root of the
 % shimming-toolbox repository, under the master branch.
-!git checkout -b gh-pages
+% !git checkout -b gh-pages
 % go into it if it previously failed, if not then it does not do anything
-!git checkout gh-pages
+% !git checkout gh-pages
 
 %% Initial setup
 
@@ -23,7 +23,7 @@ cd ..
 % create new temp folder
 % !mkdir temp
 % Clone doc generation software
-!git clone https://github.com/shimming-toolbox/helpDocMd.git
+%!git clone https://github.com/shimming-toolbox/helpDocMd.git
 % Add various paths
 addpath(genpath('./helpDocMd/src'))
 addpath(genpath('./s'))
@@ -31,7 +31,7 @@ addpath(genpath('./s'))
 
 %% API doc
 % overwrite shimming-toolbox/docs/contributing/api_documentation/
-!rm -r s/docs/contributing/api_documentation
+%!rm -r s/docs/contributing/api_documentation
 !mkdir s/docs/contributing/api_documentation
 
 % Generate API documentation
@@ -39,14 +39,8 @@ src = './s';
 outputPath = './s/docs/contributing/api_documentation';
 
 % Create dummy .md file
-!mkdir s/docs/contributing
 !echo "Awesome!!!" > ./s/docs/contributing/dummy.md
-% Push to gh-pages branch
-cd s
-!git add *
-!git commit -m "Updated documentation"
-!git push -u origin gh-pages
-cd ..
+
 %% The following code needs to be uncommented once MATLAB 2020 is installed 
 % on tristano
 % src = Documentor.findfiles( src );
@@ -98,7 +92,9 @@ cd ..
 % 
 % rmdir shimming-toolbox s
 rmdir helpDocMd s
+cd s
 disp('done')
+                       
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % General purpose
