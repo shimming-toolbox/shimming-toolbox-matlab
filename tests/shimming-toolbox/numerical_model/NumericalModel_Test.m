@@ -59,6 +59,37 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume-0.4)<0.001) == testObj.protonDensity.GM * 1.5));
         end
 
+        
+        %% simulate_signal method tests
+        
+        function test_generate_deltaB0_linear_floor_value(testCase)
+            testObj = NumericalModel('Shepp-Logan');
+            
+            m = 0;
+            b = 2;
+            testObj.generate_deltaB0('linear', [m b]);
+            
+            deltaB0_map = testObj.deltaB0;
+            
+            testCase.verifyEqual(mean(deltaB0_map(:)), b);
+        end
+        
+        
+        function test_generate_deltaB0_linear_slope_value(testCase)
+            testObj = NumericalModel('Shepp-Logan');
+            
+            m = 1;
+            b = 0;
+            testObj.generate_deltaB0('linear', [m b]);
+            
+            deltaB0_map = testObj.deltaB0;
+            
+            dims = size(deltaB0_map);
+            [X, Y] = meshgrid(linspace(-dims(1), dims(1), dims(1)), linspace(-dims(2), dims(2), dims(2)));
+
+            testCase.verifyEqual(deltaB0_map(round(dims(1)/2), round(dims(1)/4)), m*X(round(dims(1)/2), round(dims(1)/4)));
+        end
+        
         %% simulate_signal method tests
         
         function test_simulate_signal_returns_expected_volume_size(testCase)

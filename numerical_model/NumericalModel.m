@@ -15,6 +15,9 @@ classdef NumericalModel < handle
         
         % Default proton density in percentage
         protonDensity = struct('WM', 70, 'GM', 82, 'CSF', 100)
+        
+        % deltaB0 in Hz
+        deltaB0
     end
    
     methods
@@ -35,6 +38,9 @@ classdef NumericalModel < handle
                 otherwise
                     error('Too many input arguments for class.')
             end
+            
+            % Define background field
+            obj.deltaB0 = obj.starting_volume * 0;
         end
         
         
@@ -47,8 +53,6 @@ classdef NumericalModel < handle
 
             obj.volume.protonDensity = obj.customize_shepp_logan(obj.starting_volume, obj.protonDensity.WM, obj.protonDensity.GM, obj.protonDensity.CSF);
             obj.volume.T2star = obj.customize_shepp_logan(obj.starting_volume, obj.T2star.WM, obj.T2star.GM, obj.T2star.CSF);
-
-
         end
 
         function obj = simulate_measurement(obj, FA, TE, SNR)          
@@ -61,7 +65,6 @@ classdef NumericalModel < handle
             volDims = size(obj.starting_volume);
                
             % Pre-allocate measurement variables
-            deltaB0 = 0*obj.starting_volume; %Temporary
             if volDims == 2
                 obj.measurement = zeros(volDims(1), volDims(2), 1, numTE);
             elseif volDims == 3
@@ -70,7 +73,7 @@ classdef NumericalModel < handle
             
             % Simulate
             for ii = 1:numTE
-                obj.measurement(:,:,:,ii) = NumericalModel.generate_signal(obj.volume.protonDensity, obj.volume.T2star, FA, TE(ii), deltaB0, obj.gamma);
+                obj.measurement(:,:,:,ii) = NumericalModel.generate_signal(obj.volume.protonDensity, obj.volume.T2star, FA, TE(ii), obj.deltaB0, obj.gamma);
             end
             
             if exist('SNR','var')
@@ -98,6 +101,30 @@ classdef NumericalModel < handle
             vol = imag(obj.measurement);
         end
         
+        function obj = generate_deltaB0(obj, fieldType, params)       
+            % type: 'linear' or ???
+            % params: 
+            %    'linear': [m, b, ang] where y = mx + b, and the center of the
+            %              volume is the origin. m is Hz per voxel. b is
+            %              Hz. ang is the angle against the x axis of the
+            %              volume
+            
+            
+            switch fieldType
+                case 'linear'
+                    m = params(1);
+                    b = params(2);
+
+                    dims = size(obj.starting_volume);
+
+                    % Create coordinates
+                    [X, Y] = meshgrid(linspace(-dims(1), dims(1), dims(1)), linspace(-dims(2), dims(2), dims(2)));
+
+                    obj.deltaB0 = m*X+b;
+                otherwise
+                    error('Undefined deltaB0 field type')
+            end
+        end
     end
     
     methods (Static)
