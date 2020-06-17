@@ -73,16 +73,16 @@ disp('Unwrap')
 
 % Init Unwrapped Phase
 % unwrappedPhase = 
-for iAcq = 1:size(phase,4)
-    for iEcho = 1:size(phase,5)
+for iAcq = 1:size(phase,5)
+    for iEcho = 1:size(phase,4)
         % Get the magnitude for a perticular echo
-        magNorm = mat2gray(mag(:,:,:,iAcq,iEcho));
+        magNorm = mat2gray(mag(:,:,:,iEcho,iAcq));
 
         % Calculate the phase in radians, assumes there are wraps
-        phasePi = mat2gray(phase(:,:,:,iAcq,iEcho))*2*pi - pi;
+        phasePi = mat2gray(phase(:,:,:,iEcho,iAcq))*2*pi - pi;
         
         % Unwrap phase using sunwrap
-        unwrappedPhase(:,:,:,iAcq,iEcho) = sunwrap(magNorm .* exp( 1i* phasePi ), 0.1);
+        unwrappedPhase(:,:,:,iEcho,iAcq) = sunwrap(magNorm .* exp( 1i* phasePi ), 0.1);
   
     end
 end    
@@ -102,13 +102,13 @@ hold off
 %% Process B0 Field map
 
 % Different process if only 1 echo
-if size(unwrappedPhase,5) == 1
+if size(unwrappedPhase,4) == 1
     echoTimeDiff = phaseJson(1).EchoTime;
-    phasediff    = unwrappedPhase(:,:,:,:);
+    phasediff    = unwrappedPhase(:,:,:,1,:);
 else
     echoTimeDiff = phaseJson(2).EchoTime - phaseJson(1).EchoTime;
     % if using wrapped phase % phasediff = angle( wrappedPhase(1) .* conj(wrappedPhase(2) ) ) ; then unwrap
-    phasediff    = unwrappedPhase(:,:,:,:,2) - unwrappedPhase(:,:,:,:,1);
+    phasediff    = unwrappedPhase(:,:,:,2,:) - unwrappedPhase(:,:,:,1,:);
 end
     
 
