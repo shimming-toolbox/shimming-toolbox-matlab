@@ -13,8 +13,8 @@ git clone https://github.com/shimming-toolbox/helpDocMd.git
 # TODO: broken.
 #  1. writes to temp/shimming-toolbox/docs instead of docs/
 #  2. incompatible with Matlab R2019a which is what's on our CI machine.
-/usr/local/MATLAB/R2020a/bin/matlab -nodisplay -nosplash -r "run('generate_doc.m');exit"
-
+/usr/local/MATLAB/R2020a/bin/matlab -nodisplay -nosplash -r "run('./s/generate_doc.m');exit"
+cd s
 # run mkdocs
 # ported from https://github.com/mhausenblas/mkdocs-deploy-gh-pages/blob/master/action.sh
 # with hints from https://github.com/DavidS/jekyll-deploy/blob/master/entrypoint.rb and https://docs.travis-ci.com/user/deployment/pages/

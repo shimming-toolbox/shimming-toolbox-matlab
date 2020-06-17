@@ -14,8 +14,6 @@
 
 %% Initial setup
 
-cd ..
-
 % Cant rename 's' folder to 'shimming-toolbox' since shimming-toolbox
 % already exists in ..
 % !mv -r s shimming-toolbox
@@ -92,7 +90,6 @@ outputPath = './s/docs/contributing/api_documentation';
 % 
 % rmdir shimming-toolbox s
 rmdir helpDocMd s
-cd s
 disp('done')
                        
 
