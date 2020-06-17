@@ -11,7 +11,7 @@ disp('Unwrapping...')
 % Init Unwrapped Phase
 for iAcq = 1:size(phase,5)
     for iEcho = 1:size(phase,4)
-        % Get the magnitude for a perticular echo
+        % Get the magnitude for a specific echo
         magNorm = mat2gray(mag(:,:,:,iEcho,iAcq));
         
         % Calculate the phase in radians, assumes there are wraps
