@@ -23,6 +23,8 @@
 % Clone doc generation software
 %!git clone https://github.com/shimming-toolbox/helpDocMd.git
 % Add various paths
+pwd
+exit
 addpath(genpath('./helpDocMd/src'))
 addpath(genpath('./s'))
 % cd temp
@@ -91,6 +93,7 @@ outputPath = './s/docs/contributing/api_documentation';
 % rmdir shimming-toolbox s
 rmdir helpDocMd s
 disp('done')
+exit;
                        
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
