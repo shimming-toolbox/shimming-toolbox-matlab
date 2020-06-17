@@ -86,7 +86,7 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             
             deltaB0_map = testObj.deltaB0;
             
-            testCase.verifyEqual(mean(deltaB0_map(:)), b);
+            testCase.verifyEqual(mean(deltaB0_map(:)), b/(testObj.gamma/(2*pi)), 'RelTol', 10^-6);
         end
         
         
@@ -102,7 +102,7 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             dims = size(deltaB0_map);
             [X, Y] = meshgrid(linspace(-dims(1), dims(1), dims(1)), linspace(-dims(2), dims(2), dims(2)));
 
-            testCase.verifyEqual(deltaB0_map(round(dims(1)/2), round(dims(1)/4)), m*X(round(dims(1)/2), round(dims(1)/4)));
+            testCase.verifyEqual(deltaB0_map(round(dims(1)/2), round(dims(1)/4)), m*X(round(dims(1)/2), round(dims(1)/4))/(testObj.gamma/(2*pi)));
         end
         
         %% simulate_signal method tests
@@ -121,7 +121,7 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             testCase.verifyEqual(actualDims, expectedDims);
         end
           
-         function test_getFunctions_returns_volume_of_expected_datatype(testCase)
+         function test_simulate_signal_get_returns_volume_of_expected_datatype(testCase)
             testObj = NumericalModel('Shepp-Logan');
             
             FA = 15;
@@ -157,8 +157,50 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
 
             testCase.assertTrue(std(vecPhaseROI)~=0);
          end
-
+        
+        function test_simulate_signal_dual_echo_calculates_expected_B0(testCase)
+            testObj = NumericalModel('Shepp-Logan');
+            
+            B0_hz = 13;
+            testObj.generate_deltaB0('linear', [0.0 B0_hz]); % constant B0 of 10 Hz. deltaB0 is in Tesla.
+            TR = 0.025;
+            TE = [0.004 0.008];
+            testObj.simulate_measurement(TR, TE);
+            phaseMeas = testObj.getPhase();
+            
+            
+            phaseTE1 = squeeze(phaseMeas(:,:,1,1));
+            phaseTE2 = squeeze(phaseMeas(:,:,1,2));
+            
+            % Dual echo B0 calculation
+            B0_meas = (phaseTE2(64, 64) - phaseTE1(64, 64))/(TE(2) - TE(1));
+            B0_meas_hz = B0_meas/(2*pi);
+            
+            testCase.verifyEqual(B0_hz, B0_meas_hz, 'RelTol', 10^-6);
+        end
          
+        function test_simulate_signal_dual_echo_righthand_calculates_negative_B0(testCase)
+            testObj = NumericalModel('Shepp-Logan');
+            testObj.handedness = 'right';
+
+            B0_hz = 13;
+            testObj.generate_deltaB0('linear', [0.0 B0_hz]); % constant B0 of 10 Hz. deltaB0 is in Tesla.
+            TR = 0.025;
+            TE = [0.004 0.008];
+            testObj.simulate_measurement(TR, TE);
+            phaseMeas = testObj.getPhase();
+            
+            
+            phaseTE1 = squeeze(phaseMeas(:,:,1,1));
+            phaseTE2 = squeeze(phaseMeas(:,:,1,2));
+            
+            % Dual echo B0 calculation
+            B0_meas = (phaseTE2(64, 64) - phaseTE1(64, 64))/(TE(2) - TE(1));
+            B0_meas_hz = B0_meas/(2*pi);
+            
+            testCase.verifyEqual(B0_hz, -B0_meas_hz, 'RelTol', 10^-6);
+        end
+        
         %% save method tests
         function test_save(testCase)
             testObj = NumericalModel('Shepp-Logan');
@@ -183,8 +225,9 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             TE = 0;
             deltaB0 = 0;
             gamma = 42.58 * 10^6;
+            handedness = 'left';
             
-            actual_signal = NumericalModel.generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma);
+            actual_signal = NumericalModel.generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma, handedness);
             expected_signal = protonDensity;
             
             testCase.verifyEqual(actual_signal, expected_signal);
@@ -199,8 +242,9 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             TE = 0;
             deltaB0 = 0;
             gamma = 42.58 * 10^6;
-            
-            actual_signal = NumericalModel.generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma);
+            handedness = 'left';
+
+            actual_signal = NumericalModel.generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma, handedness);
             expected_signal = 0;
             
             testCase.verifyEqual(actual_signal, expected_signal);
@@ -214,9 +258,17 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             TE = 0.010;
             deltaB0 = 2;
             gamma = 42.58 * 10^6;
+            handedness = 'left';
+
+            switch handedness
+                case 'left'
+                    sign = -1;
+                case 'right'
+                    sign = 1;
+            end
             
-            actual_signal = NumericalModel.generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma);
-            expected_signal = protonDensity.*sind(FA).*exp(-TE./T2star-1i*gamma*deltaB0.*TE);
+            actual_signal = NumericalModel.generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma, handedness);
+            expected_signal = protonDensity.*sind(FA).*exp(-TE./T2star-sign*1i*gamma*deltaB0.*TE);
             
             testCase.assertTrue(~isreal(expected_signal))
             testCase.verifyEqual(actual_signal, expected_signal);

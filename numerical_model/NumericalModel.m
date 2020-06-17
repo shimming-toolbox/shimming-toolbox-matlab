@@ -4,6 +4,7 @@ classdef NumericalModel < handle
     properties
         gamma = 267.52218744 * 10^6; % rad*Hz/Tesla
         fieldStrength = 3.0; % Tesla
+        handedness = 'left'; % Siemens & Canon = 'left', GE & Philips = 'right' 
         
         % properties
         numVox = 128; % square volume
@@ -45,7 +46,6 @@ classdef NumericalModel < handle
             obj.deltaB0 = obj.starting_volume * 0;
         end
         
-        
         function obj = shepp_logan(obj, numVox)       
             % Create a 2D Shepp_Logan volume for the 
             % dims: [x, y] number of voxels.
@@ -75,7 +75,7 @@ classdef NumericalModel < handle
             
             % Simulate
             for ii = 1:numTE
-                obj.measurement(:,:,:,ii) = NumericalModel.generate_signal(obj.volume.protonDensity, obj.volume.T2star, FA, TE(ii), obj.deltaB0, obj.gamma);
+                obj.measurement(:,:,:,ii) = obj.generate_signal(obj.volume.protonDensity, obj.volume.T2star, FA, TE(ii), obj.deltaB0, obj.gamma, obj.handedness);
             end
             
             if exist('SNR','var')
@@ -122,7 +122,6 @@ classdef NumericalModel < handle
             nii_vol = make_nii(imrotate(fliplr(vol), -90));
             save_nii(nii_vol, niiFilename);
         end
-
         
         function obj = generate_deltaB0(obj, fieldType, params)       
             % fieldType: 'linear'
@@ -131,7 +130,6 @@ classdef NumericalModel < handle
             %              volume is the origin. m is Hz per voxel. b is
             %              Hz. ang is the angle against the x axis of the
             %              volume
-            
             
             switch fieldType
                 case 'linear'
@@ -154,15 +152,22 @@ classdef NumericalModel < handle
     end
     
     methods (Static)
-        function signal = generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma)
+        function signal = generate_signal(protonDensity, T2star, FA, TE, deltaB0, gamma, handedness)
             % FA = flip angle in degrees
             % T2star in seconds
             % TE in seconds
             % B0 in tesla
             % gamma in rad*Hz/Tesla
-            signal = protonDensity.*sind(FA).*exp(-TE./T2star-1i*gamma*deltaB0.*TE);
+            
+            switch handedness
+                case 'left'
+                    sign = -1;
+                case 'right'
+                    sign = 1;
+            end
+            
+            signal = protonDensity.*sind(FA).*exp(-TE./T2star-sign*1i*gamma*deltaB0.*TE);
         end
-        
         function noisyVolume = addNoise(volume, SNR)
             % volume: measurement volume of signals
             % SNR: Signal-to-noise ratio
