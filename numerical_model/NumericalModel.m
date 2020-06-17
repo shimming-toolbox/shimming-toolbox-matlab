@@ -31,10 +31,11 @@ classdef NumericalModel < handle
             end
             
             if exist('model', 'var')
-                if strcmp(model, 'Shepp-Logan')
-                    obj.shepp_logan(obj.numVox);
-                else
-                    error('Unknown volume model.')
+                switch model
+                    case 'Shepp-Logan'
+                    	obj.shepp_logan(obj.numVox);
+                    otherwise
+                        error('Unknown volume model.')
                 end
             else
                 obj.starting_volume = zeros(obj.numVox, obj.numVox);
@@ -155,7 +156,7 @@ classdef NumericalModel < handle
             % T2star in seconds
             % TE in seconds
             % B0 in tesla
-            % gamma in Hz/Tesla
+            % gamma in rad*Hz/Tesla
             signal = protonDensity.*sind(FA).*exp(-TE./T2star-1i*gamma*deltaB0.*TE);
         end
         
