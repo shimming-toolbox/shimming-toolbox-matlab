@@ -4,7 +4,6 @@ set -e
 
 # currently in Shimming-toolbox repo named "s"
 cd ..
-ls
 # Clone doc generation software
 rm -rf helpDocMd
 git clone https://github.com/shimming-toolbox/helpDocMd.git
@@ -12,11 +11,10 @@ git clone https://github.com/shimming-toolbox/helpDocMd.git
 # Build API documentation, Matlab (.m) -> Markdown (.md)
 #   Beware: you MUST put `quit` at the end; Matlab does not auto-quit.
 #   https://www.mathworks.com/matlabcentral/answers/523194-matlab-script-in-batch-from-unix-command-line
-# TODO: broken.
-#  1. writes to temp/shimming-toolbox/docs instead of docs/
-#  2. incompatible with Matlab R2019a which is what's on our CI machine.
+
 /usr/local/MATLAB/R2020a/bin/matlab -nodisplay -nosplash -r "run('./s/generate_doc.m');exit"
 cd s
+
 # run mkdocs
 # ported from https://github.com/mhausenblas/mkdocs-deploy-gh-pages/blob/master/action.sh
 # with hints from https://github.com/DavidS/jekyll-deploy/blob/master/entrypoint.rb and https://docs.travis-ci.com/user/deployment/pages/

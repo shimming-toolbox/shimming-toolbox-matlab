@@ -3,7 +3,6 @@
 # TODO: push on master shimming-toolbox
 trigger:
 - master
-- set-up-gh-pages
 
 # use the self-hosted runner at tristano.neuro.polymtl.ca
 # this has Matlab installed and a license to use it.
