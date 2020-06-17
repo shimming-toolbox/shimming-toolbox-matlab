@@ -13,8 +13,7 @@ addpath(genpath('./s'))
 
 %% API doc
 % overwrite shimming-toolbox/docs/contributing/api_documentation/
-!mkdir s/docs/contributing
-!mkdir s/docs/contributing/api_documentation
+!mkdir s/docs/3_contributing/api_documentation
 
 % Generate API documentation
 src = './s';
