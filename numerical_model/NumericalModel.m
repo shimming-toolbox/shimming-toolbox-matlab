@@ -125,9 +125,9 @@ classdef NumericalModel < handle
 
         
         function obj = generate_deltaB0(obj, fieldType, params)       
-            % type: 'linear' or ???
+            % fieldType: 'linear'
             % params: 
-            %    'linear': [m, b, ang] where y = mx + b, and the center of the
+            %    'linear': [m, b] where y = mx + b, and the center of the
             %              volume is the origin. m is Hz per voxel. b is
             %              Hz. ang is the angle against the x axis of the
             %              volume
@@ -137,13 +137,16 @@ classdef NumericalModel < handle
                 case 'linear'
                     m = params(1);
                     b = params(2);
-
+                    
                     dims = size(obj.starting_volume);
 
                     % Create coordinates
                     [X, Y] = meshgrid(linspace(-dims(1), dims(1), dims(1)), linspace(-dims(2), dims(2), dims(2)));
 
                     obj.deltaB0 = m*X+b;
+                    
+                    % Convert field from Hz to T;
+                    obj.deltaB0 = obj.deltaB0 / (obj.gamma / (2*pi));
                 otherwise
                     error('Undefined deltaB0 field type')
             end
