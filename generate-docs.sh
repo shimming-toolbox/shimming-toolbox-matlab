@@ -2,6 +2,11 @@
 
 set -e
 
+ls
+pwd
+cd ..
+ls
+pwd
 # Build API documentation, Matlab (.m) -> Markdown (.md)
 #   Beware: you MUST put `quit` at the end; Matlab does not auto-quit.
 #   https://www.mathworks.com/matlabcentral/answers/523194-matlab-script-in-batch-from-unix-command-line
