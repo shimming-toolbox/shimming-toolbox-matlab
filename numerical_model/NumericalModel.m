@@ -51,9 +51,10 @@ classdef NumericalModel < handle
 
         end
 
-        function obj = simulate_measurement(obj, FA, TE)          
+        function obj = simulate_measurement(obj, FA, TE, SNR)          
             % FA: flip angle value in degrees.
             % TE: Single or array TE value in seconds.
+            % SNR: Signal-to-noise ratio
             
             % Get dimensions
             numTE = length(TE);
@@ -69,7 +70,11 @@ classdef NumericalModel < handle
             
             % Simulate
             for ii = 1:numTE
-                obj.measurement(:,:,:,ii) = obj.generate_signal(obj.volume.protonDensity, obj.volume.T2star, FA, TE(ii), deltaB0, obj.gamma);
+                obj.measurement(:,:,:,ii) = NumericalModel.generate_signal(obj.volume.protonDensity, obj.volume.T2star, FA, TE(ii), deltaB0, obj.gamma);
+            end
+            
+            if exist('SNR','var')
+                obj.measurement = NumericalModel.addNoise(obj.measurement, SNR);
             end
         end
         
@@ -92,6 +97,7 @@ classdef NumericalModel < handle
             % Get imaginary data
             vol = imag(obj.measurement);
         end
+        
     end
     
     methods (Static)
@@ -102,6 +108,17 @@ classdef NumericalModel < handle
             % B0 in tesla
             % gamma in Hz/Tesla
             signal = protonDensity.*sind(FA).*exp(-TE./T2star-1i*gamma*deltaB0.*TE);
+        end
+        
+        function noisyVolume = addNoise(volume, SNR)
+            % volume: measurement volume of signals
+            % SNR: Signal-to-noise ratio
+            
+            noiseSTD = max(volume(:))/SNR;
+            noisyReal =      real(volume) + randn(size(volume)) * noiseSTD;
+            noisyImaginary = imag(volume) + randn(size(volume)) * noiseSTD;
+
+            noisyVolume = noisyReal + 1i*noisyImaginary;
         end
     end
     

@@ -90,6 +90,28 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             testCase.assertTrue(isreal(testObj.getImaginary()));
          end
         
+         function test_simulate_signal_SNR_results_in_noisy_backgroun(testCase)
+            testObj = NumericalModel('Shepp-Logan');
+            
+            FA = 15;
+            TE = [0.003 0.015];
+            SNR = 50;
+            
+            testObj.simulate_measurement(FA, TE, SNR);
+            
+            magnitudeData = testObj.getMagnitude;            
+            vecMagnitudeROI = magnitudeData(1:10, 1:10, 1, 1);
+            vecMagnitudeROI = vecMagnitudeROI(:);
+
+            testCase.assertTrue(std(vecMagnitudeROI)~=0);
+            
+            phaseData = testObj.getPhase;
+            vecPhaseROI = phaseData(1:10, 1:10, 1, 1);
+            vecPhaseROI = vecPhaseROI(:);
+
+            testCase.assertTrue(std(vecPhaseROI)~=0);
+         end
+         
         %% generate_signal method tests
         function test_generate_signal_case_1(testCase)
             
