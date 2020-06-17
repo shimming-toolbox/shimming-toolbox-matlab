@@ -29,7 +29,7 @@ python -m virtualenv "$VENV"
 . "$VENV"/bin/activate
 pip install --no-cache-dir --ignore-installed mkdocs
 
-
+# Make sure GH_PAGES_TOKEN is set up in pipeline
 if [ -n "${GH_PAGES_TOKEN}" ]; then
     # XXX this is destructive to the repo, but we're assuming this is being run in CI so no matter?
 
