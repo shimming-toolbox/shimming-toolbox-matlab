@@ -11,7 +11,7 @@ pool: 'Default'
 steps:
 
 - script: |
-    chmod 111 generate-docs.sh
+    chmod 755 generate-docs.sh
     ./generate-docs.sh
   displayName: 'Generate and publish website'
   env:
