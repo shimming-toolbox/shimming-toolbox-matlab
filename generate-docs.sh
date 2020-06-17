@@ -3,7 +3,6 @@
 set -e
 
 # currently in Shimming-toolbox repo named "s"
-git branch
 cd ..
 ls
 # Clone doc generation software
