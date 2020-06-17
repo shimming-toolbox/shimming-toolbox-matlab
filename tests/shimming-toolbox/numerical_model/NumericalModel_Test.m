@@ -35,14 +35,23 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
         end
  
         %% Shepp-Logan type tests instance test
-        function test_shepplogan_initialization_returns_expected_starting_volume(testCase)
+        function test_shepplogan_emtpy_init_returns_expected_starting_volume(testCase)
             testObj = NumericalModel('Shepp-Logan');
 
-            expectedVolume = phantom(128, 128);
+            expectedVolume = phantom(128);
             actualVolume = testObj.starting_volume;
             testCase.verifyEqual(actualVolume, expectedVolume)
         end
  
+         function test_shepplogan_dims_init_returns_expected_starting_volume(testCase)
+            dims = 256;
+            testObj = NumericalModel('Shepp-Logan', dims);
+
+            expectedVolume = phantom(dims);
+            actualVolume = testObj.starting_volume;
+            testCase.verifyEqual(actualVolume, expectedVolume)
+        end
+        
         function test_shepp_logan_defines_expected_t2star_values(testCase)
             testObj = NumericalModel('Shepp-Logan');
 
