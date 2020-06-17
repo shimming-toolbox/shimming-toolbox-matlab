@@ -2,10 +2,11 @@ classdef NumericalModel < handle
     %NUMERICALMODEL Numerical Model for B0 data generation.
     
     properties
-        gamma = 42.58 * 10^6; % Hz/Tesla
+        gamma = 267.52218744 * 10^6; % rad*Hz/Tesla
         fieldStrength = 3.0; % Tesla
         
         % properties
+        numVox = 128; % square volume
         starting_volume
         volume
         measurement
@@ -21,22 +22,22 @@ classdef NumericalModel < handle
     end
    
     methods
-    	function obj = NumericalModel(model)
+    	function obj = NumericalModel(model, numVox)
             % NumericalModel class
             % model: string with the label of the model desired.
- 
-            switch nargin
-                case 0
-                    obj.starting_volume = zeros(128, 128);
-                case 1
-                    if strcmp(model, 'Shepp-Logan')
-                        obj.shepp_logan([128, 128]);
-                        
-                    else
-                        error('Unknown volume model.')
-                    end
-                otherwise
-                    error('Too many input arguments for class.')
+            
+            if exist('numVox', 'var')
+            	obj.numVox = numVox;
+            end
+            
+            if exist('model', 'var')
+                if strcmp(model, 'Shepp-Logan')
+                    obj.shepp_logan(obj.numVox);
+                else
+                    error('Unknown volume model.')
+                end
+            else
+                obj.starting_volume = zeros(obj.numVox, obj.numVox);
             end
             
             % Define background field
@@ -44,10 +45,10 @@ classdef NumericalModel < handle
         end
         
         
-        function obj = shepp_logan(obj, dims)       
+        function obj = shepp_logan(obj, numVox)       
             % Create a 2D Shepp_Logan volume for the 
             % dims: [x, y] number of voxels.
-            obj.starting_volume = phantom(dims(1), dims(2));
+            obj.starting_volume = phantom(numVox);
             
             obj.volume = struct('magn', [], 'phase', [], 'T2star', []);
 
