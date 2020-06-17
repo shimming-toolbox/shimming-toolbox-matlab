@@ -103,7 +103,7 @@ classdef NumericalModel < handle
             vol = imag(obj.measurement);
         end
         
-        function vol = save(obj, dataType, prefix)
+        function vol = save(obj, dataType, niiFilename)
             % Get magnitude data
             
             switch dataType
@@ -120,7 +120,7 @@ classdef NumericalModel < handle
             end
             
             nii_vol = make_nii(imrotate(fliplr(vol), -90));
-            save_nii(nii_vol, prefix);
+            save_nii(nii_vol, niiFilename);
         end
 
         
