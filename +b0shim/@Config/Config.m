@@ -1,7 +1,7 @@
 classdef Config < dynamicprops 
 %b0shim.Config Shim system configuration (hardware description)
 % 
-% A `Config` object, together with a set of reference maps (basis set), forms
+% `Config` object, together with a set of reference maps (basis set), forms
 % the basic representation of a shim system in the Shimming Toolbox. Notably,
 % to optimize the current configuration of a given array for a target b0-field
 % distribution (namely, to *shim it!*) these are the key prerequisities.
@@ -21,9 +21,9 @@ classdef Config < dynamicprops
 % hosted on GitHub, note that the URL must be to the "Raw" file.)
 % 
 % **NOTE**: *Object properties are immutable* (fixed upon construction);
-% nonetheless, system configurations can easily be edited or created and
-% (optionally) saved to .json file. This can be achieved by editing/creating
-% the config.json file, or within MATLAB, e.g. by adapting an existing script an
+% nonetheless, system configurations can easily be edited or created, and
+% optionally saved to .json file. This can be achieved by editing/creating
+% the config.json file directly, or within MATLAB. e.g. by adapting an existing script an
 % such as [ b0shim.coils.greg ](./coils/greg/write_config_file.md)).
 %
 % Briefly, call the constructor without arguments to return a default
@@ -85,8 +85,7 @@ classdef Config < dynamicprops
 % 
 % 4. Though the configuration allows a mix of different `channel.positioning` modes
 % the functionality to deal with the mix does not yet exist—**TODO**. (This
-% probably doesn't apply to any existing hardware anyway but it could be
-% interesting!)
+% probably doesn't apply to any existing hardware anyway but could be interesting!)
 %
 % See also  
 % [ dynamicprops ](https://www.mathworks.com/help/matlab/ref/dynamicprops-class.html)  
@@ -147,6 +146,22 @@ properties (SetAccess=immutable)
     % [ b0shim.parts.Port ]
     ports(:,1) b0shim.parts.Port ;
 
+end
+
+%TODO: Add version propertie(s) for saving to file 
+% (would facilitate supporting 'legacy code' features)
+% 2 version types?
+% - version of b0shim.Config used to save the config.json file 
+% a warning could be issued when a config file loaded and seen to be out of date? e.g. using git tags?
+% properties (SetAccess=private)
+% end
+% - version of the system configuration? (e.g. our "greg" coil should have 2
+% versions for the revB, revC boards) could just be expressed in the filename.
+
+properties( Dependent, Hidden )
+    % Version of b0shim.Config as a string-scalar 
+    % TODO proper implementation (i.e. no hardcode, e.g. via git tags?)
+    softwareVersion = '0000';
 end
 
 % =========================================================================
