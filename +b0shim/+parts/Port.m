@@ -13,8 +13,8 @@ classdef Port
 % __NOTES__  
 %
 % 1. While `Port` properties all correspond to `serialport()` arguments,
-% their default values differ (`Port` defaults are informed by the
-% microcontrollers in use at our lab).
+% some of the default assignments are different (`Port` defaults are informed
+% by the microcontrollers in use at our lab).
 %
 % 2. As a safety feature, the mandatory first argument to `serialport()`—the
 % device ID—is not included as a `Port` property: when connecting to a device,
@@ -33,6 +33,9 @@ properties
 
     % Name-value argument to serialport
     DataBits(1,1) uint8 {mustBeMember(DataBits, [8 7 6 5] )} = 8;
+    
+    % Name-value argument to serialport
+    Parity(1,1) string {mustBeMember(Parity, ["none" "even" "odd"])} = "none";
 
     % Name-value argument to serialport
     StopBits(1,1) single {mustBeMember(StopBits, [1 1.5 2] )} = 1;
