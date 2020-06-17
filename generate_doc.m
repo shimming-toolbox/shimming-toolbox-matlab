@@ -91,7 +91,7 @@ outputPath = './s/docs/contributing/api_documentation';
 % rmdir temp s
 % 
 % rmdir shimming-toolbox s
-rmdir helpDocMd s
+
 disp('done')
 exit;
                        

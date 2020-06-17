@@ -6,7 +6,8 @@ set -e
 cd ..
 ls
 # Clone doc generation software
-#git clone https://github.com/shimming-toolbox/helpDocMd.git
+rm -rf helpDocMd
+git clone https://github.com/shimming-toolbox/helpDocMd.git
 
 # Build API documentation, Matlab (.m) -> Markdown (.md)
 #   Beware: you MUST put `quit` at the end; Matlab does not auto-quit.
