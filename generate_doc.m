@@ -36,34 +36,29 @@ addpath(genpath('./s'))
 
 % Generate API documentation
 src = './s';
-outputPath = './s/docs/contributing/api_documentation';
-
-% Create dummy .md file
-!echo "Awesome!!!" > ./s/docs/contributing/dummy.md
 
 %% The following code needs to be uncommented once MATLAB 2020 is installed 
 % on tristano
-% src = Documentor.findfiles( src );
-% 
-% % Remove files not working
-% src = src(~contains(src,'shimming-toolbox/Coils/Shim_Siemens/Shim_Prisma/ShimOpt_Prisma.m'));
-% src = src(~contains(src,'shimming-toolbox/Coils/Shim_Siemens/Shim_Prisma/Shim_HGM_Prisma/ShimOpt_HGM_Prisma.m'));
-% src = src(~contains(src,'shimming-toolbox/Coils/Shim_Siemens/Shim_Prisma/Shim_IUGM_Prisma_fit/ShimOpt_IUGM_Prisma_fit.m'));
-% src = src(~contains(src,'shimming-toolbox/Ui/ShimUse.m'));
-% 
-% % Remove files not to be documented
-% src = src(~contains(src,'shimming-toolbox/tests'));
-% 
-% % Call documentor
-% Options.outputDir = './shimming-toolbox/docs/contributing/api_documentation';
-% Dr = Documentor( src , Options ) ;
-% 
-% % Generate documentation
-% Dr.printdoc() ;
+src = Documentor.findfiles( src );
+
+% Remove files not working
+src = src(~contains(src,'s/Coils/Shim_Siemens/Shim_Prisma/ShimOpt_Prisma.m'));
+src = src(~contains(src,'s/Coils/Shim_Siemens/Shim_Prisma/Shim_HGM_Prisma/ShimOpt_HGM_Prisma.m'));
+src = src(~contains(src,'s/Coils/Shim_Siemens/Shim_Prisma/Shim_IUGM_Prisma_fit/ShimOpt_IUGM_Prisma_fit.m'));
+src = src(~contains(src,'s/Ui/ShimUse.m'));
+
+% Remove files not to be documented
+src = src(~contains(src,'s/tests'));
+
+% Call documentor
+Options.outputDir = './s/docs/contributing/api_documentation';
+Dr = Documentor( src , Options ) ;
+
+% Generate documentation
+Dr.printdoc() ;
 
 % Update mkDocs.yml APIdoc navigation automatically using functions from
 % @Documentor.printYml
-
 
 %% README, LICENSE, etc
 
