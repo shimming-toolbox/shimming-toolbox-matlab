@@ -5,7 +5,7 @@ set -e
 # currently in Shimming-toolbox repo named "s"
 cd ..
 # Clone doc generation software
-!git clone https://github.com/shimming-toolbox/helpDocMd.git
+git clone https://github.com/shimming-toolbox/helpDocMd.git
 
 # Build API documentation, Matlab (.m) -> Markdown (.md)
 #   Beware: you MUST put `quit` at the end; Matlab does not auto-quit.
@@ -13,7 +13,7 @@ cd ..
 # TODO: broken.
 #  1. writes to temp/shimming-toolbox/docs instead of docs/
 #  2. incompatible with Matlab R2019a which is what's on our CI machine.
-matlab -nodisplay -nosplash -r "run('generate_doc.m');exit"
+/usr/local/MATLAB/R2020a/bin/matlab -nodisplay -nosplash -r "run('generate_doc.m');exit"
 
 # run mkdocs
 # ported from https://github.com/mhausenblas/mkdocs-deploy-gh-pages/blob/master/action.sh
