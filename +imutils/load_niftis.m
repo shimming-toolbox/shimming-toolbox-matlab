@@ -79,12 +79,12 @@ end
 % Format output data according to (x,y,z,time,echoe,channel)
 if length(tmpInfo.ImageSize) == 3 % If more than one time
     for iEcho = 1:nEchoes
-        [niftis(:,:,:,:,iEcho), info(iEcho), json(iEcho)] = imutils.read_nii( ...
+        [niftis(:,:,:,iEcho,:), info(iEcho), json(iEcho)] = imutils.read_nii( ...
             fullfile( niftiList(iEcho).folder , niftiList(iEcho).name ) );
     end
 else
     for iEcho = 1:nEchoes
-        [niftis(:,:,:,1,iEcho), info(iEcho), json(iEcho)] = imutils.read_nii( ...
+        [niftis(:,:,:,iEcho), info(iEcho), json(iEcho)] = imutils.read_nii( ...
             fullfile( niftiList(iEcho).folder , niftiList(iEcho).name ) );
     end
 end
