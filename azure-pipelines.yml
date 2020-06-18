@@ -18,7 +18,7 @@ steps:
     chmod 755 generate-docs.sh
     ./generate-docs.sh
   displayName: 'Generate and publish website'
-  condition: and(succeeded(),ne(variables['Build.Reason'],'IndividualCI'))
+  condition: and(succeeded(),eq(variables['Build.Reason'],'IndividualCI'))
   env:
     GH_PAGES_TOKEN: $(GH_PAGES_TOKEN)
     CUSTOM_DOMAIN: www.shimming-toolbox.org
