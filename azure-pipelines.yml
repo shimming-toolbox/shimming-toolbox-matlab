@@ -11,8 +11,6 @@ trigger:
 # this has Matlab installed and a license to use it.
 pool: 'Default'
 
-jobs:
-
 steps:
 # Build condition : IndividualCI is a trigger (trigger only happens on master merge/push)
 # If there is a push on a PR, it wont do this step.
