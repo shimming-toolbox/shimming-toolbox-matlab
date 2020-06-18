@@ -81,8 +81,8 @@ fprintf('**********Toolbox Help generation: **********\n');
 HelpFolderName  = 'Help';                                                   % If you want, you can change the default help folder name
 IgnoredFolders  = [IgnoredFolders, {'.git', HelpFolderName}];             	% The files in these folders are not published to html files
 % Set Help path and Help HTML path
-pathHelpTOC     = [ToolBoxPath '\' HelpFolderName];                       	% Path of the helptoc.xml file
-pathHelpFiles   = [pathHelpTOC, '\', ToolBoxName];                        	% Root path of the html help files (one level below pathHelpTOC)
+pathHelpTOC     = [ToolBoxPath filesep HelpFolderName];                       	% Path of the helptoc.xml file
+pathHelpFiles   = [pathHelpTOC, filesep, ToolBoxName];                        	% Root path of the html help files (one level below pathHelpTOC)
 % If no help has been created before, initialise the corresponding folder
 % structure
 if ~exist(pathHelpTOC,'dir')                                              
@@ -123,7 +123,7 @@ fprintf(fid,'\t<tocitem target="GettingStarted.html"> GettingStarted\n');
 % the 'ToolBoxPath\Help\ToolBoxName' folder (or subfolders) and links the
 % output .html files correspondingly in the helptoc.xml file.
 fprintf('**********Processing folders: **********\n');
-D = autoTOC(ToolBoxPath,[ToolBoxPath '\**\*.m'],0,fid,ToolBoxName,IgnoredFolders,evalCode);
+D = autoTOC(ToolBoxPath,[ToolBoxPath filesep '**' filesep '*.m'],0,fid,ToolBoxName,IgnoredFolders,evalCode);
 fprintf('\n')
 %% 3.4) Finish and close the helptoc.xml file
 % Close the top-level item of the table of contents (GettingStarted.m
@@ -182,7 +182,7 @@ pp = {'' 'k' 'M' 'G' 'T'};
 % well.
 removed_files = struct();
 fprintf('\n**********Removed html files (.m files do no longer exist): **********\n');
-cleanUpHelp(ToolBoxPath,pathHelpFiles,[pathHelpFiles '\**\*.html'],0,removed_files);
+cleanUpHelp(ToolBoxPath,pathHelpFiles,[pathHelpFiles filesep '**' filesep '*.html'],0,removed_files);
 end_text = sprintf('*****Press F1 --> Supplementary Software --> %s *****', ToolBoxName);
 num_chars = numel(end_text);
 fprintf('\n%s',repmat('*',num_chars,1));
@@ -304,7 +304,7 @@ if isempty(wildpath),
             hleveltmp = hlevel;
             
             % Generate a folder for the help html files where the current file is
-            help_folder_name = [rootDir '\Help\' ToolBoxName strrep(prepath,rootDir,'')];
+            help_folder_name = [rootDir filesep 'Help' filesep ToolBoxName strrep(prepath,rootDir,'')];
             if ~exist(help_folder_name,'dir')
                 mkdir(help_folder_name)
             end
@@ -325,10 +325,8 @@ if isempty(wildpath),
                 
                 % print an .xml entry (tocitem) with a link to the recently
                 % created html file and the correct path and shortname
-                fprintf(fileid,'\t\t<tocitem target="%s"> %s\n', ['\' ToolBoxName strrep(prepath,rootDir,'') shortname '.html'],shortname);
+                fprintf(fileid,'\t\t<tocitem target="%s"> %s\n', [ToolBoxName strrep(prepath,rootDir,'') shortname '.html'],shortname);
             end
-            
-            
             
             % Close the entries with </tocitem> according to the current
             % hierarchical level
@@ -382,7 +380,7 @@ elseif strcmp(wildpath,'**'), % a double wild directory means recurs down into s
             
             dirname = regexprep(tmp(ii).name,'(\<[a-z])','${upper($1)}');
             
-            fprintf(fileid,'\t\t<tocitem target="%s"> %s\n', ['\' ToolBoxName strrep(prepath,rootDir,'') dirname '\Contents.html'],dirname);
+            fprintf(fileid,'\t\t<tocitem target="%s"> %s\n', [filesep ToolBoxName strrep(prepath,rootDir,'') dirname filesep 'Contents.html'],dirname);
             
             Dt = [Dt; autoTOC(rootDir,[prepath tmp(ii).name filesep wildpath postpath],hlevel+1,fileid, ToolBoxName, IgnoredFolders, evalCode)];
             
