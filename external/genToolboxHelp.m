@@ -12,7 +12,7 @@ function FileList = genToolboxHelp(ToolBoxPath, ToolBoxName, IgnoredFolders, eva
 % Matlab help (see also
 % http://de.mathworks.com/help/matlab/matlab_prog/display-custom-documentation.html).
 % The help files can be accessed through Matlabs internal help via F1 -
-% Supplementary Software - ToolBoxName. A GettingStarted.m file is created
+% Supplementary Software - ToolBoxName. A GettingStarted.mlx file is created
 % in the 'ToolBoxPath' folder which can be filled with nicely formatted
 % content according to
 % http://de.mathworks.com/help/matlab/matlab_prog/marking-up-matlab-comments-for-publishing.html
@@ -97,19 +97,19 @@ end
 % See also: http://de.mathworks.com/help/matlab/matlab_prog/display-custom-documentation.html
 fid = fopen(fullfile(pathHelpTOC,'helptoc.xml'),'w');                       % Create the file/overwrite existing
 fprintf(fid,'<?xml version=''1.0'' encoding="utf-8"?>\n\n<toc version="2.0">\n'); % Print initial lines of code
-%% 2.2) Create a GettingStarted.m in the root folder if not present
-% This GettingStarted.m file should be used to introduce people to your
+%% 2.2) Create a GettingStarted.mlx in the root folder if not present
+% This GettingStarted.mlx file should be used to introduce people to your
 % toolbox. It will be published by the matlab publish function and can have
 % some examples and/or graphs etc. Code in here WILL be evaluated to show
 % examples or nice graphs.
 % See also: http://de.mathworks.com/help/matlab/matlab_prog/marking-up-matlab-comments-for-publishing.html
-if ~exist(fullfile(ToolBoxPath, 'GettingStarted.m'), 'file')
-    edit(fullfile(ToolBoxPath, 'GettingStarted.m'))
-    msgbox('Please use GettingStarted.m to introduce to your toolbox. The file is getting published and serves as a homepage for the help directory. The code in here will be evaluated, so feel free to add nice examples and graphs that express your toolbox.');
+if ~exist(fullfile(ToolBoxPath, 'doc', 'GettingStarted.mlx'), 'file')
+    edit(fullfile(ToolBoxPath, 'doc', 'GettingStarted.mlx'))
+    msgbox('Please use GettingStarted.mlx to introduce to your toolbox. The file is getting published and serves as a homepage for the help directory. The code in here will be evaluated, so feel free to add nice examples and graphs that express your toolbox.');
 end
 % Create the home HTML file of your toolbox, GettingStarted.html. It will
 % only be updated if the .m file has been changed.
-GSstatus = updateHtmlFile(fullfile(ToolBoxPath, 'GettingStarted.m'), pathHelpFiles, ToolBoxPath);
+GSstatus = updateHtmlFile(fullfile(ToolBoxPath, 'doc', 'GettingStarted.mlx'), pathHelpFiles, ToolBoxPath);
 if GSstatus
     fprintf('The Getting started html file has been updated\n\n')
 else
@@ -126,7 +126,7 @@ fprintf('**********Processing folders: **********\n');
 D = autoTOC(ToolBoxPath,[ToolBoxPath filesep '**' filesep '*.m'],0,fid,ToolBoxName,IgnoredFolders,evalCode);
 fprintf('\n')
 %% 3.4) Finish and close the helptoc.xml file
-% Close the top-level item of the table of contents (GettingStarted.m
+% Close the top-level item of the table of contents (GettingStarted.mlx
 % entry), the table of contents as such as well as the helptoc.xml file
 fprintf(fid,'\t</tocitem>\n');                                              
 fprintf(fid,'</toc>');
