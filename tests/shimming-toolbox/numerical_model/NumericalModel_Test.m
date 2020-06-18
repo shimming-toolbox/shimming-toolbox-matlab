@@ -1,7 +1,7 @@
 classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unittest.TestCase
 
     properties
-        testFileName = 'test.nii'
+        testFileName = 'test'
     end
 
     methods (TestClassSetup)
@@ -9,8 +9,11 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
 
     methods (TestClassTeardown)
         function removeTempFolder(testCase)
-            if isfile(testCase.testFileName)
-                delete(testCase.testFileName)
+            if isfile([testCase.testFileName '.nii'])
+                delete([testCase.testFileName '.nii'])
+            end
+             if isfile([testCase.testFileName '.mat'])
+                delete([testCase.testFileName '.mat'])
             end
         end
     end
@@ -202,7 +205,7 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
         end
         
         %% save method tests
-        function test_save(testCase)
+        function test_save_nii(testCase)
             testObj = NumericalModel('Shepp-Logan');
             
             FA = 15;
@@ -210,11 +213,24 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
 
             testObj.simulate_measurement(FA, TE);
                         
-            testObj.save('Phase', testCase.testFileName);
+            testObj.save('Phase', testCase.testFileName); % Default option for save is a NIfTI output.
   
-            testCase.assertTrue(isfile(testCase.testFileName))
+            testCase.assertTrue(isfile([testCase.testFileName, '.nii']))
         end
+
         
+        function test_save_mat(testCase)
+            testObj = NumericalModel('Shepp-Logan');
+            
+            FA = 15;
+            TE = [0.003 0.015];
+
+            testObj.simulate_measurement(FA, TE);
+                        
+            testObj.save('Phase', testCase.testFileName, 'mat');
+  
+            testCase.assertTrue(isfile([testCase.testFileName, '.mat']))
+        end
         %% generate_signal method tests
         function test_generate_signal_case_1(testCase)
             

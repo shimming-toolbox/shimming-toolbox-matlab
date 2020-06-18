@@ -103,8 +103,14 @@ classdef NumericalModel < handle
             vol = imag(obj.measurement);
         end
         
-        function vol = save(obj, dataType, niiFilename)
+        function vol = save(obj, dataType, fileName, saveFormat)
             % Get magnitude data
+            % fileName: String. Prefix of filename (without extension)
+            % saveFormat: 'nifti' (default) or 'mat'
+            
+            if ~exist('saveFormat', 'var')
+                saveFormat = 'nifti'; 
+            end
             
             switch dataType
                 case 'Magnitude'
@@ -119,8 +125,13 @@ classdef NumericalModel < handle
                     error('Unknown datatype')
             end
             
-            nii_vol = make_nii(imrotate(fliplr(vol), -90));
-            save_nii(nii_vol, niiFilename);
+            switch saveFormat
+                case 'nifti'
+                    nii_vol = make_nii(imrotate(fliplr(vol), -90));
+                    save_nii(nii_vol, [fileName '.nii']);
+                case 'mat'
+                    save([fileName '.mat'], 'vol')
+            end
         end
         
         function obj = generate_deltaB0(obj, fieldType, params)       
