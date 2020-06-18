@@ -1,4 +1,4 @@
-function B0FieldMaps = compute_Field_Maps(unwrappedPhase, phaseJson, mappingAlgorithm)
+function B0FieldMaps = field(unwrappedPhase, phaseJson, mappingAlgorithm)
 % COMPUTE_FIELD_MAPS Computes B0 fieldmaps following the specified algorithm
 %
 % _SYNTAX_
@@ -45,7 +45,6 @@ switch mappingAlgorithm
             phaseDiff    = unwrappedPhase(:,:,:,:);
         else
             echoTimeDiff = phaseJson(2).EchoTime - phaseJson(1).EchoTime;
-            % if using wrapped phase % phaseDiff = angle( wrappedPhase(1) .* conj(wrappedPhase(2) ) ) ; then unwrap
             phaseDiff    = unwrappedPhase(:,:,:,2,:) - unwrappedPhase(:,:,:,1,:);
         end
         

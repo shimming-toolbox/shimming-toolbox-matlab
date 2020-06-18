@@ -1,4 +1,4 @@
-function unwrappedPhase = unwrap(mag, phase, unwrapAlgorithm)
+function unwrappedPhase = unwrap_phase(mag, phase, unwrapAlgorithm)
 %UNWRAP Unwraps the phase images following the specified algorithm
 %
 % _SYNTAX_
