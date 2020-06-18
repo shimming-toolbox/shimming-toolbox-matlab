@@ -1,17 +1,41 @@
-function unwrappedPhase = unwrap(unwrapAlgorithm, mag, phase)
-%unwrap Computes the unwrapped phase following the specified algorithm
+function unwrappedPhase = unwrap(mag, phase, unwrapAlgorithm)
+%UNWRAP Unwraps the phase images following the specified algorithm
 %
-%     unwrappedPhase = unwrap(unwrapAlgorithm, mag, phase)
+% _SYNTAX_
 %
-% The input `unwrapAlgorithm` specifies the way the B0 maps are unwrapped.
-% The available algorithms are:    'sunwrap'
-% The inputs `mag` ans `phase` are 5D (x,y,z,nEchos,nAcquisitions) arrays.
+%     [unwrappedPhase] = unwrap(mag, phase)
+%     [unwrappedPhase] = unwrap(mag, phase, unwrapAlgorithm)
 %
-% The output `unwrappedPhase` is a 5D (x,y,z,nEchos,nAcquisitions) array
-% containing the results of the unwrapping process.
+% _DESCRIPTION_
+%
+% Returns the unwrapped phase maps that have been calculated from the
+% magnitude and phase data at the different echo times and for each
+% acquisition, following the specified unwrapping algorithm.
+%
+% _INPUT ARGUMENTS_
+%
+%   mag
+%     5D (x,y,z,nEchoes,nAcq) array containing the magnitude data.
+%
+%   phase 
+%     5D (x,y,z,nEchoes,nAcq) array containing the phase data.
+%
+%   unwrapAlgorithm
+%     Specifies the algorithm that will be used to compute tht B0 maps.
+%     Options are: 'sunwrap' (default)
+%
+% _OUTPUTS_
+%
+%   B0FieldMaps
+%     5D (x,y,z,nEchoes,nAcq) array containing the unwrapped phases.
+%
+
+if nargin == 2 
+    unwrapAlgorithm = 'sunwrap';
+end
 
 switch unwrapAlgorithm
-    case 'sunwrap'  % If the chosen unwrapper is sunwrap
+    case 'sunwrap' % If the chosen unwrapper is sunwrap
         disp('Unwrapping with sunwrap...')
         
         % Init Unwrapped Phase
@@ -28,7 +52,8 @@ switch unwrapAlgorithm
                 
             end
         end
+        disp('Unwrapping done')
+        
     otherwise
         disp(['Unknown algorithm. The available algorithms are:' newline '- sunwrap'])
 end
-disp('Unwrapping done')
