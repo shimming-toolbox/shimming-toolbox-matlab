@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  
+  <link rel="shortcut icon" href="../../../../../img/favicon.ico">
+  <title>view_nii - Shimming-toolbox</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
+
+  <link rel="stylesheet" href="../../../../../css/theme.css" />
+  <link rel="stylesheet" href="../../../../../css/theme_extra.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" />
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "view_nii";
+    var mkdocs_page_input_path = "contributing/api_documentation/external/NIFTI/view_nii.md";
+    var mkdocs_page_url = null;
+  </script>
+  
+  <script src="../../../../../js/jquery-2.1.1.min.js" defer></script>
+  <script src="../../../../../js/modernizr-2.8.3.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+        <a href="../../../../.." class="icon icon-home"> Shimming-toolbox</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../../../..">Hello world!</a>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">Contributing</span></p>
+                <ul class="current">
+                    <li class="toctree-l1 current"><a class="reference internal current" href="#">Api documentation</a>
+    <ul class="current">
+                <li class="toctree-l2"><a class="reference internal" href="../../../generate_doc/">generate_doc</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../../../startup/">startup</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">+imutils</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../../%2Bimutils/dicom_to_nifti/">imutils.dicom_to_nifti</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../%2Bimutils/get_nii_coordinates/">imutils.get_nii_coordinates</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../%2Bimutils/load_niftis/">imutils.load_niftis</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../%2Bimutils/read_nii/">imutils.read_nii</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Coils</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="#">Shim Greg</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_Greg/ShimCom_Greg/">ShimCom_Greg</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_Greg/ShimOpt_Greg/">ShimOpt_Greg</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_Greg/ShimSpecs_Greg/">ShimSpecs_Greg</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Shim Rriyan</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_Rriyan/ShimCom_Rriyan/">ShimCom_Rriyan</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_Rriyan/ShimOpt_Rriyan/">ShimOpt_Rriyan</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_Rriyan/ShimSpecs_Rriyan/">ShimSpecs_Rriyan</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Shim Siemens</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="#">Shim Prisma</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Shim Sim</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_Sim/ShimOpt_Sim/">ShimOpt_Sim</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_Sim/ShimSpecs_Sim/">ShimSpecs_Sim</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="#">ShimOpt SphericalHarmonics</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Shim Template</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_Template/ShimCom/">ShimCom</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_Template/ShimOpt/">ShimOpt</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_Template/ShimSpecs/">ShimSpecs</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Shim revC</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_revC/ShimCom_revC/">ShimCom_revC</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_revC/ShimOpt_revC/">ShimOpt_revC</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Coils/Shim_revC/ShimSpecs_revC/">ShimSpecs_revC</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Img</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../../Img/FieldEval/">FieldEval</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../Img/MaRdI/">MaRdI</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../Img/read_nii/">read_nii</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Misc</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Img/misc/dicominfosiemens/">dicominfosiemens</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Ui</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="#">ShimGui</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Ui/ShimGui/ShimGui/">ShimGui</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Aux hardware</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="#">RespiratoryProbe</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../aux_hardware/RespiratoryProbe/ProbeTracking/">ProbeTracking</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../aux_hardware/RespiratoryProbe/filter_signal/">filter_signal</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../aux_hardware/RespiratoryProbe/get_capacitive_probe_signal/">get_capacitive_probe_signal</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../aux_hardware/RespiratoryProbe/tracking_CapacitiveProbe/">tracking_CapacitiveProbe</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="#">CapacitiveProbe</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="#">PressureProbe</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Example</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/GuidedFloodFill/">GuidedFloodFill</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/PhaseDerivativeVariance/">PhaseDerivativeVariance</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/QualityGuidedUnwrap2D_EAO/">QualityGuidedUnwrap2D_EAO</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/createfieldmap/">createfieldmap</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/demozshim/">demozshim</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/eval_acdc_74/">eval_acdc_74</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/experiment/">experiment</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/realtime_zshim/">realtime_zshim</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/shimdemo/">shimdemo</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2 current"><a class="reference internal current" href="#">External</a>
+    <ul class="current">
+                <li class="toctree-l3"><a class="reference internal" href="../../medfilt3/">medfilt3</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../myisfield/">myisfield</a>
+                </li>
+                <li class="toctree-l3 current"><a class="reference internal current" href="#">NIFTI</a>
+    <ul class="current">
+                <li class="toctree-l4"><a class="reference internal" href="../affine/">affine</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../bipolar/">bipolar</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../bresenham_line3d/">bresenham_line3d</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../collapse_nii_scan/">collapse_nii_scan</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../expand_nii_scan/">expand_nii_scan</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../extra_nii_hdr/">extra_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../flip_lr/">flip_lr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../get_nii_frame/">get_nii_frame</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../load_nii/">load_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../load_nii_ext/">load_nii_ext</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../load_nii_hdr/">load_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../load_nii_img/">load_nii_img</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../load_untouch0_nii_hdr/">load_untouch0_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../load_untouch_header_only/">load_untouch_header_only</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../load_untouch_nii/">load_untouch_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../load_untouch_nii_hdr/">load_untouch_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../load_untouch_nii_img/">load_untouch_nii_img</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../make_ana/">make_ana</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../make_nii/">make_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../mat_into_hdr/">mat_into_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../reslice_nii/">reslice_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../rri_file_menu/">rri_file_menu</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../rri_orient/">rri_orient</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../rri_orient_ui/">rri_orient_ui</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../rri_select_file/">rri_select_file</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../rri_xhair/">rri_xhair</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../rri_zoom_menu/">rri_zoom_menu</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../save_nii/">save_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../save_nii_ext/">save_nii_ext</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../save_nii_hdr/">save_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../save_untouch0_nii_hdr/">save_untouch0_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../save_untouch_nii/">save_untouch_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../save_untouch_nii_hdr/">save_untouch_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../save_untouch_slice/">save_untouch_slice</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../unxform_nii/">unxform_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../verify_nii_ext/">verify_nii_ext</a>
+                </li>
+                <li class="toctree-l4 current"><a class="reference internal current" href="./">view_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../view_nii_menu/">view_nii_menu</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../xform_nii/">xform_nii</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Altmany export fig 4c015d5</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/append_pdfs/">append_pdfs</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/copyfig/">copyfig</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/crop_borders/">crop_borders</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/eps2pdf/">eps2pdf</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/export_fig/">export_fig</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/fix_lines/">fix_lines</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/ghostscript/">ghostscript</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/im2gif/">im2gif</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/isolate_axes/">isolate_axes</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/pdf2eps/">pdf2eps</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/pdftops/">pdftops</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/print2array/">print2array</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/print2eps/">print2eps</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/read_write_entire_textfile/">read_write_entire_textfile</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/user_string/">user_string</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../altmany-export_fig-4c015d5/using_hg2/">using_hg2</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Bpfilt</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../bpfilt/bpfilt/">bpfilt</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Dicm2nii</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../dicm2nii/dicm2nii/">dicm2nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../dicm2nii/dicm_dict/">dicm_dict</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../dicm2nii/dicm_hdr/">dicm_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../dicm2nii/dicm_img/">dicm_img</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../dicm2nii/nii_tool/">nii_tool</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../dicm2nii/rename_dicm/">rename_dicm</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../dicm2nii/sort_dicm/">sort_dicm</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Parse dicom</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="#">Src</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Stoploop</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../stoploop/stoploop/">stoploop</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Sunwrap</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../sunwrap/sunwrap/">sunwrap</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Misc</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/LLSf/">LLSf</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/assignifempty/">assignifempty</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/bet/">bet</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/cgls/">cgls</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/createdifferenceoperators/">createdifferenceoperators</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/createellipsoid/">createellipsoid</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/croparray/">croparray</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/dilater/">dilater</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/fftc/">fftc</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/fslview/">fslview</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/getfilecreationtime/">getfilecreationtime</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/ifftc/">ifftc</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/isOctave/">isOctave</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/lapunwrap/">lapunwrap</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/makekspace/">makekspace</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/makeodd/">makeodd</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/myisfieldfilled/">myisfieldfilled</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/nii/">nii</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/prelude/">prelude</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/resharp/">resharp</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/savefigure/">savefigure</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/shaver/">shaver</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/shimbindir/">shimbindir</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/sortdicoms/">sortdicoms</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/unwrap3d/">unwrap3d</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                    </li>
+                </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../../..">Shimming-toolbox</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../../..">Docs</a> &raquo;</li>
+    
+      
+        
+          <li>NIFTI &raquo;</li>
+        
+      
+        
+          <li>External &raquo;</li>
+        
+      
+        
+          <li>Api documentation &raquo;</li>
+        
+      
+        
+          <li>Contributing &raquo;</li>
+        
+      
+    
+    <li>view_nii</li>
+    <li class="wy-breadcrumbs-aside">
+      
+        <a href="https://github.com/shimming-toolbox/shimming-toolbox/edit/master/docs/contributing/api_documentation/external/NIFTI/view_nii.md"
+          class="icon icon-github"> Edit on GitHub</a>
+      
+    </li>
+  </ul>
+  
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="view_nii">view_nii</h1>
+<p><strong>Filetype:</strong> <em>MATLAB&reg; function</em></p>
+<p><strong>Synopsis:</strong> <em>VIEW_NII: Create or update a 3-View (Front, Top, Side) of the</em></p>
+<p>brain data that is specified by nii structure</p>
+<p>Usage:      status = view_nii([h], nii, [option])   or<br />
+status = view_nii(h, [option])</p>
+<p>Where, h is the figure on which the 3-View will be plotted;<br />
+nii is the brain data in NIFTI format;<br />
+option is a struct that configures the view plotted, can be:</p>
+<p>option.command = 'init'<br />
+option.command = 'update'<br />
+option.command = 'clearnii'<br />
+option.command = 'updatenii'<br />
+option.command = 'updateimg' (nii is nii.img here)</p>
+<p>option.usecolorbar = 0 | [1]<br />
+option.usepanel = 0 | [1]<br />
+option.usecrosshair = 0 | [1]<br />
+option.usestretch = 0 | [1]<br />
+option.useimagesc = 0 | [1]<br />
+option.useinterp = [0] | 1</p>
+<p>option.setarea = [x y w h] | [0.05 0.05 0.9 0.9]<br />
+option.setunit = ['vox'] | 'mm'<br />
+option.setviewpoint = [x y z] | [origin]<br />
+option.setscanid = [t] | [1]<br />
+option.setcrosshaircolor = [r g b] | [1 0 0]<br />
+option.setcolorindex = From 1 to 9 (default is 2 or 3)<br />
+option.setcolormap = (Mx3 matrix, 0 &lt;= val &lt;= 1)<br />
+option.setcolorlevel = No more than 256 (default 256)<br />
+option.sethighcolor = []<br />
+option.setcbarminmax = []<br />
+option.setvalue = []<br />
+option.glblocminmax = []<br />
+option.setbuttondown = ''<br />
+option.setcomplex = [0] | 1 | 2</p>
+<h1 id="options-description-in-detail">Options description in detail:</h1>
+<ol>
+<li>command: A char string that can control program.</li>
+</ol>
+<p>init: If option.command='init', the program will display<br />
+a 3-View plot on the figure specified by figure h<br />
+or on a new figure. If there is already a 3-View<br />
+plot on the figure, please use option.command =<br />
+'updatenii' (see detail below); otherwise, the<br />
+new 3-View plot will superimpose on the old one.<br />
+If there is no option provided, the program will<br />
+assume that this is an initial plot. If the figure<br />
+handle is omitted, the program knows that it is<br />
+an initial plot.</p>
+<p>update: If there is no command specified, and a figure<br />
+handle of the existing 3-View plot is provided,<br />
+the program will choose option.command='update'<br />
+to update the 3-View plot with some new option<br />
+items.</p>
+<p>clearnii: Clear 3-View plot on specific figure</p>
+<p>updatenii: If a new nii is going to be loaded on a fig<br />
+that has already 3-View plot on it, use this<br />
+command to clear existing 3-View plot, and then<br />
+display with new nii. So, the new nii will not<br />
+superimpose on the existing one. All options<br />
+for 'init' can be used for 'updatenii'.</p>
+<p>updateimg: If a new 3D matrix with the same dimension<br />
+is going to be loaded, option.command='updateimg'<br />
+can be used as a light-weighted 'updatenii, since<br />
+it only updates the 3 slices with new values.<br />
+inputing argument nii should be a 3D matrix<br />
+(nii.img) instead of nii struct. No other option<br />
+should be used together with 'updateimg' to keep<br />
+this command as simple as possible.</p>
+<ol>
+<li>
+<p>usecolorbar: If specified and usecolorbar=0, the program<br />
+will not include the colorbar in plot area; otherwise,<br />
+a colorbar will be included in plot area.</p>
+</li>
+<li>
+<p>usepanel: If specified and usepanel=0, the control panel<br />
+at lower right cornor will be invisible; otherwise,<br />
+it will be visible.</p>
+</li>
+<li>
+<p>usecrosshair: If specified and usecrosshair=0, the crosshair<br />
+will be invisible; otherwise, it will be visible.</p>
+</li>
+<li>
+<p>usestretch: If specified and usestretch=0, the 3 slices will<br />
+not be stretched, and will be displayed according to<br />
+the actual voxel size; otherwise, the 3 slices will be<br />
+stretched to the edge.</p>
+</li>
+<li>
+<p>useimagesc: If specified and useimagesc=0, images data will<br />
+be used directly to match the colormap (like 'image'<br />
+command); otherwise, image data will be scaled to full<br />
+colormap with 'imagesc' command in Matlab.</p>
+</li>
+<li>
+<p>useinterp: If specified and useinterp=1, the image will be<br />
+displayed using interpolation. Otherwise, it will be<br />
+displayed like mosaic, and each tile stands for a<br />
+pixel. This option does not apply to 'setvalue' option<br />
+is set.</p>
+</li>
+<li>
+<p>setarea: 3-View plot will be displayed on this specific<br />
+region. If it is not specified, program will set the<br />
+plot area to [0.05 0.05 0.9 0.9].</p>
+</li>
+<li>
+<p>setunit: It can be specified to setunit='voxel' or 'mm'<br />
+and the view will change the axes unit of [X Y Z]<br />
+accordingly.</p>
+</li>
+<li>
+<p>setviewpoint: If specified, [X Y Z] values will be used<br />
+to set the viewpoint of 3-View plot.</p>
+</li>
+<li>
+<p>setscanid: If specified, [t] value will be used to display<br />
+the specified image scan in NIFTI data.</p>
+</li>
+<li>
+<p>setcrosshaircolor: If specified, [r g b] value will be used<br />
+for Crosshair Color. Otherwise, red will be the default.</p>
+</li>
+<li>
+<p>setcolorindex: If specified, the 3-View will choose the<br />
+following colormap:  2 - Bipolar; 3 - Gray; 4 - Jet;<br />
+5 - Cool; 6 - Bone; 7 - Hot; 8 - Copper; 9 - Pink;<br />
+If not specified, it will choose 3 - Gray if all data<br />
+values are not less than 0; otherwise, it will choose<br />
+2 - Bipolar if there is value less than 0. (Contrast<br />
+control can only apply to 3 - Gray colormap.</p>
+</li>
+<li>
+<p>setcolormap: 3-View plot will use it as a customized colormap.<br />
+It is a 3-column matrix with value between 0 and 1. If<br />
+using MS-Windows version of Matlab, the number of rows<br />
+can not be more than 256, because of Matlab limitation.<br />
+When colormap is used, setcolorlevel option will be<br />
+disabled automatically.</p>
+</li>
+<li>
+<p>setcolorlevel: If specified (must be no more than 256, and<br />
+cannot be used for customized colormap), row number of<br />
+colormap will be squeezed down to this level; otherwise,<br />
+it will assume that setcolorlevel=256.</p>
+</li>
+<li>
+<p>sethighcolor: If specified, program will squeeze down the<br />
+colormap, and allocate sethighcolor (an Mx3 matrix)<br />
+to high-end portion of the colormap. The sum of M and<br />
+setcolorlevel should be less than 256. If setcolormap<br />
+option is used, sethighcolor will be inserted on top<br />
+of the setcolormap, and the setcolorlevel option will<br />
+be disabled automatically.</p>
+</li>
+<li>
+<p>setcbarminmax: if specified, the [min max] will be used to<br />
+set the min and max of the colorbar, which does not<br />
+include any data for highcolor.</p>
+</li>
+<li>
+<p>setvalue: If specified, setvalue.val (with the same size as<br />
+the source data on solution points) in the source area<br />
+setvalue.idx will be superimposed on the current nii<br />
+image. So, the size of setvalue.val should be equal to<br />
+the size of setvalue.idx. To use this feature, it needs<br />
+single or double nii structure for background image.</p>
+</li>
+<li>
+<p>glblocminmax: If specified, pgm will use glblocminmax to<br />
+calculate the colormap, instead of minmax of image.</p>
+</li>
+<li>
+<p>setbuttondown: If specified, pgm will evaluate the command<br />
+after a click or slide action is invoked to the new<br />
+view point.</p>
+</li>
+<li>
+<p>setcomplex: This option will decide how complex data to be<br />
+displayed:  0 - Real part of complex data; 1 - Imaginary<br />
+part of complex data; 2 - Modulus (magnitude) of complex<br />
+data;  If not specified, it will be set to 0 (Real part<br />
+of complex data as default option. This option only apply<br />
+when option.command is set to 'init or 'updatenii'.</p>
+</li>
+</ol>
+<h1 id="additional-options-for-update-command">Additional Options for 'update' command:</h1>
+<p>option.enablecursormove = [1] | 0<br />
+option.enableviewpoint = 0 | [1]<br />
+option.enableorigin = 0 | [1]<br />
+option.enableunit = 0 | [1]<br />
+option.enablecrosshair = 0 | [1]<br />
+option.enablehistogram = 0 | [1]<br />
+option.enablecolormap = 0 | [1]<br />
+option.enablecontrast = 0 | [1]<br />
+option.enablebrightness = 0 | [1]<br />
+option.enableslider = 0 | [1]<br />
+option.enabledirlabel = 0 | [1]</p>
+<p>e.g.:<br />
+nii = load_nii('T1');       % T1.img/hdr<br />
+view_nii(nii);</p>
+<p>or</p>
+<p>h = figure('unit','normal','pos', [0.18 0.08 0.64 0.85]);<br />
+opt.setarea = [0.05 0.05 0.9 0.9];<br />
+view_nii(h, nii, opt);</p>
+<p>Part of this file is copied and modified from:<br />
+http://www.mathworks.com/matlabcentral/fileexchange/1878-mri-analyze-tools</p>
+<p>NIFTI data format can be found on: http://nifti.nimh.nih.gov</p>
+<ul>
+<li>Jimmy Shen (jimmy@rotman-baycrest.on.ca)</li>
+</ul>
+<h3 id="attributes">Attributes</h3>
+<ul>
+<li>
+<p>nInputs : -1</p>
+</li>
+<li>
+<p>nOutputs : 1</p>
+</li>
+</ul>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../view_nii_menu/" class="btn btn-neutral float-right" title="view_nii_menu">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+        <a href="../verify_nii_ext/" class="btn btn-neutral" title="verify_nii_ext"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+      
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="versions">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+          <a href="https://github.com/shimming-toolbox/shimming-toolbox/" class="fa fa-github" style="float: left; color: #fcfcfc"> GitHub</a>
+      
+      
+        <span><a href="../verify_nii_ext/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+        <span style="margin-left: 15px"><a href="../view_nii_menu/" style="color: #fcfcfc">Next &raquo;</a></span>
+      
+    </span>
+</div>
+    <script>var base_url = '../../../../..';</script>
+    <script src="../../../../../js/theme.js" defer></script>
+      <script src="../../../../../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>
