@@ -16,8 +16,10 @@ disp(niftiPath);
 % Check for which "which" to use depending on OS
 if ispc == 1
     which = 'where';
+    copy = 'copy';
 else
     which = 'which';
+    copy = 'cp -r';
 end
 
 % Make sur dcm2niix is installed
@@ -36,7 +38,7 @@ if system(['dcm2bids_scaffold -o ' niftiPath]) ~= 0
 end
 
 % Add original data to niftiPath/sourcedata
-if system(['cp -r ' unsortedDicomDir ' ' fullfile(niftiPath,'sourcedata')]) ~= 0
+if system([copy ' ' unsortedDicomDir ' ' fullfile(niftiPath,'sourcedata')]) ~= 0
     error 'copy'
 end
 
