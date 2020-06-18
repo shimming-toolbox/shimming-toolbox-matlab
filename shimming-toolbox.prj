@@ -1,0 +1,316 @@
+<deployment-project plugin="plugin.toolbox" plugin-version="1.0">
+  <configuration file="/Users/julien/code/shimming-toolbox/shimming-toolbox.prj" location="/Users/julien/code/shimming-toolbox" name="shimming-toolbox" target="target.toolbox" target-name="Package Toolbox">
+    <param.appname>shimming-toolbox</param.appname>
+    <param.authnamewatermark>shimming-toolbox team</param.authnamewatermark>
+    <param.email />
+    <param.company>https://github.com/shimming-toolbox</param.company>
+    <param.summary>Software package for MRI shimming</param.summary>
+    <param.description>The shimming-toolbox is open-source Matlab software package enabling a variety of MRI shimming (magnetic field homogenization) techniques such as static and real-time shimming for use with standard manufacturer-supplied gradient/shim coils or with custom "multi-coil" arrays.</param.description>
+    <param.screenshot />
+    <param.version>0.0.1</param.version>
+    <param.output>${PROJECT_ROOT}/shimming-toolbox.mltbx</param.output>
+    <param.products.name />
+    <param.products.id />
+    <param.products.version />
+    <param.platforms />
+    <param.guid>1b6c830f-c288-45a3-9a63-2daab6535853</param.guid>
+    <param.exclude.filters />
+    <param.exclude.pcodedmfiles>true</param.exclude.pcodedmfiles>
+    <param.examples />
+    <param.demosxml />
+    <param.apps />
+    <param.registered.apps />
+    <param.docs />
+    <param.getting.started.guide>${PROJECT_ROOT}/doc/GettingStarted.mlx</param.getting.started.guide>
+    <param.matlabpath.excludes>
+      <item>/__MACOSX</item>
+      <item>/__MACOSX/data_testing</item>
+      <item>/__MACOSX/data_testing/ACDC108p</item>
+      <item>/__MACOSX/data_testing/ACDC108p/09-gre_field_mapping_PMUlog</item>
+      <item>/__MACOSX/data_testing/ACDC108p/09-gre_field_mapping_PMUlog/echo_2.46</item>
+      <item>/__MACOSX/data_testing/ACDC108p/09-gre_field_mapping_PMUlog/echo_4.92</item>
+      <item>/__MACOSX/data_testing/ACDC108p/10-gre_field_mapping_PMUlog</item>
+      <item>/__MACOSX/data_testing/ACDC108p/10-gre_field_mapping_PMUlog/echo_4.92</item>
+      <item>/__MACOSX/data_testing/ACDC108p/11-gre_realtime_zshim_NOSHIM</item>
+      <item>/__MACOSX/data_testing/ACDC108p/11-gre_realtime_zshim_NOSHIM/echo_2.5</item>
+      <item>/__MACOSX/data_testing/dicom_unsorted</item>
+      <item>/temp</item>
+      <item>/temp/helpDocMd</item>
+      <item>/temp/helpDocMd/.git</item>
+      <item>/temp/helpDocMd/.git/hooks</item>
+      <item>/temp/helpDocMd/.git/info</item>
+      <item>/temp/helpDocMd/.git/logs</item>
+      <item>/temp/helpDocMd/.git/logs/refs</item>
+      <item>/temp/helpDocMd/.git/logs/refs/heads</item>
+      <item>/temp/helpDocMd/.git/logs/refs/remotes</item>
+      <item>/temp/helpDocMd/.git/logs/refs/remotes/origin</item>
+      <item>/temp/helpDocMd/.git/objects</item>
+      <item>/temp/helpDocMd/.git/objects/info</item>
+      <item>/temp/helpDocMd/.git/objects/pack</item>
+      <item>/temp/helpDocMd/.git/refs</item>
+      <item>/temp/helpDocMd/.git/refs/heads</item>
+      <item>/temp/helpDocMd/.git/refs/remotes</item>
+      <item>/temp/helpDocMd/.git/refs/remotes/origin</item>
+      <item>/temp/helpDocMd/.git/refs/tags</item>
+      <item>/temp/helpDocMd/docs</item>
+      <item>/temp/helpDocMd/docs/ValidationFunctions</item>
+      <item>/temp/helpDocMd/docs/fUtilities</item>
+      <item>/temp/helpDocMd/docs/yaml</item>
+      <item>/temp/helpDocMd/src</item>
+      <item>/temp/helpDocMd/src/fUtilities</item>
+      <item>/temp/helpDocMd/src/yaml</item>
+      <item>/temp/helpDocMd/src/yaml/java</item>
+      <item>/tests/data_testing</item>
+      <item>/tests/data_testing/ACDC108p</item>
+      <item>/tests/data_testing/ACDC108p/09-gre_field_mapping_PMUlog</item>
+      <item>/tests/data_testing/ACDC108p/09-gre_field_mapping_PMUlog/echo_2.46</item>
+      <item>/tests/data_testing/ACDC108p/09-gre_field_mapping_PMUlog/echo_4.92</item>
+      <item>/tests/data_testing/ACDC108p/10-gre_field_mapping_PMUlog</item>
+      <item>/tests/data_testing/ACDC108p/10-gre_field_mapping_PMUlog/echo_4.92</item>
+      <item>/tests/data_testing/ACDC108p/11-gre_realtime_zshim_NOSHIM</item>
+      <item>/tests/data_testing/ACDC108p/11-gre_realtime_zshim_NOSHIM/echo_11.5</item>
+      <item>/tests/data_testing/ACDC108p/11-gre_realtime_zshim_NOSHIM/echo_14.5</item>
+      <item>/tests/data_testing/ACDC108p/11-gre_realtime_zshim_NOSHIM/echo_17.5</item>
+      <item>/tests/data_testing/ACDC108p/11-gre_realtime_zshim_NOSHIM/echo_2.5</item>
+      <item>/tests/data_testing/ACDC108p/11-gre_realtime_zshim_NOSHIM/echo_20.5</item>
+      <item>/tests/data_testing/ACDC108p/11-gre_realtime_zshim_NOSHIM/echo_23.5</item>
+      <item>/tests/data_testing/ACDC108p/11-gre_realtime_zshim_NOSHIM/echo_5.5</item>
+      <item>/tests/data_testing/ACDC108p/11-gre_realtime_zshim_NOSHIM/echo_8.5</item>
+      <item>/tests/data_testing/dicom_sorted</item>
+      <item>/tests/data_testing/dicom_sorted/06_a_gre_DYNshim</item>
+      <item>/tests/data_testing/dicom_sorted/06_a_gre_DYNshim/echo_11.5</item>
+      <item>/tests/data_testing/dicom_sorted/06_a_gre_DYNshim/echo_14.5</item>
+      <item>/tests/data_testing/dicom_sorted/06_a_gre_DYNshim/echo_17.5</item>
+      <item>/tests/data_testing/dicom_sorted/06_a_gre_DYNshim/echo_2.5</item>
+      <item>/tests/data_testing/dicom_sorted/06_a_gre_DYNshim/echo_5.5</item>
+      <item>/tests/data_testing/dicom_sorted/06_a_gre_DYNshim/echo_8.5</item>
+      <item>/tests/data_testing/dicom_sorted/07_a_gre_DYNshim</item>
+      <item>/tests/data_testing/dicom_sorted/07_a_gre_DYNshim/echo_11.5</item>
+      <item>/tests/data_testing/dicom_sorted/07_a_gre_DYNshim/echo_14.5</item>
+      <item>/tests/data_testing/dicom_sorted/07_a_gre_DYNshim/echo_17.5</item>
+      <item>/tests/data_testing/dicom_sorted/07_a_gre_DYNshim/echo_2.5</item>
+      <item>/tests</item>
+      <item>/tests/data_testing/dicom_sorted/07_a_gre_DYNshim/echo_5.5</item>
+      <item>/tests/data_testing/dicom_sorted/07_a_gre_DYNshim/echo_8.5</item>
+      <item>/tests/data_testing/dicom_unsorted</item>
+    </param.matlabpath.excludes>
+    <param.javaclasspath.excludes />
+    <param.exported.on.package>true</param.exported.on.package>
+    <param.required.addons />
+    <param.matlab.project.id />
+    <param.matlab.project.name />
+    <param.release.start>R2019a</param.release.start>
+    <param.release.end>latest</param.release.end>
+    <param.release.current.only>false</param.release.current.only>
+    <param.compatiblity.windows>true</param.compatiblity.windows>
+    <param.compatiblity.macos>true</param.compatiblity.macos>
+    <param.compatiblity.linux>true</param.compatiblity.linux>
+    <param.compatiblity.matlabonline>true</param.compatiblity.matlabonline>
+    <param.installation.map />
+    <param.additional.sw.names />
+    <param.additional.sw.licenses />
+    <param.additional.sw.win.url />
+    <param.additional.sw.mac.url />
+    <param.additional.sw.linux.url />
+    <unset>
+      <param.email />
+      <param.screenshot />
+      <param.output />
+      <param.products.name />
+      <param.products.id />
+      <param.products.version />
+      <param.platforms />
+      <param.exclude.filters />
+      <param.exclude.pcodedmfiles />
+      <param.examples />
+      <param.demosxml />
+      <param.apps />
+      <param.registered.apps />
+      <param.docs />
+      <param.javaclasspath.excludes />
+      <param.required.addons />
+      <param.matlab.project.id />
+      <param.matlab.project.name />
+      <param.release.current.only />
+      <param.compatiblity.windows />
+      <param.compatiblity.macos />
+      <param.compatiblity.linux />
+      <param.compatiblity.matlabonline />
+      <param.installation.map />
+      <param.additional.sw.names />
+      <param.additional.sw.licenses />
+      <param.additional.sw.win.url />
+      <param.additional.sw.mac.url />
+      <param.additional.sw.linux.url />
+    </unset>
+    <fileset.rootdir>
+      <file>${PROJECT_ROOT}</file>
+    </fileset.rootdir>
+    <fileset.rootfiles>
+      <file>${PROJECT_ROOT}/+imutils</file>
+      <file>${PROJECT_ROOT}/.git</file>
+      <file>${PROJECT_ROOT}/.github</file>
+      <file>${PROJECT_ROOT}/.gitignore</file>
+      <file>${PROJECT_ROOT}/CONTRIBUTING.md</file>
+      <file>${PROJECT_ROOT}/Coils</file>
+      <file>${PROJECT_ROOT}/Img</file>
+      <file>${PROJECT_ROOT}/LICENSE</file>
+      <file>${PROJECT_ROOT}/README.md</file>
+      <file>${PROJECT_ROOT}/Ui</file>
+      <file>${PROJECT_ROOT}/aux_hardware</file>
+      <file>${PROJECT_ROOT}/azure-pipelines.yml</file>
+      <file>${PROJECT_ROOT}/doc</file>
+      <file>${PROJECT_ROOT}/docs</file>
+      <file>${PROJECT_ROOT}/example</file>
+      <file>${PROJECT_ROOT}/external</file>
+      <file>${PROJECT_ROOT}/generate-docs.sh</file>
+      <file>${PROJECT_ROOT}/generate_doc.m</file>
+      <file>${PROJECT_ROOT}/misc</file>
+      <file>${PROJECT_ROOT}/mkdocs.yml</file>
+      <file>${PROJECT_ROOT}/startup.m</file>
+      <file>${PROJECT_ROOT}/tests</file>
+    </fileset.rootfiles>
+    <fileset.depfun.included />
+    <fileset.depfun.excluded>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitErroredTestOutcome/MOxUnitErroredTestOutcome.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitErroredTestOutcome/getOutcomeStr.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitErroredTestOutcome/getSummaryContent.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitErroredTestOutcome/isNonFailure.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitErroredTestOutcome/isSuccess.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitFailedTestOutcome/MOxUnitFailedTestOutcome.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitFailedTestOutcome/getOutcomeStr.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitFailedTestOutcome/getSummaryContent.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitFailedTestOutcome/isNonFailure.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitFailedTestOutcome/isSuccess.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitFunctionHandleTestCase/MOxUnitFunctionHandleTestCase.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitFunctionHandleTestCase/run.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitFunctionHandleTestCase/str.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitMatlabUnitWrapperTestCase/MOxUnitMatlabUnitWrapperTestCase.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitMatlabUnitWrapperTestCase/run.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitPassedTestOutcome/MOxUnitPassedTestOutcome.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitPassedTestOutcome/getOutcomeStr.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitPassedTestOutcome/getSummaryContent.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitPassedTestOutcome/isNonFailure.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitPassedTestOutcome/isSuccess.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitSkippedTestOutcome/MOxUnitSkippedTestOutcome.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitSkippedTestOutcome/getOutcomeStr.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitSkippedTestOutcome/getSummaryContent.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitSkippedTestOutcome/isNonFailure.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitSkippedTestOutcome/isSuccess.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestCase/MOxUnitTestCase.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestCase/countTestCases.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestCase/disp.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestCase/getLocation.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestCase/run.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestCase/str.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestCase/subsref.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestNode/MOxUnitTestNode.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestNode/disp.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestNode/getName.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestNode/str.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestOutcome/MOxUnitTestOutcome.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestOutcome/getDuration.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestOutcome/getProgressStr.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestOutcome/getSummaryStr.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestOutcome/getTest.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/MOxUnitTestReport.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/addTestOutcome.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/countTestOutcomes.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/disp.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/getDuration.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/getName.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/getStatisticsStr.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/getStream.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/getSummaryStr.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/getTestOutcome.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/getTestOutputStatistics.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/getVerbosity.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/reportTestOutcome.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/wasSuccessful.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestReport/writeXML.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/MOxUnitTestSuite.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/addFromDirectory.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/addFromFile.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/addFromSuite.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/addTest.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/countTestCases.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/countTestNodes.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/disp.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/getTestNode.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/run.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/setTestNode.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/@MOxUnitTestSuite/str.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/assertElementsAlmostEqual.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/assertEqual.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/assertExceptionThrown.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/assertTrue.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/initTestSuite.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_isa_test_skipped_exception.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_throw_test_skipped_exception.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_elem2str.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_escape_xml.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_find_files.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_floats_almost_equal.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_get_test_name_regexp.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_input2str.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_is_message_identifier.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_mfile_subfunctions.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_platform_is_octave.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_platform_supports.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_platform_version.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_regexp_matches.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_remove_matlab_anchor_tag.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_stack2str.m</file>
+      <file>/Users/julien/code/MOxUnit/MOxUnit/util/moxunit_util_strjoin.m</file>
+    </fileset.depfun.excluded>
+    <fileset.package />
+    <build-deliverables>
+      <file location="${PROJECT_ROOT}" name="shimming-toolbox.mltbx" optional="false">/Users/julien/code/shimming-toolbox/shimming-toolbox.mltbx</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>/Applications/MATLAB_R2020a.app</root>
+      <toolboxes>
+        <toolbox name="matlabcoder" />
+        <toolbox name="embeddedcoder" />
+        <toolbox name="fixedpoint" />
+        <toolbox name="neuralnetwork" />
+      </toolboxes>
+      <toolbox>
+        <matlabcoder>
+          <enabled>true</enabled>
+        </matlabcoder>
+      </toolbox>
+      <toolbox>
+        <embeddedcoder>
+          <enabled>true</enabled>
+        </embeddedcoder>
+      </toolbox>
+      <toolbox>
+        <fixedpoint>
+          <enabled>true</enabled>
+        </fixedpoint>
+      </toolbox>
+      <toolbox>
+        <neuralnetwork>
+          <enabled>true</enabled>
+        </neuralnetwork>
+      </toolbox>
+    </matlab>
+    <platform>
+      <unix>true</unix>
+      <mac>true</mac>
+      <windows>false</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</vista>
+      <linux>false</linux>
+      <solaris>false</solaris>
+      <osver>10.14.6</osver>
+      <os32>false</os32>
+      <os64>true</os64>
+      <arch>maci64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>
