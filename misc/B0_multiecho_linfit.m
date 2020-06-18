@@ -1,21 +1,36 @@
 function [delf, offset, STDX, MSE] = B0_multiecho_linfit(compl_vol, ph_json)
-% function LLSf(compl_vol)
+% B0_multiecho_linfit Computes B0 fieldmaps based on a least-squares
+% fitting of the phase evolution with respect to time
+%
+% _SYNTAX_
 % 
+% [delf, offset, STDX, MSE] = B0_multiecho_linfit(compl_vol, ph_json)
+%
+% _DESCRIPTION_
+%
+% _INPUT ARGUMENTS_
+%
+%    compl_vol
+%      complex 4D data set compl_vol(x,y,z,t)
+%    ph_json
+%      phase json sidecar
+%
+% _OUTPUTS_
+%
+%   delf 
+%     field map in units of Hz 
+%   offset 
+%     frequency shift at echo time 0 in units of Hz
+%   stdx 
+%     standard deviation of delf
+%   mse 
+%     mean square error of delf
 % 
-% Inputs: complex data set (compl_vol), phase json (ph_json)
-% Outputs: 
-%         delf -> field map in Hz 
-%         offset -> frequency shift at echo time 0
-%         stdx -> standard deviation of the fit
-%         mse -> mean square error of the fit
+% Code adapted from https://github.com/evaalonsoortiz/LLSf_B0mapping
 
 % create magnitude and phase data volumes
 mag_data = abs(compl_vol);
 ph_data = angle(compl_vol);
-
-% rescale phase - NOTE: this is temporary, scaling should be done bu read_nii but that is not
-% working for now
-ph_data = rescalePhaseImage(ph_data);
 
 % get number of echoes and echo times
 numTE = size(mag_data,4); 
@@ -69,5 +84,4 @@ for i=1:size(ph_data,1)
 end
 
 
-%niftiwrite(delf,'delf_map.nii');
 
