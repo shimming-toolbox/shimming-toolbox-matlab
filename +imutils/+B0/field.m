@@ -32,6 +32,8 @@ function B0FieldMaps = field(unwrappedPhase, phaseJson, mappingAlgorithm)
 %     at each acquisition time.
 %
 
+narginchk(2,3)
+
 if nargin == 2 
     mappingAlgorithm = 'phaseDifference';
 end

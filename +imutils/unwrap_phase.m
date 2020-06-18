@@ -30,6 +30,8 @@ function unwrappedPhase = unwrap_phase(mag, phase, unwrapAlgorithm)
 %     5D (x,y,z,nEchoes,nAcq) array containing the unwrapped phases.
 %
 
+narginchk(2,3)
+
 if nargin == 2 
     unwrapAlgorithm = 'sunwrap';
 end
