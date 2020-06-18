@@ -80,8 +80,7 @@ if isfield( json, 'Manufacturer') && strcmp(json.Manufacturer, 'Siemens') ...
 
     [img, info] = convert_siemens_phase( img, info );
 else
-    [img, info] = convert_siemens_phase( img, info ); % EAO
-    %[img, info] = rescale( img, info ); % EAO : commented out
+    [img, info] = rescale( img, info ); 
 end
 
 end
