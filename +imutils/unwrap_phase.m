@@ -1,10 +1,10 @@
-function unwrappedPhase = unwrap_phase(mag, phase, unwrapAlgorithm)
+function unwrappedPhase = unwrap_phase(complexArray, unwrapAlgorithm)
 %UNWRAP_PHASE Unwraps the phase images following the specified algorithm.
 %
 % _SYNTAX_
 %
-%     [unwrappedPhase] = unwrap_phase(mag, phase)
-%     [unwrappedPhase] = unwrap_phase(mag, phase, unwrapAlgorithm)
+%     [unwrappedPhase] = unwrap_phase(complexArray)
+%     [unwrappedPhase] = unwrap_phase(complexArray, unwrapAlgorithm)
 %
 % _DESCRIPTION_
 %
@@ -14,11 +14,9 @@ function unwrappedPhase = unwrap_phase(mag, phase, unwrapAlgorithm)
 %
 % _INPUT ARGUMENTS_
 %
-%   mag
-%     5D (x,y,z,nEchoes,nAcq) array containing the magnitude data.
-%
-%   phase
-%     5D (x,y,z,nEchoes,nAcq) array containing the phase data.
+%   complexArray
+%     5D (x,y,z,nEchoes,nAcq) complex array containing the B0 magnitude and
+%     wrapped phase data.
 %
 %   unwrapAlgorithm
 %     Specifies the algorithm that will be used to compute tht B0 maps.
@@ -30,9 +28,9 @@ function unwrappedPhase = unwrap_phase(mag, phase, unwrapAlgorithm)
 %     5D (x,y,z,nEchoes,nAcq) array containing the unwrapped phases.
 %
 
-narginchk(2,3)
+narginchk(1,2)
 
-if nargin == 2
+if nargin == 1
     unwrapAlgorithm = 'sunwrap';
 end
 
@@ -41,21 +39,17 @@ switch unwrapAlgorithm
         disp('Unwrapping with sunwrap...')
         
         % Init Unwrapped Phase
-        for iAcq = 1:size(phase,5)
-            for iEcho = 1:size(phase,4)
-                % Get the magnitude for a specific echo
-                magNorm = mat2gray(mag(:,:,:,iEcho,iAcq));
-                
-                % Calculate the phase in radians, assumes there are wraps
-                phasePi = mat2gray(phase(:,:,:,iEcho,iAcq))*2*pi - pi;
+        for iAcq = 1:size(complexArray,5)
+            for iEcho = 1:size(complexArray,4)
                 
                 % Unwrap phase using sunwrap
-                unwrappedPhase(:,:,:,iEcho,iAcq) = sunwrap(magNorm .* exp( 1i* phasePi ), 0.1);
+                unwrappedPhase(:,:,:,iEcho,iAcq) = sunwrap(complexArray(:,:,:,iEcho,iAcq), 0.1);
                 
             end
         end
         disp('Unwrapping done')
         
-    otherwise
-        disp(['Unknown algorithm. The available algorithms are:' newline '- sunwrap'])
+    otherwise % If unwrapAlgorithm doesn't match any available algorithm
+        disp(['Unknown algorithm. The available algorithms are:' ...
+            newline '- sunwrap'])
 end
