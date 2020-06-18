@@ -78,7 +78,7 @@ if ~exist(ToolBoxPath, 'dir')
 end
 fprintf('**********Toolbox Help generation: **********\n');
 % Naming
-HelpFolderName  = 'Help';                                                   % If you want, you can change the default help folder name
+HelpFolderName  = 'doc';                                                   % If you want, you can change the default help folder name
 IgnoredFolders  = [IgnoredFolders, {'.git', HelpFolderName}];             	% The files in these folders are not published to html files
 % Set Help path and Help HTML path
 pathHelpTOC     = [ToolBoxPath filesep HelpFolderName];                       	% Path of the helptoc.xml file
@@ -123,7 +123,7 @@ fprintf(fid,'\t<tocitem target="GettingStarted.html"> GettingStarted\n');
 % the 'ToolBoxPath\Help\ToolBoxName' folder (or subfolders) and links the
 % output .html files correspondingly in the helptoc.xml file.
 fprintf('**********Processing folders: **********\n');
-D = autoTOC(ToolBoxPath,[ToolBoxPath filesep '**' filesep '*.m'],0,fid,ToolBoxName,IgnoredFolders,evalCode);
+D = autoTOC(ToolBoxPath,[ToolBoxPath filesep '**' filesep '*.m'],0,fid,ToolBoxName,IgnoredFolders,evalCode, HelpFolderName);
 fprintf('\n')
 %% 3.4) Finish and close the helptoc.xml file
 % Close the top-level item of the table of contents (GettingStarted.mlx
@@ -131,22 +131,24 @@ fprintf('\n')
 fprintf(fid,'\t</tocitem>\n');                                              
 fprintf(fid,'</toc>');
 fclose(fid);
-%% 4) Create the necessary info.xml file
-% Includes information about the ToolBoxName and where the helptox.xml file
-% is located ('ToolBoxPath\Help\'). This file is located in the main
-% 'ToolBoxPath' folder. Information aabout the Matlab release and the help
-% type are also included.
-fid2 = fopen(fullfile(ToolBoxPath,'info.xml'),'w');
-fprintf(fid2,'<productinfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n');
-fprintf(fid2,'\txsi:noNamespaceSchemaLocation="optional">\n');
-fprintf(fid2,'\t<?xml-stylesheet type="text/xsl"href="optional"?>\n\t\n');
-fprintf(fid2,'\t<matlabrelease>%s</matlabrelease>\n',version('-release'));
-fprintf(fid2,'\t<name>%s</name>\n',ToolBoxName);
-fprintf(fid2,'\t<type>toolbox</type>\n');
-fprintf(fid2,'\t<icon></icon>\n');
-fprintf(fid2,'\t<help_location>%s</help_location>\n\n',pathHelpTOC);
-fprintf(fid2,'</productinfo>');
-fclose(fid2);
+% JULIEN: I commented the section below because we do not need to udpate
+% info.xml at every doc generation. 
+% %% 4) Create the necessary info.xml file
+% % Includes information about the ToolBoxName and where the helptox.xml file
+% % is located ('ToolBoxPath\Help\'). This file is located in the main
+% % 'ToolBoxPath' folder. Information aabout the Matlab release and the help
+% % type are also included.
+% fid2 = fopen(fullfile(ToolBoxPath,'info.xml'),'w');
+% fprintf(fid2,'<productinfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n');
+% fprintf(fid2,'\txsi:noNamespaceSchemaLocation="optional">\n');
+% fprintf(fid2,'\t<?xml-stylesheet type="text/xsl"href="optional"?>\n\t\n');
+% fprintf(fid2,'\t<matlabrelease>%s</matlabrelease>\n',version('-release'));
+% fprintf(fid2,'\t<name>%s</name>\n',ToolBoxName);
+% fprintf(fid2,'\t<type>toolbox</type>\n');
+% fprintf(fid2,'\t<icon></icon>\n');
+% fprintf(fid2,'\t<help_location>%s</help_location>\n\n',pathHelpTOC);
+% fprintf(fid2,'</productinfo>');
+% fclose(fid2);
 %% 5) Display feedback
 % Let the user know which files have been created
 fprintf('**********XML file generation: **********\n')
@@ -190,7 +192,7 @@ fprintf('\n*****Press F1 --> Supplementary Software --> %s *****\n', ToolBoxName
 fprintf('%s\n',repmat('*',num_chars,1));
 end
 %% RECURSIVE SUBFUNCTION TO GENERATE HELP FILES AND helptoc.xml 
-function [varargout] = autoTOC(rootDir, currDir, lvl, fid, ToolBoxName, IgnoredFolders, evalCode)
+function [varargout] = autoTOC(rootDir, currDir, lvl, fid, ToolBoxName, IgnoredFolders, evalCode, HelpFolderName)
 %% AUTOTOC Generate helptoc.xml file for a custom Matlab toolbox
 % Generates .html help files for all of the scripts/functions in the folder
 % currDIR (and its subfolders) and places them in a hierarchical structure
@@ -304,7 +306,7 @@ if isempty(wildpath),
             hleveltmp = hlevel;
             
             % Generate a folder for the help html files where the current file is
-            help_folder_name = [rootDir filesep 'Help' filesep ToolBoxName strrep(prepath,rootDir,'')];
+            help_folder_name = [rootDir filesep HelpFolderName filesep ToolBoxName strrep(prepath,rootDir,'')];
             if ~exist(help_folder_name,'dir')
                 mkdir(help_folder_name)
             end
@@ -346,7 +348,7 @@ if isempty(wildpath),
 elseif strcmp(wildpath,'**'), % a double wild directory means recurs down into sub directories
     
     % first look for files in the current directory (remove extra filesep)
-    D = autoTOC(rootDir,[prepath postpath(2:end)],hlevel,fileid, ToolBoxName, IgnoredFolders,evalCode);
+    D = autoTOC(rootDir,[prepath postpath(2:end)],hlevel,fileid, ToolBoxName, IgnoredFolders,evalCode, HelpFolderName);
     
     % then look for sub directories
     Dt = dir('');
@@ -382,7 +384,7 @@ elseif strcmp(wildpath,'**'), % a double wild directory means recurs down into s
             
             fprintf(fileid,'\t\t<tocitem target="%s"> %s\n', [filesep ToolBoxName strrep(prepath,rootDir,'') dirname filesep 'Contents.html'],dirname);
             
-            Dt = [Dt; autoTOC(rootDir,[prepath tmp(ii).name filesep wildpath postpath],hlevel+1,fileid, ToolBoxName, IgnoredFolders, evalCode)];
+            Dt = [Dt; autoTOC(rootDir,[prepath tmp(ii).name filesep wildpath postpath],hlevel+1,fileid, ToolBoxName, IgnoredFolders, evalCode, HelpFolderName)];
             
             hleveltmp = hlevel;
             while hleveltmp>0
@@ -406,7 +408,7 @@ else
     % process each directory found
     for ii = 1:length(tmp),
         if (tmp(ii).isdir && ~strcmpi(tmp(ii).name,'.') && ~strcmpi(tmp(ii).name,'..') ),
-            D = [D; autoTOC(rootDir,[prepath tmp(ii).name postpath],hlevel+1,fileid, ToolBoxName, IgnoredFolders, evalCode)];
+            D = [D; autoTOC(rootDir,[prepath tmp(ii).name postpath],hlevel+1,fileid, ToolBoxName, IgnoredFolders, evalCode, HelpFolderName)];
         end
     end
 end
