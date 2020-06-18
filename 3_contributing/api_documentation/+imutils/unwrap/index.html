@@ -9,7 +9,7 @@
   
   
   <link rel="shortcut icon" href="../../../../img/favicon.ico">
-  <title>imutils.read_nii - Shimming-toolbox</title>
+  <title>imutils.unwrap - Shimming-toolbox</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
 
   <link rel="stylesheet" href="../../../../css/theme.css" />
@@ -19,8 +19,8 @@
   
   <script>
     // Current page data
-    var mkdocs_page_name = "imutils.read_nii";
-    var mkdocs_page_input_path = "3_contributing/api_documentation/+imutils/read_nii.md";
+    var mkdocs_page_name = "imutils.unwrap";
+    var mkdocs_page_input_path = "3_contributing/api_documentation/+imutils/unwrap.md";
     var mkdocs_page_url = null;
   </script>
   
@@ -88,13 +88,13 @@
                 </li>
                 <li class="toctree-l3"><a class="reference internal" href="../load_niftis/">imutils.load_niftis</a>
                 </li>
-                <li class="toctree-l3 current"><a class="reference internal current" href="./">imutils.read_nii</a>
+                <li class="toctree-l3"><a class="reference internal" href="../read_nii/">imutils.read_nii</a>
+                </li>
+                <li class="toctree-l3 current"><a class="reference internal current" href="./">imutils.unwrap</a>
     <ul class="current">
     <li class="toctree-l4"><a class="reference internal" href="#attributes">Attributes</a>
     </li>
     </ul>
-                </li>
-                <li class="toctree-l3"><a class="reference internal" href="../unwrap/">imutils.unwrap</a>
                 </li>
                 <li class="toctree-l3"><a class="reference internal" href="#">+B0</a>
     <ul>
@@ -504,10 +504,10 @@
         
       
     
-    <li>imutils.read_nii</li>
+    <li>imutils.unwrap</li>
     <li class="wy-breadcrumbs-aside">
       
-        <a href="https://github.com/shimming-toolbox/shimming-toolbox/edit/master/docs/3_contributing/api_documentation/+imutils/read_nii.md"
+        <a href="https://github.com/shimming-toolbox/shimming-toolbox/edit/master/docs/3_contributing/api_documentation/+imutils/unwrap.md"
           class="icon icon-github"> Edit on GitHub</a>
       
     </li>
@@ -518,60 +518,39 @@
           <div role="main">
             <div class="section">
               
-                <h1 id="imutilsread_nii">imutils.read_nii</h1>
+                <h1 id="imutilsunwrap">imutils.unwrap</h1>
 <p><strong>Filetype:</strong> <em>MATLAB&reg; function</em></p>
-<p><strong>Synopsis:</strong> <em>READ_NII Load NIfTI image, header, and (if present) the accompanying .json sidecar</em></p>
-<pre><code>  [img, info]       = read_nii( niiFile )
-  [img, info, json] = read_nii( niiFile, options )
+<p><strong>Synopsis:</strong> <em>UNWRAP Unwraps the phase images following the specified algorithm</em></p>
+<p><em>SYNTAX</em></p>
+<pre><code>  [unwrappedPhase] = unwrap(mag, phase)
+  [unwrappedPhase] = unwrap(mag, phase, unwrapAlgorithm)
 </code></pre>
-<p>The input <code>niiFile</code> is the path to the NIfTI image as a string scalar or<br />
-character vector. When called with 2 output arguments, the function is<br />
-equivalent short-hand for</p>
-<pre><code>  info = niftiinfo( niiFile ); img = niftiread( info )
+<p><em>DESCRIPTION</em></p>
+<p>Returns the unwrapped phase maps that have been calculated from the<br />
+magnitude and phase data at the different echo times and for each<br />
+acquisition, following the specified unwrapping algorithm.</p>
+<p><em>INPUT ARGUMENTS</em></p>
+<pre><code>mag
+  5D (x,y,z,nEchoes,nAcq) array containing the magnitude data.
+
+phase 
+  5D (x,y,z,nEchoes,nAcq) array containing the phase data.
+
+unwrapAlgorithm
+  Specifies the algorithm that will be used to compute tht B0 maps.
+  Options are: 'sunwrap' (default)
 </code></pre>
-<p>The function checks the <code>niiFile</code> parent-folder for the presence of a<br />
-sidecar (an identically named file, but with a .json file extension).<br />
-When such a file exists, the 3rd output is returned as a struct via<br />
-<code>json = jsondecode( fileread( jsonFile ) );</code> otherwise, <code>json = []</code>.</p>
-<p><strong>OPTIONS</strong></p>
-<p>The function accepts an <code>options</code> struct of parameters (for now, only one)<br />
-as a 2nd argument for which the <code>.rescale</code> field can be assigned:</p>
-<table>
-<thead>
-<tr>
-<th><code>options.rescale</code></th>
-<th>Effect</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>'off'</td>
-<td>Rescaling disabled</td>
-</tr>
-<tr>
-<td>'basic'</td>
-<td>Rescale according to nii header info</td>
-</tr>
-<tr>
-<td>'auto' [default]</td>
-<td>Rescale and convert to physical units when possible</td>
-</tr>
-</tbody>
-</table>
-<p><strong>NOTE</strong><br />
-For now, the sole effect of <code>'auto'</code> is to convert Siemens raw phase images<br />
-to physical units (radians), which requires converting from their original<br />
-integer type (between [0,4095]) to a 32-bit "single" float (between [-pi,pi)).<br />
-The json sidecar must be available to verify the Manufacturer and ImageType<br />
-entries. Otherwise, and for all other image inputs <code>'auto'</code> reverts to<br />
-<code>'basic'</code>.</p>
+<p><em>OUTPUTS</em></p>
+<pre><code>B0FieldMaps
+  5D (x,y,z,nEchoes,nAcq) array containing the unwrapped phases.
+</code></pre>
 <h3 id="attributes">Attributes</h3>
 <ul>
 <li>
-<p>nInputs : 2</p>
+<p>nInputs : 3</p>
 </li>
 <li>
-<p>nOutputs : 3</p>
+<p>nOutputs : 1</p>
 </li>
 </ul>
               
@@ -581,10 +560,10 @@ entries. Otherwise, and for all other image inputs <code>'auto'</code> reverts t
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../unwrap/" class="btn btn-neutral float-right" title="imutils.unwrap">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../%2BB0/compute_Field_Maps/" class="btn btn-neutral float-right" title="imutils.B0.compute_Field_Maps">Next <span class="icon icon-circle-arrow-right"></span></a>
       
       
-        <a href="../load_niftis/" class="btn btn-neutral" title="imutils.load_niftis"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../read_nii/" class="btn btn-neutral" title="imutils.read_nii"><span class="icon icon-circle-arrow-left"></span> Previous</a>
       
     </div>
   
@@ -612,10 +591,10 @@ entries. Otherwise, and for all other image inputs <code>'auto'</code> reverts t
           <a href="https://github.com/shimming-toolbox/shimming-toolbox/" class="fa fa-github" style="float: left; color: #fcfcfc"> GitHub</a>
       
       
-        <span><a href="../load_niftis/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+        <span><a href="../read_nii/" style="color: #fcfcfc;">&laquo; Previous</a></span>
       
       
-        <span style="margin-left: 15px"><a href="../unwrap/" style="color: #fcfcfc">Next &raquo;</a></span>
+        <span style="margin-left: 15px"><a href="../%2BB0/compute_Field_Maps/" style="color: #fcfcfc">Next &raquo;</a></span>
       
     </span>
 </div>
