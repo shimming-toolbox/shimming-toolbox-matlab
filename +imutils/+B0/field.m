@@ -1,14 +1,14 @@
 function B0FieldMaps = field(unwrappedPhase, phaseJson, mappingAlgorithm)
-% COMPUTE_FIELD_MAPS Computes B0 fieldmaps following the specified algorithm
+%FIELD Computes B0 fieldmaps following the specified algorithm.
 %
 % _SYNTAX_
 %
-%    [B0FieldMaps] = compute_Field_Maps(unwrappedPhase, phaseJson)
-%    [B0FieldMaps] = compute_Field_Maps(unwrappedPhase, phaseJson, mappingAlgorithm)
+%    [B0FieldMaps] = field(unwrappedPhase, phaseJson)
+%    [B0FieldMaps] = field(unwrappedPhase, phaseJson, mappingAlgorithm)
 %
 % _DESCRIPTION_
 %
-% Returns the B0 field maps that have been calculated from the unwrapped 
+% Returns the B0 field maps that have been calculated from the unwrapped
 % phase data corresponding to the different echoes at different acquisition
 % times, following the specified mapping algorithm.
 %
@@ -17,7 +17,7 @@ function B0FieldMaps = field(unwrappedPhase, phaseJson, mappingAlgorithm)
 %   unwrappedPhase
 %     5D (x,y,z,nEchoes,nAcq) array containing the unwrapped phases.
 %
-%   phaseJson 
+%   phaseJson
 %     Structure with the field `.EchoTime` that is an array containing the
 %     different echo times corresponding to the measured phases.
 %
@@ -34,7 +34,7 @@ function B0FieldMaps = field(unwrappedPhase, phaseJson, mappingAlgorithm)
 
 narginchk(2,3)
 
-if nargin == 2 
+if nargin == 2
     mappingAlgorithm = 'phaseDifference';
 end
 
@@ -53,6 +53,6 @@ switch mappingAlgorithm
         B0FieldMaps = phaseDiff./(2*pi*echoTimeDiff);
         disp('B0 mapping done')
         
-otherwise
-    disp(['Unknown mapping algorithm. The available algorithms are:' newline '- phaseDifference'])
+    otherwise
+        disp(['Unknown mapping algorithm. The available algorithms are:' newline '- phaseDifference'])
 end

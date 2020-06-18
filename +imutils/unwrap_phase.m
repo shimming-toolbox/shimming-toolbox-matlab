@@ -1,10 +1,10 @@
 function unwrappedPhase = unwrap_phase(mag, phase, unwrapAlgorithm)
-%UNWRAP Unwraps the phase images following the specified algorithm
+%UNWRAP_PHASE Unwraps the phase images following the specified algorithm.
 %
 % _SYNTAX_
 %
-%     [unwrappedPhase] = unwrap(mag, phase)
-%     [unwrappedPhase] = unwrap(mag, phase, unwrapAlgorithm)
+%     [unwrappedPhase] = unwrap_phase(mag, phase)
+%     [unwrappedPhase] = unwrap_phase(mag, phase, unwrapAlgorithm)
 %
 % _DESCRIPTION_
 %
@@ -17,7 +17,7 @@ function unwrappedPhase = unwrap_phase(mag, phase, unwrapAlgorithm)
 %   mag
 %     5D (x,y,z,nEchoes,nAcq) array containing the magnitude data.
 %
-%   phase 
+%   phase
 %     5D (x,y,z,nEchoes,nAcq) array containing the phase data.
 %
 %   unwrapAlgorithm
@@ -32,7 +32,7 @@ function unwrappedPhase = unwrap_phase(mag, phase, unwrapAlgorithm)
 
 narginchk(2,3)
 
-if nargin == 2 
+if nargin == 2
     unwrapAlgorithm = 'sunwrap';
 end
 
