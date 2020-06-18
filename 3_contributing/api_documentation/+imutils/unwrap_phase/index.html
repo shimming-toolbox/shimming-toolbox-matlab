@@ -9,7 +9,7 @@
   
   
   <link rel="shortcut icon" href="../../../../img/favicon.ico">
-  <title>rescalePhaseImage - Shimming-toolbox</title>
+  <title>imutils.unwrap_phase - Shimming-toolbox</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
 
   <link rel="stylesheet" href="../../../../css/theme.css" />
@@ -19,8 +19,8 @@
   
   <script>
     // Current page data
-    var mkdocs_page_name = "rescalePhaseImage";
-    var mkdocs_page_input_path = "3_contributing/api_documentation/misc/rescalePhaseImage.md";
+    var mkdocs_page_name = "imutils.unwrap_phase";
+    var mkdocs_page_input_path = "3_contributing/api_documentation/+imutils/unwrap_phase.md";
     var mkdocs_page_url = null;
   </script>
   
@@ -80,15 +80,27 @@
                 </li>
                 <li class="toctree-l2"><a class="reference internal" href="../../startup/">startup</a>
                 </li>
-                <li class="toctree-l2"><a class="reference internal" href="#">+imutils</a>
+                <li class="toctree-l2 current"><a class="reference internal current" href="#">+imutils</a>
+    <ul class="current">
+                <li class="toctree-l3"><a class="reference internal" href="../dicom_to_nifti/">imutils.dicom_to_nifti</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../get_nii_coordinates/">imutils.get_nii_coordinates</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../load_niftis/">imutils.load_niftis</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../read_nii/">imutils.read_nii</a>
+                </li>
+                <li class="toctree-l3 current"><a class="reference internal current" href="./">imutils.unwrap_phase</a>
+    <ul class="current">
+    <li class="toctree-l4"><a class="reference internal" href="#attributes">Attributes</a>
+    </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">+B0</a>
     <ul>
-                <li class="toctree-l3"><a class="reference internal" href="../../%2Bimutils/dicom_to_nifti/">imutils.dicom_to_nifti</a>
+                <li class="toctree-l4"><a class="reference internal" href="../%2BB0/field/">imutils.B0.field</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../../%2Bimutils/get_nii_coordinates/">imutils.get_nii_coordinates</a>
-                </li>
-                <li class="toctree-l3"><a class="reference internal" href="../../%2Bimutils/load_niftis/">imutils.load_niftis</a>
-                </li>
-                <li class="toctree-l3"><a class="reference internal" href="../../%2Bimutils/read_nii/">imutils.read_nii</a>
+    </ul>
                 </li>
     </ul>
                 </li>
@@ -388,67 +400,55 @@
                 </li>
     </ul>
                 </li>
-                <li class="toctree-l2 current"><a class="reference internal current" href="#">Misc</a>
-    <ul class="current">
-                <li class="toctree-l3"><a class="reference internal" href="../B0_multiecho_linfit/">B0_multiecho_linfit</a>
+                <li class="toctree-l2"><a class="reference internal" href="#">Misc</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/assignifempty/">assignifempty</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../assignifempty/">assignifempty</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/bet/">bet</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../bet/">bet</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/cgls/">cgls</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../bkgrnd_noise/">bkgrnd_noise</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/createdifferenceoperators/">createdifferenceoperators</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../cgls/">cgls</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/createellipsoid/">createellipsoid</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../createdifferenceoperators/">createdifferenceoperators</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/croparray/">croparray</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../createellipsoid/">createellipsoid</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/dilater/">dilater</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../croparray/">croparray</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/fftc/">fftc</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../dilater/">dilater</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/fslview/">fslview</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../fftc/">fftc</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/getfilecreationtime/">getfilecreationtime</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../fslview/">fslview</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/ifftc/">ifftc</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../getfilecreationtime/">getfilecreationtime</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/isOctave/">isOctave</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../ifftc/">ifftc</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/lapunwrap/">lapunwrap</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../isOctave/">isOctave</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/makekspace/">makekspace</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../lapunwrap/">lapunwrap</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/makeodd/">makeodd</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../makekspace/">makekspace</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/myisfieldfilled/">myisfieldfilled</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../makeodd/">makeodd</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/nii/">nii</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../myisfieldfilled/">myisfieldfilled</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/prelude/">prelude</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../nii/">nii</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/resharp/">resharp</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../prelude/">prelude</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/savefigure/">savefigure</a>
                 </li>
-                <li class="toctree-l3 current"><a class="reference internal current" href="./">rescalePhaseImage</a>
-    <ul class="current">
-    <li class="toctree-l4"><a class="reference internal" href="#attributes">Attributes</a>
-    </li>
-    </ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/shaver/">shaver</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../resharp/">resharp</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/shimbindir/">shimbindir</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../savefigure/">savefigure</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/sortdicoms/">sortdicoms</a>
                 </li>
-                <li class="toctree-l3"><a class="reference internal" href="../shaver/">shaver</a>
-                </li>
-                <li class="toctree-l3"><a class="reference internal" href="../shimbindir/">shimbindir</a>
-                </li>
-                <li class="toctree-l3"><a class="reference internal" href="../sortdicoms/">sortdicoms</a>
-                </li>
-                <li class="toctree-l3"><a class="reference internal" href="../threshold_masking/">threshold_masking</a>
-                </li>
-                <li class="toctree-l3"><a class="reference internal" href="../unwrap3d/">unwrap3d</a>
+                <li class="toctree-l3"><a class="reference internal" href="../../misc/unwrap3d/">unwrap3d</a>
                 </li>
     </ul>
                 </li>
@@ -492,7 +492,7 @@
     
       
         
-          <li>Misc &raquo;</li>
+          <li>+imutils &raquo;</li>
         
       
         
@@ -504,10 +504,10 @@
         
       
     
-    <li>rescalePhaseImage</li>
+    <li>imutils.unwrap_phase</li>
     <li class="wy-breadcrumbs-aside">
       
-        <a href="https://github.com/shimming-toolbox/shimming-toolbox/edit/master/docs/3_contributing/api_documentation/misc/rescalePhaseImage.md"
+        <a href="https://github.com/shimming-toolbox/shimming-toolbox/edit/master/docs/3_contributing/api_documentation/+imutils/unwrap_phase.md"
           class="icon icon-github"> Edit on GitHub</a>
       
     </li>
@@ -518,17 +518,36 @@
           <div role="main">
             <div class="section">
               
-                <h1 id="rescalephaseimage">rescalePhaseImage</h1>
+                <h1 id="imutilsunwrap_phase">imutils.unwrap_phase</h1>
 <p><strong>Filetype:</strong> <em>MATLAB&reg; function</em></p>
-<p><strong>Synopsis:</strong> <em>rescale phase image outputed by scanner (ranging from [-4096:4095]</em></p>
-<p>to the [-PI:PI] range</p>
-<p>PHASE_IN: phase image with value ranging from [-4096:4095]<br />
-invert: Invert sign (i.e. to convert from left-handed system to<br />
-          right-handed system (default = 1)</p>
+<p><strong>Synopsis:</strong> <em>UNWRAP_PHASE Unwraps the phase images following the specified algorithm.</em></p>
+<p><em>SYNTAX</em></p>
+<pre><code>  [unwrappedPhase] = unwrap_phase(mag, phase)
+  [unwrappedPhase] = unwrap_phase(mag, phase, unwrapAlgorithm)
+</code></pre>
+<p><em>DESCRIPTION</em></p>
+<p>Returns the unwrapped phase maps that have been calculated from the<br />
+magnitude and phase data at the different echo times and for each<br />
+acquisition, following the specified unwrapping algorithm.</p>
+<p><em>INPUT ARGUMENTS</em></p>
+<pre><code>mag
+  5D (x,y,z,nEchoes,nAcq) array containing the magnitude data.
+
+phase
+  5D (x,y,z,nEchoes,nAcq) array containing the phase data.
+
+unwrapAlgorithm
+  Specifies the algorithm that will be used to compute tht B0 maps.
+  Options are: 'sunwrap' (default)
+</code></pre>
+<p><em>OUTPUTS</em></p>
+<pre><code>B0FieldMaps
+  5D (x,y,z,nEchoes,nAcq) array containing the unwrapped phases.
+</code></pre>
 <h3 id="attributes">Attributes</h3>
 <ul>
 <li>
-<p>nInputs : 2</p>
+<p>nInputs : 3</p>
 </li>
 <li>
 <p>nOutputs : 1</p>
@@ -541,10 +560,10 @@ invert: Invert sign (i.e. to convert from left-handed system to<br />
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../resharp/" class="btn btn-neutral float-right" title="resharp">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../%2BB0/field/" class="btn btn-neutral float-right" title="imutils.B0.field">Next <span class="icon icon-circle-arrow-right"></span></a>
       
       
-        <a href="../prelude/" class="btn btn-neutral" title="prelude"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../read_nii/" class="btn btn-neutral" title="imutils.read_nii"><span class="icon icon-circle-arrow-left"></span> Previous</a>
       
     </div>
   
@@ -572,10 +591,10 @@ invert: Invert sign (i.e. to convert from left-handed system to<br />
           <a href="https://github.com/shimming-toolbox/shimming-toolbox/" class="fa fa-github" style="float: left; color: #fcfcfc"> GitHub</a>
       
       
-        <span><a href="../prelude/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+        <span><a href="../read_nii/" style="color: #fcfcfc;">&laquo; Previous</a></span>
       
       
-        <span style="margin-left: 15px"><a href="../resharp/" style="color: #fcfcfc">Next &raquo;</a></span>
+        <span style="margin-left: 15px"><a href="../%2BB0/field/" style="color: #fcfcfc">Next &raquo;</a></span>
       
     </span>
 </div>
