@@ -4,18 +4,21 @@ function LLSf(mag_path, ph_path)
 [mag_data, mag_info, mag_json] = imutils.load_niftis(mag_path);
 [ph_data, ph_info, ph_json] = imutils.load_niftis(ph_path);
 
-% note the echo index will be 4 once this branch in merged with master
-num_echoes = size(mag_data,5);
-%echo_times = 
+mag_data = double(squeeze(mag_data));
+ph_data = double(squeeze(ph_data));
+
+num_echoes = size(mag_data,4); 
 
 %[mask_img,mask_info,mask_json] = imutils.read_nii(mask_fname);
 
 
 % create complex data volume
-vol_compl(:,:,:,:) = double(mag_data(:,:,:,1,:)).*exp(1i*double(ph_data(:,:,:,1,:)));
+vol_compl(:,:,:,:) = mag_data(:,:,:,:).*exp(1i*ph_data(:,:,:,:));
 
 % temporally unwrap phase across echoes
 delPhaseNet = temporal_phUnwrap;%(vol_compl);
+
+mask = threshold_masking;
 
 % frequency shift calculation (field map)
 [delf, offset, STDX, MSE] = linfitFrequency; %(echo_times, delPhaseNet, num_echoes, mag, mask);
@@ -99,30 +102,30 @@ delPhaseNet = temporal_phUnwrap;%(vol_compl);
 
     end
 
-    function threshold_mask
+    function mask = threshold_masking
 
     % Calculate background noise 
-    sigma = calc_bkgrnd_noise(mag_data);
+    sigma = calc_bkgrnd_noise;%(mag_data);
 
     mask = zeros(size(mag_data));
-    mask = reshape(mask,data_dim(1,1)*data_dim(1,2)*data_dim(1,3)*data_dim(1,4),1);
-    data = reshape(data,data_dim(1,1)*data_dim(1,2)*data_dim(1,3)*data_dim(1,4),1);
+    mask = reshape(mask,size(mag_data,1)*size(mag_data,2)*size(mag_data,3)*size(mag_data,4),1);
+    data = reshape(mag_data,size(mag_data,1)*size(mag_data,2)*size(mag_data,3)*size(mag_data,4),1);
     mask(find(data>100*sigma(1))) = 1;
-    mask = reshape(mask,data_dim);
-    mask = mask(:,:,:,1);
+    mask = reshape(mask,size(mag_data,1),size(mag_data,2),size(mag_data,3),size(mag_data,4));
+    mask = mask(:,:,:,1,1);
 
     end
 
-    function sigma = calc_bkgrnd_noise(data_vol, data_dim)
+    function sigma = calc_bkgrnd_noise %(data_vol, data_dim)
 
     %--------------------------------------------------------------------------
     % Calculate background noise 
 
     % "default" noise level...
-    sigma(1:slices) = 1;
+    sigma(1:size(mag_data,3)) = 1;
 
     % Prepare noise mask
-    noise_mask = zeros(height,width,slices);
+    noise_mask = zeros(size(mag_data,1),size(mag_data,2),size(mag_data,3));
 
     % Pick four corners of 5x5
     noise_mask(1:5,1:5,:) = 1;
@@ -131,21 +134,19 @@ delPhaseNet = temporal_phUnwrap;%(vol_compl);
     noise_mask(end-5:end,end-5:end,:) = 1;
 
     % apply mask to the data
-    for slice = 1:slices
-        for frame = 1:num_echoes
-            noise_data(:,:,slice,frame) = data_vol(:,:,slice,frame).*noise_mask(:,:,slice); 
+    for echo = 1:num_echoes
+        noise_data(:,:,:,echo) = mag_data(:,:,:,echo).*noise_mask(:,:,:); 
+    end
+
+    noise_data = reshape(noise_data, size(mag_data,1)*size(mag_data,2), size(mag_data,3), num_echoes);
+
+    for slice = 1:size(mag_data,3)
+        for echo = 1:num_echoes
+            std_noise(slice,echo) = std(nonzeros(noise_data(:,slice,echo)));
         end
     end
 
-    noise_data = reshape(noise_data, voxels, slices, num_echoes);
-
-    for slice = 1:slices
-        for frame = 1:num_echoes
-            std_noise(slice,frame) = std(nonzeros(noise_data(:,slice,frame)));
-        end
-    end
-
-    for slice = 1:slices
+    for slice = 1:size(mag_data,3)
         sigma(slice) = mean(std_noise(slice,:));
     end
 
