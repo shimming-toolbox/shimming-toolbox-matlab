@@ -13,8 +13,7 @@ addpath(genpath('./s'))
 
 %% API doc
 % overwrite shimming-toolbox/docs/contributing/api_documentation/
-!mkdir s/docs/contributing
-!mkdir s/docs/contributing/api_documentation
+!mkdir s/docs/3_contributing/api_documentation
 
 % Generate API documentation
 src = './s';
@@ -32,7 +31,7 @@ src = src(~contains(src,'s/Ui/ShimUse.m'));
 src = src(~contains(src,'s/tests'));
 
 % Call documentor
-Options.outputDir = './s/docs/contributing/api_documentation';
+Options.outputDir = './s/docs/3_contributing/api_documentation';
 Dr = Documentor( src , Options ) ;
 
 % Generate documentation

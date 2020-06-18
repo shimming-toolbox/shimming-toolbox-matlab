@@ -7,4 +7,6 @@ markdown_extensions:
   - admonition
   - extra:
   - nl2br:
+extra_css:
+  - css/extra.css
 nav:
