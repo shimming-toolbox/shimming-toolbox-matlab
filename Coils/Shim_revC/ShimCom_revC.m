@@ -1,5 +1,5 @@
 classdef ShimCom_revC < ShimCom 
-%SHIMCOM_revC - Shim Communication for the 8-channel AC/DC neck coil 
+%SHIMCOM_revC Shim Communication for the 8-channel AC/DC neck coil 
 %
 % .......
 %   
@@ -17,11 +17,6 @@ classdef ShimCom_revC < ShimCom
 %
 %       .Params
 %
-% =========================================================================
-%    ShimCom_revC is a ShimCom subclass.
-%
-% =========================================================================
-% Updated::20181028::ryan.topfer@polymtl.ca
 % =========================================================================
 
 % =========================================================================
@@ -62,7 +57,7 @@ end
 end
 % =========================================================================
 function [isAckReceived] = getsystemheartbeat( Shim ) ;
-%GETSYSTEMHEARTBEAT
+%GETSYSTEMHEARTBEAT Return true when shim system is responsive
 
 Shim.Params.nBytesToRead = 1 ;   
 Shim.Data.output = Shim.Cmd.getSystemHeartbeat ;
@@ -90,7 +85,7 @@ assert( ( round(iCh) == iCh ) & ( iCh > 0 ) & ( iCh <= Shim.Specs.Amp.nChannels 
     ['Channel index must be an integer between 1 and ' num2str( Shim.Specs.Amp.nChannels)] ) ;
 
 Shim.Data.output        = Shim.Cmd.setAndLoadShimByChannel ;
-Shim.Data.output(end+1) = num2str( iCh -1 ) ; 
+Shim.Data.output(end+1) = num2str( iCh - 1 ) ; % Arduino uses 0-based indexing
 Shim.Data.output = [Shim.Data.output Shim.currenttostring( current )] ;
 Shim.sendcmd() ;
 
@@ -99,7 +94,7 @@ isSet = logical( str2num( fgetl( Shim.ComPort ) ) )
 end
 % =========================================================================
 function [] = setandloadallshims( Shim, currents )
-%SETANDLOADALLSHIM
+%SETANDLOADALLSHIMS
 % 
 % [] = SETANDLOADALLSHIMS( Shim, currents ) 
 %
@@ -202,7 +197,6 @@ function [] = closecomport( Shim )
 % Close serial communication port 
 
 fclose(Shim.ComPort);
-fclose(instrfindall);
 
 end
 % =========================================================================
@@ -315,14 +309,14 @@ end
 function [current] = currenttostring( Shim, current )
 %CURRENTTOSTRING 
 %
-% Scale current (float in amperes) to uint16, convert to string, and if the resulting length is < 5,
-% pad with leading '0':
+% Scale current (float in amperes) to uint16, convert to string, and if the
+% resulting length is < 5, pad with leading '0':
 
 assert( numel(current) == 1, '1 channel at a time...' ) ;
 
 % shift current to be >=0... then multiply by scaling factor
 current = num2str( uint16( ( current + Shim.Specs.Amp.maxCurrentPerChannel(1) ) ...
-    *65535/(2*Shim.Specs.Amp.maxCurrentPerChannel(1) ) ) ) ;
+    *65535/( 2*Shim.Specs.Amp.maxCurrentPerChannel(1) ) ) ) ;
 
 for i0 = numel(current)+1 : 5
     current = ['0' current] ;

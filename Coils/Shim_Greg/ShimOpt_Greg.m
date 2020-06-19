@@ -1,17 +1,8 @@
 classdef ShimOpt_Greg < ShimOpt
 %SHIMOPT_GREG - Shim Optimization for Ac/Dc 8-channel array (c-spine shim)
 %
-% ShimOpt_Greg is a ShimOpt subclass. See ShimOpt documentation for usage.
-%     
-% =========================================================================
-% Author::ryan.topfer@polymtl.ca
 % =========================================================================
 
-% =========================================================================
-% *** TODO 
-%
-%
-% =========================================================================
 
 % =========================================================================
 % =========================================================================    
@@ -24,11 +15,16 @@ Shim.Hdr   = [] ;
 Shim.Field = [] ;       
 Shim.Model = [] ;
 Shim.Aux   = [] ;
-Shim.System.Specs    = ShimSpecs_Greg() ; 
+
+[ Field, Params, Specs] = ShimOpt.parseinput( varargin ) ;
+
+if isempty(Specs)
+    Shim.System.Specs = ShimSpecs_Greg() ; 
+else
+    Shim.System.Specs = Specs ;
+end
+
 Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
-
-
-[ Field, Params ] = ShimOpt.parseinput( varargin ) ;
 
 Params = ShimOpt_Greg.assigndefaultparameters( Params ) ;
 
@@ -66,7 +62,7 @@ function [Corrections] = optimizeshimcurrents( Shim, Params )
 % Params can have the following fields 
 %
 %   .maxCorrectionPerChannel
-%       [default: determined by ShimSpecs_Greg property: .Amp.maxCurrentPerChannel]
+%       [default: determined by ShimSpecs property: .Amp.maxCurrentPerChannel]
 %
 %   .minCorrectionPerChannel
 %       [default: -.maxCorrectionPerChannel]

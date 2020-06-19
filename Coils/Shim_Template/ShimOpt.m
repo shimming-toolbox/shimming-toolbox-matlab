@@ -105,10 +105,33 @@ properties
     ShimmedField; % object of type FieldEval 
     System; %
 end
+
 properties( Hidden = true )
     Interpolant ;
     % Ref ; % original shim reference maps before interpolation
 end
+
+properties( Dependent )
+    % Total number of available basis vectors (shim channels) 
+    %
+    % E.g., in the standard linear equation used to optimize the shims, 
+    % `nChannels` is the column dimension of the linear "shim" operator `A`:
+    % `A*i - b0 = 0, nChannels = size(A,2)`.
+    %
+    % Note, however, the example is just for context: `nChannels` is a
+    % dependent property determined by the number of user provided basis
+    % images: it describes the shim system and nonconfigurable.
+    %
+    % In class' optimization methods, though the default may be to include all
+    % available channels, they can nevertheless be omitted by providing the
+    % appropriate input argument, e.g.: to omit channels 1-3 and use the 4th only:
+    % ```
+    % Params.activeStaticChannelsMask = [0 0 0 1]
+    % obj.optimizeshimcurrents( Params )
+    % ```
+    nChannels {mustBeInteger, mustBeScalarOrEmpty} = 0 ;
+end
+
 % =========================================================================
 % =========================================================================    
 methods
@@ -122,9 +145,9 @@ Shim.Field  = [] ;
 Shim.Model  = [] ;
 Shim.Aux    = [] ;
 Shim.System = [] ;
-Shim.System.Specs = [] ;
 
-[ Field, Params ] = ShimOpt.parseinput( varargin ) ;
+[ Field, Params, Specs] = ShimOpt.parseinput( varargin ) ;
+Shim.System.Specs = Specs ;
 
 Params = ShimOpt.assigndefaultparameters( Params, Shim.System.Specs ) ;
 
@@ -132,7 +155,7 @@ Params = ShimOpt.assigndefaultparameters( Params, Shim.System.Specs ) ;
 % Load shim basis if provided 
 if ~isempty(Params.pathToShimReferenceMaps)
     
-ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
+fprintf(['\n Preparing for shim ...  \n\n'...
         'Loading shim reference maps from ' Params.pathToShimReferenceMaps '\n\n']) ;
 
     % Loads .mat: struct with fields
@@ -305,35 +328,35 @@ if ~myisfield( Params.Inspired, 'medianP' ) || ~myisfield( Params.Expired, 'medi
 % User selects median p-measurement
 
     close all; 
-    ShimUse.customdisplay( ['\n ------- \n ' ...
+    fprintf( ['\n ------- \n ' ...
         'Determine median measurement over inspired apnea : \n \n '] ) ;
 
     Params.Inspired.medianP = ...
         ProbeTracking.selectmedianmeasurement( Params.Inspired.measurementLog ) ; 
 
-    ShimUse.customdisplay( ...
+    fprintf( ...
         ['Median measurement : ' num2str( Params.Inspired.medianP )] ) ;
 
-    ShimUse.customdisplay( ['\n ------- \n ' ...
+    fprintf( ['\n ------- \n ' ...
         'Determine median measurement over expired apnea : \n \n '] ) ;
 
     Params.Expired.medianP = ...
         ProbeTracking.selectmedianmeasurement( Params.Expired.measurementLog ) ; 
 
-    ShimUse.customdisplay( ...
+    fprintf( ...
         ['Median measurement : ' num2str( Params.Expired.medianP )] ) ;
 else
 
-    ShimUse.customdisplay( 'Using user-supplied median p-measurements...' ) ;
+    fprintf( 'Using user-supplied median p-measurements...' ) ;
 
-    ShimUse.customdisplay( ...
+    fprintf( ...
         ['Inspired : ' ] ) ;
-    ShimUse.customdisplay( ...
+    fprintf( ...
         ['Median measurement : ' num2str( Params.Inspired.medianP )] ) ;
 
-    ShimUse.customdisplay( ...
+    fprintf( ...
         ['Expired : ' ] ) ;
-    ShimUse.customdisplay( ...
+    fprintf( ...
         ['Median measurement : ' num2str( Params.Expired.medianP )] ) ;
 end
 
@@ -346,7 +369,7 @@ Shim.setdccurrentoffsets( ...
     Params.Inspired.currents, Params.Expired.currents, ...
     Params.Inspired.medianP, Params.Expired.medianP ) ;
 
-ShimUse.customdisplay( ['\n ------- \n ' ...
+fprintf( ['\n ------- \n ' ...
     'Optimal DC current offsets (in amperes): ' num2str(Shim.Model.dcCurrentOffsets') '\n \n '] ) ;
 
 Shim.setupdateoperator() ;
@@ -689,27 +712,19 @@ function A = getshimoperator( Shim )
 %
 %   where A * vectorOfShimCurrents = shimField
 
-nVoxelsImg      = Shim.getnumberofvoxels() ;
-nActiveChannels = Shim.getnactivechannels() ;
+nVoxelsImg = Shim.getnumberofvoxels() ;
 
-A = zeros( nVoxelsImg, nActiveChannels ) ; 
+A = zeros( nVoxelsImg, Shim.nChannels ) ; 
 
-for channel = 1 : nActiveChannels
+for channel = 1 : nChannels
     A(:, channel) = reshape( Shim.img(:,:,:, channel), [nVoxelsImg 1] ) ;
 end
 
 end
 % =========================================================================
-function nActiveChannels = getnactivechannels( Shim )
-%GETNACTIVECHANNELS 
-%
-% Returns number of active shim channels
-%
-% nActiveChannels = GETNACTIVECHANNELS( Shim ) ;
-%
-% nActiveChannels = size( Shim.img, 4 ) ;
+function nChannels = get.nChannels( Shim )
 
-nActiveChannels = size( Shim.img, 4 ) ;
+nChannels = size( Shim.img, 4 ) ;
 
 end
 % =========================================================================
@@ -721,7 +736,7 @@ function shimSupport = getshimsupport( Shim )
 %   shimSupport is a logical map over the grid (voxel positions) defined by
 %   Shim.img of where the shim reference maps have well defined values.
 
-shimSupport = sum(abs(Shim.img),4) > Shim.getnactivechannels()*eps  ;
+shimSupport = sum(abs(Shim.img),4) > Shim.nChannels*eps  ;
 
 % if myisfieldfilled( Shim.Hdr, 'MaskingImage' )
 %     shimSupport = shimSupport & Shim.Hdr.MaskingImage ;
@@ -2124,31 +2139,34 @@ save( Params.pathToShimReferenceMaps, 'img', 'Hdr' ) ;
 
 end
 % =========================================================================
-function [ Field, Params ] = parseinput( Inputs )
+function [ Field, Params, Specs] = parseinput( Inputs )
 %PARSEINPUT
 % 
-% Simple parser returns the optional user inputs Field and Params irrespective
+% Simple parser returns the optional user inputs Field, Params and Specs irrespective
 % of their input order (convenient).
 %
-% [ Field, Params ] = PARSEINPUT( Inputs )
+% [ Field, Params, Specs] = PARSEINPUT( Inputs )
 
 Field  = [] ;
 Params = [] ;
+Specs  = [] ;
 
 nArgin = length( Inputs ) ;
 
 if (nArgin > 0)
-    if (nArgin <= 2)
+    if (nArgin <= 3)
         for iArg = 1 : nArgin
             switch class( Inputs{iArg} ) 
                 case 'struct'
                     Params = Inputs{iArg} ;
                 case 'FieldEval'
                     Field = Inputs{iArg} ;
+                case 'ShimSpecs'
+                    Specs = Inputs{iArg} ;
             end
         end
     else
-        error('Too many input arguments. Should be <=2. See help ShimOpt') ;
+        error('Too many input arguments. Should be <=3. See help ShimOpt') ;
     end
 end
 
@@ -2169,7 +2187,7 @@ function [ img, Hdr, Interpolant ] = loadshimreferencemaps( pathToShimReferenceM
 %
 % [ img, Hdr, Interpolant ] = LOADSHIMREFERENCEMAPS( filename )
 
-ShimUse.customdisplay(['\n Preparing for shim ...  \n\n'...
+fprintf(['\n Preparing for shim ...  \n\n'...
         'Loading shim reference maps from ' pathToShimReferenceMaps '\n\n']) ;
 
 % Loads .mat: struct with fields

@@ -1,44 +1,32 @@
 classdef ShimOpt_revC < ShimOpt
 %ShimOpt_revC - Shim Optimization for Ac/Dc 8 channel array (cervical spine shim)
 %
-% ShimOpt_revC is a ShimOpt subclass 
-%     
-% =========================================================================
-% Updated::20180726::ryan.topfer@polymtl.ca
 % =========================================================================
 
-% =========================================================================
-% *** TODO 
-%
-%
-% =========================================================================
-
-% properties % defined in parent class ShimOpt 
-    % Field ; % object of type MaRdI
-    % Model ;
-    % Tracker ; % object of type ProbeTracking
-% end
 
 % =========================================================================
 % =========================================================================    
 methods
 % =========================================================================
-function Shim = ShimOpt_revC( Params, Field )
-%ShimOpt_revC - Shim Optimization
+function Shim = ShimOpt_revC( varargin )
 
 Shim.img   = [] ;
 Shim.Hdr   = [] ;
 Shim.Field = [] ;       
 Shim.Model = [] ;
 Shim.Aux   = [] ;
-Shim.System.Specs    = ShimSpecs_revC() ; 
-Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
 
-if nargin < 1 || isempty( Params ) 
-    Params.dummy = [] ;
+[ Field, Params, Specs] = ShimOpt.parseinput( varargin ) ;
+
+if isempty(Specs)
+    Shim.System.Specs = ShimSpecs_Greg() ; 
+else
+    Shim.System.Specs = Specs ;
 end
 
-Params = ShimOpt_revC.assigndefaultparameters( Params ) ;
+Shim.System.currents = zeros( Shim.System.Specs.Amp.nActiveChannels, 1 ) ; 
+
+Params = ShimOpt_Greg.assigndefaultparameters( Params ) ;
 
 if Params.isCalibratingReferenceMaps
     
@@ -47,27 +35,21 @@ if Params.isCalibratingReferenceMaps
 
 elseif ~isempty( Params.pathToShimReferenceMaps )
 
-    [ Shim.img, Shim.Hdr ] = ShimOpt.loadshimreferencemaps( Params.pathToShimReferenceMaps )   
+   [ Shim.img, Shim.Hdr, Shim.Interpolant ] = ShimOpt.loadshimreferencemaps( Params.pathToShimReferenceMaps ) ; 
     
     Shim.Ref.img = Shim.img ;
     Shim.Ref.Hdr = Shim.Hdr ;
 
 end
 
-Shim.Tracker = ProbeTracking( Params.TrackerSpecs )  ; 
-
-if (nargin == 2) && (~isempty(Field))
-    
-    Shim.setoriginalfield( Field ) ;
-
-end
-
 %-------
 % associate host MRI 
 if strcmp( Params.InstitutionName, 'IUGM' ) && strcmp( Params.StationName, 'MRC35049' ) 
+    Shim.Aux = ShimOpt_IUGM_Prisma_fit(  ) ; % Params input??
+end
 
-    Shim.Aux = ShimOpt_IUGM_Prisma_fit( ) ; % Params input??
-
+if ~isempty( Field )
+    Shim.setoriginalfield( Field ) ;
 end
 
 end
@@ -80,7 +62,7 @@ function [Corrections] = optimizeshimcurrents( Shim, Params )
 % Params can have the following fields 
 %
 %   .maxCorrectionPerChannel
-%       [default: determined by ShimSpecs_revC property: .Amp.maxCurrentPerChannel]
+%       [default: determined by ShimSpecs property: .Amp.maxCurrentPerChannel]
 %
 %   .minCorrectionPerChannel
 %       [default: -.maxCorrectionPerChannel]
@@ -135,21 +117,15 @@ if ~myisfield( Params, 'isCalibratingReferenceMaps' ) || isempty(Params.isCalibr
    Params.isCalibratingReferenceMaps = DEFAULT_ISCALIBRATINGREFERENCEMAPS ;
 end
 
-
 if ~myisfield( Params, 'pathToShimReferenceMaps' ) || isempty(Params.pathToShimReferenceMaps)
    
     if Params.isCalibratingReferenceMaps
         today = datestr( now, 30 ) ;
         today = today(1:8) ; % ignore the time of the day
-        Params.pathToShimReferenceMaps = [ '~/Projects/Shimming/Static/Calibration/Data/' ...
-                        'ShimReferenceMaps_' 'Greg_' today ] ;
+        Params.pathToShimReferenceMaps = [ shimbindir() 'ShimReferenceMaps_Greg'  ] ;
     else
         Params.pathToShimReferenceMaps = DEFAULT_PATHTOSHIMREFERENCEMAPS ;
     end
-end
-
-if ~myisfield( Params, 'TrackerSpecs' ) || isempty(Params.TrackerSpecs)
-   Params.TrackerSpecs = DEFAULT_PROBESPECS ;
 end
 
 if ~myisfield( Params, 'InstitutionName' ) || isempty(Params.InstitutionName)
@@ -167,83 +143,90 @@ function Params = declarecalibrationparameters( Params )
 % 
 % Initializes parameters for shim reference map construction (aka shim calibration)
 
-Params.nChannels  = 8 ;
-Params.nCurrents  = 2 ;
-Params.nEchoes    = 5 ; 
+disp( ['Preparing shim calibration...' ] )        
 
+%% -----
+
+DEFAULTS.unwrapper = 'AbdulRahman_2007' ;
+DEFAULTS.threshold = 0 ;
+
+Params.dummy = [] ;
+Params = assignifempty( Params, DEFAULTS ) ;
+%
+
+Specs             = ShimSpecs_revC() ;
+Params.nChannels  = Specs.Amp.nActiveChannels ;
+
+Params.nCurrents  = 2 ;
+
+% for multi-coil systems, entries of Params.currents need to be manually
+Params.currents = zeros( Params.nChannels, Params.nCurrents ) ; 
 Params.currents = repmat( [0.5 -0.5], [Params.nChannels 1] ) ; , % [units: A]
 
-% magnitude threshold to define phase unwrapping region
-Params.threshold       = 0.001 ;
+%% -----
+% define image data directories:
 
 % 2 columns: [ MAG | PHASE ] ;
-Params.dataLoadDirectories = cell( Params.nEchoes, 2, Params.nCurrents, Params.nChannels ) ;
+Params.dataLoadDirectories    = cell( Params.nCurrents, 2, Params.nChannels ) ;
 
-tmp = { ...
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/33-fm2d_CH1_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/34-fm2d_CH1_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/35-fm2d_CH1_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/36-fm2d_CH1_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/37-fm2d_CH2_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/38-fm2d_CH2_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/39-fm2d_CH2_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/40-fm2d_CH2_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/41-fm2d_CH3_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/42-fm2d_CH3_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/43-fm2d_CH3_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/44-fm2d_CH3_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/45-fm2d_CH4_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/46-fm2d_CH4_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/47-fm2d_CH4_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/48-fm2d_CH4_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/49-fm2d_CH5_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/50-fm2d_CH5_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/55-fm2d_CH5_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/56-fm2d_CH5_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/53-fm2d_CH6_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/54-fm2d_CH6_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/57-fm2d_CH6_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/58-fm2d_CH6_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/59-fm2d_CH7_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/60-fm2d_CH7_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/61-fm2d_CH7_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/62-fm2d_CH7_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/63-fm2d_CH8_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/64-fm2d_CH8_+0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/65-fm2d_CH8_-0.5A/' ;
-    '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/66-fm2d_CH8_-0.5A/' ; } ;
 
-Params.dataLoadDirectories = cell( Params.nEchoes, 2, Params.nCurrents, Params.nChannels ) ;
+%% ------
+% channel 1 : 
+Params.dataLoadDirectories{1,1,1} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/33-fm2d_CH1_+0.5A/' ;
+Params.dataLoadDirectories{1,2,1} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/34-fm2d_CH1_+0.5A/' ;
+Params.dataLoadDirectories{2,1,1} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/35-fm2d_CH1_-0.5A/' ;
+Params.dataLoadDirectories{2,2,1} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/36-fm2d_CH1_-0.5A/' ;
 
-for iChannel = 1 : Params.nChannels
-    for iCurrent = 1 : Params.nCurrents
-        for imgType = 1 : 2 % 1=mag, 2=phase
+%% ------
+% channel 2 : 
+Params.dataLoadDirectories{1,1,2} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/37-fm2d_CH2_+0.5A/' ;
+Params.dataLoadDirectories{1,2,2} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/38-fm2d_CH2_+0.5A/' ;
+Params.dataLoadDirectories{2,1,2} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/39-fm2d_CH2_-0.5A/' ;
+Params.dataLoadDirectories{2,2,2} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/40-fm2d_CH2_-0.5A/' ;
 
-        iDir = (iChannel-1)*(Params.nCurrents*2) + 1 ;
+%% ------
+% channel 3 : 
+Params.dataLoadDirectories{1,1,3} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/41-fm2d_CH3_+0.5A/' ;
+Params.dataLoadDirectories{1,2,3} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/42-fm2d_CH3_+0.5A/' ;
+Params.dataLoadDirectories{2,1,3} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/43-fm2d_CH3_-0.5A/' ;
+Params.dataLoadDirectories{2,2,3} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/44-fm2d_CH3_-0.5A/' ;
 
-        dicomSubDirs  = dir( [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo*/'] ) ;
-        nDicomSubDirs = length( dicomSubDirs ) ;
-        assert( nDicomSubDirs == 5 )
-        
-        Params.dataLoadDirectories{ 1, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_2.53/' ] ;
-        Params.dataLoadDirectories{ 2, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_6.8/' ] ;
-        Params.dataLoadDirectories{ 3, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_12.04/' ] ;
-        Params.dataLoadDirectories{ 4, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_17.28/' ] ;
-        Params.dataLoadDirectories{ 5, imgType, iCurrent, iChannel } = [ tmp{iDir + (imgType -1) + 2*(iCurrent-1) } 'echo_22.52/' ] ;
+%% ------
+% channel 4 : 
+Params.dataLoadDirectories{1,1,4} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/45-fm2d_CH4_+0.5A/' ;
+Params.dataLoadDirectories{1,2,4} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/46-fm2d_CH4_+0.5A/' ;
+Params.dataLoadDirectories{2,1,4} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/47-fm2d_CH4_-0.5A/' ;
+Params.dataLoadDirectories{2,2,4} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/48-fm2d_CH4_-0.5A/' ;
 
-        end
-    end 
-end
+%% ------
+% channel 5 : 
+Params.dataLoadDirectories{1,1,5} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/49-fm2d_CH5_+0.5A/' ;
+Params.dataLoadDirectories{1,2,5} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/50-fm2d_CH5_+0.5A/' ;
+Params.dataLoadDirectories{2,1,5} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/55-fm2d_CH5_-0.5A/' ;
+Params.dataLoadDirectories{2,2,5} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/56-fm2d_CH5_-0.5A/' ;
 
-Params.unwrapper = 'AbdulRahman_2007' ;        
+%% ------
+% channel 6 : 
+Params.dataLoadDirectories{1,1,6} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/53-fm2d_CH6_+0.5A/' ;
+Params.dataLoadDirectories{1,2,6} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/54-fm2d_CH6_+0.5A/' ;
+Params.dataLoadDirectories{2,1,6} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/57-fm2d_CH6_-0.5A/' ;
+Params.dataLoadDirectories{2,2,6} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/58-fm2d_CH6_-0.5A/' ;
 
-end
-% =========================================================================
+%% ------
+% channel 7 : 
+Params.dataLoadDirectories{1,1,7} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/59-fm2d_CH7_+0.5A/' ;
+Params.dataLoadDirectories{1,2,7} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/60-fm2d_CH7_+0.5A/' ;
+Params.dataLoadDirectories{2,1,7} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/61-fm2d_CH7_-0.5A/' ;
+Params.dataLoadDirectories{2,2,7} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/62-fm2d_CH7_-0.5A/' ;
+
+%% ------
+% channel 8 : 
+Params.dataLoadDirectories{1,1,8} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/63-fm2d_CH8_+0.5A/' ;
+Params.dataLoadDirectories{1,2,8} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/64-fm2d_CH8_+0.5A/' ;
+Params.dataLoadDirectories{2,1,8} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/65-fm2d_CH8_-0.5A/' ;
+Params.dataLoadDirectories{2,2,8} = '/Users/ryan/Projects/Shimming/Acdc/Calibration/data/acdc_60p/66-fm2d_CH8_-0.5A/' ;
 
 end
-% =========================================================================
-% =========================================================================
-methods(Static)
 % =========================================================================
 
 end

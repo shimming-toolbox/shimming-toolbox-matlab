@@ -1,0 +1,81 @@
+{
+    "Adc": {
+        "mVPerAdcCount": 2
+    },
+    "Id": {
+        "systemName": "Greg",
+        "channelNames": [
+            "Ch1",
+            "Ch2",
+            "Ch3",
+            "Ch4",
+            "Ch5",
+            "Ch6",
+            "Ch7",
+            "Ch8"
+        ],
+        "channelUnits": [
+            "[A]",
+            "[A]",
+            "[A]",
+            "[A]",
+            "[A]",
+            "[A]",
+            "[A]",
+            "[A]"
+        ]
+    },
+    "Amp": {
+        "maxCurrentPerChannel": [
+            2.5,
+            2.5,
+            2.5,
+            2.5,
+            2.5,
+            2.5,
+            2.5,
+            2.5
+        ],
+        "maxCurrentPerBank": 20,
+        "nChannels": 8,
+        "nActiveChannels": 8,
+        "maxVoltagePerChannel": 2500,
+        "staticChannels": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+        ],
+        "dynamicChannels": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+        ]
+    },
+    "Com": {
+        "baudRate": 115200,
+        "readTimeout": 500,
+        "dataBits": 8,
+        "stopBits": 1,
+        "flowControl": "NONE",
+        "parity": "NONE",
+        "byteOrder": "bigEndian",
+        "txRxDelay": 0.005,
+        "updatePeriod": 0.1
+    },
+    "Dac": {
+        "resolution": 8,
+        "maxCurrent": 5,
+        "referenceVoltage": 1250,
+        "maximum": 26214
+    }
+}
