@@ -62,6 +62,9 @@ function FileList = genToolboxHelp(ToolBoxPath, ToolBoxName, IgnoredFolders, eva
 % (.git and the Help folder itself) are ignored. By default, the code is not
 % evaluated for the published .m files and a searchable database is
 % created. Also check if the specified ToolBoxpath exists.
+global MAKECONTENTSFILES
+MAKECONTENTSFILES = false;  % Create Contents.m file within each folder.
+
 if nargin<3
     IgnoredFolders = {};
     evalCode = false;
@@ -91,13 +94,15 @@ end
 if ~exist(pathHelpFiles,'dir')
     mkdir(pathHelpFiles);
 end
+
 %% 2.1) Create a helptoc.xml file in the 'ToolBoxPath\Help' subfolder
 % This helptoc.xml file hierarchically orders and links the .html files for
 % accessing them correctly in the Matlab F1 help
 % See also: http://de.mathworks.com/help/matlab/matlab_prog/display-custom-documentation.html
 fid = fopen(fullfile(pathHelpTOC,'helptoc.xml'),'w');                       % Create the file/overwrite existing
 fprintf(fid,'<?xml version=''1.0'' encoding="utf-8"?>\n\n<toc version="2.0">\n'); % Print initial lines of code
-%% 2.2) Create a GettingStarted.mlx in the root folder if not present
+
+%% 2.2) Create a GettingStarted.mlx under doc/ if not present
 % This GettingStarted.mlx file should be used to introduce people to your
 % toolbox. It will be published by the matlab publish function and can have
 % some examples and/or graphs etc. Code in here WILL be evaluated to show
@@ -109,14 +114,13 @@ if ~exist(fullfile(ToolBoxPath, 'doc', 'GettingStarted.mlx'), 'file')
 end
 % Create the home HTML file of your toolbox, GettingStarted.html. It will
 % only be updated if the .m file has been changed.
-GSstatus = updateHtmlFile(fullfile(ToolBoxPath, 'doc', 'GettingStarted.mlx'), pathHelpFiles, ToolBoxPath);
-if GSstatus
-    fprintf('The Getting started html file has been updated\n\n')
-else
-    fprintf('The Getting started html file has not been changed\n\n')
-end
+% JULIEN: modified below for Matlab 2019+
+% GSstatus = updateHtmlFile(fullfile(ToolBoxPath, 'doc', 'GettingStarted.mlx'), pathHelpFiles, ToolBoxPath);
+matlab.internal.liveeditor.openAndConvert(fullfile(ToolBoxPath, 'doc', 'GettingStarted.mlx'), fullfile(pathHelpTOC, 'GettingStarted.html'))
+fprintf('Getting Started html file has been updated\n\n')
 % Add a top level table of contents item for GettingStarted.html
 fprintf(fid,'\t<tocitem target="GettingStarted.html"> GettingStarted\n');
+
 %% 2.3) Recursive file publishing and hierarchical help generation
 % This is the workhorse of the script. It runs through the 'ToolBoxPath'
 % and all non-ignored subfolders, publishes the. m files to .html files in
@@ -125,6 +129,7 @@ fprintf(fid,'\t<tocitem target="GettingStarted.html"> GettingStarted\n');
 fprintf('**********Processing folders: **********\n');
 D = autoTOC(ToolBoxPath,[ToolBoxPath filesep '**' filesep '*.m'],0,fid,ToolBoxName,IgnoredFolders,evalCode, HelpFolderName);
 fprintf('\n')
+
 %% 3.4) Finish and close the helptoc.xml file
 % Close the top-level item of the table of contents (GettingStarted.mlx
 % entry), the table of contents as such as well as the helptoc.xml file
@@ -149,6 +154,7 @@ fclose(fid);
 % fprintf(fid2,'\t<help_location>%s</help_location>\n\n',pathHelpTOC);
 % fprintf(fid2,'</productinfo>');
 % fclose(fid2);
+
 %% 5) Display feedback
 % Let the user know which files have been created
 fprintf('**********XML file generation: **********\n')
@@ -156,12 +162,14 @@ fprintf('According to the procedure in\nhttp://de.mathworks.com/help/matlab/matl
 fprintf('1) info.xml \t\tin \t%s\n', ToolBoxPath) 
 fprintf('2) helptoc.xml \t\tin \t%s\n', pathHelpTOC) 
 fprintf('The corresponding published HTML files for each .m file can be found in:\n%s\n\n', pathHelpFiles)
+
 %% 6) Create a searchable toolbox help database
 % Can be used to search for keywords in your published .m-files
 fprintf('**********Searchable database generation: **********\n')
 if createDB
     builddocsearchdb(pathHelpTOC);
 end
+
 %% 7) Give back list of all processed files
 % Similar to 'dir' command
 fprintf('\n**********File list generation: **********\n')
@@ -191,7 +199,8 @@ fprintf('\n%s',repmat('*',num_chars,1));
 fprintf('\n*****Press F1 --> Supplementary Software --> %s *****\n', ToolBoxName);
 fprintf('%s\n',repmat('*',num_chars,1));
 end
-%% RECURSIVE SUBFUNCTION TO GENERATE HELP FILES AND helptoc.xml 
+
+%% RECURSIVE SUBFUNCTION TO GENERATE HELP FILES AND helptoc.xml
 function [varargout] = autoTOC(rootDir, currDir, lvl, fid, ToolBoxName, IgnoredFolders, evalCode, HelpFolderName)
 %% AUTOTOC Generate helptoc.xml file for a custom Matlab toolbox
 % Generates .html help files for all of the scripts/functions in the folder
@@ -223,6 +232,7 @@ function [varargout] = autoTOC(rootDir, currDir, lvl, fid, ToolBoxName, IgnoredF
 %   Name of the toolbox                             --> ToolBoxName
 %   List of folders that should not be documented   --> IgnoredFolders
 %   Evaluate code for publishing                    --> evalCode
+%   HelpFolderName                                  --> String. Output folder for html files.
 %
 % Outputs:
 %
@@ -248,6 +258,9 @@ function [varargout] = autoTOC(rootDir, currDir, lvl, fid, ToolBoxName, IgnoredF
 % email address: Johannes.Milvich@de.bosch.com
 % August 2015; Last revision: 17-Aug-2015
 % Copyright 2014-2015 Johannes Milvich
+
+global MAKECONTENTSFILES
+
 %% Get path and wildcard information
 % split the file path around the wild card specifiers
 prepath = '';       % the path before the wild card
@@ -284,11 +297,12 @@ end
 disp([' "' prepath '" ~ "' wildpath '" ~ "' postpath '" ']);
 hlevel = lvl;
 fileid = fid;
+
 %% Generate help files and helptoc.xml of current folder (no wildpath)
 if isempty(wildpath),
     % If no directory wildcards then just get file/folder list
     D = dir([prepath postpath]);
-    if ~isempty(D)
+    if ~isempty(D) && MAKECONTENTSFILES
         makecontentsfile(prepath,'force');
         D = dir([prepath postpath]);
     end
