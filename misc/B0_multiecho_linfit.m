@@ -1,10 +1,10 @@
-function [delf, offset, STDX, MSE] = B0_multiecho_linfit(compl_vol, ph_json)
+function [delf] = B0_multiecho_linfit(compl_vol, ph_json)
 % B0_multiecho_linfit Computes B0 fieldmaps based on a least-squares
 % fitting of the phase evolution with respect to time
 %
 % _SYNTAX_
 % 
-% [delf, offset, STDX, MSE] = B0_multiecho_linfit(compl_vol, ph_json)
+% [delf] = B0_multiecho_linfit(compl_vol, ph_json)
 %
 % _DESCRIPTION_
 %
@@ -13,18 +13,12 @@ function [delf, offset, STDX, MSE] = B0_multiecho_linfit(compl_vol, ph_json)
 %    compl_vol
 %      complex 4D data set compl_vol(x,y,z,t)
 %    ph_json
-%      phase json sidecar
+%      phase json sidecar struct
 %
 % _OUTPUTS_
 %
 %   delf 
-%     field map in units of Hz 
-%   offset 
-%     frequency shift at echo time 0 in units of Hz
-%   stdx 
-%     standard deviation of delf
-%   mse 
-%     mean square error of delf
+%     field map in units of [Hz]
 % 
 % Code adapted from https://github.com/evaalonsoortiz/LLSf_B0mapping
 
@@ -36,11 +30,12 @@ ph_data = angle(compl_vol);
 numTE = size(mag_data,4); 
 delt = [ph_json.EchoTime];
 
+if ~isrow(delt) 
+    delt = delt';
+end
+
 % pre-allocate memory for variables
 delf = zeros(size(ph_data,1),size(ph_data,2),size(ph_data,3));
-offset = zeros(size(ph_data,1),size(ph_data,2),size(ph_data,3));
-STDX = zeros(size(ph_data,1), size(ph_data,2), size(ph_data,3), 2);
-MSE = zeros(size(ph_data,1),size(ph_data,2),size(ph_data,3));
 
 % generate a mask 
 sigma = bkgrnd_noise(mag_data);
@@ -75,9 +70,8 @@ for i=1:size(ph_data,1)
                 A =  [delt(1:numTE)',ones(size(delt(1:numTE)'))];
                 B = squeeze(delPhaseNet(i,j,k,1:numTE));
                 w = squeeze(mag_data(i,j,k,1:numTE)).^2;
-                [fit_para_tmp, STDX(i,j,k,:), MSE(i,j,k)] = lscov(A,B,w);
-                delf(i,j,k) = fit_para_tmp(1);
-                offset(i,j,k) = fit_para_tmp(2);
+                [fit_para_tmp] = lscov(A,B,w);
+                delf(i,j,k) = fit_para_tmp(1)/(2*pi);
             end
         end
     end
