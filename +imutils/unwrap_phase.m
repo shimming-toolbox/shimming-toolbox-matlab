@@ -1,10 +1,10 @@
-function unwrappedPhase = unwrap_phase(complexArray, unwrapAlgorithm)
+function unwrappedPhase = unwrap_phase(complexArray, unwrapFunction)
 %UNWRAP_PHASE Unwraps the phase images following the specified algorithm.
 %
 % _SYNTAX_
 %
 %     [unwrappedPhase] = unwrap_phase(complexArray)
-%     [unwrappedPhase] = unwrap_phase(complexArray, unwrapAlgorithm)
+%     [unwrappedPhase] = unwrap_phase(complexArray, unwrapFunction)
 %
 % _DESCRIPTION_
 %
@@ -18,7 +18,7 @@ function unwrappedPhase = unwrap_phase(complexArray, unwrapAlgorithm)
 %     5D (x,y,z,nEchoes,nAcq) complex array containing the B0 magnitude and
 %     wrapped phase data.
 %
-%   unwrapAlgorithm
+%   unwrapFunction
 %     Specifies the algorithm that will be used to compute tht B0 maps.
 %     Options are: 'sunwrap' (default)
 %
@@ -31,25 +31,18 @@ function unwrappedPhase = unwrap_phase(complexArray, unwrapAlgorithm)
 narginchk(1,2)
 
 if nargin == 1
-    unwrapAlgorithm = 'sunwrap';
+    unwrapFunction = 'sunwrap'; % default unwrapping function
+end
+ 
+% Check if the specified mapping function exists somewhere
+if exist(['+imutils/+unwrappers/' unwrapFunction]) ~= 2 
+    % If it doesn't, return the list of the available functions
+    error(strjoin(['Mapping function not found. The available functions are:',...
+        {meta.package.fromName('imutils.unwrappers').FunctionList.Name}],'\n'));
 end
 
-switch unwrapAlgorithm
-    case 'sunwrap' % If the chosen unwrapper is sunwrap
-        disp('Unwrapping with sunwrap...')
+mappingFunction = str2func(['imutils.unwrappers.' unwrapFunction]);
+
+unwrappedPhase = mappingFunction(complexArray);
         
-        % Init Unwrapped Phase
-        for iAcq = 1:size(complexArray,5)
-            for iEcho = 1:size(complexArray,4)
-                
-                % Unwrap phase using sunwrap
-                unwrappedPhase(:,:,:,iEcho,iAcq) = sunwrap(complexArray(:,:,:,iEcho,iAcq), 0.1);
-                
-            end
-        end
-        disp('Unwrapping done')
-        
-    otherwise % If unwrapAlgorithm doesn't match any available algorithm
-        disp(['Unknown algorithm. The available algorithms are:' ...
-            newline '- sunwrap'])
-end
+disp(['Unwrapping done'])

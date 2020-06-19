@@ -1,10 +1,10 @@
-function B0FieldMaps = field(unwrappedPhase, phaseJson, mappingAlgorithm)
+function B0FieldMaps = field(unwrappedPhase, echoTimes, mappingFunction)
 %FIELD Computes B0 fieldmaps following the specified algorithm.
 %
 % _SYNTAX_
 %
-%    [B0FieldMaps] = field(unwrappedPhase, phaseJson)
-%    [B0FieldMaps] = field(unwrappedPhase, phaseJson, mappingAlgorithm)
+%    [B0FieldMaps] = field(unwrappedPhase, echoTimes)
+%    [B0FieldMaps] = field(unwrappedPhase, echoTimes, mappingFunction)
 %
 % _DESCRIPTION_
 %
@@ -17,13 +17,12 @@ function B0FieldMaps = field(unwrappedPhase, phaseJson, mappingAlgorithm)
 %   unwrappedPhase
 %     5D (x,y,z,nEchoes,nAcq) array containing the unwrapped phases.
 %
-%   phaseJson
-%     Structure with the field `.EchoTime` that is an array containing the
-%     different echo times corresponding to the measured phases.
+%   echoTime
+%     Scalar array (nEchoes, nAcq) containing the different echo times.
 %
-%   mappingAlgorithm
+%   mappingFunction
 %     Specifies the algorithm that will be used to compute tht B0 maps.
-%     Options are: 'phaseDifference' (default)
+%     Options are: 'phase_difference' (default)
 %
 % _OUTPUTS_
 %
@@ -34,25 +33,20 @@ function B0FieldMaps = field(unwrappedPhase, phaseJson, mappingAlgorithm)
 
 narginchk(2,3)
 
-if nargin == 2
-    mappingAlgorithm = 'phaseDifference';
+if nargin == 2 % Check the number of arguments
+    mappingFunction = 'phase_difference'; % Default mapping function
 end
 
-switch mappingAlgorithm
-    case 'phaseDifference'
-        disp('Computing phase difference B0 maps...')
-        
-        if size(unwrappedPhase,4) == 1 % Different process if only 1 echo
-            echoTimeDiff = phaseJson(1).EchoTime;
-            phaseDiff    = unwrappedPhase(:,:,:,:);
-        else
-            echoTimeDiff = phaseJson(2).EchoTime - phaseJson(1).EchoTime;
-            phaseDiff    = unwrappedPhase(:,:,:,2,:) - unwrappedPhase(:,:,:,1,:);
-        end
-        
-        B0FieldMaps = phaseDiff./(2*pi*echoTimeDiff);
-        disp('B0 mapping done')
-        
-    otherwise
-        disp(['Unknown mapping algorithm. The available algorithms are:' newline '- phaseDifference'])
+% Check if the specified mapping function exists somewhere
+if exist(['+imutils/+B0/+mappers/' mappingFunction]) ~= 2 
+    % If it doesn't, return the list of the available functions
+    error(strjoin(['Mapping function not found. The available functions are:',...
+        {meta.package.fromName('imutils.B0.mappers').FunctionList.Name}],'\n'));
 end
+
+mappingFunction = str2func(['imutils.B0.mappers.' mappingFunction]);
+
+B0FieldMaps = mappingFunction(unwrappedPhase,  echoTimes);
+
+disp('B0 mapping done')
+
