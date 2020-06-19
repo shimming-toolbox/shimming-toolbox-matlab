@@ -192,9 +192,14 @@ pp = {'' 'k' 'M' 'G' 'T'};
 % If you re-create the help of your toolbox and deleted various scripts or
 % folders, this function will delete the corresponding help html files as
 % well.
-removed_files = struct();
-fprintf('\n**********Removed html files (.m files do no longer exist): **********\n');
-cleanUpHelp(ToolBoxPath,pathHelpFiles,[pathHelpFiles filesep '**' filesep '*.html'],0,removed_files);
+% removed_files = struct();
+% fprintf('\n**********Removed html files (.m files do no longer exist): **********\n');
+% JULIEN: I commented out the line below, because it is buggy:
+%   Error using rmdir
+%   /Users/julien/code/shimming-toolbox/doc/html/Shim_Greg is not a directory.
+% TODO: implement html file cleaning BEFORE running this pipeline (not at 
+% the end)
+% cleanUpHelp(ToolBoxPath,pathHelpFiles,[pathHelpFiles filesep '**' filesep '*.html'],0,removed_files);
 end_text = sprintf('*****Press F1 --> Supplementary Software --> %s *****', ToolBoxName);
 num_chars = numel(end_text);
 fprintf('\n%s',repmat('*',num_chars,1));
