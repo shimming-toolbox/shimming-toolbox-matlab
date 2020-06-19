@@ -6,11 +6,15 @@ classdef NumericalModel < handle
         fieldStrength = 3.0; % Tesla
         handedness = 'left'; % Siemens & Canon = 'left', GE & Philips = 'right' 
         
-        % properties
+        % volume properties
         numVox = 128; % square volume
         starting_volume
         volume
         measurement
+        
+        % pulse sequence properties
+        TE
+        FA
         
         % Default times in seconds @ 3T
         T2star = struct('WM', 0.053, 'GM', 0.066, 'CSF', 0.10)
@@ -61,6 +65,10 @@ classdef NumericalModel < handle
             % FA: flip angle value in degrees.
             % TE: Single or array TE value in seconds.
             % SNR: Signal-to-noise ratio
+            
+            % Set attributes
+            obj.FA = FA;
+            obj.TE = TE;
             
             % Get dimensions
             numTE = length(TE);
@@ -129,11 +137,25 @@ classdef NumericalModel < handle
                 case 'nifti'
                     nii_vol = make_nii(imrotate(fliplr(vol), -90));
                     save_nii(nii_vol, [fileName '.nii']);
+                    
+                    obj.writeJson(fileName)
                 case 'mat'
                     save([fileName '.mat'], 'vol')
+                    
+                    obj.writeJson(fileName)
             end
         end
         
+        function obj = writeJson(obj, fileName)
+            pulseSeqProperties = struct("EchoTime", obj.TE, "FlipAngle", obj.FA);
+            jsonFile = jsonencode(pulseSeqProperties);
+            
+            fid = fopen([fileName '.json'], 'w');
+            if fid == -1, error('Cannot create JSON file'); end
+            fwrite(fid, jsonFile, 'char');
+            fclose(fid);
+        end
+ 
         function obj = generate_deltaB0(obj, fieldType, params)       
             % fieldType: 'linear'
             % params: 
