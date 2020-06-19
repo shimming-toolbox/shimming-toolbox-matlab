@@ -10,4 +10,7 @@
 *.log
 
 # Matlab doc generation
-doc/helpsearch-v3/ 
+doc/helpsearch-v3/
+doc/helptoc.xml
+doc/html
+*.html
