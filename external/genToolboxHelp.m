@@ -64,6 +64,8 @@ function FileList = genToolboxHelp(ToolBoxPath, ToolBoxName, IgnoredFolders, eva
 % created. Also check if the specified ToolBoxpath exists.
 global MAKECONTENTSFILES
 MAKECONTENTSFILES = false;  % Create Contents.m file within each folder.
+global FOLDERHTML
+FOLDERHTML = 'html';  % Folder name for output html files.
 
 if nargin<3
     IgnoredFolders = {};
@@ -85,7 +87,7 @@ HelpFolderName  = 'doc';                                                   % If 
 IgnoredFolders  = [IgnoredFolders, {'.git', HelpFolderName}];             	% The files in these folders are not published to html files
 % Set Help path and Help HTML path
 pathHelpTOC     = [ToolBoxPath filesep HelpFolderName];                       	% Path of the helptoc.xml file
-pathHelpFiles   = [pathHelpTOC, filesep, ToolBoxName];                        	% Root path of the html help files (one level below pathHelpTOC)
+pathHelpFiles   = [pathHelpTOC, filesep, FOLDERHTML];                        	% Root path of the html help files (one level below pathHelpTOC)
 % If no help has been created before, initialise the corresponding folder
 % structure
 if ~exist(pathHelpTOC,'dir')                                              
@@ -259,7 +261,8 @@ function [varargout] = autoTOC(rootDir, currDir, lvl, fid, ToolBoxName, IgnoredF
 % August 2015; Last revision: 17-Aug-2015
 % Copyright 2014-2015 Johannes Milvich
 
-global MAKECONTENTSFILES
+global MAKECONTENTSFILES 
+global FOLDERHTML
 
 %% Get path and wildcard information
 % split the file path around the wild card specifiers
@@ -320,7 +323,7 @@ if isempty(wildpath),
             hleveltmp = hlevel;
             
             % Generate a folder for the help html files where the current file is
-            help_folder_name = [rootDir filesep HelpFolderName filesep ToolBoxName strrep(prepath,rootDir,'')];
+            help_folder_name = [rootDir filesep HelpFolderName filesep FOLDERHTML strrep(prepath,rootDir,'')];
             if ~exist(help_folder_name,'dir')
                 mkdir(help_folder_name)
             end
@@ -341,7 +344,7 @@ if isempty(wildpath),
                 
                 % print an .xml entry (tocitem) with a link to the recently
                 % created html file and the correct path and shortname
-                fprintf(fileid,'\t\t<tocitem target="%s"> %s\n', [ToolBoxName strrep(prepath,rootDir,'') shortname '.html'],shortname);
+                fprintf(fileid,'\t\t<tocitem target="%s"> %s\n', [FOLDERHTML strrep(prepath,rootDir,'') shortname '.html'],shortname);
             end
             
             % Close the entries with </tocitem> according to the current
@@ -396,7 +399,7 @@ elseif strcmp(wildpath,'**'), % a double wild directory means recurs down into s
             
             dirname = regexprep(tmp(ii).name,'(\<[a-z])','${upper($1)}');
             
-            fprintf(fileid,'\t\t<tocitem target="%s"> %s\n', [filesep ToolBoxName strrep(prepath,rootDir,'') dirname filesep 'Contents.html'],dirname);
+            fprintf(fileid,'\t\t<tocitem target="%s"> %s\n', [filesep FOLDERHTML strrep(prepath,rootDir,'') dirname filesep 'Contents.html'],dirname);
             
             Dt = [Dt; autoTOC(rootDir,[prepath tmp(ii).name filesep wildpath postpath],hlevel+1,fileid, ToolBoxName, IgnoredFolders, evalCode, HelpFolderName)];
             
