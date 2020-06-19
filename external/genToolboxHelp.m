@@ -404,7 +404,7 @@ elseif strcmp(wildpath,'**'), % a double wild directory means recurs down into s
             
             dirname = regexprep(tmp(ii).name,'(\<[a-z])','${upper($1)}');
             
-            fprintf(fileid,'\t\t<tocitem target="%s"> %s\n', [filesep FOLDERHTML strrep(prepath,rootDir,'') dirname filesep 'Contents.html'],dirname);
+            fprintf(fileid,'\t\t<tocitem target="%s"> %s\n', [FOLDERHTML strrep(prepath,rootDir,'') dirname filesep 'Contents.html'],dirname);
             
             Dt = [Dt; autoTOC(rootDir,[prepath tmp(ii).name filesep wildpath postpath],hlevel+1,fileid, ToolBoxName, IgnoredFolders, evalCode, HelpFolderName)];
             
