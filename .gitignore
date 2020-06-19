@@ -1,6 +1,3 @@
-# Updated::20161121::ryan.topfer@polymtl.ca
-# =========================================================================
-
 # ignore specific files
 .DS_Store
 
@@ -11,4 +8,9 @@
 .nfs*
 *.pyc
 *.log
- 
+
+# Matlab doc generation
+doc/helpsearch-v3/
+doc/helptoc.xml
+doc/html
+*.html
