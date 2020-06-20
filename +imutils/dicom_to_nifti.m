@@ -1,14 +1,41 @@
-function dicom_to_nifti( unsortedDicomDir, niftiPath )
-%DICOM_TO_NIFTI converts dicoms into niftis with dcm2bids output 
+function dicom_to_nifti(unsortedDicomDir, niftiPath)
+%% DICOM_TO_NIFTI converts DICOM data to organized NIfTI files.
+% 
+% This function uses <https://github.com/cbedetti/Dcm2Bids dcm2bids> to 
+% convert all DICOM files within a directory, into NIfTI 
+% 
+% SYNTAX:
+% 
+%     dicom_to_nifti(unsortedDicomDir, niftiPath)
 %
-%   dicom_to_nifti( unsortedDicomDir, niftiPath )
+% INPUTS:
 %
-% The input `unsortedDicomDir` is a path to a folder containing either be 
-% ".dcm" or ".IMA". The input `iftiPath`is a folder for the output. 
+%   unsortedDicomDir (str):
+%     Path to a folder containing either be ".dcm" or ".IMA".
+% 
+%   niftiPath (str):
+%     Output folder that will enclose the converted NIfTI files.
 %
-% The output will be niftis in seperate folders according to their
-% acquisition names that are in `niftiPath`.
-
+% OUTPUTS:
+% 
+%   None
+% 
+% EXAMPLE:
+% 
+%     dicom_to_nifti('/home/bob/data_dicom', '/home/bob/data_nii_bids')
+% 
+% DEPENDENCIES:
+% 
+%   <https://github.com/cbedetti/Dcm2Bids dcm2bids>
+%   
+%   <https://github.com/rordenlab/dcm2niix dcm2niix>
+% 
+% AUTHORS:
+% 
+%   Ryan Topfer <topfer@ualberta.ca>
+%   
+%   Alexandre D'Astous <adastous023@gmail.com>
+%%
 mkdir(niftiPath);
 disp(unsortedDicomDir);
 disp(niftiPath);
@@ -109,11 +136,11 @@ for iAcq = 1:length(acquisitionNames)
 end
 
 end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Local functions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 function filePath = createConfig(outputDir, acquisitionNumber, acquisitionName, modality)
-    
+% Create config for blablabla (to be continued...)
+
 % Create names
 name = [acquisitionNumber '_' acquisitionName];
 ext = '.json';
