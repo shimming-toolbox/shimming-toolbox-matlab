@@ -68,7 +68,7 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume-0.3)<0.001) ==  testObj.T2star.GM));
             testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume-1)<0.001) == testObj.T2star.CSF));
             testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume)<0.001&testObj.starting_volume~=0) == testObj.T2star.WM/2));
-            testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume-0.1)<0.001) == (testObj.T2star.GM - testObj.T2star.WM/2)/2));
+            testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume-0.1)<0.001) == (testObj.T2star.GM + testObj.T2star.WM)/2));
             testCase.assertTrue(all(testObj.volume.T2star(abs(testObj.starting_volume-0.4)<0.001) == testObj.T2star.GM * 1.5));
         end
         
@@ -79,7 +79,7 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume-0.3)<0.001) ==  testObj.protonDensity.GM));
             testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume-1)<0.001) == testObj.protonDensity.CSF));
             testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume)<0.001&testObj.starting_volume~=0) == testObj.protonDensity.WM/2));
-            testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume-0.1)<0.001) == (testObj.protonDensity.GM - testObj.protonDensity.WM/2)/2));
+            testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume-0.1)<0.001) == (testObj.protonDensity.GM + testObj.protonDensity.WM)/2));
             testCase.assertTrue(all(testObj.volume.protonDensity(abs(testObj.starting_volume-0.4)<0.001) == testObj.protonDensity.GM * 1.5));
         end
 

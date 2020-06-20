@@ -239,7 +239,7 @@ classdef NumericalModel < handle
             customVolume(abs(volume-1)<0.001) = class3;
 
             customVolume((abs(volume)<0.0001)&volume~=0) = class1/2;
-            customVolume(abs(volume-0.1)<0.001) = (class2 - class1/2)/2;
+            customVolume(abs(volume-0.1)<0.001) = (class2 + class1)/2;
             customVolume(abs(volume-0.4)<0.001) = class2*1.5;
         end
     end
