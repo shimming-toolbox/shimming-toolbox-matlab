@@ -2,6 +2,8 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
 
     properties
         testFileName = 'test'
+        testFileNameNii = 'test.nii'
+        testFileNameMat = 'test.mat'
     end
 
     methods (TestClassSetup)
@@ -229,8 +231,46 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             val = jsondecode(fileread(fname));
             testCase.verifyEqual(val.EchoTime', TE)
             testCase.verifyEqual(val.FlipAngle', FA)
+            
+            
+            if isfile([testCase.testFileName '.nii'])
+                delete([testCase.testFileName '.nii'])
+            end
+            if isfile([testCase.testFileName '.json'])
+                delete([testCase.testFileName '.json'])
+            end
         end
 
+        %% save method tests
+        function test_save_nii_with_extension(testCase)
+            testObj = NumericalModel('Shepp-Logan');
+            
+            FA = 15;
+            TE = [0.003 0.015];
+
+            testObj.simulate_measurement(FA, TE);
+                        
+            testObj.save('Phase', [testCase.testFileName, '.nii']); % Default option for save is a NIfTI output.
+  
+            testCase.assertTrue(isfile([testCase.testFileName, '.nii']))
+            
+            
+            % Verify that JSON was written correctly
+            testCase.assertTrue(isfile([testCase.testFileName, '.json']))
+            
+            fname = [testCase.testFileName, '.json'];
+            val = jsondecode(fileread(fname));
+            testCase.verifyEqual(val.EchoTime', TE)
+            testCase.verifyEqual(val.FlipAngle', FA)
+            
+            
+            if isfile([testCase.testFileName '.nii'])
+                delete([testCase.testFileName '.nii'])
+            end
+            if isfile([testCase.testFileName '.json'])
+                delete([testCase.testFileName '.json'])
+            end
+        end
         
         function test_save_mat(testCase)
             testObj = NumericalModel('Shepp-Logan');
@@ -251,7 +291,43 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
             val = jsondecode(fileread(fname));
             testCase.verifyEqual(val.EchoTime', TE)
             testCase.verifyEqual(val.FlipAngle', FA)
+            
+            if isfile([testCase.testFileName '.mat'])
+                delete([testCase.testFileName '.mat'])
+            end
+            if isfile([testCase.testFileName '.json'])
+                delete([testCase.testFileName '.json'])
+            end
         end
+        
+        function test_save_mat_with_extension(testCase)
+            testObj = NumericalModel('Shepp-Logan');
+            
+            FA = 20;
+            TE = [0.003 0.025];
+
+            testObj.simulate_measurement(FA, TE);
+                        
+            testObj.save('Phase', [testCase.testFileName, '.mat'], 'mat');
+  
+            testCase.assertTrue(isfile([testCase.testFileName, '.mat']))
+            
+            % Verify that JSON was written correctly
+            testCase.assertTrue(isfile([testCase.testFileName, '.json']))
+            
+            fname = [testCase.testFileName, '.json'];
+            val = jsondecode(fileread(fname));
+            testCase.verifyEqual(val.EchoTime', TE)
+            testCase.verifyEqual(val.FlipAngle', FA)
+            
+            if isfile([testCase.testFileName '.mat'])
+                delete([testCase.testFileName '.mat'])
+            end
+            if isfile([testCase.testFileName '.json'])
+                delete([testCase.testFileName '.json'])
+            end
+        end
+        
         %% generate_signal method tests
         function test_generate_signal_case_1(testCase)
             

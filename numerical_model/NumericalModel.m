@@ -115,11 +115,27 @@ classdef NumericalModel < handle
             % Get magnitude data
             % fileName: String. Prefix of filename (without extension)
             % saveFormat: 'nifti' (default) or 'mat'
-            
+
             if ~exist('saveFormat', 'var')
+                warning('No save format given - saving to NIfTI')
                 saveFormat = 'nifti'; 
             end
             
+                        
+            if strcmp(fileName(end-3:end), '.nii')
+                if ~strcmp(saveFormat, 'nifti')
+                    warning('File extension and saveFormat do not match - saving to NIfTI format')
+                    saveFormat = 'nifti';
+                end
+                fileName = fileName(1:end-4);
+            elseif strcmp(fileName(end-3:end), '.mat')
+                if ~strcmp(saveFormat, 'mat')
+                    warning('File extension and saveFormat do not match - saving to MAT format')
+                    saveFormat = 'mat';
+                end
+                fileName = fileName(1:end-4);            
+            end
+                        
             switch dataType
                 case 'Magnitude'
                 	vol = obj.getMagnitude();
