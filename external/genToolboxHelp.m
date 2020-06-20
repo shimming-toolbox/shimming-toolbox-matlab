@@ -57,15 +57,16 @@ function FileList = genToolboxHelp(ToolBoxPath, ToolBoxName, IgnoredFolders, eva
 % August 2015; Last revision: 31-Aug-2015
 % Copyright 2014-2015 Johannes Milvich
 %------------- BEGIN CODE --------------% 
+
+global MAKECONTENTSFILES; MAKECONTENTSFILES = false;  % Create Contents.m file within each folder.
+global FOLDERHTML; FOLDERHTML = 'html';  % Folder name for output html files.
+global PUBLISHSHOWCODE; PUBLISHSHOWCODE = false;  % show code in published html
+
 %% 1) Initialisation
 % Check inputs - if no ignored folders are specified, only the default ones
 % (.git and the Help folder itself) are ignored. By default, the code is not
 % evaluated for the published .m files and a searchable database is
 % created. Also check if the specified ToolBoxpath exists.
-global MAKECONTENTSFILES
-MAKECONTENTSFILES = false;  % Create Contents.m file within each folder.
-global FOLDERHTML
-FOLDERHTML = 'html';  % Folder name for output html files.
 
 if nargin<3
     IgnoredFolders = {};
@@ -637,12 +638,13 @@ function status = updateHtmlFile(m_file_name, help_folder_name, rootDir)
 % email address: Johannes.Milvich@de.bosch.com
 % August 2015; Last revision: 31-Aug-2015
 % Copyright 2014-2015 Johannes Milvich
+global PUBLISHSHOWCODE
 help_file_name = strrep(strrep(m_file_name,rootDir,''),'.m','.html');
 help_file_name_fp = fullfile(help_folder_name,help_file_name);
 if ~exist(help_file_name_fp,'file')
     % If a helpfile of that name does not exist yet, directly
     % publish it to the right folder
-    publish(m_file_name, 'format','html','outputDir',help_folder_name,'evalCode',false);
+    publish(m_file_name, 'format','html','outputDir',help_folder_name,'evalCode',false, 'showCode', PUBLISHSHOWCODE);
     status = 1;
 else
     % If a helpfile of that name already exists, publish to a
@@ -652,7 +654,7 @@ else
     % keep the old one
     tmp_folder = fullfile(help_folder_name,'tmp');
     mkdir(tmp_folder);
-    tmp_help_file_name_fp = publish(m_file_name, 'format','html','outputDir',tmp_folder,'evalCode',false);
+    tmp_help_file_name_fp = publish(m_file_name, 'format','html','outputDir',tmp_folder,'evalCode',false, 'showCode', PUBLISHSHOWCODE);
     
     [status,~] = system(['fc ' tmp_help_file_name_fp ' ' help_file_name_fp]);
     if status
