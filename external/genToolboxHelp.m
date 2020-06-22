@@ -169,6 +169,10 @@ fprintf('The corresponding published HTML files for each .m file can be found in
 % Can be used to search for keywords in your published .m-files
 fprintf('**********Searchable database generation: **********\n')
 if createDB
+    cd ..
+    rmpath(genpath('shimming-toolbox'))
+    addpath(genpath('shimming-toolbox'))
+    cd shimming-toolbox
     builddocsearchdb(pathHelpTOC);
 end
 
