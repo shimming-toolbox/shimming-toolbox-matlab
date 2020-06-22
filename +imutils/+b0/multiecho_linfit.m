@@ -1,4 +1,4 @@
-function [delf] = B0_multiecho_linfit(compl_vol, ph_json)
+function [delf] = multiecho_linfit(compl_vol, ph_json)
 % B0_multiecho_linfit Computes B0 fieldmaps based on a least-squares
 % fitting of the phase evolution with respect to time
 %
