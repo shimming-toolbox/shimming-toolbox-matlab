@@ -1,4 +1,27 @@
 function mask = threshold_masking(mag_data, sigma, varargin)
+% Create a mask for an imput image by thresholdoing the signal 
+%
+% _SYNTAX_
+% 
+% mask = threshold_masking(mag_data, sigma, varargin)
+%
+% _DESCRIPTION_
+%
+% _INPUT ARGUMENTS_
+%
+%    mag_data
+%      4D or 5D data set data_vol(x,y,z,t) or data_vol(x,y,z,t,acq)
+%
+%    sigma
+%      standard deviation of the noise
+%
+%    optional input: signal_threshold
+%      if no value is given signal_threshold = DEFAULT_SIGNAL_THRESHOLD   
+%
+% _OUTPUTS_
+%
+%   mask 
+%     5D image mask(x,y,z,1,1) 
 
 DEFAULT_SIGNAL_THRESHOLD = 30;
 

@@ -1,7 +1,25 @@
 function sigma = bkgrnd_noise(data_vol)
+% Calculate background noise for each slice of an image by computing the 
+% average stadard deviation of the signal in four (5 x 5 voxel) corners of 
+% an input image (which would presmulably only contain noise) across all 
+% echoes
+%
+% _SYNTAX_
+% 
+% sigma = bkgrnd_noise(data_vol)
+%
+% _DESCRIPTION_
+%
+% _INPUT ARGUMENTS_
+%
+%    data_vol
+%      4D data set data_vol(x,y,z,t)
+%
+% _OUTPUTS_
+%
+%   sigma 
+%     standard deviation of the noise for each slice in 'data_vol'
 
-%--------------------------------------------------------------------------
-% Calculate background noise 
 
 % "default" noise level...
 sigma(1:size(data_vol,3)) = 1;
