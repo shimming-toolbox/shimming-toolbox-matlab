@@ -25,28 +25,28 @@ function sigma = bkgrnd_noise(dataVol)
 sigma(1:size(dataVol,3)) = 1;
 
 % Prepare noise mask
-noise_mask = zeros(size(dataVol,1),size(dataVol,2),size(dataVol,3));
+noiseMask = zeros(size(dataVol,1),size(dataVol,2),size(dataVol,3));
 
 % Pick four corners of 5x5
-noise_mask(1:5,1:5,:) = 1;
-noise_mask(1:5,end-5:end,:) = 1;
-noise_mask(end-5:end,1:5,:) = 1;
-noise_mask(end-5:end,end-5:end,:) = 1;
+noiseMask(1:5,1:5,:) = 1;
+noiseMask(1:5,end-5:end,:) = 1;
+noiseMask(end-5:end,1:5,:) = 1;
+noiseMask(end-5:end,end-5:end,:) = 1;
 
 % apply mask to the data
     for echo = 1:size(dataVol,4)
-        noise_data(:,:,:,echo) = dataVol(:,:,:,echo).*noise_mask(:,:,:); 
+        noiseData(:,:,:,echo) = dataVol(:,:,:,echo).*noiseMask(:,:,:); 
     end
 
-noise_data = reshape(noise_data, size(dataVol,1)*size(dataVol,2), size(dataVol,3), size(dataVol,4));
+noiseData = reshape(noiseData, size(dataVol,1)*size(dataVol,2), size(dataVol,3), size(dataVol,4));
 
 for slice = 1:size(dataVol,3)
     for echo = 1:size(dataVol,4)
-        std_noise(slice,echo) = std(nonzeros(noise_data(:,slice,echo)));
+        stdNoise(slice,echo) = std(nonzeros(noiseData(:,slice,echo)));
     end
 end
 
 for slice = 1:size(dataVol,3)
-    sigma(slice) = mean(std_noise(slice,:));
+    sigma(slice) = mean(stdNoise(slice,:));
 end
 

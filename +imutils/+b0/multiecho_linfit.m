@@ -52,10 +52,10 @@ delPhaseNet(:,:,:,1) = phData(:,:,:,1);
 
 for n=2:numTE
 
-    vol_tmp0 = complVol(:,:,:,n-1);
-    vol_tmp1 = complVol(:,:,:,n);                       
+    volTmp0 = complVol(:,:,:,n-1);
+    volTmp1 = complVol(:,:,:,n);                       
 
-    delPhase = angle( vol_tmp1.*conj(vol_tmp0) );
+    delPhase = angle( volTmp1.*conj(volTmp0) );
     delPhaseNet(:,:,:,n) = delPhaseNet(:,:,:,n-1) + delPhase;
 
 end
