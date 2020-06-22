@@ -1,20 +1,6 @@
-function [ PHASE_OUT ] = rescale_phase_image( PHASE_IN, invert )
-% rescale phase image outputed by scanner (ranging from [-4096:4095]
-% to the [-PI:PI] range
-%
-% PHASE_IN: phase image with value ranging from [-4096:4095]
-% invert: Invert sign (i.e. to convert from left-handed system to
-%         right-handed system (default = 1)
+function [ PHASE_OUT ] = rescale_phase_image( PHASE_IN )
+% rescale siemens phase image (ranging from [0:4095] to the [0:2*PI] range
 
-if (~exist('invert', 'var'))
-    invert = 1;
-end
+PHASE_OUT = (PHASE_IN / 4096) * 2*pi;
 
-PHASE_OUT = (PHASE_IN / 4096) * pi;
-
-if (invert ~= 0)
-    PHASE_OUT = -PHASE_OUT;
-end
-
-end
 
