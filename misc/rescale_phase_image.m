@@ -1,4 +1,4 @@
-function [ PHASE_OUT ] = rescalePhaseImage( PHASE_IN, invert )
+function [ PHASE_OUT ] = rescale_phase_image( PHASE_IN, invert )
 % rescale phase image outputed by scanner (ranging from [-4096:4095]
 % to the [-PI:PI] range
 %
