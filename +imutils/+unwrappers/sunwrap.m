@@ -28,9 +28,7 @@ disp('Unwrapping with sunwrap...')
 % Init Unwrapped Phase
 for iAcq = 1:size(complexArray,5)
     for iEcho = 1:size(complexArray,4)
-        
         % Unwrap phase using sunwrap
         unwrappedPhase(:,:,:,iEcho,iAcq) = sunwrap(complexArray(:,:,:,iEcho,iAcq), 0.1);
     end
 end
-disp(['Unwrapping done'])

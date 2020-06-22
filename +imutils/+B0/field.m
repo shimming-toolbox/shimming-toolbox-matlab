@@ -1,4 +1,4 @@
-function B0FieldMaps = field(unwrappedPhase, echoTimes, mappingFunction)
+ function B0FieldMaps = field(unwrappedPhase, echoTimes, mappingFunction)
 %FIELD Computes B0 fieldmaps following the specified algorithm.
 %
 % _SYNTAX_
@@ -38,13 +38,15 @@ if nargin == 2 % Check the number of arguments
 end
 
 % Check if the specified mapping function exists somewhere
-if exist(['+imutils/+B0/+mappers/' mappingFunction]) ~= 2 
+if exist(['+imutils/+b0/+mappers/' mappingFunction]) ~= 2 
     % If it doesn't, return the list of the available functions
     error(strjoin(['Mapping function not found. The available functions are:',...
-        {meta.package.fromName('imutils.B0.mappers').FunctionList.Name}],'\n'));
+        {meta.package.fromName('imutils.b0.mappers').FunctionList.Name}],'\n'));
 end
 
-mappingFunction = str2func(['imutils.B0.mappers.' mappingFunction]);
+disp(['Computing B0 maps using' mappingFunction '...'])
+
+mappingFunction = str2func(['imutils.b0.mappers.' mappingFunction]);
 
 B0FieldMaps = mappingFunction(unwrappedPhase,  echoTimes);
 

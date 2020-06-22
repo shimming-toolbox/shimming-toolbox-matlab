@@ -26,8 +26,6 @@ function B0FieldMaps = phase_difference(unwrappedPhase, echoTimes)
 %     at each acquisition time.
 %
 
-disp('Computing phase difference B0 maps...')
-
 if size(unwrappedPhase,4) == 1 % If only 1 echo
     echoTimeDiff = echoTimes(1);
     phaseDiff    = unwrappedPhase(:,:,:,:);
