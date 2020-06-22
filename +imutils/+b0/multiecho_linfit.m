@@ -34,6 +34,10 @@ if ~isrow(delt)
     delt = delt';
 end
 
+if numTE ~= size(delt,2)
+    error('\nError: The number of echoes in the dataset does not match the number of echo times in the json sidecar');
+end
+
 % pre-allocate memory for variables
 delf = zeros(size(ph_data,1),size(ph_data,2),size(ph_data,3));
 
