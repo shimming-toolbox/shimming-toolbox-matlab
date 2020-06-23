@@ -33,6 +33,7 @@ VENV=$(mktemp -d)
 echo 2
 trap 'rm -rf $VENV' EXIT  # cleanup after ourselves
 echo 3
+echo $VENV
 python -m virtualenv "$VENV"
 echo 4
 . "$VENV"/bin/activate
