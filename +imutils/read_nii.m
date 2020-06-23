@@ -79,8 +79,8 @@ if isfield( json, 'Manufacturer') && strcmp(json.Manufacturer, 'Siemens') ...
   && strcmp( check_json_image_type(json), 'phase' )
 
     [img, info] = convert_siemens_phase( img, info );
-else 
-    [img, info] = rescale( img, info );
+else
+    [img, info] = rescale( img, info ); 
 end
 
 end
