@@ -27,7 +27,7 @@ cd s
 
 # we need to do this in an explicit venv since our build agent
 # isn't fancy enough to spawn fresh containers/VMs for us
-pip install --user virtualenv
+python -m pip install --user virtualenv
 echo 1
 VENV=$(mktemp -d)
 echo 2
