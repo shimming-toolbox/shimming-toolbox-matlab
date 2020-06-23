@@ -1,5 +1,5 @@
 function mask = threshold_masking(magData, sigma, varargin)
-% Create a mask for an imput image by thresholdoing the signal 
+% Create a mask for an input image by thresholding the signal 
 %
 % _SYNTAX_
 % 
@@ -37,4 +37,3 @@ data = reshape(magData,size(magData,1)*size(magData,2)*size(magData,3)*size(magD
 mask(find(data>signalThreshold*sigma(1))) = 1;
 mask = reshape(mask,size(magData,1),size(magData,2),size(magData,3),size(magData,4));
 mask = mask(:,:,:,1,1);
-
