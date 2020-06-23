@@ -10,7 +10,7 @@ function mask = threshold_masking(magData, sigma, varargin)
 % _INPUT ARGUMENTS_
 %
 %    magData
-%      4D or 5D data set data_vol(x,y,z,t) or data_vol(x,y,z,t,acq)
+%      5D data set data_vol(x,y,z,t,acq) or data_vol(x,y,z,t,acq)
 %
 %    sigma
 %      standard deviation of the noise
