@@ -13,7 +13,7 @@ function sigma = bkgrnd_noise(dataVol)
 % _INPUT ARGUMENTS_
 %
 %    dataVol
-%      4D data set dataVol(x,y,z,t)
+%      4D data set dataVol(x,y,z,nEcho)
 %
 % _OUTPUTS_
 %

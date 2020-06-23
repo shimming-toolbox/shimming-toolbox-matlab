@@ -1,7 +1,7 @@
 function mask = threshold_masking(magData, sigma, varargin)
 % Create a mask for an input image by thresholding the signal 
-% Note: the input image can be a 5D image (x,y,z,t,acq), however only the
-% first echo time of the first acquistion is used for thresholding
+% Note: the input image can be a 4D image (x,y,z,nEcho), however only the
+% first echo time is used for thresholding
 %
 % _SYNTAX_
 % 
@@ -12,7 +12,7 @@ function mask = threshold_masking(magData, sigma, varargin)
 % _INPUT ARGUMENTS_
 %
 %    magData
-%      5D data set data_vol(x,y,z,t,acq) or data_vol(x,y,z,t,acq)
+%      4D data set magData(x,y,z,nEcho) 
 %
 %    sigma
 %      standard deviation of the noise
@@ -23,7 +23,7 @@ function mask = threshold_masking(magData, sigma, varargin)
 % _OUTPUTS_
 %
 %   mask 
-%     5D image mask(x,y,z,1,1) 
+%     4D image mask(x,y,z,1) 
 
 DEFAULT_signalThreshold = 30;
 
@@ -38,4 +38,4 @@ mask = reshape(mask,size(magData,1)*size(magData,2)*size(magData,3)*size(magData
 data = reshape(magData,size(magData,1)*size(magData,2)*size(magData,3)*size(magData,4),1);
 mask(find(data>signalThreshold*sigma(1))) = 1;
 mask = reshape(mask,size(magData,1),size(magData,2),size(magData,3),size(magData,4));
-mask = mask(:,:,:,1,1);
+mask = mask(:,:,:,1);
