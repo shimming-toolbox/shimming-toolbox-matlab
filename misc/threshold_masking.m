@@ -1,5 +1,7 @@
 function mask = threshold_masking(magData, sigma, varargin)
 % Create a mask for an input image by thresholding the signal 
+% Note: the input image can be a 5D image (x,y,z,t,acq), however only the
+% first echo time of the first acquistion is used for thresholding
 %
 % _SYNTAX_
 % 
