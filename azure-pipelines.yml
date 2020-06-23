@@ -4,7 +4,8 @@ trigger:
 - master
 
 # If there is a push on a PR, it wont do run
-pr: none
+# Temporarily to debug in PR
+# pr: none
 
 # use the self-hosted runner at tristano.neuro.polymtl.ca
 # this has Matlab installed and a license to use it.
