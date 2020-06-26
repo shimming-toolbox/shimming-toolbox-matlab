@@ -1,9 +1,9 @@
-function [Imgs] = make( searchDir ) 
-%MAKE Constructs an `Img` object from file 
+function [img] = make( searchDir ) 
+%MAKE Constructs an `img` object from file 
 %     
-%     [Imgs] = make( searchDir ) 
+%     img = make( searchDir ) 
 %
-% Initializes an `Img` image object with the image data found in `searchDir`. 
+% Initializes an `img` image object with the image data found in `searchDir`. 
 %
 % __INPUTS__
 %   
@@ -12,19 +12,17 @@ function [Imgs] = make( searchDir )
     arguments
         searchDir(1,:) string {mustBeFileOrFolder};
     end
-   
-Maker = img.Maker;
 
 %% Find image files 
-List = Maker.findimagefiles( searchDir );
+List = imutils.io.find_image_files( searchDir );
 
 %% Read in files
-[imgs, Hdrs] = Maker.loadandsortimages( List );
+[imgs, Hdrs] = imutils.io.load_and_sort_images( List );
 
 % %% ----- 
 % % Initialize Img objects 
 % for iSeries = 1 : numel( imgs )
-%     Imgs{iImg} = MaRdI( imgs{iSeries}, Hdrs{iSeries} ) ;
+%     Imgs{iImg} = Img( imgs{iSeries}, Hdrs{iSeries} ) ;
 % end
 
 % When the image type is known to correspond to a specific Img

@@ -1,5 +1,5 @@
 classdef Grid 
-%img.Grid Image grid properties
+%%Grid An image grid 
 %
 
 %% ========================================================================
@@ -101,36 +101,36 @@ end
 % =========================================================================    
 methods
 % =========================================================================    
-function Self = Grid( Hdrs )
+function self = Grid( Hdrs )
     
     if nargin == 0
         return ;  
     elseif ( nargin == 1 ) && isstruct( Hdrs )
-        Self = Self.initializefromdicom( Hdrs ) ;
+        self = self.initializefromdicom( Hdrs ) ;
     else
         error('Invalid input') ;
     end
 
 end
 % =========================================================================
-function fov = get.fov( Self )
+function fov = get.fov( self )
 %GETFOV  Return field of view dimensions [units: mm]: [Row, Column, Slice]  
 
-    fov = Self.spacing .* double( Self.size ) ;
+    fov = self.spacing .* double( self.size ) ;
 
 end
 % =========================================================================
-function nPoints = get.nPoints( Self )
+function nPoints = get.nPoints( self )
 %GET.NVOXELS  Return # image voxels of a single image volume as scalar double 
     
-    nPoints = prod( Self.size ) ;
+    nPoints = prod( self.size ) ;
 
 end
 % =========================================================================
-function [R] = get.rotation( Self ) 
+function [R] = get.rotation( self ) 
 %GET.ROTATION
 % 
-% R = GET.ROTATION( Self ) 
+% R = GET.ROTATION( self ) 
 %   
 % i.e.  `R = [r c s];` where
 % r: row *index* direction cosine
@@ -150,31 +150,32 @@ function [R] = get.rotation( Self )
 %> contributions of each component of the basis to a unit vector in that
 %> direction.
  
-    c = Self.imageOrientationPatient(1:3) ; 
-    r = Self.imageOrientationPatient(4:6) ; 
-    s = Self.sliceNormalVector ;
+    c = self.imageOrientationPatient(1:3) ; 
+    r = self.imageOrientationPatient(4:6) ; 
+    s = self.sliceNormalVector ;
 
     R = [r c s] ;
 
 end 
 % =========================================================================
-function [sliceLocation] = get.sliceLocation( Self )
+function [sliceLocation] = get.sliceLocation( self )
 %GET.SLICELOCATION Slice [X;Y;Z] positions as defined by the SliceLocation field of the DICOM hdr 
 
-    for iSlice = 1 : Self.size(3)
-        sliceLocation(:,iSlice) = dot( Self.imagePositionPatient(:,iSlice), Self.sliceNormalVector ) ;
+    for iSlice = 1 : self.size(3)
+        sliceLocation(:,iSlice) = ...
+            dot( self.imagePositionPatient(:,iSlice), self.sliceNormalVector ) ;
     end 
 
 end
 % =========================================================================
-function [s] = get.sliceNormalVector( Self )
+function [s] = get.sliceNormalVector( self )
 %GETSLICENORMALVECTOR Unit vector indicating slice direction (ascending vs. descending)
 %
 % sliceNormalVector = 3rd column vector of rotation
 %
 % Defining:
-%   c = Self.imageOrientationPatient(1:3) 
-%   r = Self.imageOrientationPatient(4:6)
+%   c = self.imageOrientationPatient(1:3) 
+%   r = self.imageOrientationPatient(4:6)
 %   then, s ==  cross( c, r ) OR -cross( c, r ) (i.e. cross( r, c ))
 % 
 % For multiple slices, the calculation in get.sliceNormalVector() determines
@@ -184,19 +185,19 @@ function [s] = get.sliceNormalVector( Self )
 % For more info see discussion at 
 % http://nipy.org/nibabel/dicom/dicom_mosaic.html 
     
-    if Self.size(3) == 0 % arbitrary orientation
-        s = cross( Self.imageOrientationPatient(4:6), Self.imageOrientationPatient(1:3) ) ;
+    if self.size(3) == 0 % arbitrary orientation
+        s = cross( self.imageOrientationPatient(4:6), self.imageOrientationPatient(1:3) ) ;
     else
-        ds = Self.imagePositionPatient(:,end) - Self.imagePositionPatient(:,1) ;
-        s  = ds/( Self.spacing(3) * ( double(Self.size(3)) - 1 ) ) ;
+        ds = self.imagePositionPatient(:,end) - self.imagePositionPatient(:,1) ;
+        s  = ds/( self.spacing(3) * ( double(self.size(3)) - 1 ) ) ;
     end
 
 end
 % =========================================================================
-function [xyz] = get.xyz( Self )
+function [xyz] = get.xyz( self )
 %GET.XYZ Return grid coordinates as 3-column matrix [ x(:) y(:) z(:) ] 
 
-    [x,y,z] = Self.gridpositions() ;
+    [x,y,z] = self.gridpositions() ;
     
     xyz          = zeros( [size(x) 3] ) ;
     xyz(:,:,:,1) = x ;
@@ -205,7 +206,7 @@ function [xyz] = get.xyz( Self )
 
 end
 % =========================================================================
-function [xyz] = set.xyz( Self, xyz4d )
+function [xyz] = set.xyz( self, xyz4d )
 %SET.XYZ
 
     if nargin == 1 
@@ -255,17 +256,17 @@ end
 methods( Hidden = true )
 % Hidden for simplicity (overloaded operators should be self-explanatory)
 % =========================================================================
-function isEqual = eq( Self, Grid2 )
+function isEqual = eq( self, Grid2 )
 %EQ  Return `true` if positions of two Grid objects coincide 
 
     if ( ( nargin ~= 2 ) || ~isa( Grid2, 'img.Grid' ) )
         error('Function requires 2 img.Grid objects as arguments.') ; 
-    elseif ~strcmp( Self.coordinateSystem, Grid2.coordinateSystem ) 
+    elseif ~strcmp( self.coordinateSystem, Grid2.coordinateSystem ) 
         error( 'Input grid coordinate systems must match.' ) ;
-    elseif ~strcmp( Self.units, Grid2.units ) 
+    elseif ~strcmp( self.units, Grid2.units ) 
         error( 'Input grid units must match.' ) ;
     else 
-        isEqual =img.Grid.comparegridpositions( Self.xyz, Grid2.xyz ) ;    
+        isEqual =img.Grid.comparegridpositions( self.xyz, Grid2.xyz ) ;    
     end
 
 end
@@ -284,7 +285,7 @@ end
 % =========================================================================
 methods
     %.....
-    [x,y,z] = gridpositions( Self )
+    [x,y,z] = gridpositions( self )
 end
 
 methods( Static )
@@ -294,9 +295,9 @@ end
 
 methods( Access=private )
     %.....
-    [Self] = initializefromdicom( Self, Hdrs )
+    [self] = initializefromdicom( self, Hdrs )
     %.....
-    []     = update( Self, X, Y, Z )
+    []     = update( self, X, Y, Z )
 end
 % =========================================================================
 %
