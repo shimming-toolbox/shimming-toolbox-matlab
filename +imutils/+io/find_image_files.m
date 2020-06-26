@@ -1,7 +1,7 @@
-function [List] = findimagefiles( sFolder, fileExt, isRecursive )
-%FINDIMAGEFILES Returns list of image files from `dir()` search
+function [List] = find_image_files( sFolder, fileExt, isRecursive )
+%FIND_IMAGE_FILES Returns list of image files from `dir()` search
 %      
-%      List = findimagefiles( sFolder, fileExt, isRecursive )
+%      List = find_image_files( sFolder, fileExt, isRecursive )
 % 
 % Looks for image files in `sFolder` with extensions `fileExt` and returns
 % the file matches as elements of a 1-D struct array `List`.
@@ -11,23 +11,23 @@ function [List] = findimagefiles( sFolder, fileExt, isRecursive )
 %   sFolder=["."]  
 %     Base directory of the search as a string scalar or char vector. 
 %
-%   fileExt=[img.Maker.supportedInputs]  
-%     File extension(s) of interest as a string vector (e.g. `[".dcm", ".IMA" ]`)
+%   fileExt=[".dcm", ".IMA" ]  
+%     File extension(s) of interest as a string vector 
 %
 %   isRecursive=[false|0]  
 %     Toggle to include (1) or exclude (0) subdirectories.
 %
 % __ETC__ 
 %
-% `findimagefiles` wraps to MATLAB function `dir()`
+% This function wraps to MATLAB function `dir()`
 %
 % See also 
-% DIR — https://www.mathworks.com/help/matlab/ref/dir.html
-% img.Maker.loadandsortimages
+% [ dir ](https://www.mathworks.com/help/matlab/ref/dir.html)
+% [ imutils.io.load_and_sort_images ]
     arguments
-        sFolder(1,:) {mustBeFileOrFolder} = "." ;
-        fileExt string  = img.Maker.supportedInputs ;
-        isRecursive(1,1) {mustBeBoolean} = false ;
+        sFolder(1,:) {valid.mustBeFileOrFolder} = "." ;
+        fileExt string = [".dcm" ".IMA"] ;
+        isRecursive(1,1) {valid.mustBeBoolean} = false ;
     end
 
 %% Cast as string

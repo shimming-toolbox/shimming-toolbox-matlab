@@ -1,10 +1,10 @@
-function [imgs, Hdrs] = loadandsortimages( List )
-%LOADANDSORTIMAGES Load and sort image files
+function [imgs, Hdrs] = load_and_sort_images( List )
+%%LOAD_AND_SORT_IMAGES Load and sort image files
 %
-%     [imgs, Hdrs] = loadandsortimages( List ) 
+%     [imgs, Hdrs] = load_and_sort_images( List ) 
 %
-% Loads a `List` of image files (returned from `findimagefiles`) and sorts
-% images+headers into 2 cell arrays: 
+% Loads a `List` of image files (returned from `imutils.io.find_image_files`)
+% and sorts images + headers into 2 cell arrays: 
 %
 % —`imgs` contains numeric arrays of image data (e.g. voxel values); 
 %
@@ -32,7 +32,7 @@ function [imgs, Hdrs] = loadandsortimages( List )
 % __ETC__ 
 %
 % See also 
-% img.Maker.findimagefiles, img.make
+% imutils.io.find_image_files 
     arguments
         List(:,1) struct ;
     end
@@ -44,15 +44,17 @@ if isempty(List)
     warning('List of image files was empty.') ; 
     return ;
 elseif ~isfield( List, 'bytes' ) || ~isfield( List, 'name' )
-    error('Invalid input: List should be a struct returned from img.Maker.findimagefiles()')
+    error(['Invalid input: List should be a struct returned from ' ...
+           'imutils.io.find_image_files()'])
 end
 
 %% Extract specific file types (e.g. Dicom) as they will need to be handled differently
 filenames = string( [ { List(:).name } ] ) ;
 
 %% Dicoms: 
-if any( endsWith( filenames, img.Maker.FileExt.dicom ) )
-    [imgs, Hdrs] = img.Maker.loadandsortdicoms( List( endsWith( filenames, img.Maker.FileExt.dicom ) ) ) ;
+if any( endsWith( filenames, [".dcm" ".IMA"] ) )
+    [imgs, Hdrs] = imutils.io.load_and_sort_dicoms( ...
+        List( endsWith( filenames, [".dcm" ".IMA"] ) ) ) ;
 end
 
 %% Etc: (if other supported file types are added)

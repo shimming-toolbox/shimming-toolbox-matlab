@@ -1,14 +1,14 @@
-function [imgs, Hdrs] = loadandsortdicoms( List ) 
-%LOADANDSORTDICOMS  Load and sort dicoms from file list
+function [imgs, Hdrs] = load_and_sort_dicoms( List ) 
+%LOAD_AND_SORT_DICOMS  Load and sort dicoms from file list
 %     
-%     [imgs, Hdrs] = loadandsortdicoms( List )
+%     [imgs, Hdrs] = load_and_sort_dicoms( List )
 %
 % Accepts a `List` of dicom file names to load, and sorts the images and headers
 % into 2 cell arrays which respectively contain numeric arrays of images, and
 % struct arrays of headers. Each acquisition series is assigned to a separate
 % element of the returned cells.
 %
-% `List` is a 1-D struct array of file paths returned from `img.findimagefiles`.
+% `List` is a 1-D struct array of file paths returned from `imutils.io.find_image_files`.
 %
 % Sorting of the returned arrays occurs according to slice, echo time,
 % measurement number, and channel. 
