@@ -1,0 +1,3209 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  
+  <link rel="shortcut icon" href="../../../../../img/favicon.ico">
+  <title>ShimCom_Rriyan - Shimming-toolbox</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
+
+  <link rel="stylesheet" href="../../../../../css/theme.css" />
+  <link rel="stylesheet" href="../../../../../css/theme_extra.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" />
+  <link href="../../../../../css/extra.css" rel="stylesheet" />
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "ShimCom_Rriyan";
+    var mkdocs_page_input_path = "3_contributing/api_documentation/Coils/Shim_Rriyan/ShimCom_Rriyan.md";
+    var mkdocs_page_url = null;
+  </script>
+  
+  <script src="../../../../../js/jquery-2.1.1.min.js" defer></script>
+  <script src="../../../../../js/modernizr-2.8.3.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+        <a href="../../../../.." class="icon icon-home"> Shimming-toolbox</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../../../..">Home</a>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">1 overview</span></p>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../../../../1_overview/1_introduction/">Introduction</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../../../../../1_overview/2_flowchart/">Flowchart</a>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">2 getting started</span></p>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../../../../2_getting_started/1_installation/">Installation</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../../../../../2_getting_started/2_getting_started/">Getting started</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../../../../../2_getting_started/3_help/">Help</a>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">3 contributing</span></p>
+                <ul class="current">
+                    <li class="toctree-l1"><a class="reference internal" href="../../../../contributing_guidelines/">How to contribute</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../../../../contributors/">Contributors</a>
+                    </li>
+                    <li class="toctree-l1 current"><a class="reference internal current" href="#">Api documentation</a>
+    <ul class="current">
+                <li class="toctree-l2"><a class="reference internal" href="../../../generate_doc/">generate_doc</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../../../startup/">startup</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">+imutils</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../../%2Bimutils/Contents/">imutils.Contents</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../%2Bimutils/dicom_to_nifti/">imutils.dicom_to_nifti</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../%2Bimutils/get_nii_coordinates/">imutils.get_nii_coordinates</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../%2Bimutils/load_niftis/">imutils.load_niftis</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../%2Bimutils/read_nii/">imutils.read_nii</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">+b0</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../%2Bimutils/%2Bb0/multiecho_linfit/">imutils.b0.multiecho_linfit</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2 current"><a class="reference internal current" href="#">Coils</a>
+    <ul class="current">
+                <li class="toctree-l3"><a class="reference internal" href="#">Shim Greg</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../Shim_Greg/ShimCom_Greg/">ShimCom_Greg</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../Shim_Greg/ShimOpt_Greg/">ShimOpt_Greg</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../Shim_Greg/ShimSpecs_Greg/">ShimSpecs_Greg</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3 current"><a class="reference internal current" href="#">Shim Rriyan</a>
+    <ul class="current">
+                <li class="toctree-l4 current"><a class="reference internal current" href="./">ShimCom_Rriyan</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../ShimOpt_Rriyan/">ShimOpt_Rriyan</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../ShimSpecs_Rriyan/">ShimSpecs_Rriyan</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Shim Siemens</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="#">Shim Prisma</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Shim Sim</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../Shim_Sim/ShimOpt_Sim/">ShimOpt_Sim</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../Shim_Sim/ShimSpecs_Sim/">ShimSpecs_Sim</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="#">ShimOpt SphericalHarmonics</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Shim Template</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../Shim_Template/ShimCom/">ShimCom</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../Shim_Template/ShimOpt/">ShimOpt</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../Shim_Template/ShimSpecs/">ShimSpecs</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Shim revC</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../Shim_revC/ShimCom_revC/">ShimCom_revC</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../Shim_revC/ShimOpt_revC/">ShimOpt_revC</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../Shim_revC/ShimSpecs_revC/">ShimSpecs_revC</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Img</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../../Img/FieldEval/">FieldEval</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../Img/MaRdI/">MaRdI</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../Img/read_nii/">read_nii</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Misc</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Img/misc/dicominfosiemens/">dicominfosiemens</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Ui</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="#">ShimGui</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../Ui/ShimGui/ShimGui/">ShimGui</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Aux hardware</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="#">RespiratoryProbe</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../aux_hardware/RespiratoryProbe/ProbeTracking/">ProbeTracking</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../aux_hardware/RespiratoryProbe/filter_signal/">filter_signal</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../aux_hardware/RespiratoryProbe/get_capacitive_probe_signal/">get_capacitive_probe_signal</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../aux_hardware/RespiratoryProbe/tracking_CapacitiveProbe/">tracking_CapacitiveProbe</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="#">CapacitiveProbe</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="#">PressureProbe</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Example</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/GuidedFloodFill/">GuidedFloodFill</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/PhaseDerivativeVariance/">PhaseDerivativeVariance</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/QualityGuidedUnwrap2D_EAO/">QualityGuidedUnwrap2D_EAO</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/createfieldmap/">createfieldmap</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/demozshim/">demozshim</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/eval_acdc_74/">eval_acdc_74</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/experiment/">experiment</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/realtime_zshim/">realtime_zshim</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../example/shimdemo/">shimdemo</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">External</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../../external/genToolboxHelp/">genToolboxHelp</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../external/medfilt3/">medfilt3</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../external/myisfield/">myisfield</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">NIFTI</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/affine/">affine</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/bipolar/">bipolar</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/bresenham_line3d/">bresenham_line3d</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/collapse_nii_scan/">collapse_nii_scan</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/expand_nii_scan/">expand_nii_scan</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/extra_nii_hdr/">extra_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/flip_lr/">flip_lr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/get_nii_frame/">get_nii_frame</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/load_nii/">load_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/load_nii_ext/">load_nii_ext</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/load_nii_hdr/">load_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/load_nii_img/">load_nii_img</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/load_untouch0_nii_hdr/">load_untouch0_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/load_untouch_header_only/">load_untouch_header_only</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/load_untouch_nii/">load_untouch_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/load_untouch_nii_hdr/">load_untouch_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/load_untouch_nii_img/">load_untouch_nii_img</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/make_ana/">make_ana</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/make_nii/">make_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/mat_into_hdr/">mat_into_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/reslice_nii/">reslice_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/rri_file_menu/">rri_file_menu</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/rri_orient/">rri_orient</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/rri_orient_ui/">rri_orient_ui</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/rri_select_file/">rri_select_file</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/rri_xhair/">rri_xhair</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/rri_zoom_menu/">rri_zoom_menu</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/save_nii/">save_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/save_nii_ext/">save_nii_ext</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/save_nii_hdr/">save_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/save_untouch0_nii_hdr/">save_untouch0_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/save_untouch_nii/">save_untouch_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/save_untouch_nii_hdr/">save_untouch_nii_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/save_untouch_slice/">save_untouch_slice</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/unxform_nii/">unxform_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/verify_nii_ext/">verify_nii_ext</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/view_nii/">view_nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/view_nii_menu/">view_nii_menu</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/NIFTI/xform_nii/">xform_nii</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Altmany export fig 4c015d5</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/append_pdfs/">append_pdfs</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/copyfig/">copyfig</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/crop_borders/">crop_borders</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/eps2pdf/">eps2pdf</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/export_fig/">export_fig</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/fix_lines/">fix_lines</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/ghostscript/">ghostscript</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/im2gif/">im2gif</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/isolate_axes/">isolate_axes</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/pdf2eps/">pdf2eps</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/pdftops/">pdftops</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/print2array/">print2array</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/print2eps/">print2eps</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/read_write_entire_textfile/">read_write_entire_textfile</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/user_string/">user_string</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/altmany-export_fig-4c015d5/using_hg2/">using_hg2</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Bpfilt</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/bpfilt/bpfilt/">bpfilt</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Dicm2nii</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/dicm2nii/dicm2nii/">dicm2nii</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/dicm2nii/dicm_dict/">dicm_dict</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/dicm2nii/dicm_hdr/">dicm_hdr</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/dicm2nii/dicm_img/">dicm_img</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/dicm2nii/nii_tool/">nii_tool</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/dicm2nii/rename_dicm/">rename_dicm</a>
+                </li>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/dicm2nii/sort_dicm/">sort_dicm</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Parse dicom</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="#">Src</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Stoploop</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/stoploop/stoploop/">stoploop</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="#">Sunwrap</a>
+    <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../../external/sunwrap/sunwrap/">sunwrap</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Misc</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/assignifempty/">assignifempty</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/bet/">bet</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/bkgrnd_noise/">bkgrnd_noise</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/cgls/">cgls</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/createdifferenceoperators/">createdifferenceoperators</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/createellipsoid/">createellipsoid</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/croparray/">croparray</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/dilater/">dilater</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/fftc/">fftc</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/fslview/">fslview</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/getfilecreationtime/">getfilecreationtime</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/ifftc/">ifftc</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/isOctave/">isOctave</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/lapunwrap/">lapunwrap</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/makekspace/">makekspace</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/makeodd/">makeodd</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/myisfieldfilled/">myisfieldfilled</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/nii/">nii</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/prelude/">prelude</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/rescale_phase_image/">rescale_phase_image</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/resharp/">resharp</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/savefigure/">savefigure</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/shaver/">shaver</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/shimbindir/">shimbindir</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/sortdicoms/">sortdicoms</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/threshold_masking/">threshold_masking</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../../misc/unwrap3d/">unwrap3d</a>
+                </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="#">Numerical model</a>
+    <ul>
+                <li class="toctree-l3"><a class="reference internal" href="../../../numerical_model/NumericalModel/">NumericalModel</a>
+                </li>
+    </ul>
+                </li>
+    </ul>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">4 about</span></p>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../../../../4_about/license/">License and warranty</a>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">5 other ressources</span></p>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="#">Hardware</a>
+    <ul>
+                <li class="toctree-l2"><a class="reference internal" href="../../../../../5_other-ressources/hardware/assembly/">Assembly</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../../../../../5_other-ressources/hardware/description/">Description of harware with amplifiers</a>
+                </li>
+    </ul>
+                    </li>
+                </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../../..">Shimming-toolbox</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../../..">Docs</a> &raquo;</li>
+    
+      
+        
+          <li>Shim Rriyan &raquo;</li>
+        
+      
+        
+          <li>Coils &raquo;</li>
+        
+      
+        
+          <li>Api documentation &raquo;</li>
+        
+      
+        
+          <li>3 contributing &raquo;</li>
+        
+      
+    
+    <li>ShimCom_Rriyan</li>
+    <li class="wy-breadcrumbs-aside">
+      
+        <a href="https://github.com/shimming-toolbox/shimming-toolbox/edit/master/docs/3_contributing/api_documentation/Coils/Shim_Rriyan/ShimCom_Rriyan.md"
+          class="icon icon-github"> Edit on GitHub</a>
+      
+    </li>
+  </ul>
+  
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="shimcom_rriyan">ShimCom_Rriyan</h1>
+<p><strong>Filetype:</strong> <em>MATLAB&reg; classdef</em></p>
+<p><strong>Synopsis:</strong> <em>- Shim Communication for RRI system</em></p>
+<p>.......</p>
+<p>Description</p>
+<pre><code>SHIMCOMRRI is responsible for all direct communication with the shim system
+(MXD &amp; DSU). Declaration of a ShimComRri object immediately opens a serial
+(Com) port.
+</code></pre>
+<p>.......</p>
+<p>Usage</p>
+<pre><code>Shims = ShimComRri(  )
+
+Shims contains fields
+
+    .Cmd
+
+    .ComPort
+
+    .Data
+
+    .Params
+</code></pre>
+<p>=========================================================================<br />
+Notes</p>
+<pre><code>MXD and DSU commands are listed in the RRI Hex Protocol Specification guide:
+9700052-0000 HexProtocolSpecification_REV-G
+
+Large portions of the following code are effectively a translation, into
+MATLAB, of the VB source code for "Demo DSU Host Software ver. 2.00"
+courtesy of Resonance Research, Inc.
+
+For a primer on RS-232 communication in Matlab see
+</code></pre>
+<p>http://www.mathworks.com/help/matlab/matlab_external/overview-of-the-serial-port.html</p>
+<pre><code>Part of series of classes pertaining to shimming:
+
+ ProbeTracking
+ ShimCal
+ ShimCom
+ ShimEval
+ ShimOpt
+ ShimSpecs
+ ShimTest 
+ ShimUse
+
+ ShimComRri is a ShimCom subclass.
+</code></pre>
+<p>=========================================================================<br />
+Updated::20161121::ryan.topfer@polymtl.ca<br />
+=========================================================================</p>
+<pre><code>Documentation for ShimCom_Rriyan
+   doc ShimCom_Rriyan
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Enumeration</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ConstructOnLoad</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">HandleCompatible</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">RestrictsSubclassing</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>InferiorClasses : [N/A] </li>
+<li>ContainingPackage : [N/A] </li>
+<li>EventList : [N/A] </li>
+<li>EnumerationMemberList : [N/A] </li>
+<li>Superclasses: ShimCom</li>
+</ul>
+</details>
+<hr />
+<h2 id="properties">Properties</h2>
+<hr />
+<h3 id="cmd">Cmd</h3>
+<p><strong>Synopsis:</strong> <em>ShimCom/Cmd is a property.</em></p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Dependent</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Constant</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Transient</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">GetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">SetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">AbortSet</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">NonCopyable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">HasDefault</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>GetAccess : public</li>
+<li>SetAccess : public</li>
+<li>PartialMatchPriority : [N/A] </li>
+<li>GetMethod : </li>
+<li>SetMethod : </li>
+<li>DefaultValue : </li>
+<li>Validation : [N/A] </li>
+<li>DefiningClass : ShimCom</li>
+</ul>
+</details>
+<hr />
+<h3 id="comport">ComPort</h3>
+<p><strong>Synopsis:</strong> <em>ShimCom/ComPort is a property.</em></p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Dependent</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Constant</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Transient</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">GetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">SetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">AbortSet</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">NonCopyable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">HasDefault</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>GetAccess : public</li>
+<li>SetAccess : public</li>
+<li>PartialMatchPriority : [N/A] </li>
+<li>GetMethod : </li>
+<li>SetMethod : </li>
+<li>DefaultValue : </li>
+<li>Validation : [N/A] </li>
+<li>DefiningClass : ShimCom</li>
+</ul>
+</details>
+<hr />
+<h3 id="data">Data</h3>
+<p><strong>Synopsis:</strong> <em>ShimCom/Data is a property.</em></p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Dependent</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Constant</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Transient</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">GetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">SetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">AbortSet</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">NonCopyable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">HasDefault</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>GetAccess : public</li>
+<li>SetAccess : public</li>
+<li>PartialMatchPriority : [N/A] </li>
+<li>GetMethod : </li>
+<li>SetMethod : </li>
+<li>DefaultValue : </li>
+<li>Validation : [N/A] </li>
+<li>DefiningClass : ShimCom</li>
+</ul>
+</details>
+<hr />
+<h3 id="params">Params</h3>
+<p><strong>Synopsis:</strong> <em>ShimCom/Params is a property.</em></p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Dependent</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Constant</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Transient</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">GetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">SetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">AbortSet</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">NonCopyable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">HasDefault</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>GetAccess : public</li>
+<li>SetAccess : public</li>
+<li>PartialMatchPriority : [N/A] </li>
+<li>GetMethod : </li>
+<li>SetMethod : </li>
+<li>DefaultValue : </li>
+<li>Validation : [N/A] </li>
+<li>DefiningClass : ShimCom</li>
+</ul>
+</details>
+<hr />
+<h3 id="specs">Specs</h3>
+<p><strong>Synopsis:</strong> <em>ShimCom/Specs is a property.</em></p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Dependent</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Constant</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Transient</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">GetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">SetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">AbortSet</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">NonCopyable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">HasDefault</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>GetAccess : public</li>
+<li>SetAccess : public</li>
+<li>PartialMatchPriority : [N/A] </li>
+<li>GetMethod : </li>
+<li>SetMethod : </li>
+<li>DefaultValue : </li>
+<li>Validation : [N/A] </li>
+<li>DefiningClass : ShimCom</li>
+</ul>
+</details>
+<hr />
+<h2 id="methods">Methods</h2>
+<hr />
+<h3 id="deletecomport">deletecomport</h3>
+<p><strong>Synopsis</strong>: <em>(custom helper function)</em> </p>
+<p>Shims = DELETECOMPORT( Shims )</p>
+<p>Correct way to delete and clear the serial port object</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : Shims</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="delete">delete</h3>
+<p><strong>Synopsis</strong>: <em>(custom helper function)</em> </p>
+<p>DELETE( Shim )</p>
+<p>Destructor. Calls Shim.deletecomport( )</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shim</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="testwave">testwave</h3>
+<p><strong>Synopsis</strong>: <em>(DSU cmd 0x21)</em> </p>
+<p>[] = TESTWAVE( Shims, channelIndex, isOn )</p>
+<pre><code>channelIndex : number between 1 to 32 (see ShimCom_Rriyan.getchanneltobankkey)
+isOn : true (1) OR false (0)
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, iChannel, isOn</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getchannelmatrixinterconnection">getchannelmatrixinterconnection</h3>
+<p><strong>Synopsis</strong>: <em>(DSU cmd 0xFB)</em> </p>
+<p>interconnections = GETMATRIXINTERCONNECTION( Shims, channelIndex )</p>
+<pre><code>channelIndex : number between 1 to 32 (see ShimCom_Rriyan.getchanneltobankkey)
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, iChannel</li>
+<li>OutputNames : interconnections</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="setmatrixinterconnectiontoself">setmatrixinterconnectiontoself</h3>
+<p><strong>Synopsis</strong>: <em>(DSU cmd 0x20)</em> </p>
+<p>[] = SETMATRIXINTERCONNECTIONTOSELF( Shims, channelIndex, slotIndex )</p>
+<pre><code>channelIndex : number between 1 to 32 (see ShimCom_Rriyan.getchanneltobankkey)
+slotIndex : [time constant module 1-4]: 
+    0x00 (no connection), 
+    0x01 (first module), 
+    0x02 (second), 
+    0x04 (third), 
+    0x08 (fourth), 
+    0x09 (first and fourth) etc.
+
+    (See corresponding entry in Hex Communication manual)
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, iChannel, iSlot</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="setslice">setslice</h3>
+<p><strong>Synopsis</strong>: <em>(DSU cmd 0xD0)</em> </p>
+<p>[] = SETSLICE( Shims, channelIndex, sliceIndex, sliceIntensity )</p>
+<pre><code>channelIndex : number between 1 to 32 (see ShimCom_Rriyan.getchanneltobankkey)
+sliceIndex   : number between 1 and 1000 
+percentSliceIntensity : number between -100 and 100
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, iChannel, iSlice, percentSliceIntensity</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getslice">getslice</h3>
+<p><strong>Synopsis</strong>: <em>(DSU cmd 0xE0)</em> </p>
+<p>percentSliceIntensity = GETSLICE( Shims, channelIndex, sliceIndex )</p>
+<pre><code>channelIndex : number between 1 to 32 (see ShimCom_Rriyan.getchanneltobankkey)
+sliceIndex   : number between 1 and 1000
+
+percentSliceIntensity : number between -100 and 100
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, iChannel, iSlice</li>
+<li>OutputNames : percentSliceIntensity</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getchanneloutput">getchanneloutput</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x47)</em> </p>
+<p>ChannelOutput = getchanneloutput( Shims, bankIndex, channelIndex )</p>
+<p>ChannelOutput contains fields<br />
+    .current [in amps]<br />
+    .voltage [in volts]<br />
+    .power [in Watts]<br />
+    .disspitatedPower [in Watts]</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, iBank, iChannel</li>
+<li>OutputNames : ChannelOutput</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getchannellongstatus">getchannellongstatus</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x45)</em> </p>
+<p>ChannelStatus = getchannellongstatus( Shims, bankIndex, channelIndex )</p>
+<p>ChannelStatus contains fields<br />
+    .current [in amps]<br />
+    .voltage [in volts]<br />
+    .power [in Watts]<br />
+    .dissipatedPower [in Watts]<br />
+    .dacInputVoltage [in volts]<br />
+    .auxiliaryInputVoltage [in volts]<br />
+    .onOff [0=Off, 1=On]<br />
+    .auxiliaryEnable [0=Off, 1=On]<br />
+    .faults [see HEX protocol]</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, iBank, iChannel</li>
+<li>OutputNames : ChannelStatus</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="setchannelbuffer">setchannelbuffer</h3>
+<p><strong>Synopsis</strong>: <em>*INVALID?</em> </p>
+<p>SETCHANNELBUFFER *INVALID?</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, iBank, iChannel, current</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="setandloadshim">setandloadshim</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x44 || 0x54)</em> </p>
+<p>Set shim current (in amps) for single channel</p>
+<p>[] = SETANDLOADSHIM( Shims, channelIndexGlobal, current )<br />
+[] = SETANDLOADSHIM( Shims, bankIndex, channelIndexByBank, current )</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, varargin</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getsystemcurrenttime">getsystemcurrenttime</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x2C)</em> </p>
+<p>SystemTime = GETSYSTEMCURRENTTIME( Shims )</p>
+<p>SystemTime has fields</p>
+<pre><code>.year
+.month
+.day
+.hour
+.minute
+.second
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : SystemTime</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getallchanneloutputs">getallchanneloutputs</h3>
+<p><strong>Synopsis</strong>: <em>GETALLCHANNELSOUTPUTS      (custom cmd)</em> </p>
+<p>ChannelOutputs = GETALLCHANNELOUTPUTS( Shim )</p>
+<p>ChannelOutputs has fields</p>
+<pre><code>.current [amperes]
+.voltage [volts]
+.power [watts]
+.dissipatedPower [watts]
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shim</li>
+<li>OutputNames : ChannelOutputs</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="setandloadallshims">setandloadallshims</h3>
+<p><strong>Synopsis</strong>: <em>(custom cmd)</em> </p>
+<p>Sets shim buffers (MXD cmd 0x22) and loads the settings (MXD cmd 0x23).</p>
+<p>[] = SETANDLOADALLSHIMS( Shim, currents )</p>
+<p>numel(currents) == Shims.Specs.nChannels || Shims.Specs.nActiveChannels</p>
+<p>i.e. currents vector is either length 24 or 32</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shim, currents</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="setsystemcurrenttime">setsystemcurrenttime</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x2B)</em> </p>
+<p>[] = SETSYSTEMCURRENTTIME( Shims, SystemTime )</p>
+<p>SystemTime has fields</p>
+<pre><code>.year
+.month
+.day
+.hour
+.minute
+.second
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, SystemTime</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getsysteminformation">getsysteminformation</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x29)</em> </p>
+<p>SystemInfo = GETSYSTEMINFORMATION( Shims )</p>
+<p>SystemInfo has fields</p>
+<pre><code>.SoftwareVersion
+    .majorRevision
+    .minorRevision
+.SystemModel
+    .name
+    .numberOfChannels
+.serialNumber
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : SystemInfo</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getbanklongstatus">getbanklongstatus</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x26)</em> </p>
+<p>BankStatus = GETBANKLONGSTATUS( Shims, bankIndex )</p>
+<pre><code>bankIndex = 0, 1, 2, or 3
+</code></pre>
+<p>BankStatus has fields<br />
+    .highVoltagePositiveRail [in V]<br />
+    .highVoltageNegativeRail [in V]<br />
+    .lowVoltagePositiveRail  [in V]<br />
+    .lowVoltageNegativeRail  [in V]<br />
+    .heatsinkTemperature     [in degrees C]<br />
+    .channelsWithFaults     [0-7 bitwise: ch0, ch1, ch2,... ch7] <br />
+    .faults           [See HEX protocol document]</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, iBank</li>
+<li>OutputNames : BankStatus</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getsystemlongstatus">getsystemlongstatus</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x25)</em> </p>
+<p>SystemStatus = GETSYSTEMLONGSTATUS( Shims )</p>
+<p>SystemStatus has fields<br />
+    .totalOutputPower [in W]<br />
+    .onOff [1 - ON, 0 - OFF] <br />
+    .globlErrorRegister<br />
+        [0-7 bitwise: Error on a bank, Bank is missing, Bank communication<br />
+        error, TBD, TBD, TBD, Interlock Error, Fatal Error Requiring Shutdown<br />
+        Present)]</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : SystemStatus</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="setloadallshims">setloadallshims</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x23)</em> </p>
+<pre><code>Loads buffered shim settings.
+
+[] = SETLOADALLSHIMS( Shims )
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="setallshims">setallshims</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd: 0x22)</em> </p>
+<p>SETALLSHIMS( Shims, currents )</p>
+<p>Sets all shims based on [nChannel x 1] current vector (in amps)</p>
+<p>NB: for our system, currents vector has 32 entries (=total # amplifier<br />
+channels, including inactive channels).  Currents for inactive channels<br />
+should be zero.</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, currents</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="setpoweroff">setpoweroff</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x21)</em> </p>
+<p>[] = SETPOWEROFF( Shims )</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="setpoweron">setpoweron</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x20)</em> </p>
+<p>[] = SETPOWERON( Shims )</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getchannelthresholddata">getchannelthresholddata</h3>
+<p><strong>Synopsis</strong>: <em>(NACK? MXD cmd 0x16)</em> </p>
+<p>ThresholdData = getchannelthresholddata( Shims, bankIndex, channelIndex )</p>
+<p>ThresholdData contains fields<br />
+    .maxControlVoltage [in volts]<br />
+    .maxOutputCurrent [in amps]<br />
+    .maxOutputPower [in Watts]</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, iBank, iChannel</li>
+<li>OutputNames : ThresholdData</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="resetallshims">resetallshims</h3>
+<p><strong>Synopsis</strong>: <em>(Custom cmd)</em> </p>
+<p>Reset all shims to 0 A.</p>
+<p>[] = RESETALLSHIMS( Shim )</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shim</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="clearsystemerrors">clearsystemerrors</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x0A)</em> </p>
+<p>[] = CLEARSYSTEMERRORS( Shims )</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : [N/A] </li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getsystemheartbeat">getsystemheartbeat</h3>
+<p><strong>Synopsis</strong>: <em>(MXD cmd 0x09)</em> </p>
+<p>Queries MXD and returns 'ACK' if responsive</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : isAckReceived</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getbankadccalibrationdata">getbankadccalibrationdata</h3>
+<p><strong>Synopsis</strong>: <em>(*INVALID? MXD cmd 0x02)</em> </p>
+<p>[offset, slope] = GETBANKADCCALIBRATIONDATA( Shims, bankIndex )</p>
+<pre><code>bankIndex = 0, 1, 2, or 3
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Shims, iBank</li>
+<li>OutputNames : offset, slope</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="shimcom_rriyan_1">ShimCom_Rriyan</h3>
+<p><strong>Synopsis</strong>: <em>Constructor</em> </p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : [N/A] </li>
+<li>OutputNames : Shims</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="ampstodac">ampstodac</h3>
+<p><strong>Synopsis</strong>: <em>AMPSTODAC</em> </p>
+<p>Wraps a current value in Amperes to a count within the DAC's range.</p>
+<p>dacCount = AMPSTODAC( Shims, current )</p>
+<p>Note: Beware of clipping:</p>
+<pre><code>Shims.Specs.Dac.maxCurrent = 5 A % [By default]
+
+if current &gt;= Shims.Specs.Dac.maxCurrent, dacCount = 32767 ;
+elseif current &lt;= Shims.Specs.Dac.maxCurrent, dacCount = -32768 ;
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : private</li>
+<li>InputNames : Shims, current</li>
+<li>OutputNames : dacCount</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="writetomachine">writetomachine</h3>
+<p><strong>Synopsis</strong>: <em>WRITETOMACHINE</em> </p>
+<p>Write to machine (and read back the system response)</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : private</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : Shims, isMsgRead</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="sendcmd">sendcmd</h3>
+<p><strong>Synopsis</strong>: <em>transmits a command from client to MXD or DSU systems</em> </p>
+<pre><code>order of output:
+
+sync -&gt; lng  -&gt; cmd  -&gt; outputData -&gt; C0 -&gt; C1
+</code></pre>
+<p>.......</p>
+<pre><code>Description
+
+sync
+
+    sync command for MXD (=='0x02') or DSU (=='0xC0')
+
+lng
+
+    length in bytes of entire message to be transmitted 
+    (including sync, lng, cmd, ,outputData, crc)
+
+cmd
+
+    system command in hex format
+
+outputData
+
+    formated according to command (see RRI manual)
+</code></pre>
+<p>.......</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : private</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : Shims, isSendOk</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="isackreceived">isackreceived</h3>
+<p><strong>Synopsis</strong>: <em>ISACKRECEIVED</em> </p>
+<p>Checks data returned from master board for<br />
+    'ACK','NACK','INVALID', or 'Wrong'</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : private</li>
+<li>InputNames : Shims</li>
+<li>OutputNames : isAckReceived, systemResponse</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getchanneltobankkey">getchanneltobankkey</h3>
+<p><strong>Synopsis</strong>: <em>(custom helper function)</em> </p>
+<p>Maps the spine coil channels (1-24) to the corresponding MXD banks (0-3)<br />
+&amp; channels (1-32)</p>
+<p>.......</p>
+<p>Syntax</p>
+<pre><code>X = GETCHANNELTOBANKKEY();
+</code></pre>
+<p>.......</p>
+<p>Description</p>
+<pre><code>E.g. (top 6 rows of output)
+
+&gt;&gt; getchanneltobankkey()
+</code></pre>
+<p>Shim Coil || Bank || Channel || Channel ||<br />
+                      (by bank)  (global)<br />
+      1         0        5          6         <br />
+      2         0        0          1         <br />
+      3         0        6          7         <br />
+      4         1        0          9         <br />
+      5         0        1          2 <br />
+      6         0        2          3 </p>
+<pre><code>                ...
+</code></pre>
+<p>.......</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : [N/A] </li>
+<li>OutputNames : channelToBankKey</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="mapcurrentstomxd">mapcurrentstomxd</h3>
+<p><strong>Synopsis</strong>: <em>(custom helper function)</em> </p>
+<p>There are only 24 active channels in the 32 channel amplifier. MAPCURRENTSTOMXD<br />
+takes a 24-element vector and rearranges the elements into a 32-element vector<br />
+where indices corresponding to inactive channels are 0 and the original 1-24<br />
+channel values are arranged according to their global MXD channel index.</p>
+<p>currentsOut = MAPCURRENTSTOMXD( currentsIn )</p>
+<p>e.g. Insert active channel indices into corresponding cells of full currents<br />
+    vector (i.e. 32 channels, including inactive channels)</p>
+<blockquote>
+<blockquote>
+<p>currentsOut = ShimCom_Rriyan.mapcurrentstomxd( [1 : 24] )</p>
+</blockquote>
+</blockquote>
+<p>currentsOut =</p>
+<pre><code>   2
+   5
+   6
+   9
+  10
+   1
+   3
+   0
+   4
+   7
+   8
+  11
+  12
+   0
+   0
+   0
+  14
+  17
+  18
+  21
+  22
+  13
+  15
+   0
+  16
+  19
+  20
+  23
+  24
+   0
+   0
+   0
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : currents</li>
+<li>OutputNames : currentsOut</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getchanneltobankmatrices">getchanneltobankmatrices</h3>
+<p><strong>Synopsis</strong>: <em>(custom helper function)</em> </p>
+<p>[X0,X1,X2,X3] = GETCHANNELTOBANKMATRICES()</p>
+<p>Returns four [nChannelsPerBank x 24] matrices that when applied to<br />
+the [24 x 1] vector of shim currents will each return a truncated version<br />
+of the vector corresponding strictly to the channels belonging to amplifier<br />
+banks 0 through 3.</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : [N/A] </li>
+<li>OutputNames : X0, X1, X2, X3</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="initializecomport">initializecomport</h3>
+<p><strong>Synopsis</strong>: <em>Initialize (RS-232) Communication Port</em> </p>
+<p>if ismac<br />
+      portName = '/dev/tty.usbserial' ;<br />
+elseif isunix<br />
+      portName = '/dev/ttyS0' ;<br />
+elseif ispc<br />
+      portName = 'COM4' ;<br />
+else<br />
+      error('Wtf kind of computer is u running?')<br />
+end</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">true</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : Specs</li>
+<li>OutputNames : ComPort</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="getcommands">getcommands</h3>
+<p><strong>Synopsis</strong>: <em>GETCOMMANDS</em> </p>
+<h2 id="getcommands_1">[] = GETCOMMANDS( )</h2>
+<p>System commands (as Hexadecimal strings)<br />
+I.  for the MXD<br />
+II. for DSU</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">true</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : [N/A] </li>
+<li>OutputNames : Cmd</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="calculatecrc">calculatecrc</h3>
+<p><strong>Synopsis</strong>: <em>CALCULATECRC</em> </p>
+<pre><code>uint16 crc = CALCULATECRC( uint8 dataMsg ) ;
+
+dataMsg
+    integer array
+
+crc
+    integer
+</code></pre>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">true</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : dataMsg</li>
+<li>OutputNames : crc</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="appendcrc">appendcrc</h3>
+<p><strong>Synopsis</strong>: <em>APPENDCRC</em> </p>
+<p>uint8 msg = APPENDCRC( uint8 msg, uint16 crc )</p>
+<p>appendedMsg = APPENDCRC( msg, crc ) adds the 2 (low followed by high) CRC<br />
+bytes to the end of 'msg'</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">true</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : dataMsg, crc</li>
+<li>OutputNames : dataMsg</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="empty">empty</h3>
+<p><strong>Synopsis</strong>: <em>Returns an empty object array of the given size</em> </p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">true</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : varargin</li>
+<li>OutputNames : E</li>
+<li>DefiningClass : ShimCom_Rriyan</li>
+</ul>
+</details>
+<hr />
+<h3 id="convertfromtwoscomplement">convertfromtwoscomplement</h3>
+<p><strong>Synopsis</strong>: <em>CONVERTFROMTWOSCOMPLEMENT</em> </p>
+<p>int16 z = CONVERTFROMTWOSCOMPLEMENT( uint8 z )</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : zUInt</li>
+<li>OutputNames : z</li>
+<li>DefiningClass : ShimCom</li>
+</ul>
+</details>
+<hr />
+<h3 id="mergeints">mergeints</h3>
+<p><strong>Synopsis</strong>: <em>MERGEINTS</em> </p>
+<p>int16 z = MERGEINTS( uint8 highByte, uint8 lowByte, isSigned )</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : highByte, lowByte, isSigned</li>
+<li>OutputNames : z</li>
+<li>DefiningClass : ShimCom</li>
+</ul>
+</details>
+<hr />
+<h3 id="splitint">splitint</h3>
+<p><strong>Synopsis</strong>: <em>SPLITINT</em> </p>
+<p>[lowByte, highByte] = SPLITINT( int16 z )</p>
+<p>if z is positive<br />
+    z = (2^8)*highByte + lowByte ;        </p>
+<p>else if z is in two's complement<br />
+    ...</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">true</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : z</li>
+<li>OutputNames : lowByte, highByte</li>
+<li>DefiningClass : ShimCom</li>
+</ul>
+</details>
+<hr />
+<h3 id="set">set</h3>
+<p>— <em>built-in method derived from class</em> <strong>matlab.mixin.SetGet</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="get">get</h3>
+<p>— <em>built-in method derived from class</em> <strong>matlab.mixin.SetGet</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="setdisp">setdisp</h3>
+<p>— <em>built-in method derived from class</em> <strong>matlab.mixin.SetGet</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="getdisp">getdisp</h3>
+<p>— <em>built-in method derived from class</em> <strong>matlab.mixin.SetGet</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="eq">eq</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="ne">ne</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="lt">lt</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="gt">gt</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="le">le</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="ge">ge</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="isvalid">isvalid</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="findprop">findprop</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="notify">notify</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="notify_1">notify</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="addlistener">addlistener</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="listener">listener</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="addlistener_1">addlistener</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="listener_1">listener</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="addlistener_2">addlistener</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="listener_2">listener</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="addlistener_3">addlistener</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="listener_3">listener</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="addlistener_4">addlistener</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="listener_4">listener</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+<hr />
+<h3 id="findobj">findobj</h3>
+<p>— <em>built-in method derived from class</em> <strong>handle</strong>. <br />
+For more info, refer to the MATLAB documentation.</p>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../ShimOpt_Rriyan/" class="btn btn-neutral float-right" title="ShimOpt_Rriyan">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+        <a href="../../Shim_Greg/ShimSpecs_Greg/" class="btn btn-neutral" title="ShimSpecs_Greg"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+      
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="versions">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+          <a href="https://github.com/shimming-toolbox/shimming-toolbox/" class="fa fa-github" style="float: left; color: #fcfcfc"> GitHub</a>
+      
+      
+        <span><a href="../../Shim_Greg/ShimSpecs_Greg/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+        <span style="margin-left: 15px"><a href="../ShimOpt_Rriyan/" style="color: #fcfcfc">Next &raquo;</a></span>
+      
+    </span>
+</div>
+    <script>var base_url = '../../../../..';</script>
+    <script src="../../../../../js/theme.js" defer></script>
+      <script src="../../../../../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>
