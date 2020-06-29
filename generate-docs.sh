@@ -12,7 +12,7 @@ git clone https://github.com/shimming-toolbox/helpDocMd.git
 #   Beware: you MUST put `quit` at the end; Matlab does not auto-quit.
 #   https://www.mathworks.com/matlabcentral/answers/523194-matlab-script-in-batch-from-unix-command-line
 
-/usr/local/MATLAB/R2020a/bin/matlab -nodisplay -nosplash -r "disp('Hello');exit"
+/usr/local/MATLAB/R2020a/bin/matlab -nodisplay -nosplash -r "run('./s/generate_doc.m');exit"
 cd s
 
 # run mkdocs
@@ -27,20 +27,18 @@ cd s
 
 # we need to do this in an explicit venv since our build agent
 # isn't fancy enough to spawn fresh containers/VMs for us
+
+# Ran once from this script to upgrade to 20.1.1
 # pip install pip --upgrade
+
+# Ran once on tristano directly
 # pip3 install --user virtualenv
-echo 1
+
 VENV=$(mktemp -d)
-echo 2
 trap 'rm -rf $VENV' EXIT  # cleanup after ourselves
-echo 3
-echo $VENV
 python -m virtualenv "$VENV"
-echo 4
 . "$VENV"/bin/activate
-echo 5
 pip install --no-cache-dir --ignore-installed mkdocs
-echo 6
 
 # Make sure GH_PAGES_TOKEN is set up in pipeline
 if [ -n "${GH_PAGES_TOKEN}" ]; then
