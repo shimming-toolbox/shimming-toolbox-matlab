@@ -24,19 +24,27 @@ function [ basis ] = siemens_basis( ~, X, Y, Z )
 %
 % INPUTS
 %
-%    orders
+%    orders (uint row-vector)
 %      Degrees of the desired terms in the series expansion, specified as a
 %      vector of non-negative integers (`[0:1:n]` yields harmonics up to n-th
 %      order)
 %
-%    X, Y, Z 
-%      Identically-sized 2- or 3-D numeric arrays of grid coordinates in
-%      the patient coordinate system (i.e. DICOM reference, units of mm)
+%    X (numeric 2- or 3-d array)
+%      "Right->Left" grid coordinates in the patient coordinate system
+%      (i.e. DICOM reference, units of mm)
+%
+%    Y (numeric 2- or 3-d array)
+%      "Anterior->Posterior" grid coordinates in the patient coordinate system
+%      (i.e. DICOM reference, units of mm)
+%
+%    Z (numeric 2- or 3-d array)
+%      "Inferior->Superior" grid coordinates in the patient coordinate system
+%      (i.e. DICOM reference, units of mm)
 % 
 % OUTPUTS
 %
-%    basis
-%      4-D double-precision array of spherical harmonic basis fields
+%    basis (double 4-D array)
+%      Spherical harmonic basis fields
 %
 % NOTES/TODO
 %
@@ -75,16 +83,15 @@ return;
 %% Local functions
 
 function [ sh1 ] = reordertosiemens( sh0 )
-%REORDERTOSIEMENS
+%REORDERTOSIEMENS 
+% 
+%   sh1 = reordertosiemens( sh0 )
 %
-%   basisFields1 = REORDERTOSIEMENS( basisFields0 )
+% Reorder 1st-2nd order basis terms along 4th dim. from
 %
-% basisFields returned from .GENERATEBASISFIELDS() are ordered (along the 4th
-% array dimension) like: 
-%   Y, Z, X, XY, ZY, Z2, ZX, X2-Y2
+% 1. Y, Z, X, XY, ZY, Z2, ZX, X2-Y2 (output by b0shim.compute.spherical_harmonics), to
 %
-% REORDERTOSIEMENS orders them in line with Siemens shims: 
-%   X, Y, Z, Z2, ZX, ZY, X2-Y2, XY
+% 2. X, Y, Z, Z2, ZX, ZY, X2-Y2, XY (in line with Siemens shims)
 
 assert( ( nargin == 1 ) && ( size( sh0, 4 ) == 8 ) )
 
@@ -113,13 +120,16 @@ function [ scalingFactors ] = computenormalizationfactors()
 %
 % 2nd order terms should yield 1 micro-T of field shift per metre-squared
 % equivalently, 0.000042576 Hz/mm^2
+% 
+% NOTE: The method has been worked out empirically 
+% (further testing could be a good idea)
 
-%% ------
-% create basis on small 3x3x3 mm^3 isotropic grid
+%% create basis on small 3x3x3 mm^3 isotropic grid
 [XIso, YIso, ZIso] = meshgrid( [-1:1], [-1:1], [-1:1] ) ;
 
 sh = b0shim.compute.spherical_harmonics( [1:2], XIso, YIso, ZIso ) ;
-% Reorder terms along 4th array dim. in line with Siemens shims: X, Y, Z, Z2, ZX, ZY, X2-Y2, XY
+
+% Reorder terms along 4th array dim. in line with Siemens shims: 
 sh = reordertosiemens( sh ) ; 
 
 nChannels      = size( sh, 4) ; % = 8
