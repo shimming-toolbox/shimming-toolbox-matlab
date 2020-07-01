@@ -8,6 +8,7 @@ classdef NumericalModel < handle
         
         % volume properties
         numVox = 128; % square volume
+        pixSize = 1; % default pixel size is 1 mm
         starting_volume
         volume
         measurement
@@ -17,10 +18,10 @@ classdef NumericalModel < handle
         FA
         
         % Default times in seconds @ 3T
-        T2star = struct('WM', 0.053, 'GM', 0.066, 'CSF', 0.10)
+        T2star = struct('WM', 0.053, 'GM', 0.066, 'CSF', 0.10, 'Air', 0, 'SiliconeOil', 0.566, 'PureMineralOil', 0.063)
         
         % Default proton density in percentage
-        protonDensity = struct('WM', 70, 'GM', 82, 'CSF', 100)
+        protonDensity = struct('WM', 70, 'GM', 82, 'CSF', 100, 'Air', 0, 'SiliconeOil', 71, 'PureMineralOil', 100)
         
         % deltaB0 in Hz
         deltaB0
@@ -41,6 +42,9 @@ classdef NumericalModel < handle
                     	obj.shepp_logan_2d(obj.numVox);
                     case 'Shepp-Logan3d'
                         obj.shepp_logan_3d(obj.numVox);
+                    case 'Spherical3d'
+                        obj.starting_volume = zeros(obj.numVox, obj.numVox, obj.numVox);
+                        obj.spherical_3d();
                     otherwise
                         error('Unknown volume model.')
                 end
@@ -72,6 +76,33 @@ classdef NumericalModel < handle
             
             obj.volume.protonDensity = obj.customize_shepp_logan(obj.starting_volume, obj.protonDensity.WM, obj.protonDensity.GM, obj.protonDensity.CSF);
             obj.volume.T2star = obj.customize_shepp_logan(obj.starting_volume, obj.T2star.WM, obj.T2star.GM, obj.T2star.CSF);
+        end
+        
+        function obj = spherical_3d(obj)
+            % Create a 3D spherical volume for the
+            % dims: [x, y, z] number of voxels.
+            
+            % define local variables
+            matrix = [obj.numVox obj.numVox obj.numVox];
+            image_res = [obj.pixSize obj.pixSize obj.pixSize];
+            R = 5; % [mm]
+            
+            % define image grid
+            [x,y,z] = ndgrid(linspace(-(matrix(1)-1)/2,(matrix(1)-1)/2,matrix(1)),linspace(-(matrix(2)-1)/2,(matrix(2)-1)/2,matrix(2)),linspace(-(matrix(3)-1)/2,(matrix(3)-1)/2,matrix(3)));
+            
+            % define radial position (in [mm])
+            r = sqrt((x.*image_res(1)).^2 + (y.*image_res(2)).^2 + (z.*image_res(3)).^2);
+            
+            obj.volume = struct('magn', [], 'phase', [], 'T2star', [], 'protonDensity', []);
+            
+            obj.volume.protonDensity = obj.starting_volume;
+            obj.volume.protonDensity(r <= R ) = obj.protonDensity.Air;
+            obj.volume.protonDensity(r > R ) = obj.protonDensity.SiliconeOil;
+            
+            obj.volume.T2star = obj.starting_volume;
+            obj.volume.T2star(r <= R ) = obj.T2star.Air;
+            obj.volume.T2star(r > R ) = obj.T2star.SiliconeOil;
+                 
         end
 
         function obj = simulate_measurement(obj, FA, TE, SNR)          
