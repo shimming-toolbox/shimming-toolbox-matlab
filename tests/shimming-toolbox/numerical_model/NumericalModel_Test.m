@@ -38,7 +38,7 @@ classdef (TestTags = {'Simulation', 'Unit'}) NumericalModel_Test < matlab.unitte
         function test_empty_initialization_returns_expected_starting_volume(testCase)
             testObj = NumericalModel();
 
-            expectedVolume = zeros(128, 128);
+            expectedVolume = zeros(128, 127);
             actualVolume = testObj.starting_volume;
             testCase.verifyEqual(actualVolume, expectedVolume)
         end
