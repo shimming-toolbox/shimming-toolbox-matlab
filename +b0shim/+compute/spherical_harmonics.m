@@ -12,13 +12,26 @@ function [ basis ]= spherical_harmonics( orders, X, Y, Z )
 %
 % INPUTS
 %
-%    orders
+%    orders (uint row-vector)
 %      Degrees of the desired terms in the series expansion, specified as a
 %      vector of non-negative integers (`[0:1:n]` yields harmonics up to n-th
 %      order)
 %
-%    X, Y, Z
-%      Identically-sized 2- or 3-D numeric arrays of grid coordinates 
+%    X (numeric 2- or 3-d array)
+%      2- or 3-D arrays of grid coordinates 
+%
+%    Y (numeric 2- or 3-d array)
+%      2- or 3-D arrays of grid coordinates 
+%
+%    Z (numeric 2- or 3-d array)
+%      2- or 3-D arrays of grid coordinates 
+%
+% X,Y,Z must be identically sized.
+%
+% OUTPUTS
+%
+%    basis (double 4-D array)
+%      Spherical harmonic basis fields
 % 
 % EXAMPLE
 % 
@@ -51,9 +64,9 @@ function [ basis ]= spherical_harmonics( orders, X, Y, Z )
 % Based on calc_spherical_harmonics_arb_points_cz.m by jaystock@nmr.mgh.harvard.edu
     arguments
         orders(1,:) {mustBeNumeric,mustBeNonnegative};
-        X {mustBeNumeric};
-        Y {mustBeNumeric};
-        Z {mustBeNumeric};
+        X(:,:,:,1) {mustBeNumeric};
+        Y(:,:,:,1) {mustBeNumeric};
+        Z(:,:,:,1) {mustBeNumeric};
     end
 
 %% Check inputs
