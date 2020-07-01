@@ -37,8 +37,10 @@ classdef NumericalModel < handle
             
             if exist('model', 'var')
                 switch model
-                    case 'Shepp-Logan'
-                    	obj.shepp_logan(obj.numVox);
+                    case 'Shepp-Logan2d'
+                    	obj.shepp_logan_2d(obj.numVox);
+                    case 'Shepp-Logan3d'
+                        obj.shepp_logan_3d(obj.numVox);
                     otherwise
                         error('Unknown volume model.')
                 end
@@ -50,12 +52,24 @@ classdef NumericalModel < handle
             obj.deltaB0 = obj.starting_volume * 0;
         end
         
-        function obj = shepp_logan(obj, numVox)       
-            % Create a 3D Shepp_Logan volume with dimensions [numVox numVox numVox]
-            obj.starting_volume = phantom3d(numVox);
+        function obj = shepp_logan_2d(obj, numVox)       
+            % Create a 2D Shepp_Logan volume for the 
+            % dims: [x, y] number of voxels.
+            obj.starting_volume = phantom(numVox);
             
             obj.volume = struct('magn', [], 'phase', [], 'T2star', []);
 
+            obj.volume.protonDensity = obj.customize_shepp_logan(obj.starting_volume, obj.protonDensity.WM, obj.protonDensity.GM, obj.protonDensity.CSF);
+            obj.volume.T2star = obj.customize_shepp_logan(obj.starting_volume, obj.T2star.WM, obj.T2star.GM, obj.T2star.CSF);
+        end
+        
+        function obj = shepp_logan_3d(obj, numVox)
+            % Create a 3D Shepp_Logan volume for the
+            % dims: [x, y, z] number of voxels.
+            obj.starting_volume = phantom3d(numVox);
+            
+            obj.volume = struct('magn', [], 'phase', [], 'T2star', []);
+            
             obj.volume.protonDensity = obj.customize_shepp_logan(obj.starting_volume, obj.protonDensity.WM, obj.protonDensity.GM, obj.protonDensity.CSF);
             obj.volume.T2star = obj.customize_shepp_logan(obj.starting_volume, obj.T2star.WM, obj.T2star.GM, obj.T2star.CSF);
         end
@@ -74,7 +88,11 @@ classdef NumericalModel < handle
             volDims = size(obj.starting_volume);
                
             % Pre-allocate measurement variables
-            obj.measurement = zeros(volDims(1), volDims(2), volDims(3), numTE);
+            if volDims == 2
+                obj.measurement = zeros(volDims(1), volDims(2), 1, numTE);
+            elseif volDims == 3
+                obj.measurement = zeros(volDims(1), volDims(2), volDims(3), numTE);
+            end
             
             % Simulate
             for ii = 1:numTE
