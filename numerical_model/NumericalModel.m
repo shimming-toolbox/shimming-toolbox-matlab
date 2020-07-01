@@ -51,9 +51,8 @@ classdef NumericalModel < handle
         end
         
         function obj = shepp_logan(obj, numVox)       
-            % Create a 2D Shepp_Logan volume for the 
-            % dims: [x, y] number of voxels.
-            obj.starting_volume = phantom(numVox);
+            % Create a 3D Shepp_Logan volume with dimensions [numVox numVox numVox]
+            obj.starting_volume = phantom3d(numVox);
             
             obj.volume = struct('magn', [], 'phase', [], 'T2star', []);
 
@@ -75,11 +74,7 @@ classdef NumericalModel < handle
             volDims = size(obj.starting_volume);
                
             % Pre-allocate measurement variables
-            if volDims == 2
-                obj.measurement = zeros(volDims(1), volDims(2), 1, numTE);
-            elseif volDims == 3
-                obj.measurement = zeros(volDims(1), volDims(2), volDims(3), numTE);
-            end
+            obj.measurement = zeros(volDims(1), volDims(2), volDims(3), numTE);
             
             % Simulate
             for ii = 1:numTE
