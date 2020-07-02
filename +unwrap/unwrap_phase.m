@@ -41,7 +41,7 @@ if exist(['+unwrap/+unwrappers/' unwrapFunction]) ~= 2
         availableFunctions],'\n'));
 end
 
-unwrapper= str2func([unwrapFunction]);
+unwrapper= str2func(['unwrap.unwrappers.' unwrapFunction]);
 
 disp(['Unwrapping the data using ' unwrapFunction])
 
