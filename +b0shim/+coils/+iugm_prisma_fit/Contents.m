@@ -1,2 +1,5 @@
-This folder contains classes that define the Gradient & Shim system of the Prisma-fit MRI system at the IUGM, Montreal.
-For more information about class definition, see [main Readme](https://github.com/neuropoly/realtime_shimming#class-definitions).
+% Siemens Prisma-fit at l'Institut de Geriatrie de Montreal (IUGM)
+%
+% Source code defining the gradient & shim system of the Siemens 3T Prisma-fit MRI
+% located at the Functional Neuroimaging Unit [UNF](https://unf-montreal.ca/home/).  
+
