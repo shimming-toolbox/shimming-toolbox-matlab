@@ -1,4 +1,4 @@
-%% greg     8-channel AC/DC 3T neck coil
+% 8-channel AC/DC 3T neck coil
 % 
 % Nicknamed "greg", after its creator: 
 % [Germain G. et al., ISMRM 2016](https://cds.ismrm.org/protected/16MPresentations/abstracts/1154.html)
