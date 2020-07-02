@@ -1,2 +1,4 @@
-This folder contains classes that define the Gradient & Shim system of the Prisma MRI system at the Montreal General Hospital.
-For more information about class definition, see [main Readme](https://github.com/neuropoly/realtime_shimming#class-definitions).
+% Siemens Prisma at l'Hopital General de Montreal (HGM)
+%
+% Source code defining the gradient & shim system of the Siemens 3T Prisma MRI
+% at Montreal General Hospital.  
