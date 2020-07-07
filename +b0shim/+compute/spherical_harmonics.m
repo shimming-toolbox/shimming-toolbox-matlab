@@ -7,7 +7,7 @@ function [ basis ]= spherical_harmonics( orders, X, Y, Z )
 % 
 % DESCRIPTION
 %
-% Returns a double-precision array of SH basis fields with the order/degree
+% Returns an array of spherical harmonic basis fields with the order/degree
 % index along the 4th dimension.
 %
 % INPUTS
@@ -45,7 +45,7 @@ function [ basis ]= spherical_harmonics( orders, X, Y, Z )
 % basis = spherical_harmonics(orders, X, Y, Z);
 % ```
 %
-% - `basis(:,:,:,1)` corresponds to the 0th-order constant term
+% - `basis(:,:,:,1)` corresponds to the 0th-order constant term (globally=unity)
 %
 % - `basis(:,:,:,2:4)` to 1st-order linear terms
 %   - 2: *y*  
@@ -85,7 +85,6 @@ end
 %% Initialize variables
 nVoxels  = numel(X);
 nOrders  = numel(orders) ;
-
 harm_all = zeros( nVoxels, 1 ) ;
 
 ii=0;
@@ -121,8 +120,9 @@ end
 
 function out = leg_rec_harmonic_cz(n, m, pos_x, pos_y, pos_z)
 % returns harmonic field for the required solid harmonic addressed by 
-% n, m based on the iterative Legendre polynomial calculation
-% Positive m values correspond to cosine component and negative to sine
+% n, m based on the iterative Legendre polynomial calculation.
+%
+% Positive m values correspond to the cosine component, negative to the sine.
 %
 % returned fields will eventually follow RRI's convention
 % pos_... can be both value and vector/matrix
@@ -146,61 +146,60 @@ function out = leg_rec_harmonic_cz(n, m, pos_x, pos_y, pos_z)
 
     out      = (n+m+1)*r.^(n).*(cos(m*phi)*c+sin(m*phi)*(1-c)).*Ymn/rri_norm;
 
-function out = ffactorial(n)
-%FFACTORIAL FFactorial (double factorial) function.
+    function out = ffactorial(n)
+    %FFACTORIAL FFactorial (double factorial) function.
 
-    N = n(:);
-    if any(fix(N) ~= N) || any(N < 0) || ~isa(N,'double') || ~isreal(N)
-      error('MATLAB:factorial:NNegativeInt', ...
-            'N must be a matrix of non-negative integers.')
-    end
-
-    if n==0 || n==1
-        out=1;
-    else
-        out=n*ffactorial(n-2);
-    end
-
-end
-
-function out=leg_rec(n, m, u)
-% compute legendre polynomial values for dat using recursive relations
-
-    if m>0
-        p_mm=(-1)^m*ffactorial(2*m-1)*(1-u.^2).^(m/2);
-    else
-        p_mm=1;
-    end
-
-    if (n==m)
-        out=p_mm;
-    else
-        p_mm1=(2*m+1)*u.*p_mm;
-        
-        if (n==m+1)
-            out=p_mm1;
-        else
-            % recursive calculation needed
-            a=m+2;
-            p_ma_2=p_mm;
-            p_ma_1=p_mm1;
-            
-            while 1
-                p_ma=((2*a-1)*u.*p_ma_1-(a+m-1)*p_ma_2)/(a-m);
-                
-                if a==n
-                    break;
-                end
-                % prepare next iteration
-                p_ma_2=p_ma_1;
-                p_ma_1=p_ma;
-                a=a+1;
-            end
-            
-            out=p_ma;
+        N = n(:);
+        if any(fix(N) ~= N) || any(N < 0) || ~isa(N,'double') || ~isreal(N)
+          error('N must be a matrix of non-negative integers.')
         end
-    end
-end %leg_rec
+
+        if n==0 || n==1
+            out=1;
+        else
+            out=n*ffactorial(n-2);
+        end
+
+    end %ffactorial
+
+    function out=leg_rec(n, m, u)
+    % compute legendre polynomial values for dat using recursive relations
+
+        if m>0
+            p_mm=(-1)^m*ffactorial(2*m-1)*(1-u.^2).^(m/2);
+        else
+            p_mm=1;
+        end
+
+        if (n==m)
+            out=p_mm;
+        else
+            p_mm1=(2*m+1)*u.*p_mm;
+            
+            if (n==m+1)
+                out=p_mm1;
+            else
+                % recursive calculation needed
+                a=m+2;
+                p_ma_2=p_mm;
+                p_ma_1=p_mm1;
+                
+                while 1
+                    p_ma=((2*a-1)*u.*p_ma_1-(a+m-1)*p_ma_2)/(a-m);
+                    
+                    if a==n
+                        break;
+                    end
+                    % prepare next iteration
+                    p_ma_2=p_ma_1;
+                    p_ma_1=p_ma;
+                    a=a+1;
+                end
+                
+                out=p_ma;
+            end
+        end
+    end %leg_rec
 
 end %leg_rec_harmonic_cz
 

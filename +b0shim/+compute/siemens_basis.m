@@ -59,9 +59,9 @@ function [ basis ] = siemens_basis( ~, X, Y, Z )
 % [ b0shim.compute.spherical_harmonics ]
     arguments
         ~ ;%orders(1,:) {mustBeNumeric,mustBeNonnegative};
-        X {mustBeNumeric};
-        Y {mustBeNumeric};
-        Z {mustBeNumeric};
+        X(:,:,:,1) {mustBeNumeric};
+        Y(:,:,:,1) {mustBeNumeric};
+        Z(:,:,:,1) {mustBeNumeric};
     end
 
 sh = b0shim.compute.spherical_harmonics( [1:2], X, Y, Z ) ;
@@ -77,7 +77,7 @@ for iCh = 1 : size( sh, 4 )
    basis(:,:,:,iCh) = scalingFactors(iCh) * sh(:,:,:,iCh) ; 
 end
 
-return;
+end
 
 % ----------------
 %% Local functions
@@ -111,25 +111,33 @@ function [ scalingFactors ] = computenormalizationfactors()
 %
 %  scalingFactors = computenormalizationfactors()
 %
-%  returns a vector of scalingFactors to apply to the (properly reordered)
-%  ideal 1st+2nd order spherical harmonic fields to scale the terms as "shim
-%  reference maps" in units of Hz/unit-shim 
-% -----
-% Gx, Gy, and Gz should yield 1 micro-T of field shift per metre
+% Returns a vector of `scalingFactors` to apply to the (Siemens-reordered)
+% 1st+2nd order spherical harmonic fields for rescaling field terms as 
+% "shim reference maps" in units of Hz/unit-shim:
+% 
+% Gx, Gy, and Gz should yield 1 micro-T of field shift per metre:
 % equivalently, 0.042576 Hz/mm
 %
-% 2nd order terms should yield 1 micro-T of field shift per metre-squared
+% 2nd order terms should yield 1 micro-T of field shift per metre-squared:
 % equivalently, 0.000042576 Hz/mm^2
 % 
-% NOTE: The method has been worked out empirically 
-% (further testing could be a good idea)
+% Gist: given the stated nominal values, we can pick several arbitrary
+% reference positions around the origin/isocenter at which we know what the
+% field *should* be, and use that to calculate the appropriate scaling factor.
+%
+% NOTE: The method has been worked out empirically and has only been tested for
+% 2 Siemens Prisma systems. E.g. re: Y, Z, ZX, and XY terms, it was noted that
+% their polarity had to be flipped relative to the form given by
+% b0shim.compute.spherical_harmonics(). To adapt the code to other systems,
+% arbitrary (?) changes along these lines will likely be needed.
+
+% TODO: For concision/readability, consider defining+solving equations directly
+% using MATLAB's symbolic toolbox
 
 %% create basis on small 3x3x3 mm^3 isotropic grid
 [XIso, YIso, ZIso] = meshgrid( [-1:1], [-1:1], [-1:1] ) ;
 
 sh = b0shim.compute.spherical_harmonics( [1:2], XIso, YIso, ZIso ) ;
-
-% Reorder terms along 4th array dim. in line with Siemens shims: 
 sh = reordertosiemens( sh ) ; 
 
 nChannels      = size( sh, 4) ; % = 8
@@ -147,17 +155,16 @@ iX1Y1 = find( ( XIso == 1 ) & ( YIso == 1 ) & ( ZIso == 0 ) ) ;
 % order the reference indices like the sh field terms 
 iRef = [iX1 iY1 iZ1 iZ1 iX1Z1 iY1Z1 iX1 iX1Y1]' ;
 
-%% ------
-% scaling:
-% 1st order terms yield 1 micro-T of field shift per m (i.e 0.042576 Hz/mm )
-% 2nd order terms yield 1 micro-T of field shift per m^2 (i.e 0.000042576 Hz/mm^2 )
-
 % distance from iso/origin to adopted reference point [units: mm]
 r = [1 1 1 1 sqrt(2) sqrt(2) 1 sqrt(2)] ;
 
-% invert polarity of certain terms:
+%% --------------
+% invert polarity
+% Y, Z, ZX, and XY terms only (determined empirically)
 sh(:,:,:,[2,3,5,8]) = -sh(:,:,:,[2,3,5,8] ) ;
 
+%% ------
+% scaling:
 orders = [1 1 1 2 2 2 2 2] ;
 
 for iCh = 1 : nChannels
@@ -166,5 +173,3 @@ for iCh = 1 : nChannels
 end
 
 end %computenormalizationfactors()
-
-end
