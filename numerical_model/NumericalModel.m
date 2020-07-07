@@ -17,7 +17,9 @@ classdef NumericalModel < handle
         TE
         FA
         
-        % Default times in seconds @ 3T
+        % Default times in seconds @ 3T (Note: Silicone and Mineral oil
+        % values are actaully T2, will figure something out to address
+        % this)
         T2star = struct('WM', 0.053, 'GM', 0.066, 'CSF', 0.10, 'Air', 0, 'SiliconeOil', 0.566, 'PureMineralOil', 0.063)
         
         % Default proton density in percentage
@@ -45,6 +47,9 @@ classdef NumericalModel < handle
                     case 'Spherical3d'
                         obj.starting_volume = zeros(obj.numVox, obj.numVox, obj.numVox);
                         obj.spherical_3d();
+                    case 'Cylindrical3d'
+                        obj.starting_volume = zeros(obj.numVox, obj.numVox, obj.numVox);
+                        obj.cylindrical_3d();
                     otherwise
                         error('Unknown volume model.')
                 end
@@ -103,6 +108,43 @@ classdef NumericalModel < handle
             obj.volume.T2star(r <= R ) = obj.T2star.Air;
             obj.volume.T2star(r > R ) = obj.T2star.SiliconeOil;
                  
+        end
+        
+        function obj = cylindrical_3d(obj)
+            % Create a 3D cylindrical volume for the
+            % dims: [x, y, z] number of voxels.
+            
+            % define local variables
+            matrix = [obj.numVox obj.numVox obj.numVox];
+            image_res = [obj.pixSize obj.pixSize obj.pixSize];
+            R = 5; % [mm]
+            theta = pi/2;  % angle between main axis of cylinder and z-axis (in radians)
+            
+            % define image grid
+            [x,y,z] = ndgrid(linspace(-(matrix(1)-1)/2,(matrix(1)-1)/2,matrix(1)),linspace(-(matrix(2)-1)/2,(matrix(2)-1)/2,matrix(2)),linspace(-(matrix(3)-1)/2,(matrix(3)-1)/2,matrix(3)));
+            
+            % define radial position (in [mm])
+            r = sqrt((x.*image_res(1)).^2 + (y.*image_res(2)).^2);
+            
+            obj.volume = struct('magn', [], 'phase', [], 'T2star', [], 'protonDensity', []);
+            
+            obj.volume.protonDensity = obj.starting_volume;
+            obj.volume.protonDensity(r <= R ) = obj.protonDensity.Air;
+            obj.volume.protonDensity(r > R ) = obj.protonDensity.SiliconeOil;
+            
+            obj.volume.T2star = obj.starting_volume;
+            obj.volume.T2star(r <= R ) = obj.T2star.Air;
+            obj.volume.T2star(r > R ) = obj.T2star.SiliconeOil;
+            
+            % rotate chi distribution about the y-axis
+            t = [cos(theta)   0      -sin(theta)   0
+                0             1              0     0
+                sin(theta)    0       cos(theta)   0
+                0             0              0     1];
+            tform = affine3d(t);
+            obj.volume.T2star = imwarp(obj.volume.T2star,tform);
+            obj.volume.protonDensity = imwarp(obj.volume.protonDensity,tform);
+            
         end
 
         function obj = simulate_measurement(obj, FA, TE, SNR)          
