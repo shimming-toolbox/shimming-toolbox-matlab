@@ -118,7 +118,7 @@ classdef NumericalModel < handle
             matrix = [obj.numVox obj.numVox obj.numVox];
             image_res = [obj.pixSize obj.pixSize obj.pixSize];
             R = 5; % [mm]
-            theta = pi/2;  % angle between main axis of cylinder and z-axis (in radians)
+            theta = 90;  % angle between main axis of cylinder and z-axis (in degrees)
             
             % define image grid
             [x,y,z] = ndgrid(linspace(-(matrix(1)-1)/2,(matrix(1)-1)/2,matrix(1)),linspace(-(matrix(2)-1)/2,(matrix(2)-1)/2,matrix(2)),linspace(-(matrix(3)-1)/2,(matrix(3)-1)/2,matrix(3)));
@@ -137,9 +137,9 @@ classdef NumericalModel < handle
             obj.volume.T2star(r > R ) = obj.T2star.SiliconeOil;
             
             % rotate chi distribution about the y-axis
-            t = [cos(theta)   0      -sin(theta)   0
+            t = [cosd(theta)   0      -sind(theta)   0
                 0             1              0     0
-                sin(theta)    0       cos(theta)   0
+                sind(theta)    0       cosd(theta)   0
                 0             0              0     1];
             tform = affine3d(t);
             obj.volume.T2star = imwarp(obj.volume.T2star,tform);
