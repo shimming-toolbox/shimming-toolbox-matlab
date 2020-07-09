@@ -117,7 +117,7 @@ classdef NumericalModel < handle
             % define local variables
             matrix = [obj.numVox obj.numVox obj.numVox];
             image_res = [obj.pixSize obj.pixSize obj.pixSize];
-            R = 5; % [mm]
+            R = 10; % [mm]
             theta = 90;  % angle between main axis of cylinder and z-axis (in degrees)
             
             % define image grid
@@ -138,9 +138,9 @@ classdef NumericalModel < handle
             
             % rotate chi distribution about the y-axis
             t = [cosd(theta)   0      -sind(theta)   0
-                0             1              0     0
-                sind(theta)    0       cosd(theta)   0
-                0             0              0     1];
+                 0             1              0      0
+                 sind(theta)   0       cosd(theta)   0
+                 0             0              0      1];
             tform = affine3d(t);
             obj.volume.T2star = imwarp(obj.volume.T2star,tform);
             obj.volume.protonDensity = imwarp(obj.volume.protonDensity,tform);
@@ -259,15 +259,15 @@ classdef NumericalModel < handle
         end
  
         function obj = generate_deltaB0(obj, fieldType, params)       
-            % fieldType: 'linear'
+            % fieldType: '2d_linearIP' (2D linear in-plane (IP))
             % params: 
-            %    'linear': [m, b] where y = mx + b, and the center of the
+            %    '2d_linearIP': [m, b] where y = mx + b, and the center of the
             %              volume is the origin. m is Hz per voxel. b is
             %              Hz. ang is the angle against the x axis of the
             %              volume
             
             switch fieldType
-                case 'linear'
+                case '2d_linearIP'
                     m = params(1);
                     b = params(2);
                     
@@ -278,11 +278,28 @@ classdef NumericalModel < handle
 
                     obj.deltaB0 = m*X+b;
                     
-                    % Convert field from Hz to T;
-                    obj.deltaB0 = obj.deltaB0 / (obj.gamma / (2*pi));
+                case '3d_linearTP'
+                    m = params(1);
+                    b = params(2);
+                    
+                    dims = size(obj.starting_volume);
+                    
+                    % Create coordinates
+                    [X,Y,Z] = ndgrid(linspace(-(dims(1)-1)/2,(dims(1)-1)/2,dims(1)),linspace(-(dims(2)-1)/2,(dims(2)-1)/2,dims(2)),linspace(-(dims(3)-1)/2,(dims(3)-1)/2,dims(3)));
+                    
+                    obj.deltaB0 = m*Z+b;
+                    
+                case 'load_external'
+                    % calculate deltaB0 in Hz (external B0 field map should
+                    % be in ppm)
+                    obj.deltaB0 = (obj.gamma / (2*pi)) * obj.fieldStrength * niftiread(params);                    
+                    
                 otherwise
                     error('Undefined deltaB0 field type')
             end
+            
+            % Convert field from Hz to T;
+            obj.deltaB0 = obj.deltaB0 / (obj.gamma / (2*pi));
         end
     end
     
