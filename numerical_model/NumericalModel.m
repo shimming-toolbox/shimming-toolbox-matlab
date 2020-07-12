@@ -102,11 +102,11 @@ classdef NumericalModel < handle
             
             obj.volume.protonDensity = obj.starting_volume;
             obj.volume.protonDensity(r <= R ) = obj.protonDensity.Air;
-            obj.volume.protonDensity(r > R ) = obj.protonDensity.SiliconeOil;
+            obj.volume.protonDensity(r > R ) = obj.protonDensity.PureMineralOil;
             
             obj.volume.T2star = obj.starting_volume;
             obj.volume.T2star(r <= R ) = obj.T2star.Air;
-            obj.volume.T2star(r > R ) = obj.T2star.SiliconeOil;
+            obj.volume.T2star(r > R ) = obj.T2star.PureMineralOil;
                  
         end
         
@@ -117,7 +117,7 @@ classdef NumericalModel < handle
             % define local variables
             matrix = [obj.numVox obj.numVox obj.numVox];
             image_res = [obj.pixSize obj.pixSize obj.pixSize];
-            R = 10; % [mm]
+            R = 5; % [mm]
             theta = 90;  % angle between main axis of cylinder and z-axis (in degrees)
             
             % define image grid
@@ -130,11 +130,11 @@ classdef NumericalModel < handle
             
             obj.volume.protonDensity = obj.starting_volume;
             obj.volume.protonDensity(r <= R ) = obj.protonDensity.Air;
-            obj.volume.protonDensity(r > R ) = obj.protonDensity.SiliconeOil;
+            obj.volume.protonDensity(r > R ) = obj.protonDensity.PureMineralOil;
             
             obj.volume.T2star = obj.starting_volume;
             obj.volume.T2star(r <= R ) = obj.T2star.Air;
-            obj.volume.T2star(r > R ) = obj.T2star.SiliconeOil;
+            obj.volume.T2star(r > R ) = obj.T2star.PureMineralOil;
             
             % rotate chi distribution about the y-axis
             t = [cosd(theta)   0      -sind(theta)   0
@@ -292,7 +292,8 @@ classdef NumericalModel < handle
                 case 'load_external'
                     % calculate deltaB0 in Hz (external B0 field map should
                     % be in ppm)
-                    obj.deltaB0 = (obj.gamma / (2*pi)) * obj.fieldStrength * niftiread(params);                    
+                    obj.deltaB0 = imrotate( fliplr( niftiread('Bdz_cylindrical90_R5mm_airMineralOil_ChiDist.nii') ) , -90);
+                    obj.deltaB0 = (obj.gamma / (2*pi)) * obj.fieldStrength * obj.deltaB0;                    
                     
                 otherwise
                     error('Undefined deltaB0 field type')
