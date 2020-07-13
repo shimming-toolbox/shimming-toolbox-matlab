@@ -292,7 +292,7 @@ classdef NumericalModel < handle
                 case 'load_external'
                     % calculate deltaB0 in Hz (external B0 field map should
                     % be in ppm)
-                    obj.deltaB0 = imrotate( fliplr( niftiread('Bdz_cylindrical90_R5mm_airMineralOil_ChiDist.nii') ) , -90);
+                    obj.deltaB0 = imrotate( fliplr( niftiread(params) ) , -90);
                     obj.deltaB0 = (obj.gamma / (2*pi)) * obj.fieldStrength * obj.deltaB0;                    
                     
                 otherwise
