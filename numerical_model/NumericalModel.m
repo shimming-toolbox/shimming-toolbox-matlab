@@ -30,9 +30,20 @@ classdef NumericalModel < handle
     end
    
     methods
-    	function obj = NumericalModel(model, numVox)
+    	function obj = NumericalModel(model, numVox, varargin)
             % NumericalModel class
             % model: string with the label of the model desired.
+            % varargin:  
+            %   if 'Spherical3d': iamge_res in [mm], radius in [mm],
+            %   material inside the sphere ('Air', 'SiliconeOil' or 
+            %   'PureMineralOil'), material outside the sphere ('Air,
+            %   'SiliconeOil, or 'PureMineralOil')
+            %
+            %   if 'Cylindrical3d': iamge_res in [mm], radius in [mm],
+            %   theta in [degrees] (angle between principal axis of
+            %   cylinder and B0), material inside the sphere ('Air', 
+            %   'SiliconeOil' or 'PureMineralOil'), material outside the 
+            %   sphere ('Air, 'SiliconeOil, or 'PureMineralOil')
             
             if exist('numVox', 'var')
             	obj.numVox = numVox;
@@ -46,10 +57,10 @@ classdef NumericalModel < handle
                         obj.shepp_logan_3d(obj.numVox);
                     case 'Spherical3d'
                         obj.starting_volume = zeros(obj.numVox, obj.numVox, obj.numVox);
-                        obj.spherical_3d();
+                        obj.spherical_3d(varargin);
                     case 'Cylindrical3d'
                         obj.starting_volume = zeros(obj.numVox, obj.numVox, obj.numVox);
-                        obj.cylindrical_3d();
+                        obj.cylindrical_3d(varargin);
                     otherwise
                         error('Unknown volume model.')
                 end
@@ -83,14 +94,14 @@ classdef NumericalModel < handle
             obj.volume.T2star = obj.customize_shepp_logan(obj.starting_volume, obj.T2star.WM, obj.T2star.GM, obj.T2star.CSF);
         end
         
-        function obj = spherical_3d(obj)
+        function obj = spherical_3d(obj, varargin)
             % Create a 3D spherical volume for the
             % dims: [x, y, z] number of voxels.
             
             % define local variables
             matrix = [obj.numVox obj.numVox obj.numVox];
-            image_res = [obj.pixSize obj.pixSize obj.pixSize];
-            R = 5; % [mm]
+            image_res = [varargin{1,1}{1,1} varargin{1,1}{1,1} varargin{1,1}{1,1}];
+            R = varargin{1,1}{1,2}; % [mm]
             
             % define image grid
             [x,y,z] = ndgrid(linspace(-(matrix(1)-1)/2,(matrix(1)-1)/2,matrix(1)),linspace(-(matrix(2)-1)/2,(matrix(2)-1)/2,matrix(2)),linspace(-(matrix(3)-1)/2,(matrix(3)-1)/2,matrix(3)));
@@ -101,24 +112,43 @@ classdef NumericalModel < handle
             obj.volume = struct('magn', [], 'phase', [], 'T2star', [], 'protonDensity', []);
             
             obj.volume.protonDensity = obj.starting_volume;
-            obj.volume.protonDensity(r <= R ) = obj.protonDensity.Air;
-            obj.volume.protonDensity(r > R ) = obj.protonDensity.PureMineralOil;
-            
             obj.volume.T2star = obj.starting_volume;
-            obj.volume.T2star(r <= R ) = obj.T2star.Air;
-            obj.volume.T2star(r > R ) = obj.T2star.PureMineralOil;
+            
+            switch varargin{1,1}{1,3}
+                case 'Air'
+                    obj.volume.protonDensity(r <= R ) = obj.protonDensity.Air;
+                    obj.volume.T2star(r <= R ) = obj.T2star.Air;
+                case 'SiliconeOil'
+                    obj.volume.protonDensity(r <= R ) = obj.protonDensity.SiliconeOil;
+                    obj.volume.T2star(r <= R ) = obj.T2star.SiliconeOil;
+                case 'PureMineralOil'
+                    obj.volume.protonDensity(r <= R ) = obj.protonDensity.PureMineralOil;
+                    obj.volume.T2star(r <= R ) = obj.T2star.PureMineralOil;     
+            end
+               
+            switch varargin{1,1}{1,4}
+                case 'Air'
+                    obj.volume.protonDensity(r > R ) = obj.protonDensity.Air;
+                    obj.volume.T2star(r > R ) = obj.T2star.Air;
+                case 'SiliconeOil'
+                    obj.volume.protonDensity(r > R ) = obj.protonDensity.SiliconeOil;
+                    obj.volume.T2star(r > R ) = obj.T2star.SiliconeOil;
+                case 'PureMineralOil'
+                    obj.volume.protonDensity(r > R ) = obj.protonDensity.PureMineralOil;
+                    obj.volume.T2star(r > R ) = obj.T2star.PureMineralOil;     
+            end
                  
         end
         
-        function obj = cylindrical_3d(obj)
+        function obj = cylindrical_3d(obj, varargin)
             % Create a 3D cylindrical volume for the
             % dims: [x, y, z] number of voxels.
             
             % define local variables
             matrix = [obj.numVox obj.numVox obj.numVox];
-            image_res = [obj.pixSize obj.pixSize obj.pixSize];
-            R = 5; % [mm]
-            theta = 90;  % angle between main axis of cylinder and z-axis (in degrees)
+            image_res = [varargin{1,1}{1,1} varargin{1,1}{1,1} varargin{1,1}{1,1}];
+            R = varargin{1,1}{1,2}; % [mm]
+            theta = varargin{1,1}{1,3}; % angle between main axis of cylinder and z-axis (in degrees)
             
             % define image grid
             [x,y,z] = ndgrid(linspace(-(matrix(1)-1)/2,(matrix(1)-1)/2,matrix(1)),linspace(-(matrix(2)-1)/2,(matrix(2)-1)/2,matrix(2)),linspace(-(matrix(3)-1)/2,(matrix(3)-1)/2,matrix(3)));
@@ -129,12 +159,31 @@ classdef NumericalModel < handle
             obj.volume = struct('magn', [], 'phase', [], 'T2star', [], 'protonDensity', []);
             
             obj.volume.protonDensity = obj.starting_volume;
-            obj.volume.protonDensity(r <= R ) = obj.protonDensity.Air;
-            obj.volume.protonDensity(r > R ) = obj.protonDensity.PureMineralOil;
-            
             obj.volume.T2star = obj.starting_volume;
-            obj.volume.T2star(r <= R ) = obj.T2star.Air;
-            obj.volume.T2star(r > R ) = obj.T2star.PureMineralOil;
+            
+            switch varargin{1,1}{1,4}
+                case 'Air'
+                    obj.volume.protonDensity(r <= R ) = obj.protonDensity.Air;
+                    obj.volume.T2star(r <= R ) = obj.T2star.Air;
+                case 'SiliconeOil'
+                    obj.volume.protonDensity(r <= R ) = obj.protonDensity.SiliconeOil;
+                    obj.volume.T2star(r <= R ) = obj.T2star.SiliconeOil;
+                case 'PureMineralOil'
+                    obj.volume.protonDensity(r <= R ) = obj.protonDensity.PureMineralOil;
+                    obj.volume.T2star(r <= R ) = obj.T2star.PureMineralOil;     
+            end
+               
+            switch varargin{1,1}{1,5}
+                case 'Air'
+                    obj.volume.protonDensity(r > R ) = obj.protonDensity.Air;
+                    obj.volume.T2star(r > R ) = obj.T2star.Air;
+                case 'SiliconeOil'
+                    obj.volume.protonDensity(r > R ) = obj.protonDensity.SiliconeOil;
+                    obj.volume.T2star(r > R ) = obj.T2star.SiliconeOil;
+                case 'PureMineralOil'
+                    obj.volume.protonDensity(r > R ) = obj.protonDensity.PureMineralOil;
+                    obj.volume.T2star(r > R ) = obj.T2star.PureMineralOil;     
+            end
             
             % rotate chi distribution about the y-axis
             t = [cosd(theta)   0      -sind(theta)   0
