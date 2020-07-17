@@ -372,7 +372,7 @@ basisFields = reordertosiemens( basisFields ) ;
 
 scalingFactors = computenormalizationfactors() ;
 
-for iCh = 1 : size( sh, 4 ) 
+for iCh = 1 : size( basisFields, 4 ) 
    basisFields(:,:,:,iCh) = scalingFactors(iCh) * basisFields(:,:,:,iCh) ; 
 end
 
