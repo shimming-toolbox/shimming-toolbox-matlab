@@ -1,22 +1,24 @@
-function realtime_zshim_nifti(scan_obj, varargin)
+function realtime_zshim_nifti %(scan_obj, varargin)
 
 
 [mag_img,mag_info,mag_json] = imutils.read_nii('nifti/echo_2.46_gre_field_mapping_PMUlog_20200313131814_3.nii');
-[ph_img,ph_info,ph_json] = imutils.read_nii('nifti/echo_2.46_gre_field_mapping_PMUlog_20200313131814_4_ph.nii');
+[ph_img,ph_info,ph_json] = imutils.read_nii('nifti/echo_4.92_gre_field_mapping_PMUlog_20200313131814_4_ph.nii');
 interpolated_pressure = load('nifti/interpolated_pressure.mat');
 
+ph_img = 2*pi*ph_img/4095;
+B0Fields = ph_img./(4.94e-3-2.46e-3); % [rad*Hz]
+B0Fields = B0Fields/(2*pi); % [Hz]
+  
 
-PhaseDiff.img  = ph_img/(2*pi*PhaseDiff.Hdr.EchoTime/1000) ;  
-
-B0Fields = FieldEval( FM_mag_path, FM_phase_path, Params ); 
+%B0Fields = FieldEval( FM_mag_path, FM_phase_path, Params ); 
 
 % Siemens PMU recording
-Pmu   = ProbeTracking(respTrace_path);
+%Pmu   = ProbeTracking(respTrace_path);
 
 %% ------------------------------------------------------------------------
 % link the two objects (interpolate PMU to the fieldmap time series)
 %% ------------------------------------------------------------------------
-B0Fields.associateaux( Pmu );
+%B0Fields.associateaux( Pmu );
 
 
 
@@ -24,16 +26,18 @@ B0Fields.associateaux( Pmu );
 % compute z-gradients  
 %% ------------------------------------------------------------------------
 
-GzFields = B0Fields.copy();
+%GzFields = B0Fields.copy();
+GzFields = zeros(size(B0fields));
 
 % scaling factor 
 g = 1000/(42.576E6) ; % [units: mT/Hz] 
 
-ImageRes = B0Fields.getvoxelspacing() ; % [units: mm]
+ImageRes = ph_info.PixelDimensions;
+%ImageRes = B0Fields.getvoxelspacing() ; % [units: mm]
 
-for measNo = 1:B0Fields.getnumberofmeasurements
-    [~,GzFields.img(:,:,1,1,measNo)] = gradient( ...
-    squeeze(g*B0Fields.img(:,:,1,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
+for measNo = 1:size(B0Fields,4) %B0Fields.getnumberofmeasurements
+    [~,GzFields(:,:,1,measNo)] = gradient( ...
+    squeeze(g*B0Fields(:,:,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
 end
 
 
@@ -56,15 +60,15 @@ end
 % modeled static + respiratory fields (in Field.img and Field.Model.Riro.img respectively)
 %% ------------------------------------------------------------------------
 
-GzField = FieldEval.modelfield( GzFields );
+%GzField = FieldEval.modelfield( GzFields );
 
 
-% EAO: this code is a sanity check (reproduce Ryan's "modelfield")
-% Bt = zeros(size(GzFields.img,1),size(GzFields.img,2),2);
-% p_mean = mean( GzFields.Aux.Data.p ) ;
-% pressure = GzFields.Aux.Data.p;% - p_mean ;
-% 
-% % figure 
+% reproduce Ryan's "modelfield")
+Bt = zeros(size(GzFields,1),size(GzFields,2),2);
+p_mean = mean( interpolated_pressure ) ;
+pressure = interpolated_pressure;% - p_mean ;
+
+% figure 
 % 
 % for indy = 70%:size(GzFields.img,1)
 %     for indx = 1:5:size(GzFields.img,2)
@@ -98,23 +102,23 @@ GzField = FieldEval.modelfield( GzFields );
 %         end
 %     end
 % end
-% 
-% 
-% 
-% 
-% 
-% for indy = 1:size(GzFields.img,1)
-%     for indx = 1:size(GzFields.img,2)
-%         if GzFields.Hdr.MaskingImage(indy,indx,1,1,1) == 1 
-%             Bt(indy,indx,:) = polyfit(pressure',squeeze(B0Fields.img(indy,indx,1,1,:)),1);
-%             %Bt(indx,indy,1) = rms(pressure)* Bt(indx,indy,1);
-% 
+
+
+
+
+
+for indy = 1:size(GzFields,1)
+    for indx = 1:size(GzFields,2)
+        if mask(indy,indx,1,1) == 1 
+            Bt(indy,indx,:) = polyfit(pressure',squeeze(B0Fields(indy,indx,1,:)),1);
+            %Bt(indx,indy,1) = rms(pressure)* Bt(indx,indy,1);
+
 %             B0Field.img(indy,indx) = Bt(indy,indx,2);
 %             B0Field.Model.Riro.img(indy,indx) = Bt(indy,indx,1);
-%                 
-%         end
-%     end
-% end
+                
+        end
+    end
+end
 
 
 
