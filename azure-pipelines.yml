@@ -1,0 +1,21 @@
+# Run generate-docs script.
+
+trigger:
+- master
+
+# If there is a push on a PR, it wont do run
+pr: none
+
+# use the self-hosted runner at tristano.neuro.polymtl.ca
+# this has Matlab installed and a license to use it.
+pool: 'Default'
+
+steps:
+
+- script: |
+    chmod 755 generate-docs.sh
+    ./generate-docs.sh
+  displayName: 'Generate and publish website'
+  env:
+    GH_PAGES_TOKEN: $(GH_PAGES_TOKEN)
+    CUSTOM_DOMAIN: www.shimming-toolbox.org
