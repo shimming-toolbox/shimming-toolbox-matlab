@@ -104,7 +104,6 @@ respTrace_path = 'PMUresp_signal.resp';
 % load MGRE magnitude images for SCT segmentation
 %% ------------------------------------------------------------------------
 Mag = MaRdI(MGRE_mag_path);
-[mag_img,mag_info,mag_json] = imutils.read_nii('nifti/echo_2.46_gre_field_mapping_PMUlog_20200313131814_3.nii');
 
 Params.dataLoadDir = MGRE_mag_path;
 
@@ -166,12 +165,12 @@ B0Fields.associateaux( Pmu );
 % plot the field map time series
 %% ------------------------------------------------------------------------
 
-% figure
-% 
-% montage(squeeze(B0Fields.img));
-% caxis([0 500])
-% colorbar
-% title('Field map time series (Hz)') ;
+figure
+
+montage(squeeze(B0Fields.img));
+caxis([0 500])
+colorbar
+title('Field map time series (Hz)') ;
 % 
 % print('-djpeg','B0_TimeSeries.jpeg');
 
@@ -199,12 +198,12 @@ end
 % plot the Gz map time series
 %% ------------------------------------------------------------------------
 
-% figure
-% 
-% montage(squeeze(GzFields.img));
-% caxis([-0.2 0.2])
-% colorbar
-% title('Gz map time series (mT/m)') ;
+figure
+
+montage(squeeze(GzFields.img));
+caxis([-0.2 0.2])
+colorbar
+title('Gz map time series (mT/m)') ;
 % 
 % print('-djpeg','Gz_TimeSeries.jpeg');
 
@@ -219,7 +218,7 @@ GzField = FieldEval.modelfield( GzFields );
 % EAO: this code is a sanity check (reproduce Ryan's "modelfield")
 % Bt = zeros(size(GzFields.img,1),size(GzFields.img,2),2);
 % p_mean = mean( GzFields.Aux.Data.p ) ;
-% pressure = GzFields.Aux.Data.p;% - p_mean ;
+% pressure = GzFields.Aux.Data.p - p_mean ;
 % 
 % % figure 
 % 
@@ -264,10 +263,10 @@ GzField = FieldEval.modelfield( GzFields );
 %     for indx = 1:size(GzFields.img,2)
 %         if GzFields.Hdr.MaskingImage(indy,indx,1,1,1) == 1 
 %             Bt(indy,indx,:) = polyfit(pressure',squeeze(B0Fields.img(indy,indx,1,1,:)),1);
-%             %Bt(indx,indy,1) = rms(pressure)* Bt(indx,indy,1);
+%             Bt(indy,indx,1) = rms(pressure)* Bt(indy,indx,1);
 % 
-%             B0Field.img(indy,indx) = Bt(indy,indx,2);
-%             B0Field.Model.Riro.img(indy,indx) = Bt(indy,indx,1);
+%             GzField.img(indy,indx) = Bt(indy,indx,2);
+%             GzField.Model.Riro.img(indy,indx) = Bt(indy,indx,1);
 %                 
 %         end
 %     end

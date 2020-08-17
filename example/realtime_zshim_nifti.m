@@ -5,21 +5,37 @@ function realtime_zshim_nifti %(scan_obj, varargin)
 [ph_img,ph_info,ph_json] = imutils.read_nii('nifti/echo_4.92_gre_field_mapping_PMUlog_20200313131814_4_ph.nii');
 interpolated_pressure = load('nifti/interpolated_pressure.mat');
 
-ph_img = 2*pi*ph_img/4095;
+mag_img = flip(permute( mag_img, [2 1 3 4] )) ;
+ph_img = flip(permute( ph_img, [2 1 3 4] )) ;
+
+mag_img = double(mag_img);
+ph_img = double(ph_img);
+
+ph_img = 2*pi*ph_img/4096;
+
+sigma = bkgrnd_noise(mag_img);
+mask = threshold_masking(mag_img, sigma);
+
+for iVolume = 1 : size(ph_img,4)
+        
+        if ((iVolume == 1))
+            [ph_img(:,:,1, iVolume),xpoint, ypoint] = QualityGuidedUnwrap2D_EAO(ph_img(:,:,1, iVolume), mask);
+        else
+            [ph_img(:,:,1, iVolume),xpoint, ypoint] = QualityGuidedUnwrap2D_EAO(ph_img(:,:,1, iVolume), mask, xpoint, ypoint);
+        end
+       
+end
+                
+
 B0Fields = ph_img./(4.94e-3-2.46e-3); % [rad*Hz]
 B0Fields = B0Fields/(2*pi); % [Hz]
   
+figure
 
-%B0Fields = FieldEval( FM_mag_path, FM_phase_path, Params ); 
-
-% Siemens PMU recording
-%Pmu   = ProbeTracking(respTrace_path);
-
-%% ------------------------------------------------------------------------
-% link the two objects (interpolate PMU to the fieldmap time series)
-%% ------------------------------------------------------------------------
-%B0Fields.associateaux( Pmu );
-
+montage(squeeze(B0Fields));
+caxis([0 500])
+colorbar
+title('Field map time series (Hz)') ;
 
 
 %% ------------------------------------------------------------------------
@@ -27,7 +43,7 @@ B0Fields = B0Fields/(2*pi); % [Hz]
 %% ------------------------------------------------------------------------
 
 %GzFields = B0Fields.copy();
-GzFields = zeros(size(B0fields));
+GzFields = zeros(size(B0Fields));
 
 % scaling factor 
 g = 1000/(42.576E6) ; % [units: mT/Hz] 
@@ -46,14 +62,14 @@ end
 % plot the Gz map time series
 %% ------------------------------------------------------------------------
 
-% figure
-% 
-% montage(squeeze(GzFields.img));
-% caxis([-0.2 0.2])
-% colorbar
-% title('Gz map time series (mT/m)') ;
-% 
-% print('-djpeg','Gz_TimeSeries.jpeg');
+figure
+
+montage(squeeze(GzFields));
+caxis([-0.2 0.2])
+colorbar
+title('Gz map time series (mT/m)') ;
+
+%print('-djpeg','Gz_TimeSeries.jpeg');
 
 
 %% ------------------------------------------------------------------------
@@ -63,10 +79,10 @@ end
 %GzField = FieldEval.modelfield( GzFields );
 
 
-% reproduce Ryan's "modelfield")
+% reproduce Ryan's "modelfield"
 Bt = zeros(size(GzFields,1),size(GzFields,2),2);
-p_mean = mean( interpolated_pressure ) ;
-pressure = interpolated_pressure;% - p_mean ;
+pressure = interpolated_pressure.interpolated_pressure;% - p_mean ;
+p_mean = mean( pressure ) ;
 
 % figure 
 % 
@@ -109,9 +125,9 @@ pressure = interpolated_pressure;% - p_mean ;
 
 for indy = 1:size(GzFields,1)
     for indx = 1:size(GzFields,2)
-        if mask(indy,indx,1,1) == 1 
+        if mask(indy,indx) == 1 
             Bt(indy,indx,:) = polyfit(pressure',squeeze(B0Fields(indy,indx,1,:)),1);
-            %Bt(indx,indy,1) = rms(pressure)* Bt(indx,indy,1);
+            %Bt(indy,indx,1) = rms(pressure).* Bt(indy,indx,1);
 
 %             B0Field.img(indy,indx) = Bt(indy,indx,2);
 %             B0Field.Model.Riro.img(indy,indx) = Bt(indy,indx,1);
@@ -129,14 +145,14 @@ end
 figure
 
 subplot(2,1,1);
-imagesc( GzField.img ) ;
+imagesc( Bt(:,:,2) ) ;
 axis equal
 caxis([-0.2 0.2])
 colorbar
 title('Static Gz [mT/m]') ;
 
 subplot(2,1,2);
-imagesc( GzField.Model.Riro.img/GzField.Model.Riro.Aux.Data.p ) ;
+imagesc( Bt(:,:,1) ) ;
 axis equal
 caxis([-0.0001 0.0001])
 colorbar
