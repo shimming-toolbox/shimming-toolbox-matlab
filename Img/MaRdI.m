@@ -1235,41 +1235,32 @@ elseif nargin >= 5
     end
 end
 
-isUsingScatteredInterpolant = [] ;
-
-if (ndims(Img.img) > 1) && (ndims(Img.img) <= 5)
-
-    gridSizeIp = Img.getgridsize() ;
-    
-    if gridSizeIp(3) > 1
-        isUsingScatteredInterpolant = true ;
-    else
-        isUsingScatteredInterpolant = false ;
-    end
-else
-    error('Dimensions of input Img.img must be >= 2, and <= 5') ;
-end
+assert( [ndims(Img.img) >= 2] & [ndims(Img.img) <= 5],...
+    'Dimensions of input Img.img must be >= 2, and <= 5') ;
 
 % -----------------
 %% Define variables
+gridSizeIp = Img.getgridsize();
+
+if gridSizeIp(3) > 1
+    isUsingScatteredInterpolant = true ;
+else
+    isUsingScatteredInterpolant = false ;
+end
+
 
 switch ndims(X_Ep)
-    case 2  
-        % interpolating down to a single-slice
+    case 2  % interpolating down to a single-slice
         gridSizeEp = [ size(X_Ep) 1 ] ;
-    case 3
-        % interpolating to a 3d volume
+    case 3 % interpolating to a 3d volume
         gridSizeEp = size(X_Ep) ;
-    otherwise
-        % sanity check 
+    otherwise % sanity check 
         error('Expected 2d or 3d target interpolation grid')
 end
 
 % sanity check    
 assert( [all(gridSizeEp>=1)] & [nnz(gridSizeEp==1)<=1], ...
     'Unexpected result for size of grid coordinates:' );
-
-gridSizeIp = size( X_Ip ) ;
 
 if myisfieldfilled( Img.Hdr, 'MaskingImage' ) 
     maskIp = logical( sum( sum( Img.Hdr.MaskingImage, 5 ), 4 ) ) ;
@@ -1279,7 +1270,8 @@ end
 
 if ~exist('maskEp')
     if ~isUsingScatteredInterpolant 
-        warning('No logical mask provided: For faster results, restrict the target/output voxels to those of interest by providing this mask!') ;
+        warning(['No logical mask provided: For faster results, ' ...
+            'restrict the target/output voxels to those of interest by providing this mask!']) ;
     end
     maskEp = true( gridSizeEp ) ;
 end
