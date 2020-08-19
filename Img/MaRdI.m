@@ -1274,6 +1274,15 @@ if ~exist('maskEp')
             'restrict the target/output voxels to those of interest by providing this mask!']) ;
     end
     maskEp = true( gridSizeEp ) ;
+else
+    if gridSizeEp(3) > 1
+        gridSizeMaskEp = size(maskEp)
+    else
+        gridSizeMaskEp = [size(maskEp) 1]
+    end
+    assert( isequal(gridSizeMaskEp, gridSizeEp), ...
+        [ 'Dimensions of the arrays of extrapolation coordinate ' ...
+          'and the assigned extrapolation ROI mask must be identical' ] );
 end
 
 iEp = find( maskEp(:) ) ; % indices of target voxels
