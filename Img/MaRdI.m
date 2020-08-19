@@ -1250,27 +1250,31 @@ else
     error('Dimensions of input Img.img must be >= 2, and <= 5') ;
 end
 
-if ndims( X_Ep ) == 2 % interpolating down to 2d single-slice
-    gridSizeEp = [ size(X_Ep) 1 ] ;
-elseif ndims( X_Ep ) == 3
-    gridSizeEp = size(X_Ep) ;
-else
-    error('Expected 2d or 3d target interpolation grid')
+% -----------------
+%% Define variables
+
+switch ndims(X_Ep)
+    case 2  
+        % interpolating down to a single-slice
+        gridSizeEp = [ size(X_Ep) 1 ] ;
+    case 3
+        % interpolating to a 3d volume
+        gridSizeEp = size(X_Ep) ;
+    otherwise
+        % sanity check 
+        error('Expected 2d or 3d target interpolation grid')
 end
 
-%% -----
-% Define variables
+% sanity check    
+assert( [all(gridSizeEp>=1)] & [nnz(gridSizeEp==1)<=1], ...
+    'Unexpected result for size of grid coordinates:' );
+
 gridSizeIp = size( X_Ip ) ;
 
 if myisfieldfilled( Img.Hdr, 'MaskingImage' ) 
     maskIp = logical( sum( sum( Img.Hdr.MaskingImage, 5 ), 4 ) ) ;
 else
     maskIp = true( gridSizeIp ) ;
-end
-
-gridSizeEp = size( X_Ep ) ;
-if ndims(gridSizeEp) == 2
-    gridSizeEp = [gridSizeEp 1] ;
 end
 
 if ~exist('maskEp')
