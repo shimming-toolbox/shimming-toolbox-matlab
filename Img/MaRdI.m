@@ -32,10 +32,6 @@ classdef MaRdI < matlab.mixin.SetGet
 %    .Hdrs 
 %       Cell array of (truncated) DICOM headers courtesy of dicominfo().
 %       (One entry for every image)
-%
-% =========================================================================
-% Author::ryan.topfer@polymtl.ca
-% =========================================================================
 
 %% ========================================================================
 %
@@ -118,12 +114,6 @@ if nargin == 1
         nRows      = SpecialHdr.Height ;
         nColumns   = SpecialHdr.Width ;
         
-        if ~myisfield( SpecialHdr.MrProt, 'lRepetitions' ) 
-            nVolumes = 1 ;
-        else
-            nVolumes = SpecialHdr.MrProt.lRepetitions + 1 ;
-        end
-        
         % containers for a few terms varying between dicoms:
         sliceLocations = zeros( nImages, 1 ) ; % [units: mm]
         echoTimes      = zeros( nImages, 1 ) ; % [units: ms]
@@ -151,8 +141,34 @@ if nargin == 1
         echoTimes      = sort( unique( echoTimes ), 1, 'ascend' ) ; 
         nEchoes        = length( echoTimes ) ; 
         
+        if ~myisfield( SpecialHdr.MrProt, 'lRepetitions' ) 
+            nVolumesAcquired = 1 ;
+        else
+            nVolumesAcquired = SpecialHdr.MrProt.lRepetitions + 1 ;
+        end
+       
+        if nImages == nSlices*nEchoes*nVolumesAcquired
+            nVolumes = nVolumesAcquired;
+        else
+            acquisitionTimes = zeros(nImages, 1);
+
+            for iImg = 1 : nImages
+                acquisitionTimes(iImg) = str2num(RawHdrs{iImg}.AcquisitionTime);
+            end
+            
+            nVolumes = numel(unique(acquisitionTimes))/(nSlices*nEchoes);
+            msg = sprintf( [ ...
+                'Missing images or invalid DICOM header.' ...
+                '\n*****\n' ...
+                'Of the ' num2str(nVolumesAcquired) ' image repetitions (volume measurements) ' ...
+                'claimed by the header, only ' num2str(nVolumes) ' were found.\n' ...
+                'This scenario is untested and may cause errors.' ...
+                '\n*****\n' ] );
+            warning(msg);
+        end
+
         Img.img = zeros( nRows, nColumns, nSlices, nEchoes, nVolumes ) ;
-        
+         
         % copy of RawHdrs to be reorganized:
         Img.Hdrs = cell( nSlices, nEchoes, nVolumes ) ;
         
@@ -597,16 +613,9 @@ function [t0] = estimatekorigintime( Img )
 % sampling, beginning at the k_min periphery, has been considered in the
 % current implementation!
  
-nSlices = Img.getnumberofslices() ;
-nEchoes = length( Img.getechotime() ) ;
-
-if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
-    nMeasurements = ( Img.Hdr.MrProt.lRepetitions + 1) ;
-else
-    nMeasurements = 1;
-end
-
-assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ;
+nSlices       = Img.getnumberofslices() ;
+nEchoes       = length( Img.getechotime() ) ;
+nMeasurements = Img.getnumberofmeasurements();
 
 tAcq = Img.getacquisitiontime() ;
 
@@ -746,17 +755,9 @@ function [t] = getacquisitiontime( Img )
 % For EPI MOSAIC (which has a single AcquisitionTime value for each volume),
 % t( iSlice ) = AcquisitionTime (first slice) + iSlice*(volumeTR/nSlices)
 
-nSlices = Img.getnumberofslices() ;
-nEchoes = length( Img.getechotime() ) ;
-
-if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
-    nMeasurements = ( Img.Hdr.MrProt.lRepetitions + 1) ;
-else
-    nMeasurements = 1;
-end
-
-%assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ; % EAO:
-%commented this out so I could save a time series
+nSlices       = Img.getnumberofslices() ;
+nEchoes       = length( Img.getechotime() ) ;
+nMeasurements = Img.getnumberofmeasurements();
 
 t = zeros( nSlices, nEchoes, nMeasurements ) ;
 
