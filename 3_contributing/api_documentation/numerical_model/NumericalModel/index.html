@@ -128,6 +128,8 @@
                 </li>
                 <li class="toctree-l3"><a class="reference internal" href="#">+b0</a>
     <ul>
+                <li class="toctree-l4"><a class="reference internal" href="../../%2Bimutils/%2Bb0/dual_echo/">imutils.b0.dual_echo</a>
+                </li>
                 <li class="toctree-l4"><a class="reference internal" href="../../%2Bimutils/%2Bb0/multiecho_linfit/">imutils.b0.multiecho_linfit</a>
                 </li>
     </ul>
@@ -259,6 +261,8 @@
                 <li class="toctree-l3"><a class="reference internal" href="../../example/realtime_zshim/">realtime_zshim</a>
                 </li>
                 <li class="toctree-l3"><a class="reference internal" href="../../example/shimdemo/">shimdemo</a>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../../example/simB0_comparison/">simB0_comparison</a>
                 </li>
     </ul>
                 </li>
@@ -499,6 +503,8 @@
     <li class="toctree-l4"><a class="reference internal" href="#methods">Methods</a>
     </li>
     </ul>
+                </li>
+                <li class="toctree-l3"><a class="reference internal" href="../phantom3d/">phantom3d</a>
                 </li>
     </ul>
                 </li>
@@ -826,9 +832,143 @@
 </ul>
 </details>
 <hr />
-<h3 id="numvox">numVox</h3>
+<h3 id="type">type</h3>
 <p><strong>Synopsis:</strong> <em>volume properties</em></p>
 <p>volume properties</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Dependent</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Constant</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Transient</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">GetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">SetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">AbortSet</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">NonCopyable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">HasDefault</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>GetAccess : public</li>
+<li>SetAccess : public</li>
+<li>PartialMatchPriority : [N/A] </li>
+<li>GetMethod : </li>
+<li>SetMethod : </li>
+<li>DefaultValue : </li>
+<li>Validation : [N/A] </li>
+<li>DefiningClass : NumericalModel</li>
+</ul>
+</details>
+<hr />
+<h3 id="numvox">numVox</h3>
+<p><strong>Synopsis:</strong> <em>- square volume</em></p>
+<p>numVox -  square volume</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Dependent</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Constant</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Transient</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">GetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">SetObservable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">AbortSet</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">NonCopyable</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">HasDefault</td>
+<td align="center">true</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>GetAccess : public</li>
+<li>SetAccess : public</li>
+<li>PartialMatchPriority : [N/A] </li>
+<li>GetMethod : </li>
+<li>SetMethod : </li>
+<li>DefaultValue : [N/A] </li>
+<li>Validation : [N/A] </li>
+<li>DefiningClass : NumericalModel</li>
+</ul>
+</details>
+<hr />
+<h3 id="pixsize">pixSize</h3>
+<p><strong>Synopsis:</strong> <em>- default pixel size is 1 mm</em></p>
+<p>pixSize -  default pixel size is 1 mm</p>
 <details>
 <p><summary><b>Details</b></summary></p>
 <table>
@@ -1225,8 +1365,32 @@
 </details>
 <hr />
 <h3 id="t2star">T2star</h3>
-<p><strong>Synopsis:</strong> <em>Default times in seconds @ 3T</em></p>
-<p>Default times in seconds @ 3T</p>
+<p><strong>Synopsis:</strong> <em>T2* values at 3T from</em></p>
+<p>https://index.mirasmart.com/ISMRM2019/PDFfiles/4509.html<br />
+https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.26809<br />
+Silicone and Mineral oil values are set to 50% of T2<br />
+T2<em> CSF is set to 50% of the T2 of CSF (http://mri-q.com/why-is-t1--t2.html)<br />
+T2</em> water is set to 50% of the T2 of water (http://mri-q.com/why-is-t1--t2.html)<br />
+T2<em> of teeth is set to 50% of the T2 of teeth (https://www.karger.com/Article/Abstract/501901)<br />
+T2</em> of fat is set to 50% of the T2 of fat (http://mri-q.com/why-is-t1--t2.html)<br />
+T2<em> of muscle is set to 50% of the T2 of muscle (http://mri-q.com/why-is-t1--t2.html)<br />
+T2</em> of venous and arterial blood is from:<br />
+https://onlinelibrary.wiley.com/doi/pdf/10.1002/mrm.21342, table 1 using<br />
+(1-Ya) = 0.02 and (1-Yv) = 0.39 and a Hct level of 0.44<br />
+T2<em> of the "frontal portion eyes" is set to the T2 of the cornea (~ 50<br />
+ms) from https://onlinelibrary.wiley.com/doi/full/10.1002/jmri.21017<br />
+-&gt; replaced with T2</em> of cornea from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4160095/<br />
+T2<em> of the "eyeball" is set to the T2 of the Chorioretina (~ 75 ms) from<br />
+https://onlinelibrary.wiley.com/doi/full/10.1002/jmri.21017<br />
+-&gt; replaced with T2</em> of the sclera from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4160095/<br />
+T2<em> of the "eye" is set to the 50% of T2 of the vitrous humour (~ 750 ms) from https://onlinelibrary.wiley.com/doi/full/10.1002/jmri.21017<br />
+T2</em> of the "lens" is set to the 50% of T2 of the lens nucleus (~ 1130 ms) from https://onlinelibrary.wiley.com/doi/full/10.1002/jmri.21017<br />
+T2<em> of the "globus pallidus" is from https://pubs.rsna.org/doi/full/10.1148/radiol.2522081399<br />
+T2</em> of cartilage is from https://openmedicinejournal.com/VOLUME/5/PAGE/119/FULLTEXT/<br />
+T2<em> of the skin is set to 50% of T2 of the skin at 1.5T from https://www.sciencedirect.com/science/article/pii/S0022202X9190213A<br />
+T2</em> of the esophagus is from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5447643/<br />
+T2<em> of the parotid gland is set to 50% of T2 of the parotid gland from https://pubmed.ncbi.nlm.nih.gov/23166360/<br />
+T2</em> of the pituitary gland is set to 50% of T2 of the pituitary gland from https://www.ajronline.org/doi/full/10.2214/ajr.175.6.1751567</p>
 <details>
 <p><summary><b>Details</b></summary></p>
 <table>
@@ -1293,7 +1457,10 @@
 <hr />
 <h3 id="protondensity">protonDensity</h3>
 <p><strong>Synopsis:</strong> <em>Default proton density in percentage</em></p>
-<p>Default proton density in percentage</p>
+<p>blood pd from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3023928/<br />
+pd of fat set to 80, which is a guess<br />
+pd of muscle set to 65, which is a guess<br />
+pd of cartilage set to 40, which is a guess</p>
 <details>
 <p><summary><b>Details</b></summary></p>
 <table>
@@ -1428,9 +1595,9 @@
 <h2 id="methods">Methods</h2>
 <hr />
 <h3 id="generate_deltab0">generate_deltaB0</h3>
-<p><strong>Synopsis</strong>: <em>fieldType: 'linear'</em> </p>
+<p><strong>Synopsis</strong>: <em>fieldType: '2d_linearIP' (2D linear in-plane (IP))</em> </p>
 <p>params:<br />
-     'linear': [m, b] where y = mx + b, and the center of the<br />
+     '2d_linearIP': [m, b] where y = mx + b, and the center of the<br />
                volume is the origin. m is Hz per voxel. b is<br />
                Hz. ang is the angle against the x axis of the<br />
                volume</p>
@@ -1778,7 +1945,136 @@ SNR: Signal-to-noise ratio</p>
 </ul>
 </details>
 <hr />
-<h3 id="shepp_logan">shepp_logan</h3>
+<h3 id="cylindrical_3d">cylindrical_3d</h3>
+<p><strong>Synopsis</strong>: <em>Create a 3D cylindrical volume for the</em> </p>
+<p>dims: [x, y, z] number of voxels.</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : obj, varargin</li>
+<li>OutputNames : obj</li>
+<li>DefiningClass : NumericalModel</li>
+</ul>
+</details>
+<hr />
+<h3 id="spherical_3d">spherical_3d</h3>
+<p><strong>Synopsis</strong>: <em>Create a 3D spherical volume for the</em> </p>
+<p>dims: [x, y, z] number of voxels.</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : obj, varargin</li>
+<li>OutputNames : obj</li>
+<li>DefiningClass : NumericalModel</li>
+</ul>
+</details>
+<hr />
+<h3 id="shepp_logan_3d">shepp_logan_3d</h3>
+<p><strong>Synopsis</strong>: <em>Create a 3D Shepp_Logan volume for the</em> </p>
+<p>dims: [x, y, z] number of voxels.</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : obj, numVox</li>
+<li>OutputNames : obj</li>
+<li>DefiningClass : NumericalModel</li>
+</ul>
+</details>
+<hr />
+<h3 id="shepp_logan_2d">shepp_logan_2d</h3>
 <p><strong>Synopsis</strong>: <em>Create a 2D Shepp_Logan volume for the</em> </p>
 <p>dims: [x, y] number of voxels.</p>
 <details>
@@ -1821,6 +2117,49 @@ SNR: Signal-to-noise ratio</p>
 </ul>
 </details>
 <hr />
+<h3 id="zubal">Zubal</h3>
+<p><strong>Synopsis</strong>: <em>load zubal volume</em> </p>
+<p>load zubal volume</p>
+<details>
+<p><summary><b>Details</b></summary></p>
+<table>
+<thead>
+<tr>
+<th align="center">Attribute</th>
+<th align="center">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Static</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Abstract</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Sealed</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">ExplicitConversion</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">Hidden</td>
+<td align="center">false</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Access : public</li>
+<li>InputNames : obj, varargin</li>
+<li>OutputNames : obj</li>
+<li>DefiningClass : NumericalModel</li>
+</ul>
+</details>
+<hr />
 <h3 id="numericalmodel_1">NumericalModel</h3>
 <p><strong>Synopsis</strong>: <em>Constructor</em> </p>
 <details>
@@ -1857,7 +2196,7 @@ SNR: Signal-to-noise ratio</p>
 </table>
 <ul>
 <li>Access : public</li>
-<li>InputNames : model, numVox</li>
+<li>InputNames : model, varargin</li>
 <li>OutputNames : obj</li>
 <li>DefiningClass : NumericalModel</li>
 </ul>
@@ -2132,7 +2471,7 @@ For more info, refer to the MATLAB documentation.</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../../../../4_about/license/" class="btn btn-neutral float-right" title="License and warranty">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../phantom3d/" class="btn btn-neutral float-right" title="phantom3d">Next <span class="icon icon-circle-arrow-right"></span></a>
       
       
         <a href="../../misc/unwrap3d/" class="btn btn-neutral" title="unwrap3d"><span class="icon icon-circle-arrow-left"></span> Previous</a>
@@ -2166,7 +2505,7 @@ For more info, refer to the MATLAB documentation.</p>
         <span><a href="../../misc/unwrap3d/" style="color: #fcfcfc;">&laquo; Previous</a></span>
       
       
-        <span style="margin-left: 15px"><a href="../../../../4_about/license/" style="color: #fcfcfc">Next &raquo;</a></span>
+        <span style="margin-left: 15px"><a href="../phantom3d/" style="color: #fcfcfc">Next &raquo;</a></span>
       
     </span>
 </div>
