@@ -3,7 +3,7 @@
 % cylindrical_sus_dist = Cylindrical( [128 128 128], [1 1 1], 5, pi/2, [0.36e-6 -8.842e-6]);
 
 % generate susceptibility distribution for my modified Zubal phantom
-zubal_sus_dist = Zubal('zubal_EAO.nii');
+zubal_sus_dist = Zubal('../zubal_EAO.nii');
 
 % save as nifti
 % cylindrical_sus_dist.save('cylindrical90_R5mm_airMineralOil_ChiDist.nii');
@@ -12,7 +12,7 @@ zubal_sus_dist.save('zubal_EAO_sus.nii');
 % compute deltaB0 for the simulated susceptibility distribution using:
 % https://github.com/evaalonsoortiz/Fourier-based-field-estimation
 zubal_dBz = FBFest( zubal_sus_dist.volume, zubal_sus_dist.image_res, zubal_sus_dist.matrix, 'Zubal' );
-zubal_dBz.save('zubal_dBz.nii');
+zubal_dBz.save('zubal_EAO_dBz.nii');
 
 % simulate T2* decay for a cylinder of air surrounded by mineral oil with a
 % deltaB0 found in an external file 
@@ -22,7 +22,7 @@ zubal_dBz.save('zubal_dBz.nii');
 
 % simulate T2* decay for a modified Zubal phantom with a
 % deltaB0 found in an external file
-zubal_vol = NumericalModel('Zubal','zubal_EAO.nii');
+zubal_vol = NumericalModel('Zubal','../zubal_EAO.nii');
 zubal_vol.generate_deltaB0('load_external', 'zubal_EAO_dBz.nii');
 zubal_vol.simulate_measurement(15, [0.001 0.002 0.003 0.004 0.005 0.006], 100);
 
@@ -38,6 +38,22 @@ compl_vol = magn.*exp(1i*phase);
 
 dual_echo_b0_ppm = 1e6*(dual_echo_delf/3)*(1/42.58e6);
 multi_echo_b0_ppm = 1e6*(multi_echo_delf/3)*(1/42.58e6);
+
+% plot results
+figure
+imagesc(squeeze(multi_echo_b0_ppm(:,:,64)))
+colorbar
+title('multi-echo fit: b0 (ppm)')
+
+figure
+imagesc(squeeze(dual_echo_b0_ppm(:,:,64)))
+colorbar
+title('dual-echo fit: b0 (ppm)')
+
+figure
+imagesc(squeeze(1e6.*real(zubal_dBz.volume(:,:,64))))
+colorbar
+title('Fourier-based field estimation for the modified Zubal phantom: b0 (ppm)')
 
 % calc diff between dual-echo and multi-echo
 diff_dualecho = (dual_echo_b0_ppm-1e6.*real(zubal_dBz.volume));
