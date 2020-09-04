@@ -599,7 +599,7 @@ classdef NumericalModel < handle
                         obj.deltaB0 = imrotate( fliplr( niftiread(params) ) , -90);                   
                     end
                     
-                    obj.deltaB0 = (obj.gamma / (2*pi)) * obj.fieldStrength * 1e6 * obj.deltaB0;
+                    obj.deltaB0 = (obj.gamma / (2*pi)) * obj.fieldStrength * 1e-6 * obj.deltaB0;
                     
                 otherwise
                     error('Undefined deltaB0 field type')
