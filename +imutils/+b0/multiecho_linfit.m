@@ -1,4 +1,4 @@
-function [delf] = multiecho_linfit(complVol, ph_json)
+function [delf] = multiecho_linfit(complVol, delt)
 % multiecho_linfit Computes B0 fieldmaps based on a least-squares
 % fitting of the phase evolution with respect to time
 %
@@ -12,8 +12,8 @@ function [delf] = multiecho_linfit(complVol, ph_json)
 %
 %    complVol
 %      complex 4D data set complVol(x,y,z,t)
-%    ph_json
-%      phase json sidecar struct
+%    delt
+%      array of echo times in [s]
 %
 % _OUTPUTS_
 %
@@ -28,7 +28,6 @@ phData = angle(complVol);
 
 % get number of echoes and echo times
 numTE = size(magData,4); 
-delt = [ph_json.EchoTime];
 
 if ~isrow(delt) 
     delt = delt';
