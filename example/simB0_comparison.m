@@ -24,7 +24,8 @@ zubal_dBz.save('zubal_EAO_dBz.nii');
 % deltaB0 found in an external file
 zubal_vol = NumericalModel('Zubal','../zubal_EAO.nii');
 zubal_vol.generate_deltaB0('load_external', 'zubal_EAO_dBz.nii');
-zubal_vol.simulate_measurement(15, [0.001 0.002 0.003 0.004 0.005 0.006], 100);
+%zubal_vol.simulate_measurement(15, [0.001 0.002 0.003 0.004 0.005 0.006], 100);
+zubal_vol.simulate_measurement(15, [0.0005 0.001 0.0015 0.002 0.0025 0.003], 100);
 
 % get magnitude and phase data
 magn = zubal_vol.getMagnitude;
@@ -33,34 +34,39 @@ compl_vol = magn.*exp(1i*phase);
 
 
 % calculate the deltaB0 map from the magnitude and phase data
-[dual_echo_delf] = +imutils.b0.dual_echo(compl_vol(:,:,:,1:2), [0.001 0.002]);
-[multi_echo_delf] = +imutils.b0.multiecho_linfit(compl_vol, [0.001 0.002 0.003 0.004 0.005 0.006]); 
+%[dual_echo_delf] = +imutils.b0.dual_echo(compl_vol(:,:,:,1:2), [0.001 0.002]);
+[dual_echo_delf] = +imutils.b0.dual_echo(compl_vol(:,:,:,1:2), [0.0005 0.001]);
+%[multi_echo_delf] = +imutils.b0.multiecho_linfit(compl_vol, [0.001 0.002 0.003 0.004 0.005 0.006]); 
+[multi_echo_delf] = +imutils.b0.multiecho_linfit(compl_vol, [0.0005 0.001 0.0015 0.002 0.0025 0.003]); 
 
 dual_echo_b0_ppm = 1e6*(dual_echo_delf/3)*(1/42.58e6);
 multi_echo_b0_ppm = 1e6*(multi_echo_delf/3)*(1/42.58e6);
 
 % plot results
 figure
-imagesc(squeeze(multi_echo_b0_ppm(:,:,64)))
+imagesc(imrotate(squeeze(multi_echo_b0_ppm(128,:,:)),90))
 colorbar
 title('multi-echo fit: b0 (ppm)')
+caxis([-5 5]);
 
 figure
-imagesc(squeeze(dual_echo_b0_ppm(:,:,64)))
+imagesc(imrotate(squeeze(dual_echo_b0_ppm(128,:,:)),90))
 colorbar
 title('dual-echo fit: b0 (ppm)')
+caxis([-5 5]);
 
 figure
-imagesc(squeeze(1e6.*real(zubal_dBz.volume(:,:,64))))
+imagesc(imrotate(squeeze(1e6.*real(zubal_dBz.volume(128,:,:))),90))
 colorbar
 title('Fourier-based field estimation for the modified Zubal phantom: b0 (ppm)')
+caxis([-5 5]);
 
 % calc diff between dual-echo and multi-echo
 diff_dualecho = (dual_echo_b0_ppm-1e6.*real(zubal_dBz.volume));
-figure; imagesc(squeeze(diff_dualecho(:,:,64))); colorbar; title('dual echo - true dBz');
+figure; imagesc(imrotate(squeeze(diff_dualecho(128,:,:)),90)); colorbar; title('dual echo - true dBz');
 
 diff_multiecho = (multi_echo_b0_ppm-1e6.*real(zubal_dBz.volume));
-figure; imagesc(squeeze(diff_multiecho(:,:,64))); colorbar; title('multi echo - true dBz');
+figure; imagesc(imrotate(squeeze(diff_multiecho(128,:,:)),90)); colorbar; title('multi echo - true dBz');
 
 % save b0 maps
 nii_vol = make_nii(dual_echo_b0_ppm);
