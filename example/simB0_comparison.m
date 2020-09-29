@@ -41,26 +41,26 @@ multi_echo_b0_ppm = 1e6*(multi_echo_delf/3)*(1/42.58e6);
 
 % plot results
 figure
-imagesc(squeeze(multi_echo_b0_ppm(:,:,64)))
-colorbar
+imagesc(imrotate(squeeze(multi_echo_b0_ppm(128,:,:)),90));
+colorbar; caxis([-3.5 3.5]);
 title('multi-echo fit: b0 (ppm)')
 
 figure
-imagesc(squeeze(dual_echo_b0_ppm(:,:,64)))
-colorbar
+imagesc(imrotate(squeeze(dual_echo_b0_ppm(128,:,:)),90));
+colorbar; caxis([-3.5 3.5]);
 title('dual-echo fit: b0 (ppm)')
 
 figure
-imagesc(squeeze(1e6.*real(zubal_dBz.volume(:,:,64))))
-colorbar
+imagesc(imrotate(squeeze(1e6.*real(zubal_dBz.volume(128,:,:))),90));
+colorbar; caxis([-3.5 3.5]);
 title('Fourier-based field estimation for the modified Zubal phantom: b0 (ppm)')
 
 % calc diff between dual-echo and multi-echo
 diff_dualecho = (dual_echo_b0_ppm-1e6.*real(zubal_dBz.volume));
-figure; imagesc(squeeze(diff_dualecho(:,:,64))); colorbar; title('dual echo - true dBz');
+figure; imagesc(imrotate(squeeze(diff_dualecho(128,:,:)),90)); colorbar; title('dual echo - true dBz'); caxis([-2 2]);
 
 diff_multiecho = (multi_echo_b0_ppm-1e6.*real(zubal_dBz.volume));
-figure; imagesc(squeeze(diff_multiecho(:,:,64))); colorbar; title('multi echo - true dBz');
+figure; imagesc(imrotate(squeeze(diff_multiecho(128,:,:)),90)); colorbar; title('multi echo - true dBz'); caxis([-2 2]);
 
 % save b0 maps
 nii_vol = make_nii(dual_echo_b0_ppm);
