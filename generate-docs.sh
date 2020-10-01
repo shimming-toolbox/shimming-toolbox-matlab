@@ -27,7 +27,13 @@ cd s
 
 # we need to do this in an explicit venv since our build agent
 # isn't fancy enough to spawn fresh containers/VMs for us
-pip install --user virtualenv
+
+# Ran once from this script to upgrade to 20.1.1
+# pip install pip --upgrade
+
+# Ran once on tristano directly
+# pip3 install --user virtualenv
+
 VENV=$(mktemp -d)
 trap 'rm -rf $VENV' EXIT  # cleanup after ourselves
 python -m virtualenv "$VENV"
