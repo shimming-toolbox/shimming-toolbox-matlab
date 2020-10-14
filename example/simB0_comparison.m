@@ -1,38 +1,96 @@
-% generate a cylindrical susceptibility distribution at 90 degrees using:
-% https://github.com/evaalonsoortiz/Fourier-based-field-estimation
-% cylindrical_sus_dist = Cylindrical( [128 128 128], [1 1 1], 5, pi/2, [0.36e-6 -8.842e-6]);
+% note: adapt ChiDist and FBFest to write json sidecars with info about the
+% angle, radius and chi values
 
-% generate susceptibility distribution for my modified Zubal phantom
+% constants
+chi_air = 0.36e-6;
+chi_mineral_oil = -8.842e-6;
+matrix = [128 128 128];
+image_res = [1 1 1]; % [mm]
+radius = 5; % [mm]
+theta = pi/2; 
+
+
+%%-----------------------------------------------------------------------%%
+%% Sphere
+%%   - generate susceptibility distribution
+%%   - generate deltaB0
+%% https://github.com/evaalonsoortiz/Fourier-based-field-estimation
+%%-----------------------------------------------------------------------%%
+
+spherical_sus_dist = Spherical( matrix, image_res, radius, [chi_air chi_mineral_oil]);
+spherical_sus_dist.save('spherical_sus.nii');
+
+spherical_dBz = FBFest( spherical_sus_dist.volume, spherical_sus_dist.image_res, spherical_sus_dist.matrix, 'Spherical' );
+spherical_dBz.save('spherical_dBz.nii');
+
+spherical_vol = NumericalModel('Spherical3d',matrix(1),image_res(1),radius,'air','pure_mineral_oil');
+spherical_vol.generate_deltaB0('load_external', 'spherical_dBz.nii');
+
+
+%%-----------------------------------------------------------------------%%
+%% (perpendicular) Cylinder
+%%   - generate susceptibility distribution
+%%   - generate deltaB0
+%% https://github.com/evaalonsoortiz/Fourier-based-field-estimation
+%%-----------------------------------------------------------------------%%
+
+cylindrical_sus_dist = Cylindrical( matrix, image_res, radius, theta, [chi_air chi_mineral_oil]);
+cylindrical_sus_dist.save('cylindrical_sus.nii');
+
+cylindrical_dBz = FBFest( cylindrical_sus_dist.volume, cylindrical_sus_dist.image_res, cylindrical_sus_dist.matrix, 'Cylindrical' );
+cylindrical_dBz.save('cylindrical_dBz.nii');
+
+cylindrical_vol = NumericalModel('Cylindrical3d',matrix(1),image_res(1),radius,(theta*(90/pi)),'air','pure_mineral_oil');
+cylindrical_vol.generate_deltaB0('load_external', 'cylindrical_dBz.nii');
+
+
+%%-----------------------------------------------------------------------%%
+%% Modified Zubal Phantom
+%%   - generate susceptibility distribution
+%%   - generate deltaB0
+%% https://github.com/evaalonsoortiz/Fourier-based-field-estimation
+%%-----------------------------------------------------------------------%%
 zubal_sus_dist = Zubal('../zubal_EAO.nii');
-
-% save as nifti
-% cylindrical_sus_dist.save('cylindrical90_R5mm_airMineralOil_ChiDist.nii');
 zubal_sus_dist.save('zubal_EAO_sus.nii');
 
-% compute deltaB0 for the simulated susceptibility distribution using:
-% https://github.com/evaalonsoortiz/Fourier-based-field-estimation
 zubal_dBz = FBFest( zubal_sus_dist.volume, zubal_sus_dist.image_res, zubal_sus_dist.matrix, 'Zubal' );
 zubal_dBz.save('zubal_EAO_dBz.nii');
-
-% simulate T2* decay for a cylinder of air surrounded by mineral oil with a
-% deltaB0 found in an external file 
-% cylindrical_vol = NumericalModel('Cylindrical3d',128,1,5,90,'Air', 'SiliconeOil');
-% cylindrical_vol.generate_deltaB0('load_external', 'Bdz_cylindrical90_R5mm_airMineralOil_ChiDist.nii');
-% cylindrical_vol.simulate_measurement(15, [0.001 0.002 0.003 0.004 0.005 0.006], 100);
 
 % simulate T2* decay for a modified Zubal phantom with a
 % deltaB0 found in an external file
 zubal_vol = NumericalModel('Zubal','../zubal_EAO.nii');
 zubal_vol.generate_deltaB0('load_external', 'zubal_EAO_dBz.nii');
-zubal_vol.simulate_measurement(15, [0.001 0.002 0.003 0.004 0.005 0.006], 100);
+
+
+%%-----------------------------------------------------------------------%%
+%% Simulate signal decay
+%%-----------------------------------------------------------------------%%
+
+% T2* at 3T of pure_mineral_oil is approximated as 0.5*0.063 s
+% T1 at 3T of pure_mineral_oil is 181e-3 s
+% Ernst angle for mineral oil = acosd(exp(-TR/T1)) ~= 86
+TR = 500e-3;
+FA = 86; % flip angle [deg]
+% Optimal TEs for dual echo are not clear to me. I should play around with
+% different timings.
+TE = [5e-3 9e-3]; % based on Robinson and Jovicich MRM 2011 66:976-988
+% Typical B0 maps SNR values? look it up
+SNR = 100;
+
+vol = cylindrical_vol; % rename to generalize
+
+vol.simulate_measurement(FA, TE, SNR);
 
 % get magnitude and phase data
-magn = zubal_vol.getMagnitude;
-phase = zubal_vol.getPhase;
+magn = vol.getMagnitude;
+phase = vol.getPhase;
 compl_vol = magn.*exp(1i*phase);
 
 
-% calculate the deltaB0 map from the magnitude and phase data
+%%-----------------------------------------------------------------------%%
+%% Compute deltaB0 maps
+%%-----------------------------------------------------------------------%%
+
 [dual_echo_delf] = +imutils.b0.dual_echo(compl_vol(:,:,:,1:2), [0.001 0.002]);
 [multi_echo_delf] = +imutils.b0.multiecho_linfit(compl_vol, [0.001 0.002 0.003 0.004 0.005 0.006]); 
 
@@ -41,26 +99,26 @@ multi_echo_b0_ppm = 1e6*(multi_echo_delf/3)*(1/42.58e6);
 
 % plot results
 figure
-imagesc(imrotate(squeeze(multi_echo_b0_ppm(128,:,:)),90));
-colorbar; caxis([-3.5 3.5]);
+imagesc(squeeze(multi_echo_b0_ppm(:,:,64)))
+colorbar
 title('multi-echo fit: b0 (ppm)')
 
 figure
-imagesc(imrotate(squeeze(dual_echo_b0_ppm(128,:,:)),90));
-colorbar; caxis([-3.5 3.5]);
+imagesc(squeeze(dual_echo_b0_ppm(:,:,64)))
+colorbar
 title('dual-echo fit: b0 (ppm)')
 
 figure
-imagesc(imrotate(squeeze(1e6.*real(zubal_dBz.volume(128,:,:))),90));
-colorbar; caxis([-3.5 3.5]);
+imagesc(squeeze(1e6.*real(zubal_dBz.volume(:,:,64))))
+colorbar
 title('Fourier-based field estimation for the modified Zubal phantom: b0 (ppm)')
 
 % calc diff between dual-echo and multi-echo
 diff_dualecho = (dual_echo_b0_ppm-1e6.*real(zubal_dBz.volume));
-figure; imagesc(imrotate(squeeze(diff_dualecho(128,:,:)),90)); colorbar; title('dual echo - true dBz'); caxis([-2 2]);
+figure; imagesc(squeeze(diff_dualecho(:,:,64))); colorbar; title('dual echo - true dBz');
 
 diff_multiecho = (multi_echo_b0_ppm-1e6.*real(zubal_dBz.volume));
-figure; imagesc(imrotate(squeeze(diff_multiecho(128,:,:)),90)); colorbar; title('multi echo - true dBz'); caxis([-2 2]);
+figure; imagesc(squeeze(diff_multiecho(:,:,64))); colorbar; title('multi echo - true dBz');
 
 % save b0 maps
 nii_vol = make_nii(dual_echo_b0_ppm);
