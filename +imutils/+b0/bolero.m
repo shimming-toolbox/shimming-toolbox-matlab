@@ -28,7 +28,7 @@ range = zeros(size(complVol,4));
 
 for t = 1:(size(complVol,4)-1)
     dPht(:,:,:,t) = angle( complVol(:,:,:,t+1).*conj(complVol(:,:,:,1)) );
-    %dPht(:,:,:,t) = atan2(tmag(complVol(:,:,:,t+1).*conj(complVol(:,:,:,1))),real(complVol(:,:,:,t+1).*conj(complVol(:,:,:,1))));
+    %dPht(:,:,:,t) = atan2(imag(complVol(:,:,:,t+1).*conj(complVol(:,:,:,1))),real(complVol(:,:,:,t+1).*conj(complVol(:,:,:,1))));
     b0(:,:,:,t) = dPht(:,:,:,t)./(2*pi*delt(t+1)); % [Hz]
     range(t) = 1/(2*(delt(t+1)-delt(1)));
 end
