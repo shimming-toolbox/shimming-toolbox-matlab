@@ -68,22 +68,30 @@ zubal_vol.generate_deltaB0('load_external', 'zubal_EAO_dBz.nii');
 
 % T2* at 3T of pure_mineral_oil is approximated as 0.5*0.063 s
 % T1 at 3T of pure_mineral_oil is 181e-3 s
-% Ernst angle for mineral oil = acosd(exp(-TR/T1)) ~= 86
+
+% dual echo
 TR = 500e-3;
+% Ernst angle for mineral oil = acosd(exp(-TR/T1)) ~= 86
 FA = 86; % flip angle [deg]
-% Optimal TEs for dual echo are not clear to me. I should play around with
+SNR = 100; % Typical B0 maps SNR values? look it up
+% optimal TEs for dual echo are not clear to me. I should play around with
 % different timings.
 TE = [5e-3 9e-3]; % based on Robinson and Jovicich MRM 2011 66:976-988
-% Typical B0 maps SNR values? look it up
-SNR = 100;
 
-vol = cylindrical_vol; % rename to generalize
 
-vol.simulate_measurement(FA, TE, SNR);
+% multi-echo: play around with this at the scanner to see what's
+% possible
+TE = [2e-3 3.5e-3 5e-3 6.5e-3 8e-3 9.5e-3 11e-3 12.5e-3 14e-3];
+
+% bolero
+TE = [4e-3 5e-3 6e-3 8e-3 12e-3]; % echo delay times: 0, 1, 2, 4, 8 ms
+
+
+spherical_vol.simulate_measurement(FA, TE, SNR);
 
 % get magnitude and phase data
-magn = vol.getMagnitude;
-phase = vol.getPhase;
+magn = spherical_vol.getMagnitude;
+phase = spherical_vol.getPhase;
 compl_vol = magn.*exp(1i*phase);
 
 
@@ -91,10 +99,16 @@ compl_vol = magn.*exp(1i*phase);
 %% Compute deltaB0 maps
 %%-----------------------------------------------------------------------%%
 
-[dual_echo_delf] = +imutils.b0.dual_echo(compl_vol(:,:,:,1:2), [0.001 0.002]);
-[multi_echo_delf] = +imutils.b0.multiecho_linfit(compl_vol, [0.001 0.002 0.003 0.004 0.005 0.006]); 
-
+[dual_echo_delf] = +imutils.b0.dual_echo(compl_vol, TE);
 dual_echo_b0_ppm = 1e6*(dual_echo_delf/3)*(1/42.58e6);
+
+% plot results
+figure
+imagesc(squeeze(dual_echo_b0_ppm(:,:,64)))
+colorbar
+title('dual-echo fit: b0 (ppm)')
+
+[multi_echo_delf] = +imutils.b0.multiecho_linfit(compl_vol, [0.001 0.002 0.003 0.004 0.005 0.006]); 
 multi_echo_b0_ppm = 1e6*(multi_echo_delf/3)*(1/42.58e6);
 
 % plot results
@@ -103,10 +117,8 @@ imagesc(squeeze(multi_echo_b0_ppm(:,:,64)))
 colorbar
 title('multi-echo fit: b0 (ppm)')
 
-figure
-imagesc(squeeze(dual_echo_b0_ppm(:,:,64)))
-colorbar
-title('dual-echo fit: b0 (ppm)')
+
+
 
 figure
 imagesc(squeeze(1e6.*real(zubal_dBz.volume(:,:,64))))
