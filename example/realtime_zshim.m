@@ -91,7 +91,7 @@ end
 FM_mag_path = input('(ADD SLASH AT THE END!) Field map mag path: ');
 FM_phase_path = input('Field map phase path: ');
 MGRE_mag_path = input('MGRE mag path: ');
-respTrace_path = 'PMUresp_signal.resp';
+respTrace_path = 'PMUresp_signal.resp'; % 'realtime_fieldmap_ThomasMoving.resp';
 
 % Hardcode here if needed:
 % FM_mag_path = '09_gre_field_mapping_PMUlog/';
@@ -123,8 +123,8 @@ shimVoi = Mag.segmentspinalcanal_s(Params);
 
 % field map time series
 
-%Params.unwrapper = 'FslPrelude'; % or 'QGU'
-Params.unwrapper = 'QGU';
+Params.unwrapper = 'FslPrelude';
+%Params.unwrapper = 'QGU';
 
 this_info = sprintf('%s',Params.unwrapper);
 fprintf('2D phase unwrapping algorithm: %s\n', this_info);
@@ -184,14 +184,18 @@ GzFields = B0Fields.copy();
 % scaling factor 
 g = 1000/(42.576E6) ; % [units: mT/Hz] 
 
-ImageRes = B0Fields.getvoxelspacing() ; % [units: mm]
+%ImageRes = B0Fields.getvoxelspacing() ; % [units: mm]
+[~,Y0,Z0] = B0Fields.getvoxelpositions() ; % [units: mm]
+
+% for measNo = 1:B0Fields.getnumberofmeasurements
+%     [~,GzFields.img(:,:,1,1,measNo)] = gradient( ...
+%     squeeze(g*B0Fields.img(:,:,1,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
+% end
 
 for measNo = 1:B0Fields.getnumberofmeasurements
-    [~,GzFields.img(:,:,1,1,measNo)] = gradient( ...
-    squeeze(g*B0Fields.img(:,:,1,1,measNo)), ImageRes(1,2)/1000, ImageRes(1,3)/1000 ) ; % [units: mT/m]
+[~,GzFields.img(:,:,1,1,measNo)] = gradient( ...
+   squeeze(g*B0Fields.img(:,:,1,1,measNo)), Y0(1,:)/1000, Z0(:,1)/1000 ) ; % [units: mT/m]
 end
-
-
 
 %% ------------------------------------------------------------------------
 % plot the Gz map time series
@@ -276,6 +280,13 @@ GzField = FieldEval.modelfield( GzFields );
 %% ------------------------------------------------------------------------
 % plot some results
 %% ------------------------------------------------------------------------
+
+figure 
+imagesc(B0Fields.img(:,:,1,1,1))
+axis equal
+title('1st B0 map [Hz]') ;
+colorbar
+
 
 figure
 
