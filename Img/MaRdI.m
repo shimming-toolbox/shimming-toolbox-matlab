@@ -32,10 +32,6 @@ classdef MaRdI < matlab.mixin.SetGet
 %    .Hdrs 
 %       Cell array of (truncated) DICOM headers courtesy of dicominfo().
 %       (One entry for every image)
-%
-% =========================================================================
-% Author::ryan.topfer@polymtl.ca
-% =========================================================================
 
 %% ========================================================================
 %
@@ -118,12 +114,6 @@ if nargin == 1
         nRows      = SpecialHdr.Height ;
         nColumns   = SpecialHdr.Width ;
         
-        if ~myisfield( SpecialHdr.MrProt, 'lRepetitions' ) 
-            nVolumes = 1 ;
-        else
-            nVolumes = SpecialHdr.MrProt.lRepetitions + 1 ;
-        end
-        
         % containers for a few terms varying between dicoms:
         sliceLocations = zeros( nImages, 1 ) ; % [units: mm]
         echoTimes      = zeros( nImages, 1 ) ; % [units: ms]
@@ -151,8 +141,34 @@ if nargin == 1
         echoTimes      = sort( unique( echoTimes ), 1, 'ascend' ) ; 
         nEchoes        = length( echoTimes ) ; 
         
+        if ~myisfield( SpecialHdr.MrProt, 'lRepetitions' ) 
+            nVolumesAcquired = 1 ;
+        else
+            nVolumesAcquired = SpecialHdr.MrProt.lRepetitions + 1 ;
+        end
+       
+        if nImages == nSlices*nEchoes*nVolumesAcquired
+            nVolumes = nVolumesAcquired;
+        else
+            acquisitionTimes = zeros(nImages, 1);
+
+            for iImg = 1 : nImages
+                acquisitionTimes(iImg) = str2num(RawHdrs{iImg}.AcquisitionTime);
+            end
+            
+            nVolumes = numel(unique(acquisitionTimes))/(nSlices*nEchoes);
+            msg = sprintf( [ ...
+                'Missing images or invalid DICOM header.' ...
+                '\n*****\n' ...
+                'Of the ' num2str(nVolumesAcquired) ' image repetitions (volume measurements) ' ...
+                'claimed by the header, only ' num2str(nVolumes) ' were found.\n' ...
+                'This scenario is untested and may cause errors.' ...
+                '\n*****\n' ] );
+            warning(msg);
+        end
+
         Img.img = zeros( nRows, nColumns, nSlices, nEchoes, nVolumes ) ;
-        
+         
         % copy of RawHdrs to be reorganized:
         Img.Hdrs = cell( nSlices, nEchoes, nVolumes ) ;
         
@@ -597,16 +613,9 @@ function [t0] = estimatekorigintime( Img )
 % sampling, beginning at the k_min periphery, has been considered in the
 % current implementation!
  
-nSlices = Img.getnumberofslices() ;
-nEchoes = length( Img.getechotime() ) ;
-
-if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
-    nMeasurements = ( Img.Hdr.MrProt.lRepetitions + 1) ;
-else
-    nMeasurements = 1;
-end
-
-assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ;
+nSlices       = Img.getnumberofslices() ;
+nEchoes       = length( Img.getechotime() ) ;
+nMeasurements = Img.getnumberofmeasurements();
 
 tAcq = Img.getacquisitiontime() ;
 
@@ -746,17 +755,9 @@ function [t] = getacquisitiontime( Img )
 % For EPI MOSAIC (which has a single AcquisitionTime value for each volume),
 % t( iSlice ) = AcquisitionTime (first slice) + iSlice*(volumeTR/nSlices)
 
-nSlices = Img.getnumberofslices() ;
-nEchoes = length( Img.getechotime() ) ;
-
-if myisfield( Img.Hdr.MrProt, 'lRepetitions' ) 
-    nMeasurements = ( Img.Hdr.MrProt.lRepetitions + 1) ;
-else
-    nMeasurements = 1;
-end
-
-%assert( nMeasurements == size( Img.img, 5 ), 'Invalid .Hdr' ) ; % EAO:
-%commented this out so I could save a time series
+nSlices       = Img.getnumberofslices() ;
+nEchoes       = length( Img.getechotime() ) ;
+nMeasurements = Img.getnumberofmeasurements();
 
 t = zeros( nSlices, nEchoes, nMeasurements ) ;
 
@@ -1234,32 +1235,32 @@ elseif nargin >= 5
     end
 end
 
-isUsingScatteredInterpolant = [] ;
+assert( [ndims(Img.img) >= 2] & [ndims(Img.img) <= 5],...
+    'Dimensions of input Img.img must be >= 2, and <= 5') ;
 
-if (ndims(Img.img) > 1) && (ndims(Img.img) <= 5)
+% -----------------
+%% Define variables
+gridSizeIp = Img.getgridsize();
 
-    gridSizeIp = Img.getgridsize() ;
-    
-    if gridSizeIp(3) > 1
-        isUsingScatteredInterpolant = true ;
-    else
-        isUsingScatteredInterpolant = false ;
-    end
+if gridSizeIp(3) > 1
+    isUsingScatteredInterpolant = true ;
 else
-    error('Dimensions of input Img.img must be >= 2, and <= 5') ;
+    isUsingScatteredInterpolant = false ;
 end
 
-if ndims( X_Ep ) == 2 % interpolating down to 2d single-slice
-    gridSizeEp = [ size(X_Ep) 1 ] ;
-elseif ndims( X_Ep ) == 3
-    gridSizeEp = size(X_Ep) ;
-else
-    error('Expected 2d or 3d target interpolation grid')
+
+switch ndims(X_Ep)
+    case 2  % interpolating down to a single-slice
+        gridSizeEp = [ size(X_Ep) 1 ] ;
+    case 3 % interpolating to a 3d volume
+        gridSizeEp = size(X_Ep) ;
+    otherwise % sanity check 
+        error('Expected 2d or 3d target interpolation grid')
 end
 
-%% -----
-% Define variables
-gridSizeIp = size( X_Ip ) ;
+% sanity check    
+assert( [all(gridSizeEp>=1)] & [nnz(gridSizeEp==1)<=1], ...
+    'Unexpected result for size of grid coordinates:' );
 
 if myisfieldfilled( Img.Hdr, 'MaskingImage' ) 
     maskIp = logical( sum( sum( Img.Hdr.MaskingImage, 5 ), 4 ) ) ;
@@ -1267,16 +1268,21 @@ else
     maskIp = true( gridSizeIp ) ;
 end
 
-gridSizeEp = size( X_Ep ) ;
-if ndims(gridSizeEp) == 2
-    gridSizeEp = [gridSizeEp 1] ;
-end
-
 if ~exist('maskEp')
     if ~isUsingScatteredInterpolant 
-        warning('No logical mask provided: For faster results, restrict the target/output voxels to those of interest by providing this mask!') ;
+        warning(['No logical mask provided: For faster results, ' ...
+            'restrict the target/output voxels to those of interest by providing this mask!']) ;
     end
     maskEp = true( gridSizeEp ) ;
+else
+    if gridSizeEp(3) > 1
+        gridSizeMaskEp = size(maskEp)
+    else
+        gridSizeMaskEp = [size(maskEp) 1]
+    end
+    assert( isequal(gridSizeMaskEp, gridSizeEp), ...
+        [ 'Dimensions of the arrays of extrapolation coordinate ' ...
+          'and the assigned extrapolation ROI mask must be identical' ] );
 end
 
 iEp = find( maskEp(:) ) ; % indices of target voxels
