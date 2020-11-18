@@ -1,4 +1,4 @@
-function [b0] = SWFM_F(complVol, TE)
+function [b0] = SWFM_Formulecorrige(complVol, TE)
 % SWFM computes c0 fieldmaps based on "Selective-Weighted-Field-Mapping"
 % method.
 %
@@ -52,24 +52,22 @@ for t=1:length(TE)
 end
 
     % Calcul du facteur FB présent dans la fonction arctangente à 4 cadrants
-sigma=zeros( size(mag_data)  );
-FB=zeros(size(mag_data));
-sigmatot=zeros( size(mag_data,1), size(mag_data,2), size(mag_data,3)  );
+
+sigmatot=0;
+FB=zeros(size(mag_data,4));
+sigma = imutils.b0.Csigma(mag_data);  
 for t=1:length(TE)
-    sigma(:,:,:,t) = stdfilt(mag_data(:,:,:,t));
-end
-for t=1:length(TE)
-    sigmatot(:,:,:)=sigmatot(:,:,:) + sigma(:,:,:,t);
+    sigmatot = sigmatot + sigma(t);
 end
 for t =1:length(TE) 
-    FB(:,:,:,t)=sigmatot./sigma(:,:,:,t);
+    FB(t)=sigmatot./sigma(t);
 end
 
 
 % Calcul du facteur SDQWF
 SDQWF=zeros(size(mag_data));
 for t=1:length(TE)
-    SDQWF(:,:,:,t)=FM(:,:,:,t).*FB(:,:,:,t);
+    SDQWF(:,:,:,t)=FM(:,:,:,t).*FB(t);
 end
     
 % Calcul du facteur produit X1Xj présent dans la fonction arctangente à 4 cadrants
@@ -81,8 +79,7 @@ end
 % Calcul du facteur somme présent dans la fonction arctangente à 4 cadrants        
 sommable1=zeros(size(complVol));
 sommable2=zeros(size(complVol));
-somme1=zeros( size(complVol,1),size(complVol,2) ,size(complVol,3) );
-somme2=zeros( size(complVol,1),size(complVol,2) ,size(complVol,3) );
+
 cond1 = zeros( size(complVol) );
 cond2 = zeros( size(complVol) );
 cond3 = zeros( size(complVol) );
@@ -109,15 +106,7 @@ for t = 1 : length(TE)
         end
     end
 end
-                    
-
-for t=1:length(TE)
-    somme1(:,:,:) = somme1(:,:,:) + sommable1(:,:,:,t);
-    somme2(:,:,:) = somme2(:,:,:) + sommable2(:,:,:,t);
-end
-
-
-
+            
 % % Somme n'a pas que des valeurs comprises entre 180 et -180 degrés. Il faut
 % % faire en sorte que ce soit le cas ?!   
 % for i = 1 : size( somme1, 1 )
@@ -158,92 +147,27 @@ end
 % imposer que la norme soit égale à 1.
 
 % Attention !! Les angles donnés par somme sont des angles en degrés ?! 
-Xco1=zeros( size(somme1,1) , size(somme1,2) , size(somme1,3)  );
-Yco1=zeros( size(somme1,1) , size(somme1,2) , size(somme1,3)  );
-Xco2=zeros( size(somme2,1) , size(somme2,2) , size(somme2,3)  );
-Yco2=zeros( size(somme2,1) , size(somme2,2) , size(somme2,3)  );
-% 1
-for i=1:size(somme1,1)
-    for j=1:size(somme1,2)
-        for k=1:size(somme1,3)
-            if somme1(i,j,k)< 90 && somme1(i,j,k)>0
-                Xco1(i,j,k)=1./(sqrt(1+(tan(somme1(i,j,k))).^2));
-                Yco1(i,j,k)=sqrt( (( tan( somme1(i,j,k) ) ).^2)./(1 + ( tan( somme1(i,j,k) ) ).^2));
-            elseif somme1(i,j,k)> 90
-                Xco1(i,j,k)=-1./(sqrt(1+(tan(somme1(i,j,k))).^2));
-                Yco1(i,j,k)=sqrt( (( tan( somme1(i,j,k) ) ).^2)./(1 + ( tan( somme1(i,j,k) ) ).^2));
-            elseif somme1(i,j,k)> -90 && somme1(i,j,k)<0
-                Xco1(i,j,k)=1./(sqrt(1+(tan(somme1(i,j,k))).^2));
-                Yco1(i,j,k)=-sqrt( (( tan( somme1(i,j,k) ) ).^2)./(1 + ( tan( somme1(i,j,k) ) ).^2));
-            elseif somme1(i,j,k)< -90
-                Xco1(i,j,k)=-1./(sqrt(1+(tan(somme1(i,j,k))).^2));
-                Yco1(i,j,k)=-sqrt( (( tan( somme1(i,j,k) ) ).^2)./(1 + ( tan( somme1(i,j,k) ) ).^2));
-            elseif somme1(i,j,k)==0
-                Xco1 = 1 ;
-                Yco1 = 0 ;
-            elseif somme1(i,j,k)==90
-                Xco1 = 0 ;
-                Yco1 = 1 ;
-            elseif somme1(i,j,k)==-90
-                Xco1 = 0 ;
-                Yco1 = -1 ;
-            elseif somme1(i,j,k)==180 || somme1(i,j,k)==-180
-                Xco1 = -1 ;
-                Yco1 = 0 ;
-            end
-        end
-    end
-end
-for i=1:size(somme2,1)
-    for j=1:size(somme2,2)
-        for k=1:size(somme2,3)
-            if somme2(i,j,k)< 90 && somme2(i,j,k)>0
-                Xco2(i,j,k)=1./(sqrt(1+(tan(somme2(i,j,k))).^2));
-                Yco2(i,j,k)=sqrt( (( tan( somme2(i,j,k) ) ).^2)./(1 + ( tan( somme2(i,j,k) ) ).^2));
-            elseif somme2(i,j,k)> 90
-                Xco2(i,j,k)=-1./(sqrt(1+(tan(somme2(i,j,k))).^2));
-                Yco2(i,j,k)=sqrt( (( tan( somme2(i,j,k) ) ).^2)./(1 + ( tan( somme2(i,j,k) ) ).^2));
-            elseif somme2(i,j,k)> -90 && somme2(i,j,k)<0
-                Xco2(i,j,k)=1./(sqrt(1+(tan(somme2(i,j,k))).^2));
-                Yco2(i,j,k)=-sqrt( (( tan( somme2(i,j,k) ) ).^2)./(1 + ( tan( somme2(i,j,k) ) ).^2));
-            elseif somme2(i,j,k)< -90
-                Xco2(i,j,k)=-1./(sqrt(1+(tan(somme2(i,j,k))).^2));
-                Yco2(i,j,k)=-sqrt( (( tan( somme2(i,j,k) ) ).^2)./(1 + ( tan( somme2(i,j,k) ) ).^2));
-            elseif somme2(i,j,k)==0
-                Xco2 = 1 ;
-                Yco2 = 0 ;
-            elseif somme2(i,j,k)==90
-                Xco2 = 0 ;
-                Yco2 = 1 ;
-            elseif somme2(i,j,k)==-90
-                Xco2 = 0 ;
-                Yco2 = -1 ;
-            elseif somme2(i,j,k)==180 || somme2(i,j,k)==-180
-                Xco2 = -1 ;
-                Yco2 = 0 ;
-            end
-        end
-    end
-end
-
-for i= 1:size(complVol,1) 
-   for j= 1:size(complVol,2)
-       for k= 1: size(complVol,3)
-           if cond1(i,j,k,t)==1
-               b0(i,j,k)  = factor.*atan2(Yco1(i,j,k),Xco1(i,j,k));
-           elseif cond2(i,j,k,t)==1
-               b0(i,j,k)  = factor.*atan2(Yco2(i,j,k),Xco2(i,j,k));
-           elseif cond3(i,j,k,t)==1
-               b0(i,j,k)  = factor.*(pi/2);
-           elseif cond4(i,j,k,t)==1
-               b0(i,j,k)  = factor.*(-pi/2); 
-           elseif cond5(i,j,k,:)==1
-               b0(i,j,k)  =  0;
+b0=zeros( size(complVol,1) ,size(complVol,2) ,size(complVol,3));
+for t = 1:length(TE)
+    for i= 1:size(complVol,1) 
+       for j= 1:size(complVol,2)
+           for k= 1: size(complVol,3)
+               if cond1(i,j,k,t)==1
+                   b0(i,j,k)  = b0(i,j,k) + atan(sommable1(i,j,k,t));
+               elseif cond2(i,j,k,t)==1
+                   b0(i,j,k)  = b0(i,j,k) + atan(sommable2(i,j,k,t));
+               elseif cond3(i,j,k,t)==1
+                   b0(i,j,k)  = b0(i,j,k) + pi/2;
+               elseif cond4(i,j,k,t)==1
+                   b0(i,j,k)  = b0(i,j,k) + (-pi/2);
+               elseif cond5(i,j,k,:)==1
+                   b0(i,j,k)  = b0(i,j,k);
+               end
            end
        end
-   end
+    end
 end
-       
+b0(:,:,:)= factor.*b0(:,:,:);    
 b0 = b0./(2*pi); % [Hz]
 
 
