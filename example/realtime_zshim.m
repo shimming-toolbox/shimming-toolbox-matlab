@@ -80,6 +80,7 @@ if nargin > 1
         sortdicoms( unsortedDicomDir, sortedDicomDir, 0 );
     end
     % copy respiratory trace file from mounted drive to local directory
+    %unix('cp /SYNGO_TRANSFER/TEMP/PMUresp_signal.resp .')
     unix('cp /SYNGO_TRANSFER/SYNGO_TRANSFER/PMUresp_signal.resp .')
 end
         
@@ -147,10 +148,10 @@ B0Fields = FieldEval( FM_mag_path, FM_phase_path, Params );
 % or the subject touches it, then both respiratory and static corrections fail, rather than just the former)
 
 % image filtering
-% for ind = 1:size(Fields.img,5)
-%     %Fields.img(:,:,1,1,ind) = imgaussfilt(squeeze(Fields.img(:,:,1,1,ind)),1);
-%     Fields.img(:,:,1,1,ind) = imnlmfilt(squeeze(Fields.img(:,:,1,1,ind)),'DegreeOfSmoothing',20);
-% end
+for ind = 1:size(B0Fields.img,5)
+    B0Fields.img(:,:,1,1,ind) = imgaussfilt(squeeze(B0Fields.img(:,:,1,1,ind)),1);
+    %Fields.img(:,:,1,1,ind) = imnlmfilt(squeeze(Fields.img(:,:,1,1,ind)),'DegreeOfSmoothing',20);
+end
 
 % Siemens PMU recording
 Pmu   = ProbeTracking(respTrace_path);
@@ -170,7 +171,7 @@ B0Fields.associateaux( Pmu );
 % caxis([0 500])
 % colorbar
 % title('Field map time series (Hz)') ;
-% 
+
 % print('-djpeg','B0_TimeSeries.jpeg');
 
 
@@ -287,6 +288,68 @@ axis equal
 title('1st B0 map [Hz]') ;
 colorbar
 
+%% ------------------------------------------------------------------------
+% This code block was written to visualize the B0 and Gz fields along the 
+% spinal cord, over the timecourse of respiration and assess the effect of
+% Gaussian smoothing.
+% To do: add color coding to indicate inhilation and exhilation curves
+%% ------------------------------------------------------------------------
+
+% roi_vol = double(niftiread('nifti/02_gre_field_mapping_PMUlog/02_gre_field_mapping_PMUlog_gre_field_mapping_PMUlog_20201023133057_2_e1_mask.nii'));
+% roi_desc = niftiinfo('nifti/02_gre_field_mapping_PMUlog/02_gre_field_mapping_PMUlog_gre_field_mapping_PMUlog_20201023133057_2_e1_mask.nii');
+% 
+% roi_vol = flipud(permute(roi_vol,[2 1]));
+% roi_data(:,:,:) = double(B0Fields.img(:,:,1,1,:)).*roi_vol(:,:);
+% 
+% ind = 1;
+% for frame = 1:size(B0Fields.img,5)
+%     for slice = 1:size(B0Fields.img,1)  
+%         if max(roi_vol(slice,:)) == 1
+%             % calculate the average signal in the ROI 
+%             mean_roi_data(ind,frame) = mean(nonzeros(roi_data(slice,:,frame)));
+%             ind = ind + 1;
+%         end
+%     end
+%     ind = 1;
+% end
+% 
+% figure 
+% hold on
+% for frame = 1:size(mean_roi_data,2)
+%     plot(1:size(mean_roi_data,1),mean_roi_data(:,frame),'linewidth',2)
+% end
+% legend    
+% title('\Delta B_0 along the spinal cord - throughout respiration (time points 1-50)')
+% xlabel('position along the spinal cord (slice index)')
+% ylabel('\Delta B_0 [Hz]')
+% 
+% % repeat for Gz
+% roi_data(:,:,:) = double(GzFields.img(:,:,1,1,:)).*roi_vol(:,:);
+% 
+% ind = 1;
+% for frame = 1:size(B0Fields.img,5)
+%     for slice = 1:size(B0Fields.img,1)     
+%         if max(roi_vol(slice,:)) == 1
+%             % calculate the average signal in the ROI 
+%             mean_roi_data(ind,frame) = mean(nonzeros(roi_data(slice,:,frame)));
+%             ind = ind + 1;
+%         end
+%     end
+%     ind = 1;
+% end
+% 
+% figure
+% hold on
+% for frame = 1:size(mean_roi_data,2)
+%     plot(1:size(mean_roi_data,1),mean_roi_data(:,frame),'linewidth',2)
+% end
+% legend
+% title('Gz along the spinal cord - throughout respiration (time points 1-50)')
+% xlabel('position along the spinal cord (slice index)')
+% ylabel('Gz [mT/m]')
+% ylim([-0.05 0.37]);
+
+%% ------------------------------------------------------------------------
 
 figure
 
@@ -321,47 +384,51 @@ mask = logical( sum( mask, 4 ) ) ; % combine echo-specific masks
 GzField.resliceimg( X,Y,Z, mask ) ; % reslice static b0 image 
 GzField.Model.Riro.resliceimg( X,Y,Z, mask ) ; % reslice RIRO image
 
+% % 'interp/extrap' (nearest-neighbour substitution) :
+% B0Fields.resliceimg( X,Y,Z, mask ) ; % reslice static b0 image 
+
+
 
 %% ------------------------------------------------------------------------
 % plot some results
 %% ------------------------------------------------------------------------
 
-figure 
-
-for ind = 1:1:size(GzField.img,3)
-    subplot_tight(2,size(GzField.img,3),ind)
-    imagesc( GzField.img(:,:,ind) ) ;
-    caxis([-0.2 0.2])
-    %colorbar
-    set(gca, 'XTickLabel', [],'XTick',[])
-    set(gca, 'YTickLabel', [],'YTick',[])
-    if ind == 1
-        title('resampled static Gz (mT/m)') ;
-        set(get(gca,'title'),'Position',[150 0.3 1])
-        cb = colorbar('Location','northoutside');
-        pos=get(cb,'Position');
-        set(cb,'Position',pos+[0.4,0.08,0.1,0]);
-    end
-end
-
-
-for ind = 1:1:size(GzField.img,3) 
-    subplot_tight(2,size(GzField.img,3),size(GzField.img,3)+ind)
-    imagesc( GzField.Model.Riro.img(:,:,ind)/GzField.Model.Riro.Aux.Data.p ) ;
-    caxis([-0.0001 0.0001])
-    %colorbar
-    set(gca, 'XTickLabel', [],'XTick',[])
-    set(gca, 'YTickLabel', [],'YTick',[])
-    if ind == 1
-        title('resampled RIRO correction (mT/m/unit-PMU)') ;
-        set(get(gca,'title'),'Position',[150 0.3 1])
-                cb = colorbar('Location','northoutside');
-        pos=get(cb,'Position');
-        set(cb,'Position',pos+[0.4,0.08,0.1,0]);
-    end
-end
-
-print('-djpeg','resampled_Gz_map.jpeg');
+% figure 
+% 
+% for ind = 1:1:size(GzField.img,3)
+%     subplot_tight(2,size(GzField.img,3),ind)
+%     imagesc( GzField.img(:,:,ind) ) ;
+%     caxis([-0.2 0.2])
+%     %colorbar
+%     set(gca, 'XTickLabel', [],'XTick',[])
+%     set(gca, 'YTickLabel', [],'YTick',[])
+%     if ind == 1
+%         title('resampled static Gz (mT/m)') ;
+%         set(get(gca,'title'),'Position',[150 0.3 1])
+%         cb = colorbar('Location','northoutside');
+%         pos=get(cb,'Position');
+%         set(cb,'Position',pos+[0.4,0.08,0.1,0]);
+%     end
+% end
+% 
+% 
+% for ind = 1:1:size(GzField.img,3) 
+%     subplot_tight(2,size(GzField.img,3),size(GzField.img,3)+ind)
+%     imagesc( GzField.Model.Riro.img(:,:,ind)/GzField.Model.Riro.Aux.Data.p ) ;
+%     caxis([-0.0001 0.0001])
+%     %colorbar
+%     set(gca, 'XTickLabel', [],'XTick',[])
+%     set(gca, 'YTickLabel', [],'YTick',[])
+%     if ind == 1
+%         title('resampled RIRO correction (mT/m/unit-PMU)') ;
+%         set(get(gca,'title'),'Position',[150 0.3 1])
+%                 cb = colorbar('Location','northoutside');
+%         pos=get(cb,'Position');
+%         set(cb,'Position',pos+[0.4,0.08,0.1,0]);
+%     end
+% end
+% 
+% print('-djpeg','resampled_Gz_map.jpeg');
 
 %% ------------------------------------------------------------------------
 % Simple (voxelwise) z-shim calculation:
@@ -391,6 +458,21 @@ for iSlice = 1 : nSlices
     Corrections.riro( iSlice )   = median( riroTarget( sliceVoi ) ) ;
     
 end
+
+% mean_B0 = zeros( nSlices, 1 ) ;
+% firstB0 = B0Fields.img(:,:,:,1,1,1) ;
+% 
+% for iSlice = 1 : nSlices
+% 
+%     sliceVoi = false( size( shimVoi ) ) ;
+%     sliceVoi( :,:,iSlice ) = shimVoi(:,:, iSlice ) ;
+% 
+%     mean_B0( iSlice ) = median( firstB0( sliceVoi ) ) ;
+%     
+% end
+% 
+% figure
+% plot(1:nSlices,mean_B0,'k','linewidth',2)
 
 %% ------------------------------------------------------------------------
 % write to .txt file readable by sequence
@@ -441,6 +523,7 @@ end
 
 % unless in offline processing mode (nargin = 1), copy Dynamic_Gradients.txt to mounted drive
 if nargin > 1
+   %unix('cp zshim_gradients.txt /SYNGO_TRANSFER/TEMP/')
    unix('cp zshim_gradients.txt /SYNGO_TRANSFER/SYNGO_TRANSFER/')
 end
 
