@@ -9,7 +9,14 @@ figure; imagesc(SheppLogan2d_vol.deltaB0)
 
 % simulate MRI magnitude and phase data for your Shepp-Logan phantom in the
 % presence of the deltaB0 field you generated
-TE = [0.001 0.0015 0.0020 0.0025 0.0030 0.0035 0.0040 0.0045 0.0050 0.0055]; % echo times
+% indice = 1 ;
+deltaTE=0.0001;
+ TE=[0.00100 0.00115 0.00120 0.00125 0.00130 0.00135 0.00140]
+%  for t=0:1
+%      TE(indice) = 0.001 + t*0.0005;
+%      indice = indice + 1 ;
+%  end
+% echo times
 SheppLogan2d_vol.simulate_measurement(15, TE, 100);
 
 % get magnitude and phase data
@@ -27,7 +34,7 @@ compl_vol = magn.*exp(1i*phase);
 % SWFM method (it will be in units of Hz)
 [SWFM_delf] = +imutils.b0.SWFM_Formulecorrige(compl_vol(:,:,:,:), TE);
 % plot it, it should look the same as the deltaB0 you simulated!
-figure(50); imagesc(SWFM_delf)
+figure('Name','Champ magnétique inhomogène'); imagesc(SWFM_delf)
 
 % save your deltaB0 map as a nifti file
 nii_vol = make_nii(SWFM_delf);

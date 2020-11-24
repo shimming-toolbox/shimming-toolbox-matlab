@@ -40,19 +40,19 @@ end
 
 %noiseData = reshape(noiseData, size(dataVol,1)*size(dataVol,2), size(dataVol,3), size(dataVol,4));
 stdNoise = zeros(1, size(dataVol,4) );
-
-for echo = 1:size(dataVol,4)
-        if size(dataVol,3)==1
-            stdNoise(echo) = std(squeeze(noiseData(:,:,:,echo)),0,'all');
+indice = 1;
+for echo = 2:size(dataVol,4)
+        if size(noiseData,3)==1
+            stdNoise(indice) = std(squeeze(noiseData(:,:,:,indice)),0,'all');
+            indice=indice+1;
         else
-            stdNoise(echo) = std(noiseData(:,:,:,echo),0,'all');
+            stdNoise(indice) = std(noiseData(:,:,:,indice),0,'all');
+            indice=indice+1;
         end
 end
-sigma=stdNoise
-
-
-% SNR = zeros(1, size(dataVol,4) );
-% for echo = 1:size(dataVol,4)
-%         SNR(echo) = snr(dataVol(:,:,:,echo),noiseData(:,:,:,echo));
-% end
-% SNR
+sigma=stdNoise(2:end);
+SNR = zeros(1, size(dataVol,4) );
+for echo = 1:size(dataVol,4)
+        SNR(echo) = snr(dataVol(:,:,:,echo),noiseData(:,:,:,echo));
+end
+SNR

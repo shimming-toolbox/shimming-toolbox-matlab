@@ -44,7 +44,7 @@ end
 % Calcul du facteur FM 
 magtotal=zeros( size(mag_data,1), size(mag_data,2), size(mag_data,3)  );
 FM=zeros(size(mag_data));
-for t=1:length(TE)
+for t=2:length(TE)
     magtotal(:,:,:)=magtotal(:,:,:)+mag_data(:,:,:,t);
 end
 for t=1:length(TE)
@@ -56,7 +56,7 @@ end
 sigmatot=0;
 FB=zeros(1,size(mag_data,4));
 sigma = imutils.b0.Csigma(mag_data);  
-for t=1:length(TE)
+for t=2:length(TE)
     sigmatot = sigmatot + sigma(t);
 end
 for t =1:length(TE)
@@ -76,7 +76,7 @@ X1X_T=zeros(size(complVol));
 deltaphi=zeros(size(complVol));
 for t=1:length(TE)
     deltaphi(:,:,:,t)=ph_data(:,:,:,1)-ph_data(:,:,:,t);      
-    X1X_T(:,:,:,t)= mag_data(:,:,:,1).*mag_data(:,:,:,t).*exp(1i.*(-deltaphi(:,:,:,t)));
+    X1X_T(:,:,:,t)= mag_data(:,:,:,1).*mag_data(:,:,:,t).*exp(1i.*(deltaphi(:,:,:,t)));
 end
 
 % Calcul du facteur somme présent dans la fonction arctangente à 4 cadrants        

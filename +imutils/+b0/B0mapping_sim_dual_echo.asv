@@ -9,7 +9,7 @@ figure; imagesc(SheppLogan2d_vol.deltaB0)
 
 % simulate MRI magnitude and phase data for your Shepp-Logan phantom in the
 % presence of the deltaB0 field you generated
-TE = [0.001 0.0015 0.0020 0.0025 0.0030 ]; % echo times
+TE = [0.001 0.0015 0.0020 0.0025 0.0030]; % echo times
 SheppLogan2d_vol.simulate_measurement(15, TE, 100);
 
 % get magnitude and phase data
