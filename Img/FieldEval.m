@@ -856,7 +856,9 @@ if isa( Fields, 'FieldEval' )
     
     nVoxels    = prod( Fields.getgridsize() ) ;
     nVoxelsVoi = nnz(mask) ;
-    I          = speye( nVoxelsVoi, nVoxelsVoi ) ;
+    indicesVoi = find( mask~= 0 ) ;
+    %I          = speye( nVoxelsVoi, nVoxelsVoi ) ;
+    I          = speye( nVoxels, nVoxels ) ;
    
     % static field solution to correspond to mean resp signal :
     pMean     = mean( Fields.Aux.Data.p ) ;
@@ -869,7 +871,8 @@ if isa( Fields, 'FieldEval' )
     
     % solution vector: Bt
     Bt  = Fields.img( :, :, :, 1, 1) ;
-    Bt  = Bt( mask ) ;
+    Bt = reshape(Bt,[nVoxels,1]) ;
+    %Bt  = Bt( mask ) ;
 
     disp( ['Preparing linear fitting operator...'] )
     
@@ -879,7 +882,8 @@ if isa( Fields, 'FieldEval' )
         A    = [ A ; I p(iT)*I ] ;
         
         tmpB = Fields.img( :, :, :, 1, iT) ;
-        tmpB = tmpB( mask ) ;
+        tmpB = reshape(tmpB,[nVoxels,1]) ;
+        %tmpB = tmpB( mask ) ;
         Bt   = [ Bt ; tmpB(:) ] ;
     end
     
@@ -891,25 +895,30 @@ if isa( Fields, 'FieldEval' )
     % isRegularizing = false ; 
     %     % lamda(1): regularization parameter for the static field component
     %     % lamda(2): " " for the RIRO component
-    %     lamda = [0 0];
+        lamda = [10 30000]; % best for 1st order
+        %lamda = [15 15000]; % best for 2nd order
     %
     % if isRegularizing
     % A0 = A;
-    %     % construct masking/truncation operator M to limit the fit to 
-    %     % voxels within the reliable region of the image (i.e. region of sufficient SNR)
-    %     nVoxelsVoi = nnz( Fields.Hdr.MaskingImage(:,:,:,1) ) ;
-    %     indicesVoi = find( Fields.Hdr.MaskingImage(:,:,:,1)~= 0 ) ;
-    %     Mvoi = sparse( [1:nVoxelsVoi], indicesVoi, ones([nVoxelsVoi 1]), nVoxelsVoi, nVoxels ) ;
-    %     
-    %     [Dx, Dy, Dz] = createdifferenceoperators( Fields.getgridsize(), Fields.getvoxelspacing(), 2) ;
-    %
-    %     L = Dx + Dy + Dz ;
-    %
-    %     R  = [lamda(1)*Mvoi*L sparse( size(Mvoi*L,1),size(Mvoi*L,2) ) ; 
-    %           sparse( size(Mvoi*L,1),size(Mvoi*L,2) ) lamda(2)*Mvoi*L ] ; 
-    %
-    %     A  = [A; R] ;
-    %     Bt = [Bt ; zeros(2*nVoxelsVoi, 1 ) ] ;
+        % construct masking/truncation operator M to limit the fit to 
+        % voxels within the reliable region of the image (i.e. region of sufficient SNR)
+        %nVoxelsVoi = nnz( Fields.Hdr.MaskingImage(:,:,:,1) ) ;
+        %indicesVoi = find( Fields.Hdr.MaskingImage(:,:,:,1)~= 0 ) ;
+        Mvoi = sparse( [1:nVoxelsVoi], indicesVoi, ones([nVoxelsVoi 1]), nVoxelsVoi, nVoxels ) ;
+        
+        %[Dx, Dy, Dz] = createdifferenceoperators( Fields.getgridsize(), Fields.getvoxelspacing(), 2) ;
+        [Dx, Dy, Dz] = createdifferenceoperators( Fields.getgridsize(), Fields.getvoxelspacing(), 1) ;
+    
+        L = Dx + Dy + Dz ;
+    
+        %R  = [lamda(1)*Mvoi*L sparse( size(Mvoi*L,1 ),size(Mvoi*L,2) ) ; 
+        %      sparse( size(Mvoi*L,1),size(Mvoi*L,2) ) lamda(2)*Mvoi*L ] ;
+        R  = [lamda(1)*L sparse( size(L,1 ),size(L,2) ) ; 
+              sparse( size(L,1),size(L,2) ) lamda(2)*L ] ;
+    
+        A  = [A; R] ;
+        %Bt = [Bt ; zeros(2*nVoxelsVoi, 1 ) ] ;
+        Bt = [Bt ; zeros(2*nVoxels, 1 ) ] ;
     % end
     
     disp( ['Performing fit...'] )
@@ -919,25 +928,32 @@ if isa( Fields, 'FieldEval' )
     CgParams.maxIterations = 500 ;    
     CgParams.isDisplayingProgress = true ;    
 
+%     x = cgls( A'*A, ... % least squares operator
+%               A'*Bt, ... % effective solution vector
+%               zeros( [2*nVoxelsVoi 1] ) , ... % initial 'guess' solution vector
+%               CgParams ) ;
+          
     x = cgls( A'*A, ... % least squares operator
-              A'*Bt, ... % effective solution vector
-              zeros( [2*nVoxelsVoi 1] ) , ... % initial 'guess' solution vector
-              CgParams ) ;
+          A'*Bt, ... % effective solution vector
+          zeros( [2*nVoxels 1] ) , ... % initial 'guess' solution vector
+          CgParams ) ;      
     
     Field                    = Fields.copy() ; 
     Field.img                = Field.img(:,:,:,1,1) ;
     Riro                     = Fields.copy() ; 
     Riro.img                 = Riro.img(:,:,:,1,1) ;
     
-    Field.img( mask )        = x(1:nVoxelsVoi) ;
-    Field.img( ~mask )       = 0 ;
+    %Field.img( mask )        = x(1:nVoxelsVoi) ;
+    Field.img(:,:,:,1,1)       = reshape(x(1:nVoxels),[size(Fields.img,1),size(Fields.img,2),size(Fields.img,3)]);
+    %Field.img( ~mask )       = 0 ;
     Field.Hdr.MaskingImage   = mask ; 
     Field.Hdr.MaskingImage   = Field.getvaliditymask( Params.maxAbsField ) ;
     Field.Aux.Data.p         = pMean ; 
     
     % scale RIRO by RMSE of physio signal	
-    Riro.img( mask )        = pShiftRms .* x(nVoxelsVoi+1:end); 
-    Riro.img( ~mask )       = 0 ;
+    %Riro.img( mask )        = pShiftRms .* x(nVoxelsVoi+1:end); 
+    Riro.img(:,:,:,1,1)        = pShiftRms .* reshape(x(nVoxels+1:end),[size(Fields.img,1),size(Fields.img,2),size(Fields.img,3)]);
+    %Riro.img( ~mask )       = 0 ;
     Riro.Hdr.MaskingImage   = mask ; % not redundant: mask used in following call to .getvaliditymask()
     Riro.Hdr.MaskingImage   = Riro.getvaliditymask( Params.maxFieldDifference ) ;
     Riro.Aux.Data.p         = pShiftRms ; 

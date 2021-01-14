@@ -148,10 +148,10 @@ B0Fields = FieldEval( FM_mag_path, FM_phase_path, Params );
 % or the subject touches it, then both respiratory and static corrections fail, rather than just the former)
 
 % image filtering
-for ind = 1:size(B0Fields.img,5)
-    B0Fields.img(:,:,1,1,ind) = imgaussfilt(squeeze(B0Fields.img(:,:,1,1,ind)),1);
-    %Fields.img(:,:,1,1,ind) = imnlmfilt(squeeze(Fields.img(:,:,1,1,ind)),'DegreeOfSmoothing',20);
-end
+% for ind = 1:size(B0Fields.img,5)
+%     B0Fields.img(:,:,1,1,ind) = imgaussfilt(squeeze(B0Fields.img(:,:,1,1,ind)),1);
+%     %Fields.img(:,:,1,1,ind) = imnlmfilt(squeeze(Fields.img(:,:,1,1,ind)),'DegreeOfSmoothing',20);
+% end
 
 % Siemens PMU recording
 Pmu   = ProbeTracking(respTrace_path);
@@ -194,8 +194,10 @@ g = 1000/(42.576E6) ; % [units: mT/Hz]
 % end
 
 for measNo = 1:B0Fields.getnumberofmeasurements
-[~,GzFields.img(:,:,1,1,measNo)] = gradient( ...
-   squeeze(g*B0Fields.img(:,:,1,1,measNo)), Y0(1,:)/1000, Z0(:,1)/1000 ) ; % [units: mT/m]
+    for slice = 1:size(B0Fields.img,3)
+        [~,GzFields.img(:,:,slice,1,measNo)] = gradient( ...
+            squeeze(g*B0Fields.img(:,:,slice,1,measNo)), Y0(1,:,slice)/1000, Z0(:,1,slice)/1000 ) ; % [units: mT/m]
+    end
 end
 
 %% ------------------------------------------------------------------------
@@ -226,20 +228,20 @@ GzField = FieldEval.modelfield( GzFields );
 % 
 % % figure 
 % 
-% for indy = 70%:size(GzFields.img,1)
-%     for indx = 1:5:size(GzFields.img,2)
+% for indy = 25%:size(GzFields.img,1)
+%     for indx = 1:size(GzFields.img,2)
 %         if GzFields.Hdr.MaskingImage(indy,indx,1,1,1) == 1 
-%             Bt(indy,indx,:) = polyfit(pressure',squeeze(GzFields.img(indy,indx,1,1,:)),1);
+%             Bt(indy,indx,:) = polyfit(pressure',squeeze(B0Fields.img(indy,indx,1,1,:)),1);
 %             %Bt(indx,indy,1) = rms(pressure)* Bt(indx,indy,1);
 % 
-%             GzField.img(indy,indx) = Bt(indy,indx,2);
-%             GzField.Model.Riro.img(indy,indx) = Bt(indy,indx,1); 
+% %             GzField.img(indy,indx) = Bt(indy,indx,2);
+% %             GzField.Model.Riro.img(indy,indx) = Bt(indy,indx,1); 
 %             
 % %             if (indy == 70) && (indx == 34)
 %                 
 %                 figure
 %                 subplot(2,1,1);
-%                 scatter(pressure,squeeze(GzFields.img(indy,indx,1,1,:)));
+%                 scatter(pressure,squeeze(B0Fields.img(indy,indx,1,1,:)));
 %                 hold on;
 %                 plot(pressure,polyval(squeeze(Bt(indy,indx,:)),pressure),'k--');
 %                 hold off;
@@ -252,17 +254,17 @@ GzField = FieldEval.modelfield( GzFields );
 %                 hold off;
 %                 
 %                 subplot(2,1,2);
-%                 plot(squeeze(GzFields.img(indy,indx,1,1,:)));
+%                 plot(squeeze(B0Fields.img(indy,indx,1,1,:)));
 % %             end
 %             
 %         end
 %     end
 % end
-% 
-% 
-% 
-% 
-% 
+
+
+
+
+
 % for indy = 1:size(GzFields.img,1)
 %     for indx = 1:size(GzFields.img,2)
 %         if GzFields.Hdr.MaskingImage(indy,indx,1,1,1) == 1 

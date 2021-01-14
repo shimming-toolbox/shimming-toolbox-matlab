@@ -2496,10 +2496,13 @@ if ~exist( Params.dataSaveDir )
     mkdir( Params.dataSaveDir ) ;
 end
 
-dicm2nii( Params.dataLoadDir, Params.tmpSaveDir )
+%dicm2nii( Params.dataLoadDir, Params.tmpSaveDir )
+system(['dcm2niix -b n -o',' ',Params.tmpSaveDir,' -z y ',Params.dataLoadDir]);
+system(['fslmerge -t ',Params.tmpSaveDir,'vol',' ',Params.tmpSaveDir,'*.nii.gz']);
+
 
 % rename
-system( ['mv ' Params.tmpSaveDir '*.nii.gz ' Params.tmpSaveDir 't2s_allEchoes.nii.gz'] ) ;
+system( ['mv ' Params.tmpSaveDir 'vol.nii.gz ' Params.tmpSaveDir 't2s_allEchoes.nii.gz'] ) ;
 
 % average across echoes
 system( ['sct_maths -i ' Params.tmpSaveDir 't2s_allEchoes.nii.gz -mean t -o ' Params.tmpSaveDir 't2s.nii.gz'] ) ;
